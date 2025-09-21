@@ -14,7 +14,7 @@ export class TokenService {
     private readonly prisma: PrismaService,
   ) {}
 
-  generateAccessToken(payload: { sub: string }): string {
+  generateAccessToken(payload: { sub: string; role: string }): string {
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
       // FIX: Convert TTL string to a number of seconds to resolve type error.

@@ -2,9 +2,6 @@ import React from 'react';
 import { Trade, Direction } from '../../types';
 import { ArrowUpIcon } from '../icons/ArrowUpIcon';
 import { ArrowDownIcon } from '../icons/ArrowDownIcon';
-import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
-import { PencilIcon } from '../icons/PencilIcon';
-import { TrashIcon } from '../icons/TrashIcon';
 import { useTrade } from '../../context/TradeContext';
 import { useStrategy } from '../../context/StrategyContext';
 import { ActivateIcon } from '../icons/ActivateIcon';
@@ -50,10 +47,9 @@ const PendingOrderRow: React.FC<PendingOrderRowProps> = ({ trade }) => {
       <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.createdAt).toLocaleDateString()}</td>
       <td className="p-3 font-tech-mono font-semibold text-future-light">{trade.asset}</td>
       <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
-      <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(2)}</td>
+      <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(5)}</td>
       <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
       <td className="p-3 text-future-light">{strategyName}</td>
-      <td className="p-3 text-future-gray text-xs max-w-xs truncate">{trade.notes || '–'}</td>
       <td className="p-3">
         <div className="flex gap-2">
             <button onClick={handleActivate} className="flex items-center gap-1 text-sm text-momentum-green hover:underline">

@@ -18,4 +18,13 @@ export class UserDto {
 
   @Expose()
   lastLoginAt: Date;
+
+  @Expose()
+  role: string;
+
+  @Expose()
+  subscriptionStatus: string;
+
+  @Expose()
+  trialEndsAt: Date;
 }

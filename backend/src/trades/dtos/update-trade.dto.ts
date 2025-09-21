@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsObject, IsDate } from 'class-validator';
+import { Type } from 'class-transformer';
 
 enum Direction {
   Buy = 'Buy',
@@ -12,6 +13,16 @@ enum TradeResult {
 }
 
 export class UpdateTradeDto {
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  entryDate?: Date;
+
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  exitDate?: Date | null;
+
   @IsString()
   @IsNotEmpty()
   @IsOptional()
@@ -48,10 +59,6 @@ export class UpdateTradeDto {
   
   @IsString()
   @IsOptional()
-  notes?: string | null;
-  
-  @IsString()
-  @IsOptional()
   screenshotBeforeUrl?: string | null;
 
   @IsString()
@@ -65,4 +72,29 @@ export class UpdateTradeDto {
   @IsBoolean()
   @IsOptional()
   isPendingOrder?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  lotSize?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  stopLoss?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  takeProfit?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  commission?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  swap?: number | null;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  strategyId?: string;
 }

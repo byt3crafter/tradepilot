@@ -1,5 +1,4 @@
-
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { User } from '../types';
 
@@ -8,10 +7,15 @@ interface AuthContextType {
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isTrialing: boolean;
+  isSubscribed: boolean;
+  trialDaysRemaining: number;
+  isTrialExpired: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => void;
   resendVerification: (email: string) => Promise<void>;
+  refreshUser: () => Promise<User | undefined>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,23 +25,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [accessToken, setAccessToken] = useState<string | null>(localStorage.getItem('accessToken'));
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshUser = useCallback(async (): Promise<User | undefined> => {
+    if (!accessToken) {
+      setUser(null);
+      return undefined;
+    }
+    try {
+      const userData = await api.get<User>('/users/me', accessToken);
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('Failed to fetch user, logging out.', error);
+      setUser(null);
+      setAccessToken(null);
+      localStorage.removeItem('accessToken');
+      return undefined;
+    }
+  }, [accessToken]);
+
+
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoading(true);
       if (accessToken) {
-        try {
-          const userData = await api.get<User>('/users/me', accessToken);
-          setUser(userData);
-        } catch (error) {
-          console.error('Failed to fetch user, logging out.', error);
-          setAccessToken(null);
-          localStorage.removeItem('accessToken');
-        }
+        await refreshUser();
       }
       setIsLoading(false);
     };
 
     loadUser();
-  }, [accessToken]);
+  }, [accessToken, refreshUser]);
 
   const login = async (email: string, password: string) => {
     const { user, accessToken: newAccessToken } = await api.post<{ user: User, accessToken: string }>('/auth/login', { email, password });
@@ -55,7 +72,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const logout = () => {
-    // We can call the backend logout endpoint here to invalidate the refresh token
     if(accessToken) {
         api.post('/auth/logout', {}, accessToken).catch(err => console.error("Logout failed on backend", err));
     }
@@ -64,15 +80,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('accessToken');
   };
 
+  const subscriptionState = useMemo(() => {
+    const isTrialing = user?.subscriptionStatus === 'TRIALING';
+    const isSubscribed = user?.subscriptionStatus === 'ACTIVE';
+    
+    const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+    const trialDaysRemaining = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
+    const isTrialExpired = isTrialing && trialDaysRemaining === 0;
+
+    return { isTrialing, isSubscribed, trialDaysRemaining, isTrialExpired };
+  }, [user]);
+
   const value = {
     user,
     accessToken,
     isAuthenticated: !!user,
     isLoading,
+    ...subscriptionState,
     login,
     register,
     logout,
     resendVerification,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

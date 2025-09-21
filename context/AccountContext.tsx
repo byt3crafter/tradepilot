@@ -1,17 +1,21 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import api from '../services/api';
-import { BrokerAccount } from '../types';
+import { BrokerAccount, ObjectiveProgress, SmartLimitProgress } from '../types';
 import { useAuth } from './AuthContext';
 
 interface AccountContextType {
   accounts: BrokerAccount[];
   activeAccount: BrokerAccount | null;
+  objectivesProgress: ObjectiveProgress[] | null;
+  smartLimitsProgress: SmartLimitProgress | null;
   isLoading: boolean;
-  createAccount: (data: Omit<BrokerAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'currentBalance'>) => Promise<void>;
+  createAccount: (data: Partial<BrokerAccount>) => Promise<void>;
   updateAccount: (id: string, data: Partial<BrokerAccount>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
   switchAccount: (id: string) => void;
   refreshAccounts: () => Promise<void>;
+  refreshObjectives: () => Promise<void>;
+  refreshSmartLimitsProgress: () => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
@@ -20,7 +24,37 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { accessToken, isAuthenticated } = useAuth();
   const [accounts, setAccounts] = useState<BrokerAccount[]>([]);
   const [activeAccount, setActiveAccount] = useState<BrokerAccount | null>(null);
+  const [objectivesProgress, setObjectivesProgress] = useState<ObjectiveProgress[] | null>(null);
+  const [smartLimitsProgress, setSmartLimitsProgress] = useState<SmartLimitProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const refreshObjectives = useCallback(async () => {
+    if (activeAccount && activeAccount.objectives?.isEnabled && accessToken) {
+        try {
+            const progress = await api.getObjectivesProgress(activeAccount.id, accessToken);
+            setObjectivesProgress(progress);
+        } catch (error) {
+            console.error("Failed to fetch objectives progress", error);
+            setObjectivesProgress(null);
+        }
+    } else {
+        setObjectivesProgress(null);
+    }
+  }, [activeAccount, accessToken]);
+
+  const refreshSmartLimitsProgress = useCallback(async () => {
+    if (activeAccount && activeAccount.smartLimits?.isEnabled && accessToken) {
+        try {
+            const progress = await api.getSmartLimitsProgress(activeAccount.id, accessToken);
+            setSmartLimitsProgress(progress);
+        } catch (error) {
+            console.error("Failed to fetch smart limits progress", error);
+            setSmartLimitsProgress(null);
+        }
+    } else {
+        setSmartLimitsProgress(null);
+    }
+  }, [activeAccount, accessToken]);
 
   const refreshAccounts = useCallback(async () => {
     if (isAuthenticated && accessToken) {
@@ -50,6 +84,11 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     refreshAccounts();
   }, [refreshAccounts]);
+  
+  useEffect(() => {
+    refreshObjectives();
+    refreshSmartLimitsProgress();
+  }, [activeAccount, refreshObjectives, refreshSmartLimitsProgress]);
 
   const switchAccount = (id: string) => {
     const newActiveAccount = accounts.find(acc => acc.id === id);
@@ -59,7 +98,7 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
   
-  const createAccount = async (data: Omit<BrokerAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'currentBalance'>) => {
+  const createAccount = async (data: Partial<BrokerAccount>) => {
     if (!accessToken) throw new Error("Not authenticated");
     await api.createAccount(data, accessToken);
     await refreshAccounts();
@@ -80,12 +119,16 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
   const value = {
     accounts,
     activeAccount,
+    objectivesProgress,
+    smartLimitsProgress,
     isLoading,
     createAccount,
     updateAccount,
     deleteAccount,
     switchAccount,
     refreshAccounts,
+    refreshObjectives,
+    refreshSmartLimitsProgress,
   };
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

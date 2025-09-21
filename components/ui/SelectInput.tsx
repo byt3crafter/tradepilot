@@ -4,22 +4,24 @@ interface SelectInputProps extends React.SelectHTMLAttributes<HTMLSelectElement>
   label: string;
   id: string;
   options: { value: string; label: string }[];
+  subLabel?: string;
 }
 
-const SelectInput: React.FC<SelectInputProps> = ({ label, id, options, ...props }) => {
+const SelectInput: React.FC<SelectInputProps> = ({ label, id, options, subLabel, ...props }) => {
   return (
     <div className="mb-4">
-      <label htmlFor={id} className="block text-sm font-medium text-future-gray mb-2">
+      <label htmlFor={id} className="block text-lg font-semibold text-future-light">
         {label}
       </label>
+      {subLabel && <p className="text-sm text-future-gray mb-3 -mt-1">{subLabel}</p>}
       <div className="relative">
         <select
           id={id}
-          className="w-full bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-2 text-future-light placeholder-future-gray/50 focus:outline-none focus:ring-2 focus:ring-photonic-blue focus:border-transparent transition-shadow appearance-none"
+          className="w-full bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-3 text-future-light placeholder-future-gray/50 focus:outline-none focus:ring-2 focus:ring-photonic-blue focus:border-transparent transition-shadow appearance-none"
           {...props}
         >
           {options.map(option => (
-            <option key={option.value} value={option.value} className="bg-future-dark text-future-light">
+            <option key={option.value} value={option.value} className="bg-future-panel text-future-light py-2">
               {option.label}
             </option>
           ))}

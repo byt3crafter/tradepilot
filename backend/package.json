@@ -33,6 +33,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/throttler": "^5.1.2",
+    "@paddle/paddle-node-sdk": "^1.1.0",
     "@prisma/client": "^5.14.0",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
@@ -95,13 +96,6 @@
   },
   "pnpm": {
     "allowedUnsafeBuiltDependencies": [
-      "@nestjs/core",
-      "@prisma/client",
-      "@prisma/engines",
-      "bcrypt",
-      "prisma"
-    ],
-    "onlyBuiltDependencies": [
       "@nestjs/core",
       "@prisma/client",
       "@prisma/engines",

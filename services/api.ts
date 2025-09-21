@@ -1,4 +1,4 @@
-import { AiAnalysis, BrokerAccount, BrokerAccountType, ChecklistRule, Strategy, Trade } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Strategy, Trade, TradeJournal } from "../types";
 
 const API_URL = 'http://localhost:8080'; // In a real app, this should be an environment variable
 
@@ -22,9 +22,11 @@ interface ApiService {
   
   // Accounts
   getAccounts(token: string): Promise<BrokerAccount[]>;
-  createAccount(data: { name: string; type: BrokerAccountType; initialBalance: number }, token: string): Promise<BrokerAccount>;
+  createAccount(data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount>;
   updateAccount(id: string, data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount>;
   deleteAccount(id: string, token: string): Promise<{ message: string }>;
+  getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]>;
+  getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress>;
 
   // Strategies
   getStrategies(token: string): Promise<Strategy[]>;
@@ -44,6 +46,18 @@ interface ApiService {
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade>;
   deleteTrade(id: string, token: string): Promise<{ message: string }>;
   analyzeTrade(id: string, token: string): Promise<Trade>;
+  
+  // Trade Journals
+  createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
+  updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal>;
+
+  // Billing
+  getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
+  createCheckoutTransaction(token: string): Promise<{ transactionId: string }>;
+  
+  // Admin
+  getAdminStats(token: string): Promise<AdminStats>;
+  getAdminUsers(token: string): Promise<AdminUser[]>;
 }
 
 const buildHeaders = (token?: string): HeadersInit => {
@@ -130,7 +144,7 @@ const api: ApiService = {
     return (this as ApiService).get<BrokerAccount[]>('/broker-accounts', token);
   },
 
-  createAccount(data: { name: string; type: BrokerAccountType; initialBalance: number }, token: string): Promise<BrokerAccount> {
+  createAccount(data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
     return (this as ApiService).post<BrokerAccount>('/broker-accounts', data, token);
   },
   
@@ -140,6 +154,14 @@ const api: ApiService = {
 
   deleteAccount(id: string, token: string): Promise<{ message: string }> {
     return (this as ApiService).delete<{ message: string }>(`/broker-accounts/${id}`, token);
+  },
+  
+  getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]> {
+    return (this as ApiService).get<ObjectiveProgress[]>(`/broker-accounts/${id}/objectives`, token);
+  },
+
+  getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress> {
+    return (this as ApiService).get<SmartLimitProgress>(`/broker-accounts/${id}/smart-limits-progress`, token);
   },
 
   // Strategy Methods
@@ -185,6 +207,30 @@ const api: ApiService = {
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
     return (this as ApiService).post<Trade>(`/trades/${id}/analyze`, {}, token);
+  },
+
+  // Trade Journal Methods
+  createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal> {
+    return (this as ApiService).post<TradeJournal>(`/trades/${tradeId}/journal`, data, token);
+  },
+  updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal> {
+    return (this as ApiService).patch<TradeJournal>(`/trade-journals/${journalId}`, data, token);
+  },
+  
+  // Billing Methods
+  getBillingConfig(token: string): Promise<{ clientSideToken: string }> {
+    return (this as ApiService).get<{ clientSideToken: string }>('/billing/config', token);
+  },
+  createCheckoutTransaction(token: string): Promise<{ transactionId: string }> {
+    return (this as ApiService).post<{ transactionId: string }>('/billing/checkout', {}, token);
+  },
+  
+  // Admin Methods
+  getAdminStats(token: string): Promise<AdminStats> {
+    return (this as ApiService).get<AdminStats>('/admin/stats', token);
+  },
+  getAdminUsers(token: string): Promise<AdminUser[]> {
+    return (this as ApiService).get<AdminUser[]>('/admin/users', token);
   },
 };
 

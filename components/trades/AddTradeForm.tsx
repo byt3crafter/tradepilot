@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AuthInput from '../auth/AuthInput';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
@@ -7,17 +7,29 @@ import { useStrategy } from '../../context/StrategyContext';
 import { Trade, TradeResult, Direction } from '../../types';
 import Checkbox from '../ui/Checkbox';
 import { useTrade } from '../../context/TradeContext';
-import Textarea from '../ui/Textarea';
 import ImageUploader from './ImageUploader';
+import { ChevronDownIcon } from '../icons/ChevronDownIcon';
+import { useAccount } from '../../context/AccountContext';
 
 interface TradeFormProps {
   tradeToEdit?: Trade | null;
   onSuccess: () => void;
 }
 
+// Helper to format date for datetime-local input
+const toDateTimeLocal = (dateString?: string | null) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  // Adjust for timezone offset to display correctly in user's local time
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - timezoneOffset);
+  return localDate.toISOString().slice(0, 19);
+};
+
 const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   const { strategies } = useStrategy();
   const { createTrade, updateTrade } = useTrade();
+  const { activeAccount } = useAccount();
   
   const isEditMode = !!tradeToEdit;
 
@@ -28,42 +40,61 @@ const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     riskPercentage: 1,
     strategyId: strategies[0]?.id || '',
     isPendingOrder: false,
-    notes: '',
+    entryDate: toDateTimeLocal(new Date().toISOString()),
+    exitDate: null,
     exitPrice: null,
     result: null,
     screenshotBeforeUrl: null,
     screenshotAfterUrl: null,
+    lotSize: null,
+    stopLoss: null,
+    takeProfit: null,
+    commission: null,
+    swap: null,
+    profitLoss: null,
+    rr: null,
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isExecutionDetailsOpen, setIsExecutionDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (isEditMode) {
+      const formattedEntryDate = toDateTimeLocal(tradeToEdit.entryDate);
+      const formattedExitDate = tradeToEdit.exitDate
+        ? toDateTimeLocal(tradeToEdit.exitDate)
+        : formattedEntryDate; // Pre-fill exit date with entry date if empty
+
       setFormState({
         ...tradeToEdit,
+        entryDate: formattedEntryDate,
+        exitDate: formattedExitDate,
         entryPrice: tradeToEdit.entryPrice || 0,
         riskPercentage: tradeToEdit.riskPercentage || 1,
       });
+      // Automatically open execution details if some are filled
+      if (tradeToEdit.lotSize || tradeToEdit.commission || tradeToEdit.swap) {
+        setIsExecutionDetailsOpen(true);
+      }
     } else if (strategies.length > 0) {
       setFormState(prev => ({ ...prev, strategyId: strategies[0].id }));
     }
   }, [tradeToEdit, isEditMode, strategies]);
 
-  useEffect(() => {
-    // Auto-calculate P/L and R/R
-    if (isEditMode && formState.exitPrice && formState.entryPrice) {
-      const entry = Number(formState.entryPrice);
-      const exit = Number(formState.exitPrice);
-      const risk = Number(formState.riskPercentage) / 100;
-      
-      const pnl = formState.direction === 'Buy' ? (exit - entry) / entry : (entry - exit) / entry;
-      const profitLoss = pnl * 100; // As a percentage of entry
-      const rr = profitLoss / Number(formState.riskPercentage);
-
-      setFormState(prev => ({ ...prev, profitLoss, rr }));
+  const maxRiskLimit = useMemo(() => {
+    if (activeAccount?.smartLimits?.isEnabled && activeAccount.smartLimits.maxRiskPerTrade) {
+      return activeAccount.smartLimits.maxRiskPerTrade;
     }
-  }, [formState.exitPrice, formState.entryPrice, formState.direction, formState.riskPercentage, isEditMode]);
+    return null;
+  }, [activeAccount]);
+
+  const riskValidationError = useMemo(() => {
+    if (maxRiskLimit !== null && (formState.riskPercentage ?? 0) > maxRiskLimit) {
+      return `Risk exceeds your Smart Limit of ${maxRiskLimit}%.`;
+    }
+    return null;
+  }, [formState.riskPercentage, maxRiskLimit]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -80,7 +111,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     setFormState(prev => ({ ...prev, [field]: dataUrl }));
   };
 
-  const canSubmit = formState.strategyId && formState.asset;
+  const canSubmit = formState.strategyId && formState.asset && !riskValidationError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,19 +119,42 @@ const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     
     setIsLoading(true);
     setError('');
-    
-    const tradeData = {
-        ...formState,
-        entryPrice: Number(formState.entryPrice),
-        riskPercentage: Number(formState.riskPercentage),
-        exitPrice: formState.exitPrice ? Number(formState.exitPrice) : null,
-    };
 
     try {
       if (isEditMode) {
-        await updateTrade(tradeToEdit.id, tradeData);
+        const updatePayload: Partial<Trade> = {
+          asset: formState.asset,
+          direction: formState.direction,
+          entryPrice: Number(formState.entryPrice),
+          riskPercentage: Number(formState.riskPercentage),
+          strategyId: formState.strategyId,
+          entryDate: formState.entryDate ? new Date(formState.entryDate).toISOString() : new Date().toISOString(),
+          exitDate: formState.exitDate ? new Date(formState.exitDate).toISOString() : null,
+          exitPrice: formState.exitPrice ? Number(formState.exitPrice) : null,
+          result: formState.result || null,
+          screenshotBeforeUrl: formState.screenshotBeforeUrl,
+          screenshotAfterUrl: formState.screenshotAfterUrl,
+          profitLoss: formState.profitLoss ? Number(formState.profitLoss) : null,
+          rr: formState.rr ? Number(formState.rr) : null,
+          isPendingOrder: formState.isPendingOrder,
+          lotSize: formState.lotSize ? Number(formState.lotSize) : null,
+          stopLoss: formState.stopLoss ? Number(formState.stopLoss) : null,
+          takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
+          commission: formState.commission ? Number(formState.commission) : null,
+          swap: formState.swap ? Number(formState.swap) : null,
+        };
+        await updateTrade(tradeToEdit.id, updatePayload);
       } else {
-        await createTrade(tradeData);
+        const createPayload: Partial<Trade> = {
+          asset: formState.asset,
+          direction: formState.direction,
+          entryPrice: Number(formState.entryPrice),
+          riskPercentage: Number(formState.riskPercentage),
+          strategyId: formState.strategyId,
+          isPendingOrder: formState.isPendingOrder,
+          entryDate: formState.entryDate ? new Date(formState.entryDate).toISOString() : new Date().toISOString(),
+        };
+        await createTrade(createPayload);
       }
       onSuccess();
     } catch (err: any) {
@@ -115,6 +169,16 @@ const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
       <div className={isEditMode ? "grid grid-cols-1 lg:grid-cols-2 gap-x-8" : "space-y-4"}>
         {/* --- LEFT/MAIN COLUMN --- */}
         <div className="space-y-4">
+           <AuthInput
+              label="Entry Date & Time"
+              id="entryDate"
+              name="entryDate"
+              type="datetime-local"
+              value={formState.entryDate ?? ''}
+              onChange={handleInputChange}
+              required
+              step="1"
+            />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <AuthInput
               label="Asset"
@@ -144,48 +208,134 @@ const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
               id="entryPrice"
               name="entryPrice"
               type="number"
-              step="any"
+              step="0.01"
               value={formState.entryPrice}
               onChange={handleInputChange}
               required
             />
-            <AuthInput
-              label="Risk (%)"
-              id="riskPercentage"
-              name="riskPercentage"
-              type="number"
-              step="0.01"
-              value={formState.riskPercentage}
-              onChange={handleInputChange}
-              required
-            />
+            <div>
+              <AuthInput
+                label="Risk (%)"
+                id="riskPercentage"
+                name="riskPercentage"
+                type="number"
+                step="0.01"
+                value={formState.riskPercentage}
+                onChange={handleInputChange}
+                required
+              />
+              {riskValidationError && (
+                <p className="text-xs text-risk-high -mt-3">{riskValidationError}</p>
+              )}
+            </div>
           </div>
 
            {isEditMode && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-photonic-blue/10">
-               <AuthInput
-                  label="Exit Price"
-                  id="exitPrice"
-                  name="exitPrice"
-                  type="number"
-                  step="any"
-                  value={formState.exitPrice ?? ''}
-                  onChange={handleInputChange}
-                />
-                <SelectInput
-                  label="Result"
-                  id="result"
-                  name="result"
-                  value={formState.result ?? ''}
-                  onChange={handleInputChange}
-                  options={[
-                    { value: '', label: 'Select Result' },
-                    { value: TradeResult.Win, label: 'Win' },
-                    { value: TradeResult.Loss, label: 'Loss' },
-                    { value: TradeResult.Breakeven, label: 'Breakeven' },
-                  ]}
-                />
-            </div>
+            <>
+              <div className="pt-4 border-t border-photonic-blue/10">
+                 <AuthInput
+                    label="Exit Date & Time"
+                    id="exitDate"
+                    name="exitDate"
+                    type="datetime-local"
+                    value={formState.exitDate ?? ''}
+                    onChange={handleInputChange}
+                    step="1"
+                  />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <AuthInput
+                    label="Exit Price"
+                    id="exitPrice"
+                    name="exitPrice"
+                    type="number"
+                    step="0.01"
+                    value={formState.exitPrice ?? ''}
+                    onChange={handleInputChange}
+                  />
+                  <SelectInput
+                    label="Result"
+                    id="result"
+                    name="result"
+                    value={formState.result ?? ''}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: '', label: 'Select Result' },
+                      { value: TradeResult.Win, label: 'Win' },
+                      { value: TradeResult.Loss, label: 'Loss' },
+                      { value: TradeResult.Breakeven, label: 'Breakeven' },
+                    ]}
+                  />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                   <AuthInput
+                    label="Profit / Loss ($)"
+                    id="profitLoss"
+                    name="profitLoss"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 250.50"
+                    value={formState.profitLoss ?? ''}
+                    onChange={handleInputChange}
+                  />
+                  <AuthInput
+                    label="R:R Ratio"
+                    id="rr"
+                    name="rr"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 2.5"
+                    value={formState.rr ?? ''}
+                    onChange={handleInputChange}
+                  />
+              </div>
+
+              <div className="pt-4 border-t border-photonic-blue/10">
+                <button
+                  type="button"
+                  onClick={() => setIsExecutionDetailsOpen(!isExecutionDetailsOpen)}
+                  className="w-full flex items-center justify-between text-left"
+                  aria-expanded={isExecutionDetailsOpen}
+                  aria-controls="execution-details"
+                >
+                  <h3 className="text-sm font-orbitron text-photonic-blue/80">Execution Details</h3>
+                  <ChevronDownIcon className={`w-5 h-5 text-photonic-blue/80 transition-transform duration-300 ${isExecutionDetailsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                <div 
+                  id="execution-details"
+                  className={`transition-all duration-300 ease-in-out overflow-hidden ${isExecutionDetailsOpen ? 'max-h-96 mt-3' : 'max-h-0'}`}
+                >
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <AuthInput
+                          label="Lot Size"
+                          id="lotSize" name="lotSize" type="number" step="any"
+                          value={formState.lotSize ?? ''} onChange={handleInputChange}
+                        />
+                        <AuthInput
+                          label="Stop Loss"
+                          id="stopLoss" name="stopLoss" type="number" step="any"
+                          value={formState.stopLoss ?? ''} onChange={handleInputChange}
+                        />
+                        <AuthInput
+                          label="Take Profit"
+                          id="takeProfit" name="takeProfit" type="number" step="any"
+                          value={formState.takeProfit ?? ''} onChange={handleInputChange}
+                        />
+                        <AuthInput
+                          label="Commission ($)"
+                          id="commission" name="commission" type="number" step="any"
+                          value={formState.commission ?? ''} onChange={handleInputChange}
+                        />
+                        <AuthInput
+                          label="Swap ($)"
+                          id="swap" name="swap" type="number" step="any"
+                          value={formState.swap ?? ''} onChange={handleInputChange}
+                        />
+                    </div>
+                </div>
+              </div>
+            </>
            )}
 
            <SelectInput
@@ -200,16 +350,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
                 : [{ value: '', label: 'Create a strategy first' }]
               }
             />
-          
-          <Textarea
-            label="Notes / Trade Idea"
-            id="notes"
-            name="notes"
-            placeholder="Why are you taking this trade?"
-            value={formState.notes ?? ''}
-            onChange={handleInputChange}
-          />
-          
+                    
           {!isEditMode && (
               <Checkbox
                 id="isPendingOrder"

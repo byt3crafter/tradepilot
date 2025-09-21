@@ -36,6 +36,20 @@ enum Direction {
   Sell
 }
 
+// --- NEW: Enums for Subscriptions and Roles ---
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Models
 // ───────────────────────────────────────────────────────────────────────────────
@@ -45,55 +59,63 @@ enum Direction {
 // or as part of an initial migration script.
 
 model User {
-  id                   String               @id @default(uuid())
-  email                String               @unique @db.Citext
-  passwordHash         String
-  fullName             String?
-  isEmailVerified      Boolean              @default(false)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  lastLoginAt          DateTime?
+  id              String   @id @default(uuid())
+  email           String   @unique @db.Citext
+  passwordHash    String
+  fullName        String?
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastLoginAt     DateTime?
 
-  refreshSessions      RefreshSession[]
-  verificationTokens   VerificationToken[]
-  passwordResetTokens  PasswordResetToken[]
-  authAudits           AuthAudit[]
+  // --- NEW: Fields for Subscriptions and Roles ---
+  role                 Role               @default(USER)
+  subscriptionStatus   SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?
+  paddleCustomerId     String?            @unique
+  paddleSubscriptionId String?            @unique
+  // --- END NEW ---
+
+  refreshSessions     RefreshSession[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  authAudits          AuthAudit[]
 
   // Domain models
-  brokerAccounts       BrokerAccount[]
-  strategies           Strategy[]
-  checklistRules       ChecklistRule[]
-  trades               Trade[]
+  brokerAccounts      BrokerAccount[]
+  strategies          Strategy[]
+  checklistRules      ChecklistRule[]
+  trades              Trade[]
 
   @@map("users")
 }
 
 model RefreshSession {
-  id            String    @id @default(uuid())
-  tokenHash     String    @unique
-  userAgent     String?
-  ip            String?
-  createdAt     DateTime  @default(now())
-  revokedAt     DateTime?
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId        String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
   @@index([userId])
   @@map("refresh_sessions")
 }
 
 model VerificationToken {
-  id          String                @id @default(uuid())
-  tokenHash   String
-  type        VerificationTokenType
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime              @default(now())
-  payload     Json?                 // For storing extra data, e.g., new email for email change
+  id        String                @id @default(uuid())
+  tokenHash String
+  type      VerificationTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime              @default(now())
+  payload   Json? // For storing extra data, e.g., new email for email change
 
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
   @@unique([tokenHash, type])
   @@index([userId])
@@ -101,29 +123,29 @@ model VerificationToken {
 }
 
 model PasswordResetToken {
-  id        String    @id @default(uuid())
-  tokenHash String    @unique
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
   @@index([userId])
   @@map("password_reset_tokens")
 }
 
 model AuthAudit {
-  id          String   @id @default(uuid())
-  event       String   // e.g., 'login_success', 'login_failed', 'register_requested'
-  emailTried  String?  @db.Citext
-  ip          String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  event      String // e.g., 'login_success', 'login_failed', 'register_requested'
+  emailTried String?  @db.Citext
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId      String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String?
 
   @@index([userId])
   @@index([emailTried])
@@ -131,17 +153,19 @@ model AuthAudit {
 }
 
 model BrokerAccount {
-  id              String            @id @default(cuid())
-  name            String
-  type            BrokerAccountType
-  initialBalance  Float
-  currentBalance  Float
-  userId          String
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id             String            @id @default(cuid())
+  name           String
+  type           BrokerAccountType
+  initialBalance Float
+  currentBalance Float
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
-  trades          Trade[]
+  trades      Trade[]
+  objectives  TradingObjective?
+  smartLimits SmartLimit? // NEW: Relation to personal risk rules
 
   @@index([userId])
 }
@@ -155,7 +179,7 @@ model Strategy {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  trades      Trade[]
+  trades Trade[]
 
   @@index([userId])
 }
@@ -172,13 +196,15 @@ model ChecklistRule {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Trades & AI Analysis
+// Trades, Journals & AI Analysis
 // ───────────────────────────────────────────────────────────────────────────────
 
 model Trade {
-  id                  String        @id @default(cuid())
-  tradeDate           DateTime      @default(now())
+  id                  String       @id @default(cuid())
+  tradeDate           DateTime     @default(now())
   asset               String
+  entryDate           DateTime     @default(now()) // Rename tradeDate to entryDate
+  exitDate            DateTime?                    // Add this new field for exit time
   direction           Direction
   entryPrice          Float
   exitPrice           Float?
@@ -186,40 +212,93 @@ model Trade {
   rr                  Float?
   profitLoss          Float?
   result              TradeResult?
-  notes               String?
-  isPendingOrder      Boolean       @default(false)
-  
+  isPendingOrder      Boolean      @default(false)
+
+
+
+  // --- UPDATED: Execution details ---
+  lotSize             Float?
+  stopLoss            Float?
+  takeProfit          Float?
+  commission          Float?
+  swap                Float?
+  // --- END UPDATE ---
+
   screenshotBeforeUrl String?
   screenshotAfterUrl  String?
-  
-  aiAnalysis          AiAnalysis?
+
+  aiAnalysis   AiAnalysis?
+  tradeJournal TradeJournal?
 
   // Relations
-  userId              String
-  user                User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  brokerAccountId     String
-  brokerAccount       BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+  brokerAccountId String
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
-  strategyId          String
-  strategy            Strategy      @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyId String
+  strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([brokerAccountId])
   @@index([strategyId])
 }
 
-model AiAnalysis {
-  id          String   @id @default(cuid())
-  summary     String
-  mistakes    Json
-  goodPoints  Json
-  
-  createdAt   DateTime @default(now())
+// NEW: Model for detailed, reflective journal entries
+model TradeJournal {
+  id        String   @id @default(cuid())
 
-  tradeId     String   @unique
-  trade       Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  mindsetBefore   String
+  exitReasoning   String
+  lessonsLearned  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tradeId String @unique
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model AiAnalysis {
+  id         String   @id @default(cuid())
+  summary    String
+  mistakes   Json
+  goodPoints Json
+
+  createdAt DateTime @default(now())
+
+  tradeId String @unique
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model TradingObjective {
+  id             String   @id @default(cuid())
+  profitTarget   Float?
+  minTradingDays Int?
+  maxLoss        Float?
+  maxDailyLoss   Float?
+  isEnabled      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+// NEW: Model for Smart Limits (Personal Risk Management)
+model SmartLimit {
+  id              String   @id @default(cuid())
+  isEnabled       Boolean  @default(false)
+  maxRiskPerTrade Float?   // e.g., 1.5 for 1.5%
+  maxTradesPerDay Int?     // e.g., 3
+  maxLossesPerDay Int?     // e.g., 2
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 }

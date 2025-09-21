@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsDate } from 'class-validator';
+import { Type } from 'class-transformer';
 
 // These must align with the Prisma schema enums
 enum Direction {
@@ -7,6 +8,11 @@ enum Direction {
 }
 
 export class CreateTradeDto {
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  entryDate?: Date;
+
   @IsString()
   @IsNotEmpty()
   asset: string;
@@ -26,10 +32,6 @@ export class CreateTradeDto {
   @IsOptional()
   isPendingOrder?: boolean;
   
-  @IsString()
-  @IsNotEmpty()
-  notes?: string;
-
   @IsString()
   @IsNotEmpty()
   brokerAccountId: string;

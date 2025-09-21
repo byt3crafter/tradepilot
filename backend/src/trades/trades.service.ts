@@ -3,24 +3,40 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
+import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
 
 @Injectable()
 export class TradesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly accountsService: BrokerAccountsService,
   ) {}
 
   async create(userId: string, createTradeDto: CreateTradeDto) {
-    const { brokerAccountId, strategyId } = createTradeDto;
+    const { brokerAccountId, strategyId, riskPercentage } = createTradeDto;
     
-    // Verify that the associated account and strategy belong to the user
     const brokerAccount = await (this.prisma as any).brokerAccount.findFirst({
-        where: { id: brokerAccountId, userId }
+        where: { id: brokerAccountId, userId },
+        include: { smartLimits: true }
     });
     if (!brokerAccount) {
         throw new BadRequestException('Broker account not found or does not belong to the user.');
     }
+
+    // --- Smart Limits Enforcement ---
+    if (brokerAccount.smartLimits?.isEnabled) {
+      const { maxRiskPerTrade } = brokerAccount.smartLimits;
+      if (maxRiskPerTrade && riskPercentage > maxRiskPerTrade) {
+        throw new ForbiddenException(`Trade risk of ${riskPercentage}% exceeds your Smart Limit of ${maxRiskPerTrade}%.`);
+      }
+      
+      const progress = await this.accountsService.getSmartLimitsProgress(brokerAccountId, userId);
+      if (progress.isTradeCreationBlocked) {
+        throw new ForbiddenException(progress.blockReason);
+      }
+    }
+    // --- End of Enforcement ---
 
     const strategy = await (this.prisma as any).strategy.findFirst({
         where: { id: strategyId, userId }
@@ -45,17 +61,19 @@ export class TradesService {
       },
       include: {
         aiAnalysis: true, // Include the analysis data when fetching trades
+        tradeJournal: true, // Include the journal data
       },
       orderBy: { tradeDate: 'desc' },
     });
   }
 
-  async findOne(id: string, userId: string, includeAnalysis = false) {
+  async findOne(id: string, userId: string, includeRelations = false) {
     const trade = await (this.prisma as any).trade.findUnique({
       where: { id },
       include: { 
-        aiAnalysis: includeAnalysis,
-        strategy: true
+        aiAnalysis: includeRelations,
+        tradeJournal: includeRelations,
+        strategy: includeRelations,
       },
     });
 
@@ -90,7 +108,7 @@ export class TradesService {
   }
 
   async analyze(tradeId: string, userId: string) {
-    const trade = await this.findOne(tradeId, userId);
+    const trade = await this.findOne(tradeId, userId, true);
 
     if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
       throw new BadRequestException('Both "Before" and "After" screenshots are required for analysis.');

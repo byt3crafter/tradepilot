@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import md5 from 'md5';
 import { useAuth } from '../context/AuthContext';
-import { DashboardView } from '../pages/DashboardPage';
+import { DashboardView, SettingsSubView } from '../pages/DashboardPage';
 import AuthLogo from './auth/AuthLogo';
 import { JournalIcon } from './icons/JournalIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
@@ -10,10 +10,13 @@ import { UserIcon } from './icons/UserIcon';
 import { useAccount } from '../context/AccountContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { StrategyIcon } from './icons/StrategyIcon';
+import { CreditCardIcon } from './icons/CreditCardIcon';
+import { AdminIcon } from './icons/AdminIcon';
+import { useView } from '../context/ViewContext';
+import { User } from '../types';
+import { DashboardIcon } from './icons/DashboardIcon';
 
 interface SidebarProps {
-  currentView: DashboardView;
-  setView: (view: DashboardView) => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -22,28 +25,45 @@ const NavItem: React.FC<{
   icon: React.ReactNode;
   label: string;
   isActive: boolean;
-  onClick: () => void;
-}> = ({ icon, label, isActive, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center w-full px-4 py-3 rounded-lg transition-colors duration-200 ${
+  onClick?: () => void;
+  href?: string;
+}> = ({ icon, label, isActive, onClick, href }) => {
+    const content = (
+        <>
+            <div className="w-6 h-6 mr-4">{icon}</div>
+            <span className="font-semibold">{label}</span>
+        </>
+    );
+    const className = `flex items-center w-full px-4 py-3 rounded-lg transition-colors duration-200 ${
       isActive
         ? 'bg-photonic-blue/10 text-photonic-blue'
         : 'text-future-gray hover:bg-future-panel hover:text-future-light'
-    }`}
-  >
-    <div className="w-6 h-6 mr-4">{icon}</div>
-    <span className="font-semibold">{label}</span>
-  </button>
-);
+    }`;
+
+    if (href) {
+        return (
+            <a href={href} className={className}>
+                {content}
+            </a>
+        );
+    }
+    
+    return (
+        <button onClick={onClick} className={className}>
+            {content}
+        </button>
+    );
+};
 
 const ProfileMenu: React.FC<{
-  setView: (view: DashboardView) => void;
+  user: User;
   logout: () => void;
   closeMenu: () => void;
-}> = ({ setView, logout, closeMenu }) => {
-  const handleNavigation = (view: DashboardView) => {
-    setView(view);
+}> = ({ user, logout, closeMenu }) => {
+  const { navigateTo } = useView();
+
+  const handleNavigation = (view: DashboardView, subView?: SettingsSubView) => {
+    navigateTo(view, subView);
     closeMenu();
   };
 
@@ -57,12 +77,28 @@ const ProfileMenu: React.FC<{
         <span>Personalisation</span>
       </button>
       <button
-        onClick={() => handleNavigation('settings')}
+        onClick={() => handleNavigation('settings', 'accounts')}
         className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
       >
         <SettingsIcon className="w-5 h-5 mr-3" />
         <span>Settings</span>
       </button>
+       <button
+        onClick={() => handleNavigation('subscription')}
+        className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
+      >
+        <CreditCardIcon className="w-5 h-5 mr-3" />
+        <span>Subscription</span>
+      </button>
+       {user.role === 'ADMIN' && (
+          <a
+            href="/admin"
+            className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
+          >
+            <AdminIcon className="w-5 h-5 mr-3" />
+            <span>Admin Panel</span>
+          </a>
+      )}
       <div className="my-1 border-t border-photonic-blue/10"></div>
       <button
         onClick={logout}
@@ -133,8 +169,9 @@ const AccountSwitcher: React.FC = () => {
 };
 
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
+  const { currentView, navigateTo } = useView();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -151,13 +188,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, onClose
   }, []);
   
   const handleSetView = (view: DashboardView) => {
-    setView(view);
+    navigateTo(view);
     onClose(); // Close sidebar on mobile after navigation
-  };
-
-  const handleProfileMenuNavigation = (view: DashboardView) => {
-      handleSetView(view);
-      setIsMenuOpen(false);
   };
 
   if (!user) return null;
@@ -183,6 +215,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, onClose
 
         <nav className="flex-1 flex flex-col gap-2 overflow-y-auto sidebar-scrollbar pr-2">
           <NavItem
+            icon={<DashboardIcon />}
+            label="Dashboard"
+            isActive={currentView === 'dashboard'}
+            onClick={() => handleSetView('dashboard')}
+          />
+          <NavItem
             icon={<JournalIcon />}
             label="Trade Journal"
             isActive={currentView === 'journal'}
@@ -194,11 +232,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, onClose
             isActive={currentView === 'strategies'}
             onClick={() => handleSetView('strategies')}
           />
+           <NavItem
+            icon={<SettingsIcon />}
+            label="Settings"
+            isActive={currentView === 'settings'}
+            onClick={() => handleSetView('settings')}
+          />
         </nav>
 
         <div className="mt-auto" ref={menuRef}>
           <div className="border-t border-photonic-blue/10 pt-4 relative">
-            {isMenuOpen && <ProfileMenu setView={handleProfileMenuNavigation} logout={logout} closeMenu={() => setIsMenuOpen(false)} />}
+            {isMenuOpen && <ProfileMenu user={user} logout={logout} closeMenu={() => setIsMenuOpen(false)} />}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="flex items-center gap-3 px-2 w-full text-left rounded-lg hover:bg-future-panel p-2 transition-colors"

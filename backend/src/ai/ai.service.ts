@@ -1,10 +1,12 @@
 
+
+
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 // FIX: Switched to @google/genai and imported GoogleGenAI and Type as per the new SDK guidelines.
 import { GoogleGenAI, Type } from '@google/genai';
-// FIX: Using require for Prisma types due to module resolution issues.
-const { Trade, Strategy } = require('@prisma/client');
+// FIX: Removed unavailable Prisma types to prevent compilation errors.
+// import { Trade, Strategy } from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -33,7 +35,8 @@ export class AiService {
     }
 
     // FIX: Refactored to use a single API call with JSON output as per new SDK guidelines.
-    async getTradeAnalysis(trade: typeof Trade, strategy: typeof Strategy, pastMistakes: string) {
+    // FIX: Use `any` for Trade and Strategy types due to import issues.
+    async getTradeAnalysis(trade: any, strategy: any, pastMistakes: string) {
         if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
             throw new Error("Screenshots are missing for AI analysis.");
         }

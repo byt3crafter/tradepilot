@@ -54,9 +54,22 @@ export const ChecklistProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const deleteRule = async (id: string) => {
-     if (!accessToken) throw new Error("Not authenticated");
-     await api.deleteChecklistRule(id, accessToken);
-     await refreshRules();
+     console.log(`[ChecklistContext] Attempting to delete rule with ID: ${id}`);
+     if (!accessToken) {
+        console.error('[ChecklistContext] Delete failed: Not authenticated.');
+        throw new Error("Not authenticated");
+     }
+     try {
+        console.log('[ChecklistContext] Calling API to delete rule...');
+        const response = await api.deleteChecklistRule(id, accessToken);
+        console.log('[ChecklistContext] API call successful:', response);
+        console.log('[ChecklistContext] Refreshing rules...');
+        await refreshRules();
+        console.log('[ChecklistContext] Rules refreshed.');
+     } catch (error) {
+        console.error('[ChecklistContext] An error occurred during deleteRule:', error);
+        throw error; // Re-throw the error so the UI can catch it
+     }
   };
 
   const value = {

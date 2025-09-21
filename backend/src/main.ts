@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as compression from 'compression';
 import * as cookieParser from 'cookie-parser';
+import * as express from 'express';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
@@ -15,6 +16,10 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 8080);
   const frontendUrl = configService.get<string>('FRONTEND_URL');
   const nodeEnv = configService.get<string>('NODE_ENV');
+
+  // Increase payload size limit for JSON and URL-encoded requests
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Security Middleware
   app.use(helmet());

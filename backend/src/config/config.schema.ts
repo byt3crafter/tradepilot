@@ -23,4 +23,11 @@ export const JoiValidationSchema = Joi.object({
   THROTTLE_TTL: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(10),
   GEMINI_API_KEY: Joi.string().required(),
+
+  // Paddle Configuration
+  PADDLE_API_KEY: Joi.string().required(),
+  PADDLE_CLIENT_SIDE_TOKEN: Joi.string().required(),
+  PADDLE_WEBHOOK_SECRET: Joi.string().required(),
+  PADDLE_PRICE_ID: Joi.string().required(),
+  PADDLE_ENV: Joi.string().valid('sandbox', 'production').default('sandbox'),
 });

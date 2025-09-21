@@ -13,6 +13,9 @@ import { StrategiesModule } from './strategies/strategies.module';
 import { ChecklistRulesModule } from './checklist-rules/checklist-rules.module';
 import { TradesModule } from './trades/trades.module';
 import { AiModule } from './ai/ai.module';
+import { BillingModule } from './billing/billing.module';
+import { AdminModule } from './admin/admin.module';
+import { TradeJournalsModule } from './trade-journals/trade-journals.module';
 
 
 @Module({
@@ -35,6 +38,9 @@ import { AiModule } from './ai/ai.module';
     ChecklistRulesModule,
     TradesModule,
     AiModule,
+    BillingModule,
+    AdminModule,
+    TradeJournalsModule,
   ],
   controllers: [],
   providers: [

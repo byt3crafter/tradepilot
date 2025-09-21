@@ -1,7 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-// import { PrismaClient } from '@prisma/client'; // FIX: Replaced with require to solve type resolution error.
 
-// FIX: Using require for PrismaClient due to module resolution issues.
+// FIX: The import of PrismaClient fails because the Prisma client has not been generated.
+// To resolve this, `npx prisma generate` should be run. As a workaround in the code,
+// we must load the PrismaClient dynamically at runtime using `require`.
+// FIX: Added declaration for `require` to resolve "Cannot find name 'require'" error.
+declare const require: any;
 const { PrismaClient } = require('@prisma/client');
 
 @Injectable()

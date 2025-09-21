@@ -1,11 +1,57 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
 
-// This needs to align with the Prisma enum in schema.prisma
 enum BrokerAccountType {
   DEMO = 'DEMO',
   LIVE = 'LIVE',
   PROP_FIRM = 'PROP_FIRM',
 }
+
+class TradingObjectiveDto {
+  @IsBoolean()
+  @IsOptional()
+  isEnabled?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  profitTarget?: number;
+
+  @IsNumber()
+  @IsOptional()
+  minTradingDays?: number;
+  
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxLoss?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxDailyLoss?: number;
+}
+
+class SmartLimitDto {
+  @IsBoolean()
+  @IsOptional()
+  isEnabled?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxRiskPerTrade?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxTradesPerDay?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxLossesPerDay?: number;
+}
+
 
 export class UpdateBrokerAccountDto {
   @IsString()
@@ -27,4 +73,14 @@ export class UpdateBrokerAccountDto {
   @Min(0)
   @IsOptional()
   currentBalance?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TradingObjectiveDto)
+  objectives?: TradingObjectiveDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SmartLimitDto)
+  smartLimits?: SmartLimitDto;
 }

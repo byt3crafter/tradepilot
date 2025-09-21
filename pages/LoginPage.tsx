@@ -27,7 +27,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
 
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    // FIX: Changed NodeJS.Timeout to ReturnType<typeof setTimeout> for browser compatibility.
+    let timer: ReturnType<typeof setTimeout>;
     if (resendCooldown > 0) {
       timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
     }

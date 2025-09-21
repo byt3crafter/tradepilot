@@ -24,10 +24,14 @@ export class AuthService {
     const { email, password, fullName } = registerDto;
     const passwordHash = await bcrypt.hash(password, 10);
     
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 15);
+
     const user = await this.usersService.create({
       email: email.toLowerCase(),
       passwordHash,
       fullName,
+      trialEndsAt,
     });
 
     const { token } = await this.tokenService.createEmailVerificationToken(user.id);
@@ -89,8 +93,9 @@ export class AuthService {
   
   async rotateRefreshToken(userId: string, oldRefreshToken: string) {
       try {
+        const user = await this.usersService.findById(userId);
         const newSession = await this.tokenService.rotateRefreshToken(oldRefreshToken, userId);
-        const newAccessToken = this.tokenService.generateAccessToken({ sub: userId });
+        const newAccessToken = this.tokenService.generateAccessToken({ sub: userId, role: user.role });
         return { newAccessToken, newRefreshToken: newSession.token };
       } catch (error) {
           this.logger.warn(`Refresh token rotation failed for user ${userId}: ${error.message}`);
@@ -100,7 +105,7 @@ export class AuthService {
 
   // FIX: Changed User type to any to resolve type error.
   private async generateAndSaveTokens(user: any, ip: string, userAgent: string) {
-    const accessToken = this.tokenService.generateAccessToken({ sub: user.id });
+    const accessToken = this.tokenService.generateAccessToken({ sub: user.id, role: user.role });
     const { token: refreshToken } = await this.tokenService.createRefreshSession(user.id, { ip, userAgent });
     return { accessToken, refreshToken };
   }

@@ -11,6 +11,10 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import Button from './ui/Button';
 import Spinner from './Spinner';
 import AiAnalysisDisplay from './trades/AiAnalysisDisplay';
+import JournalEntry from './journal/JournalEntry';
+import Modal from './ui/Modal';
+import JournalForm from './journal/JournalForm';
+import { PlusIcon } from './icons/PlusIcon';
 
 interface TradeRowProps {
   trade: Trade;
@@ -58,13 +62,16 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const { strategies } = useStrategy();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
 
-  const isWin = trade.result === TradeResult.Win;
-  const isLoss = trade.result === TradeResult.Loss;
-  
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this trade?')) {
-      await deleteTrade(trade.id);
+      try {
+        await deleteTrade(trade.id);
+      } catch (err) {
+        console.error('Failed to delete trade:', err);
+        alert('Could not delete the trade. Please try again.');
+      }
     }
   };
 
@@ -80,10 +87,24 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
     }
   };
   
-  const profitLossColor = isWin ? 'text-momentum-green' : isLoss ? 'text-risk-high' : 'text-risk-medium';
   const strategyName = strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown';
   const canAnalyze = trade.screenshotBeforeUrl && trade.screenshotAfterUrl && !trade.aiAnalysis;
 
+  const profitLoss = trade.profitLoss ?? 0;
+  const commission = trade.commission ?? 0;
+  const swap = trade.swap ?? 0;
+  const netProfitLoss = profitLoss - commission - swap;
+
+  const profitLossColor = profitLoss > 0 ? 'text-momentum-green' : profitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
+  const netProfitLossColor = netProfitLoss > 0 ? 'text-momentum-green' : netProfitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
+
+  const formatDateTime = (dateString?: string | null) => {
+    if (!dateString) return '–';
+    return new Date(dateString).toLocaleString(undefined, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
 
   return (
     <>
@@ -94,12 +115,17 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         <td className="p-3 text-center">
             <ChevronDownIcon className={`w-5 h-5 text-future-gray transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
         </td>
-        <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.tradeDate).toLocaleDateString()}</td>
+        <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.entryDate).toLocaleDateString()}</td>
         <td className="p-3 font-tech-mono font-semibold text-future-light">{trade.asset}</td>
         <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
         <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(2)}</td>
         <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
-        <td className="p-3 text-future-gray text-xs max-w-xs truncate">{trade.notes || '–'}</td>
+        <td className="p-3 font-tech-mono"><ResultBadge result={trade.result} /></td>
+        <td className="p-3 font-tech-mono">
+          <span className={`${netProfitLossColor} font-semibold`}>
+            ${netProfitLoss.toFixed(2)}
+          </span>
+        </td>
         <td className="p-3" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
               <DropdownMenuItem onSelect={onEdit}>
@@ -116,29 +142,57 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
       {isExpanded && (
         <tr className="bg-future-panel/30">
             <td></td>
-            <td colSpan={7} className="p-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
-                    <DetailItem label="Exit Price">{trade.exitPrice?.toFixed(2) ?? '–'}</DetailItem>
-                    <DetailItem label="P/L"><span className={profitLossColor}>${trade.profitLoss?.toFixed(2) ?? '–'}</span></DetailItem>
-                    <DetailItem label="Result"><ResultBadge result={trade.result} /></DetailItem>
+            <td colSpan={8} className="p-4">
+              <div className="relative">
+                <Button
+                    onClick={onEdit}
+                    variant="link"
+                    className="absolute top-0 right-0 flex items-center gap-1 text-sm p-0"
+                  >
+                    <PencilIcon className="w-4 h-4 mr-1" />
+                    Edit
+                </Button>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 text-sm pr-16">
+                    <DetailItem label="Entry Time">{formatDateTime(trade.entryDate)}</DetailItem>
+                    <DetailItem label="Exit Time">{formatDateTime(trade.exitDate)}</DetailItem>
+                    <DetailItem label="Stop Loss">{trade.stopLoss?.toFixed(5) ?? '–'}</DetailItem>
+                    <DetailItem label="Take Profit">{trade.takeProfit?.toFixed(5) ?? '–'}</DetailItem>
+                    <DetailItem label="Lot Size">{trade.lotSize ?? '–'}</DetailItem>
+                    
+                    <DetailItem label="Gross P/L"><span className={profitLossColor}>${profitLoss.toFixed(2)}</span></DetailItem>
                     <DetailItem label="R:R">{trade.rr?.toFixed(2) ?? '–'}</DetailItem>
-                    <DetailItem label="Strategy" className="col-span-full">{strategyName}</DetailItem>
+                    <DetailItem label="Commission">{trade.commission ? `-$${commission.toFixed(2)}` : '–'}</DetailItem>
+                    <DetailItem label="Swap">{trade.swap ? `-$${swap.toFixed(2)}` : '–'}</DetailItem>
+                    <DetailItem label="Net P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-photonic-blue/10">
+                  <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Screenshots</h4>
+                   <div className="flex flex-col md:flex-row gap-4 mb-4">
+                      <div className="w-full md:w-1/2">
+                          <span className="text-xs text-future-gray">Before Entry</span>
+                          {trade.screenshotBeforeUrl ? <img src={trade.screenshotBeforeUrl} alt="Before trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                      </div>
+                      <div className="w-full md:w-1/2">
+                          <span className="text-xs text-future-gray">After Exit</span>
+                          {trade.screenshotAfterUrl ? <img src={trade.screenshotAfterUrl} alt="After trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                      </div>
+                  </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-photonic-blue/10">
-                    <div className="flex flex-col md:flex-row gap-4">
+                <div className="mt-4 pt-4 border-t border-photonic-blue/10 grid grid-cols-1 md:grid-cols-2 md:gap-x-8 space-y-4 md:space-y-0">
                        <div className="flex-1">
-                            <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Screenshots</h4>
-                            <div className="flex gap-4">
-                                <div className="w-1/2">
-                                    <span className="text-xs text-future-gray">Before Entry</span>
-                                    {trade.screenshotBeforeUrl ? <img src={trade.screenshotBeforeUrl} alt="Before trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                            <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">My Journal</h4>
+                            {trade.tradeJournal ? (
+                                <JournalEntry journal={trade.tradeJournal} />
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center bg-future-dark/50 p-4 rounded-md">
+                                    <p className="text-sm text-future-gray mb-3 text-center">No journal entry yet. What did you learn?</p>
+                                    <Button onClick={() => setIsJournalModalOpen(true)} className="w-auto flex items-center gap-2">
+                                        <PlusIcon className="w-4 h-4" /> Add Journal Entry
+                                    </Button>
                                 </div>
-                                <div className="w-1/2">
-                                    <span className="text-xs text-future-gray">After Exit</span>
-                                    {trade.screenshotAfterUrl ? <img src={trade.screenshotAfterUrl} alt="After trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
-                                </div>
-                            </div>
+                            )}
                        </div>
                        <div className="flex-1">
                             <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">AI Analysis</h4>
@@ -157,10 +211,15 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                                 </div>
                             )}
                        </div>
-                    </div>
                 </div>
+              </div>
             </td>
         </tr>
+      )}
+      {isJournalModalOpen && (
+        <Modal title="Add Journal Entry" onClose={() => setIsJournalModalOpen(false)}>
+          <JournalForm trade={trade} onSuccess={() => setIsJournalModalOpen(false)} />
+        </Modal>
       )}
     </>
   );

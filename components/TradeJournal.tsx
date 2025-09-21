@@ -11,30 +11,47 @@ import TradeForm from './trades/AddTradeForm';
 import PendingOrderRow from './trades/PendingOrderRow';
 import { useSettings } from '../context/SettingsContext';
 import { useChecklist } from '../context/ChecklistContext';
-import PreFlightChecklistModal from './trades/PreFlightChecklistModal';
+import PreTradeChecklistModal from './trades/PreFlightChecklistModal';
 import { Trade } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
 
 type JournalView = 'active' | 'pending';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
 
 const TradeJournal: React.FC = () => {
-  const { activeAccount, isLoading: isAccountLoading } = useAccount();
+  const { activeAccount, objectivesProgress, smartLimitsProgress, isLoading: isAccountLoading } = useAccount();
   const { trades, pendingTrades, isLoading: isTradeLoading } = useTrade();
   const { enforceChecklist } = useSettings();
   const { rules } = useChecklist();
+  const { isTrialExpired } = useAuth();
+  const { showUpgradeModal } = useSubscription();
+
   const [addTradeStep, setAddTradeStep] = useState<AddTradeStep>('closed');
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [currentView, setCurrentView] = useState<JournalView>('active');
 
   const headers = [
-    '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Notes', 'Actions'
+    '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Net P/L', 'Actions'
   ];
 
   const pendingHeaders = [
-    'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Strategy', 'Notes', 'Actions'
+    'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Strategy', 'Actions'
   ];
 
+  const dailyLossRule = objectivesProgress?.find(obj => obj.key === 'maxDailyLoss');
+  const isObjectiveBlocked = dailyLossRule?.status === 'Failed';
+  
+  const isSmartLimitBlocked = smartLimitsProgress?.isTradeCreationBlocked ?? false;
+  const blockReason = isObjectiveBlocked ? 'Daily loss limit reached.' : smartLimitsProgress?.blockReason;
+
   const handleOpenAddTrade = () => {
+    if (isTrialExpired) {
+      showUpgradeModal();
+      return;
+    }
+    if (isObjectiveBlocked || isSmartLimitBlocked) return;
+
     setEditingTrade(null);
     if (enforceChecklist && rules.length > 0) {
       setAddTradeStep('checklist');
@@ -114,13 +131,24 @@ const TradeJournal: React.FC = () => {
       <Card className="opacity-0 animate-fade-in-up [animation-delay:0.3s]">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
           <div>
-            <h2 className="text-2xl font-orbitron text-future-light">Trade Journal</h2>
+            <h2 className="text-2xl font-orbitron text-future-light">Trading Activity</h2>
             <p className="text-future-gray text-sm">Log and review your trading activity for <span className="text-future-light font-semibold">{activeAccount?.name || '...'}</span></p>
           </div>
-          <Button onClick={handleOpenAddTrade} className="w-full md:w-auto flex items-center justify-center gap-2" disabled={!activeAccount}>
-            <PlusIcon className="w-5 h-5" />
-            <span>Add New Trade</span>
-          </Button>
+          <div className="relative">
+             <Button 
+                onClick={handleOpenAddTrade} 
+                className="w-full md:w-auto flex items-center justify-center gap-2" 
+                disabled={!activeAccount || isObjectiveBlocked || isSmartLimitBlocked}
+            >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add New Trade</span>
+            </Button>
+            {(isObjectiveBlocked || isSmartLimitBlocked) && (
+                 <div className="absolute -top-10 right-0 text-xs bg-risk-high text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
+                    {blockReason}
+                </div>
+            )}
+          </div>
         </div>
 
         <div className="border-b border-photonic-blue/20 mb-4">
@@ -129,7 +157,7 @@ const TradeJournal: React.FC = () => {
               onClick={() => setCurrentView('active')}
               className={`px-3 py-2 text-sm font-semibold transition-colors ${currentView === 'active' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
             >
-              Journal ({trades.length})
+              Activity ({trades.length})
             </button>
             <button
               onClick={() => setCurrentView('pending')}
@@ -162,7 +190,7 @@ const TradeJournal: React.FC = () => {
       </Card>
 
       {addTradeStep === 'checklist' && (
-        <PreFlightChecklistModal
+        <PreTradeChecklistModal
           onSuccess={handleChecklistSuccess}
           onClose={closeModals}
         />
@@ -170,7 +198,7 @@ const TradeJournal: React.FC = () => {
 
       {addTradeStep === 'form' && (
         <Modal 
-          title={editingTrade ? "Edit Trade" : "Add New Trade"} 
+          title={editingTrade ? "Edit Trade" : "Log New Trade"} 
           onClose={closeModals}
           size={editingTrade ? '4xl' : 'lg'}
         >

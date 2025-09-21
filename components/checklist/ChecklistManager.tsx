@@ -43,7 +43,7 @@ const ChecklistManager: React.FC = () => {
     <>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl font-orbitron text-photonic-blue">Pre-Flight Checklist</h2>
+          <h2 className="text-xl font-orbitron text-photonic-blue">Pre-Trade Checklist</h2>
           <p className="text-future-gray text-sm mt-1">Define the rules you must follow before every trade.</p>
         </div>
         <Button onClick={openAddModal} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">

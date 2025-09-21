@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { AuthPage } from '../App';
 import Button from '../components/ui/Button';
@@ -16,7 +14,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
       <p className="mt-4 text-lg text-future-gray">
         Your ultimate trading companion. Record, analyze, and refine your trades with intelligent insights and a powerful journal system.
       </p>
-      <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <p className="mt-6 font-semibold text-photonic-blue">
+        Start your 15-day free trial. No credit card required.
+      </p>
+      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
         <Button onClick={() => navigate('login')} className="w-full sm:w-40">
           Log In
         </Button>

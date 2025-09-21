@@ -5,12 +5,12 @@ import { useChecklist } from '../../context/ChecklistContext';
 import Checkbox from '../ui/Checkbox';
 import Spinner from '../Spinner';
 
-interface PreFlightChecklistModalProps {
+interface PreTradeChecklistModalProps {
   onSuccess: () => void;
   onClose: () => void;
 }
 
-const PreFlightChecklistModal: React.FC<PreFlightChecklistModalProps> = ({ onSuccess, onClose }) => {
+const PreTradeChecklistModal: React.FC<PreTradeChecklistModalProps> = ({ onSuccess, onClose }) => {
   const { rules, isLoading } = useChecklist();
   const [checkedState, setCheckedState] = useState<Record<string, boolean>>({});
 
@@ -24,7 +24,7 @@ const PreFlightChecklistModal: React.FC<PreFlightChecklistModalProps> = ({ onSuc
   const isComplete = rules.every(rule => checkedState[rule.id]);
 
   return (
-    <Modal title="Pre-Flight Checklist" onClose={onClose} size="lg">
+    <Modal title="Pre-Trade Checklist" onClose={onClose} size="lg">
       <div>
         <p className="text-future-gray text-sm mb-4">Confirm you have followed your rules before proceeding.</p>
         {isLoading ? (
@@ -58,4 +58,4 @@ const PreFlightChecklistModal: React.FC<PreFlightChecklistModalProps> = ({ onSuc
   );
 };
 
-export default PreFlightChecklistModal;
+export default PreTradeChecklistModal;
