@@ -44,27 +44,29 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       return;
     }
     
-    const objectivesPayload = objectivesEnabled ? {
-        isEnabled: true,
-        profitTarget: profitTarget ? parseFloat(profitTarget as string) : null,
-        minTradingDays: minTradingDays ? parseInt(minTradingDays as string, 10) : null,
-        maxLoss: maxLoss ? parseFloat(maxLoss as string) : null,
-        maxDailyLoss: maxDailyLoss ? parseFloat(maxDailyLoss as string) : null,
-    } : { isEnabled: false };
+    const baseObjectivesPayload = {
+      profitTarget: profitTarget ? parseFloat(profitTarget as string) : null,
+      minTradingDays: minTradingDays ? parseInt(minTradingDays as string, 10) : null,
+      maxLoss: maxLoss ? parseFloat(maxLoss as string) : null,
+      maxDailyLoss: maxDailyLoss ? parseFloat(maxDailyLoss as string) : null,
+    };
 
-    const smartLimitsPayload = smartLimitsEnabled ? {
-        isEnabled: true,
-        maxRiskPerTrade: maxRiskPerTrade ? parseFloat(maxRiskPerTrade as string) : null,
-        maxTradesPerDay: maxTradesPerDay ? parseInt(maxTradesPerDay as string, 10) : null,
-        maxLossesPerDay: maxLossesPerDay ? parseInt(maxLossesPerDay as string, 10) : null,
-    } : { isEnabled: false };
+    const baseSmartLimitsPayload = {
+      maxRiskPerTrade: maxRiskPerTrade ? parseFloat(maxRiskPerTrade as string) : null,
+      maxTradesPerDay: maxTradesPerDay ? parseInt(maxTradesPerDay as string, 10) : null,
+      maxLossesPerDay: maxLossesPerDay ? parseInt(maxLossesPerDay as string, 10) : null,
+    };
 
     try {
       if (account) {
-        // FIX: Cast payloads to 'any' to bypass the strict frontend type which expects an 'id' that is not present or needed for the update DTO.
+        // UPDATE: Payload includes isEnabled
+        const objectivesPayload = { isEnabled: objectivesEnabled, ...baseObjectivesPayload };
+        const smartLimitsPayload = { isEnabled: smartLimitsEnabled, ...baseSmartLimitsPayload };
         await updateAccount(account.id, { name, type, initialBalance: balance, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
       } else {
-        // FIX: Cast payloads to 'any' to bypass the strict frontend type which expects an 'id' that is not present or needed for the create DTO.
+        // CREATE: Payload does NOT include isEnabled. Send undefined if not enabled.
+        const objectivesPayload = objectivesEnabled ? baseObjectivesPayload : undefined;
+        const smartLimitsPayload = smartLimitsEnabled ? baseSmartLimitsPayload : undefined;
         await createAccount({ name, type, initialBalance: balance, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
       }
       onSuccess();
