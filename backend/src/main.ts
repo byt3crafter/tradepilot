@@ -30,15 +30,18 @@ async function bootstrap() {
   const allowedOrigins = frontendUrls!.split(',').map(url => url.trim());
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
+      // This logic allows requests from origins in the `allowedOrigins` list,
+      // and also allows server-to-server requests where `origin` is undefined.
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
         const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
-        return callback(new Error(msg), false);
+        callback(new Error(msg));
       }
-      return callback(null, true);
     },
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
   // Global Pipes
