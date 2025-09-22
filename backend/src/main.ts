@@ -11,11 +11,9 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
-  // By passing `{ cors: true }`, we ensure NestJS is ready to handle pre-flight OPTIONS requests
-  // from the very start, which is critical for preventing 404s on those requests.
-  const app = await NestFactory.create(AppModule, { cors: true });
-  
+  const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  
   const port = configService.get<number>('PORT', 8080);
   const frontendUrls = configService.get<string>('FRONTEND_URL');
   const nodeEnv = configService.get<string>('NODE_ENV');
@@ -29,14 +27,27 @@ async function bootstrap() {
   app.use(compression());
   app.use(cookieParser());
 
-  // CORS: Use a simple, direct allow-list. This is the most standard and reliable approach.
-  const allowedOrigins = frontendUrls!.split(',').map(url => url.trim());
-  app.enableCors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
-  });
+  // ──────────────────────────────────────────────────────────────────
+  // CORS (Definitive Fix)
+  // ──────────────────────────────────────────────────────────────────
+  // The previous implementation threw an error for unallowed origins,
+  // causing a 500 Internal Server Error on OPTIONS preflight checks.
+  // The correct and most robust approach is to provide a direct list
+  // of allowed origins and let the underlying library handle validation.
+  const allowedOrigins = frontendUrls!.split(',').map(url => url.trim()).filter(Boolean);
+  
+  if (allowedOrigins.length > 0) {
+    Logger.log(`CORS allowed origins: [${allowedOrigins.join(', ')}]`, 'Bootstrap');
+    app.enableCors({
+      origin: allowedOrigins,
+      credentials: true,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: 'Content-Type, Accept, Authorization',
+    });
+  } else {
+      Logger.warn(`CORS is not configured with any origins.`, 'Bootstrap');
+  }
+
 
   // Global Pipes
   app.useGlobalPipes(
