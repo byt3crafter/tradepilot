@@ -1,6 +1,8 @@
 import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Strategy, Trade, TradeJournal } from "../types";
 
-const API_URL = 'http://localhost:8080'; // In a real app, this should be an environment variable
+// The API_URL is configured in a <script> tag within index.html
+// This allows for easy configuration without needing a build process.
+const API_URL = (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -60,7 +62,6 @@ interface ApiService {
   getAdminUsers(token: string): Promise<AdminUser[]>;
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
   revokeProAccess(userId: string, token: string): Promise<AdminUser>;
-  deleteUser(userId: string, token: string): Promise<{ message: string }>;
 }
 
 const buildHeaders = (token?: string): HeadersInit => {
@@ -240,9 +241,6 @@ const api: ApiService = {
   },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> {
     return (this as ApiService).delete<AdminUser>(`/admin/users/${userId}/grant-pro`, token);
-  },
-  deleteUser(userId: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/admin/users/${userId}`, token);
   },
 };
 

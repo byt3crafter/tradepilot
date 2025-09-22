@@ -36,13 +36,57 @@ This is the NestJS backend for the tradePilot application, providing a complete 
 
 Clone the repository and navigate into the `backend` directory.
 
-Copy the example environment file:
+Create an environment file named `.env` by copying the example:
 
 ```bash
 cp .env.example .env
 ```
 
-Open the `.env` file and **update the `DATABASE_URL`** to point to your local PostgreSQL instance.
+Open the `.env` file and fill in all the required values. Below is a complete list of all variables used by the application, which you can use as a template.
+
+```env
+# Application
+NODE_ENV=development
+PORT=8080
+APP_URL=http://localhost:8080
+FRONTEND_URL=http://localhost:5173
+
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/tradepilot?schema=public"
+
+# JWT Secrets (generate strong, random strings for these)
+JWT_ACCESS_SECRET=your_super_secret_access_key
+JWT_REFRESH_SECRET=your_super_secret_refresh_key
+
+# Token Time-to-Live (TTL)
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=7d
+EMAIL_VERIFY_TOKEN_TTL=24h
+PASSWORD_RESET_TOKEN_TTL=1h
+
+# Email Configuration
+EMAIL_FROM_NAME="tradePilot"
+EMAIL_FROM=noreply@tradepilot.com
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_USER=
+SMTP_PASS=
+SMTP_SECURE=false
+
+# Rate Limiting (Throttler)
+THROTTLE_TTL=60000
+THROTTLE_LIMIT=10
+
+# Google Gemini AI
+GEMINI_API_KEY=your_gemini_api_key
+
+# Paddle Billing
+PADDLE_ENV=sandbox # or production
+PADDLE_API_KEY=your_paddle_api_key
+PADDLE_CLIENT_SIDE_TOKEN=your_paddle_client_side_token
+PADDLE_WEBHOOK_SECRET=your_paddle_webhook_secret
+PADDLE_PRICE_ID=your_paddle_price_id
+```
 
 ### 2. Install Dependencies
 

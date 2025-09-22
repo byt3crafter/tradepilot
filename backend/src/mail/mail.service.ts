@@ -21,7 +21,7 @@ export class MailService {
   }
 
   private async sendMail(to: string, subject: string, html: string) {
-    const from = `"${this.configService.get<string>('EMAIL_FROM_NAME', 'tradePilot')}" <${this.configService.get<string>('EMAIL_FROM')}>`;
+    const from = `"${this.configService.get<string>('EMAIL_FROM_NAME')}" <${this.configService.get<string>('EMAIL_FROM')}>`;
     try {
       const info = await this.transporter.sendMail({
         from,
@@ -79,7 +79,7 @@ export class MailService {
       <!DOCTYPE html>
       <html lang="en">
       <head>
-          <meta charset="UTF-ag">
+          <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
               body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #0A0B0D; color: #EAEAEA; }

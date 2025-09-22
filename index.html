@@ -17,7 +17,6 @@
             'future-panel': '#14161C',
             'future-light': '#EAEAEA',
             'future-gray': '#8899A6',
-            'future-purple': '#A78BFA',
             'photonic-blue': 'rgb(0 191 255)',
             'risk-low': '#00E5E5',
             'risk-medium': '#FFD700',
@@ -156,6 +155,31 @@
 <body class="font-inter text-future-light">
   <div id="background-effect"></div>
   <div id="root"></div>
+
+  <!-- 
+  ==================================================================
+  APP CONFIGURATION
+  ==================================================================
+  This script sets the backend API URL. The value is designed to be
+  replaced during a deployment process.
+  
+  For local development, it defaults to 'http://localhost:8080'.
+  
+  In a production environment, your deployment script should replace
+  the placeholder '%%API_URL%%' with your actual backend URL.
+  
+  Example (using sed in a shell script):
+  sed -i "s|%%API_URL%%|https://your-api.com|g" index.html
+  ==================================================================
+  -->
+  <script>
+    window.APP_CONFIG = {
+      API_URL: '%%API_URL%%' === '%%' + 'API_URL' + '%%' 
+        ? 'http://localhost:8080' 
+        : '%%API_URL%%'
+    };
+  </script>
+  
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
