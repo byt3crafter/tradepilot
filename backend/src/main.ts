@@ -27,7 +27,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS
-  const allowedOrigins = frontendUrls.split(',').map(url => url.trim());
+  const allowedOrigins = frontendUrls!.split(',').map(url => url.trim());
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
