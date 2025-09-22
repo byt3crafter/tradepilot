@@ -1,3 +1,4 @@
+// @refresh full
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import api from '../services/api';
 import { ChecklistRule } from '../types';

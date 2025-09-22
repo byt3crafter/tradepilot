@@ -1,3 +1,4 @@
+// @refresh full
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import api from '../services/api';
 import { Strategy } from '../types';
@@ -54,9 +55,20 @@ export const StrategyProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
   
   const deleteStrategy = async (id: string) => {
-     if (!accessToken) throw new Error("Not authenticated");
-     await api.deleteStrategy(id, accessToken);
-     await refreshStrategies();
+    console.log(`[StrategyContext] Attempting to delete strategy with ID: ${id}`);
+    if (!accessToken) {
+      console.error('[StrategyContext] Delete failed: Not authenticated.');
+      throw new Error("Not authenticated");
+    }
+    try {
+      console.log('[StrategyContext] Calling API to delete strategy...');
+      await api.deleteStrategy(id, accessToken);
+      console.log('[StrategyContext] API call successful.');
+      await refreshStrategies();
+    } catch (error) {
+      console.error('[StrategyContext] An error occurred during deleteStrategy:', error);
+      throw error;
+    }
   };
 
   const value = {

@@ -58,6 +58,9 @@ interface ApiService {
   // Admin
   getAdminStats(token: string): Promise<AdminStats>;
   getAdminUsers(token: string): Promise<AdminUser[]>;
+  grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
+  revokeProAccess(userId: string, token: string): Promise<AdminUser>;
+  deleteUser(userId: string, token: string): Promise<{ message: string }>;
 }
 
 const buildHeaders = (token?: string): HeadersInit => {
@@ -231,6 +234,15 @@ const api: ApiService = {
   },
   getAdminUsers(token: string): Promise<AdminUser[]> {
     return (this as ApiService).get<AdminUser[]>('/admin/users', token);
+  },
+  grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> {
+    return (this as ApiService).patch<AdminUser>(`/admin/users/${userId}/grant-pro`, data, token);
+  },
+  revokeProAccess(userId: string, token: string): Promise<AdminUser> {
+    return (this as ApiService).delete<AdminUser>(`/admin/users/${userId}/grant-pro`, token);
+  },
+  deleteUser(userId: string, token: string): Promise<{ message: string }> {
+    return (this as ApiService).delete<{ message: string }>(`/admin/users/${userId}`, token);
   },
 };
 

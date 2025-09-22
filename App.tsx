@@ -16,6 +16,7 @@ import { ChecklistProvider } from './context/ChecklistContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { TradeProvider } from './context/TradeContext';
 import AdminPage from './pages/AdminPage';
+import { UIProvider } from './context/UIContext';
 
 export type AuthPage = 'landing' | 'login' | 'signup' | 'forgot-password';
 
@@ -42,23 +43,25 @@ const AuthNavigator: React.FC = () => {
 const AuthenticatedApp: React.FC = () => {
   console.log('[App] Rendering AuthenticatedApp with all providers.');
   return (
-    <ViewProvider>
-      <PaddleProvider>
-        <SubscriptionProvider>
-          <AccountProvider>
-            <StrategyProvider>
-              <ChecklistProvider>
-                <SettingsProvider>
-                  <TradeProvider>
-                    <DashboardPage />
-                  </TradeProvider>
-                </SettingsProvider>
-              </ChecklistProvider>
-            </StrategyProvider>
-          </AccountProvider>
-        </SubscriptionProvider>
-      </PaddleProvider>
-    </ViewProvider>
+    <UIProvider>
+      <ViewProvider>
+        <PaddleProvider>
+          <SubscriptionProvider>
+            <AccountProvider>
+              <StrategyProvider>
+                <ChecklistProvider>
+                  <SettingsProvider>
+                    <TradeProvider>
+                      <DashboardPage />
+                    </TradeProvider>
+                  </SettingsProvider>
+                </ChecklistProvider>
+              </StrategyProvider>
+            </AccountProvider>
+          </SubscriptionProvider>
+        </PaddleProvider>
+      </ViewProvider>
+    </UIProvider>
   );
 };
 

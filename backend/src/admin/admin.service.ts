@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
+import { GrantProDto } from './dtos/grant-pro.dto';
 
 @Injectable()
 export class AdminService {
@@ -38,5 +39,52 @@ export class AdminService {
     return plainToInstance(AdminUserDto, users as any[], {
       excludeExtraneousValues: true,
     });
+  }
+
+  async grantProAccess(userId: string, grantProDto: GrantProDto): Promise<AdminUserDto> {
+    const user = await (this.prisma as any).user.findUnique({ where: { id: userId }});
+    if (!user) {
+        throw new NotFoundException(`User with ID ${userId} not found.`);
+    }
+
+    const updatedUser = await (this.prisma as any).user.update({
+        where: { id: userId },
+        data: {
+            proAccessExpiresAt: grantProDto.expiresAt,
+            proAccessReason: grantProDto.reason,
+        },
+    });
+
+    return plainToInstance(AdminUserDto, updatedUser, { excludeExtraneousValues: true });
+  }
+
+  async revokeProAccess(userId: string): Promise<AdminUserDto> {
+     const user = await (this.prisma as any).user.findUnique({ where: { id: userId }});
+    if (!user) {
+        throw new NotFoundException(`User with ID ${userId} not found.`);
+    }
+
+    const updatedUser = await (this.prisma as any).user.update({
+        where: { id: userId },
+        data: {
+            proAccessExpiresAt: null,
+            proAccessReason: null,
+        },
+    });
+
+    return plainToInstance(AdminUserDto, updatedUser, { excludeExtraneousValues: true });
+  }
+
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    const user = await (this.prisma as any).user.findUnique({ where: { id: userId }});
+    if (!user) {
+        throw new NotFoundException(`User with ID ${userId} not found.`);
+    }
+
+    await (this.prisma as any).user.delete({
+        where: { id: userId },
+    });
+
+    return { message: `User ${user.email} has been deleted successfully.` };
   }
 }

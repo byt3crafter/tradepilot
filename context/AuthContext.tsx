@@ -81,8 +81,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const subscriptionState = useMemo(() => {
-    const isTrialing = user?.subscriptionStatus === 'TRIALING';
-    const isSubscribed = user?.subscriptionStatus === 'ACTIVE';
+    // A user has gifted access if their proAccessExpiresAt date is in the future.
+    const hasGiftedAccess = user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date();
+    
+    const isSubscribed = user?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
+    const isTrialing = user?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
     
     const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
     const trialDaysRemaining = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;

@@ -27,4 +27,7 @@ export class UserDto {
 
   @Expose()
   trialEndsAt: Date;
+  
+  @Expose()
+  proAccessExpiresAt: Date;
 }

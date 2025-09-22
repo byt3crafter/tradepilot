@@ -15,6 +15,11 @@ import { AdminIcon } from './icons/AdminIcon';
 import { useView } from '../context/ViewContext';
 import { User } from '../types';
 import { DashboardIcon } from './icons/DashboardIcon';
+import Button from './ui/Button';
+import { useUI } from '../context/UIContext';
+import Tooltip from './ui/Tooltip';
+import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
+import { PlusIcon } from './icons/PlusIcon';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,34 +30,43 @@ const NavItem: React.FC<{
   icon: React.ReactNode;
   label: string;
   isActive: boolean;
+  isCollapsed: boolean;
   onClick?: () => void;
   href?: string;
-}> = ({ icon, label, isActive, onClick, href }) => {
+}> = ({ icon, label, isActive, isCollapsed, onClick, href }) => {
+    const Element = href ? 'a' : 'button';
+    
+    const navItemClasses = `relative flex items-center w-full px-3 py-2.5 rounded-lg transition-colors duration-200 ${
+        isActive
+            ? 'text-photonic-blue'
+            : 'text-future-gray hover:bg-future-panel hover:text-future-light'
+    } ${isCollapsed ? 'justify-center' : ''}`;
+            
     const content = (
-        <>
-            <div className="w-6 h-6 mr-4">{icon}</div>
-            <span className="font-semibold">{label}</span>
-        </>
-    );
-    const className = `flex items-center w-full px-4 py-3 rounded-lg transition-colors duration-200 ${
-      isActive
-        ? 'bg-photonic-blue/10 text-photonic-blue'
-        : 'text-future-gray hover:bg-future-panel hover:text-future-light'
-    }`;
+        <Element
+            href={href}
+            onClick={onClick}
+            className={navItemClasses}
+        >
+            {isActive && !isCollapsed && (
+                <span className="absolute left-0 top-0 h-full w-1 bg-photonic-blue rounded-r-sm"></span>
+            )}
+            
+            <div className="flex-shrink-0">
+                {icon}
+            </div>
 
-    if (href) {
-        return (
-            <a href={href} className={className}>
-                {content}
-            </a>
-        );
+            {!isCollapsed && (
+                <span className="ml-4 font-medium transition-opacity duration-200">{label}</span>
+            )}
+        </Element>
+    );
+
+    if (isCollapsed) {
+        return <Tooltip text={label}>{content}</Tooltip>;
     }
     
-    return (
-        <button onClick={onClick} className={className}>
-            {content}
-        </button>
-    );
+    return content;
 };
 
 const ProfileMenu: React.FC<{
@@ -111,8 +125,9 @@ const ProfileMenu: React.FC<{
   );
 };
 
-const AccountSwitcher: React.FC = () => {
+const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
   const { accounts, activeAccount, switchAccount } = useAccount();
+  const { navigateTo } = useView();
   const [isOpen, setIsOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
@@ -128,11 +143,30 @@ const AccountSwitcher: React.FC = () => {
     };
   }, []);
 
+  const initials = activeAccount ? activeAccount.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '';
+
   if (!activeAccount) {
+    if (isCollapsed) {
+        return (
+            <Tooltip text="Create an account">
+                <Button 
+                    variant="link"
+                    onClick={() => navigateTo('settings', 'accounts')}
+                    className="w-full h-12 flex items-center justify-center text-future-gray border border-dashed border-photonic-blue/20 rounded-lg hover:bg-photonic-blue/5 hover:text-future-light"
+                >
+                    <PlusIcon className="w-6 h-6" />
+                </Button>
+            </Tooltip>
+        );
+    }
     return (
-       <div className="px-3 py-2 text-sm text-center text-future-gray border border-dashed border-photonic-blue/20 rounded-lg">
+       <Button 
+          variant="link"
+          onClick={() => navigateTo('settings', 'accounts')}
+          className="w-full text-sm text-center text-future-gray border border-dashed border-photonic-blue/20 rounded-lg hover:bg-photonic-blue/5 hover:text-future-light p-3"
+        >
          Create an account to begin.
-       </div>
+       </Button>
     );
   }
 
@@ -140,16 +174,24 @@ const AccountSwitcher: React.FC = () => {
     <div className="relative" ref={switcherRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-future-dark/50 border border-photonic-blue/20 rounded-lg text-left hover:bg-future-panel transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 bg-future-dark/50 border border-photonic-blue/20 rounded-lg text-left hover:bg-future-panel transition-colors h-14"
       >
-        <div>
-          <p className="font-semibold text-sm text-future-light">{activeAccount.name}</p>
-          <p className="text-xs text-future-gray">{activeAccount.type.replace('_', ' ')}</p>
-        </div>
-        <ChevronDownIcon className={`w-5 h-5 text-future-gray transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        {isCollapsed ? (
+            <div className="w-full text-center">
+              <span className="font-orbitron text-photonic-blue">{initials}</span>
+            </div>
+        ) : (
+            <>
+                <div className="overflow-hidden">
+                  <p className="font-semibold text-sm text-future-light truncate">{activeAccount.name}</p>
+                  <p className="text-xs text-future-gray truncate">{activeAccount.type.replace('_', ' ')}</p>
+                </div>
+                <ChevronDownIcon className={`w-5 h-5 text-future-gray transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+            </>
+        )}
       </button>
       {isOpen && (
-        <div className="absolute top-full mt-2 w-full bg-future-panel border border-photonic-blue/20 rounded-lg shadow-lg p-1 z-10 animate-fade-in-up">
+        <div className={`absolute top-0 mt-0 bg-future-panel border border-photonic-blue/20 rounded-lg shadow-lg p-1 z-10 animate-fade-in-up ${isCollapsed ? 'left-full ml-2 w-56' : 'top-full mt-2 w-full'}`}>
           {accounts.map(account => (
             <button
               key={account.id}
@@ -172,6 +214,7 @@ const AccountSwitcher: React.FC = () => {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const { currentView, navigateTo } = useView();
+  const { isSidebarCollapsed, toggleSidebar } = useUI();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -204,58 +247,81 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         onClick={onClose}
         aria-hidden="true"
       ></div>
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-future-panel/90 backdrop-blur-md border-r border-photonic-blue/10 flex-shrink-0 flex flex-col p-4 z-40 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-        <div className="px-2 mb-6">
-          <AuthLogo />
+      <aside className={`fixed top-0 left-0 h-full bg-future-panel/90 backdrop-blur-md border-r border-photonic-blue/10 flex-shrink-0 flex flex-col p-4 z-40 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-56'} ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        <div className={`mb-6 transition-all duration-300 ${isSidebarCollapsed ? 'px-0 text-center' : 'px-2'}`}>
+           {isSidebarCollapsed ? (
+                <div className="w-8 h-8 rounded-lg bg-photonic-blue/20 mx-auto"></div>
+           ) : (
+                <AuthLogo />
+           )}
         </div>
 
         <div className="mb-6">
-          <AccountSwitcher />
+          <AccountSwitcher isCollapsed={isSidebarCollapsed} />
         </div>
 
-        <nav className="flex-1 flex flex-col gap-2 overflow-y-auto sidebar-scrollbar pr-2">
+        <nav className="flex-1 flex flex-col">
           <NavItem
-            icon={<DashboardIcon />}
+            icon={<DashboardIcon className="w-6 h-6" />}
             label="Dashboard"
             isActive={currentView === 'dashboard'}
             onClick={() => handleSetView('dashboard')}
+            isCollapsed={isSidebarCollapsed}
           />
           <NavItem
-            icon={<JournalIcon />}
-            label="Trade Journal"
+            icon={<JournalIcon className="w-6 h-6" />}
+            label="Trading History"
             isActive={currentView === 'journal'}
             onClick={() => handleSetView('journal')}
+            isCollapsed={isSidebarCollapsed}
           />
           <NavItem
-            icon={<StrategyIcon />}
+            icon={<StrategyIcon className="w-6 h-6" />}
             label="Strategies"
             isActive={currentView === 'strategies'}
             onClick={() => handleSetView('strategies')}
+            isCollapsed={isSidebarCollapsed}
           />
            <NavItem
-            icon={<SettingsIcon />}
+            icon={<SettingsIcon className="w-6 h-6" />}
             label="Settings"
             isActive={currentView === 'settings'}
             onClick={() => handleSetView('settings')}
+            isCollapsed={isSidebarCollapsed}
           />
         </nav>
 
         <div className="mt-auto" ref={menuRef}>
-          <div className="border-t border-photonic-blue/10 pt-4 relative">
-            {isMenuOpen && <ProfileMenu user={user} logout={logout} closeMenu={() => setIsMenuOpen(false)} />}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-3 px-2 w-full text-left rounded-lg hover:bg-future-panel p-2 transition-colors"
-              aria-haspopup="true"
-              aria-expanded={isMenuOpen}
-            >
-              <img src={gravatarUrl} alt="User Avatar" className="w-10 h-10 rounded-full border-2 border-photonic-blue/50" />
-              <div>
-                <p className="font-semibold text-future-light text-sm">{user.fullName}</p>
-                <p className="text-future-gray text-xs truncate">{user.email}</p>
-              </div>
-            </button>
-          </div>
+            <div className={`border-t border-photonic-blue/10 pt-4 transition-all duration-300`}>
+                <div className="relative">
+                    {isMenuOpen && !isSidebarCollapsed && <ProfileMenu user={user} logout={logout} closeMenu={() => setIsMenuOpen(false)} />}
+                    <button
+                      onClick={() => !isSidebarCollapsed && setIsMenuOpen(!isMenuOpen)}
+                      className={`flex items-center gap-3 w-full text-left rounded-lg p-2 transition-colors ${!isSidebarCollapsed ? 'hover:bg-future-panel' : ''} ${isSidebarCollapsed ? 'justify-center' : 'px-2'}`}
+                      aria-haspopup="true"
+                      aria-expanded={isMenuOpen}
+                    >
+                      <img src={gravatarUrl} alt="User Avatar" className="w-10 h-10 rounded-full border-2 border-photonic-blue/50 flex-shrink-0" />
+                      {!isSidebarCollapsed && (
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-semibold text-future-light text-sm truncate">{user.fullName}</p>
+                            <p className="text-future-gray text-xs truncate">{user.email}</p>
+                        </div>
+                      )}
+                    </button>
+                </div>
+            </div>
+             <div className={`mt-2 border-t border-photonic-blue/10 pt-2`}>
+                <Tooltip text={isSidebarCollapsed ? 'Expand' : 'Collapse'}>
+                    <button
+                        onClick={toggleSidebar}
+                        className="w-full flex items-center justify-center p-2 rounded-lg text-future-gray hover:bg-future-panel hover:text-future-light transition-colors"
+                        aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    >
+                        <ChevronDoubleLeftIcon className={`w-5 h-5 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
+                    </button>
+                </Tooltip>
+            </div>
         </div>
       </aside>
     </>

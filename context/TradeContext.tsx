@@ -1,3 +1,4 @@
+// @refresh full
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import api from '../services/api';
 import { Trade, TradeJournal } from '../types';
@@ -69,10 +70,21 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const deleteTrade = async (id: string) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.deleteTrade(id, accessToken);
-    await refreshTrades();
-    await refreshAllProgress();
+    console.log(`[TradeContext] Attempting to delete trade with ID: ${id}`);
+    if (!accessToken) {
+      console.error('[TradeContext] Delete failed: Not authenticated.');
+      throw new Error("Not authenticated");
+    }
+    try {
+      console.log('[TradeContext] Calling API to delete trade...');
+      const response = await api.deleteTrade(id, accessToken);
+      console.log('[TradeContext] API call successful:', response);
+      await refreshTrades();
+      await refreshAllProgress();
+    } catch (error) {
+      console.error('[TradeContext] An error occurred during deleteTrade:', error);
+      throw error;
+    }
   };
 
   const analyzeTrade = async (tradeId: string) => {

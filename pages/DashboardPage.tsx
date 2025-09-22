@@ -11,6 +11,7 @@ import UpgradeModal from '../components/billing/UpgradeModal';
 import { useView } from '../context/ViewContext';
 import SubscriptionPage from './SubscriptionPage';
 import Dashboard from '../components/Dashboard/Dashboard';
+import { useUI } from '../context/UIContext';
 
 export type DashboardView = 'dashboard' | 'journal' | 'strategies' | 'personalisation' | 'settings' | 'subscription';
 export type SettingsSubView = 'accounts' | 'checklist' | 'security';
@@ -19,6 +20,7 @@ const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isTrialing } = useAuth();
   const { currentView } = useView();
+  const { isSidebarCollapsed } = useUI();
 
   const renderView = () => {
     switch (currentView) {
@@ -44,7 +46,7 @@ const DashboardPage: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <div className="md:pl-64 transition-all duration-300 ease-in-out">
+      <div className={`transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-56'}`}>
         {isTrialing && <TrialBanner />}
         <main className="p-4 sm:p-6 lg:p-8">
            <button 

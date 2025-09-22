@@ -8,6 +8,7 @@ export interface User {
   role: 'USER' | 'ADMIN';
   subscriptionStatus: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
   trialEndsAt: string | null;
+  proAccessExpiresAt?: string | null;
 }
 
 export enum BrokerAccountType {
@@ -129,6 +130,8 @@ export interface AdminUser {
   lastLoginAt: string | null;
   subscriptionStatus: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
   trialEndsAt: string | null;
+  proAccessExpiresAt?: string | null;
+  proAccessReason?: string | null;
 }
 
 // Trading Objectives Progress Type

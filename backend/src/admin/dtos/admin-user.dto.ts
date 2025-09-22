@@ -21,4 +21,10 @@ export class AdminUserDto {
 
   @Expose()
   trialEndsAt: Date;
+
+  @Expose()
+  proAccessExpiresAt: Date;
+
+  @Expose()
+  proAccessReason: string;
 }

@@ -76,6 +76,11 @@ model User {
   paddleSubscriptionId String?            @unique
   // --- END NEW ---
 
+  // --- PRO ACCESS OVERRIDE ---
+  proAccessExpiresAt   DateTime?
+  proAccessReason      String?
+  // --- END PRO ACCESS OVERRIDE ---
+
   refreshSessions     RefreshSession[]
   verificationTokens  VerificationToken[]
   passwordResetTokens PasswordResetToken[]

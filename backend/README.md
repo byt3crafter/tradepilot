@@ -148,3 +148,7 @@ curl -X POST http://localhost:8080/auth/login \
   "password": "Password123!"
 }'
 ```
+
+Update database: pnpm prisma:migrate
+Run app: pnpm dev
+Run: ngrok http http://localhost:8080

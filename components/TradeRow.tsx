@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Trade, TradeResult, Direction } from '../types';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
@@ -140,9 +141,9 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         </td>
       </tr>
       {isExpanded && (
-        <tr className="bg-future-panel/30">
+        <tr className="bg-black/20">
             <td></td>
-            <td colSpan={8} className="p-4">
+            <td colSpan={8} className="p-4 pt-6 pb-8">
               <div className="relative">
                 <Button
                     onClick={onEdit}
@@ -166,7 +167,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                     <DetailItem label="Net P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>
                 </div>
                 
-                <div className="mt-4 pt-4 border-t border-photonic-blue/10">
+                <div className="mt-6 pt-6 border-t border-photonic-blue/10">
                   <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Screenshots</h4>
                    <div className="flex flex-col md:flex-row gap-4 mb-4">
                       <div className="w-full md:w-1/2">
@@ -180,7 +181,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-photonic-blue/10 grid grid-cols-1 md:grid-cols-2 md:gap-x-8 space-y-4 md:space-y-0">
+                <div className="mt-6 pt-6 border-t border-photonic-blue/10 grid grid-cols-1 md:grid-cols-2 gap-y-6 md:gap-x-8">
                        <div className="flex-1">
                             <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">My Journal</h4>
                             {trade.tradeJournal ? (

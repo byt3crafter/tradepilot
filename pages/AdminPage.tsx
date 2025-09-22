@@ -7,6 +7,8 @@ import api from '../services/api';
 import Spinner from '../components/Spinner';
 import Button from '../components/ui/Button';
 import AuthLogo from '../components/auth/AuthLogo';
+import Modal from '../components/ui/Modal';
+import GrantProAccessModal from '../components/admin/GrantProAccessModal';
 
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
@@ -14,6 +16,19 @@ const AdminPage: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+
+  const fetchUsers = async () => {
+    if (!accessToken) return;
+    try {
+        const usersData = await api.getAdminUsers(accessToken);
+        setUsers(usersData);
+    } catch (err: any) {
+        setError(err.message || 'Failed to refresh users.');
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,6 +55,21 @@ const AdminPage: React.FC = () => {
     window.location.href = '/';
   };
 
+  const handleOpenGrantModal = (user: AdminUser) => {
+    setSelectedUser(user);
+    setIsModalOpen(true);
+  };
+  
+  const handleCloseModal = () => {
+    setSelectedUser(null);
+    setIsModalOpen(false);
+  };
+  
+  const handleSuccess = async () => {
+    handleCloseModal();
+    await fetchUsers(); // Refresh the user list
+  };
+
   const renderContent = () => {
       if (isLoading) {
         return (
@@ -64,7 +94,11 @@ const AdminPage: React.FC = () => {
             </div>
             
             {/* User Management Table */}
-            <UserManagementTable users={users} />
+            <UserManagementTable 
+                users={users} 
+                onGrantPro={handleOpenGrantModal}
+                onRefresh={fetchUsers}
+            />
         </>
       );
   }
@@ -85,6 +119,12 @@ const AdminPage: React.FC = () => {
         <main className="space-y-8 animate-fade-in-up">
             {renderContent()}
         </main>
+
+        {isModalOpen && selectedUser && (
+            <Modal title={`Manage Pro Access for ${selectedUser.fullName}`} onClose={handleCloseModal}>
+                <GrantProAccessModal user={selectedUser} onSuccess={handleSuccess} />
+            </Modal>
+        )}
     </div>
   );
 };
