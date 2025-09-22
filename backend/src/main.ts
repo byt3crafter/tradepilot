@@ -14,7 +14,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 8080);
-  const frontendUrl = configService.get<string>('FRONTEND_URL');
+  const frontendUrls = configService.get<string>('FRONTEND_URL');
   const nodeEnv = configService.get<string>('NODE_ENV');
 
   // Increase payload size limit for JSON and URL-encoded requests
@@ -27,8 +27,17 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS
+  const allowedOrigins = frontendUrls.split(',').map(url => url.trim());
   app.enableCors({
-    origin: frontendUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     credentials: true,
   });
 
