@@ -160,24 +160,28 @@
   ==================================================================
   APP CONFIGURATION
   ==================================================================
-  This script sets the backend API URL. The value is designed to be
-  replaced during a deployment process.
+  This script automatically sets the backend API URL based on the
+  current environment.
   
-  For local development, it defaults to 'http://localhost:8080'.
-  
-  In a production environment, your deployment script should replace
-  the placeholder '%%API_URL%%' with your actual backend URL.
-  
-  Example (using sed in a shell script):
-  sed -i "s|%%API_URL%%|https://your-api.com|g" index.html
+  - For local development (e.g., http://localhost:5173), it defaults
+    to 'http://localhost:8080'.
+  - In a production environment (e.g., https://tradepilot.micinthe.com),
+    it uses the current domain as the API base URL.
   ==================================================================
   -->
   <script>
-    window.APP_CONFIG = {
-      API_URL: '%%API_URL%%' === '%%' + 'API_URL' + '%%' 
+    window.APP_CONFIG = (function() {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const apiUrl = isLocal 
         ? 'http://localhost:8080' 
-        : '%%API_URL%%'
-    };
+        : window.location.origin;
+
+      console.log('[tradePilot] API URL configured for:', apiUrl);
+
+      return {
+        API_URL: apiUrl
+      };
+    })();
   </script>
   
   <script type="module" src="/index.tsx"></script>

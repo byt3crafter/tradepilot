@@ -2,7 +2,8 @@ import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule,
 
 // The API_URL is configured in a <script> tag within index.html
 // This allows for easy configuration without needing a build process.
-const API_URL = (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
+// We use a function to avoid a race condition on module load.
+const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -76,32 +77,48 @@ const buildHeaders = (token?: string): HeadersInit => {
 
 
 async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, options);
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
-    // Handle NestJS validation errors
-    if (errorData.message && Array.isArray(errorData.message)) {
-      throw new Error(errorData.message.join(', '));
+  const apiUrl = getApiUrl();
+  const fullUrl = `${apiUrl}${endpoint}`;
+
+  // User-requested console log for debugging
+  console.log(`[API] Making ${options.method || 'GET'} request to: ${fullUrl}`);
+
+  try {
+    const response = await fetch(fullUrl, options);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+      // Handle NestJS validation errors
+      if (errorData.message && Array.isArray(errorData.message)) {
+        throw new Error(errorData.message.join(', '));
+      }
+      // Handle our custom error structure
+      if (errorData.error && errorData.error.message) {
+          throw new Error(errorData.error.message);
+      }
+      // Handle our direct exception messages (like from ForbiddenException)
+      if (errorData.message) {
+          throw new Error(errorData.message);
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    // Handle our custom error structure
-    if (errorData.error && errorData.error.message) {
-        throw new Error(errorData.error.message);
+
+    const result: ApiResponse<T> = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error?.message || 'API request failed');
     }
-    // Handle our direct exception messages (like from ForbiddenException)
-    if (errorData.message) {
-        throw new Error(errorData.message);
-    }
-    throw new Error(`HTTP error! status: ${response.status}`);
+
+    return result.data;
+  } catch(error) {
+      // Catch network errors (e.g., failed to fetch)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+           console.error(`[API] NetworkError when fetching ${fullUrl}:`, error);
+           throw new Error(`NetworkError when attempting to fetch resource.`);
+      }
+      // Re-throw other errors
+      throw error;
   }
-
-  const result: ApiResponse<T> = await response.json();
-
-  if (!result.success) {
-    throw new Error(result.error?.message || 'API request failed');
-  }
-
-  return result.data;
 }
 
 const api: ApiService = {
