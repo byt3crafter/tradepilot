@@ -23,17 +23,15 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Security Middleware
-  app.use(helmet());
+  // FIX: Configured helmet to prevent it from setting a conflicting Cross-Origin-Resource-Policy,
+  // which was the root cause of the persistent CORS errors.
+  app.use(helmet({ crossOriginResourcePolicy: false }));
   app.use(compression());
   app.use(cookieParser());
 
   // ──────────────────────────────────────────────────────────────────
-  // CORS (Definitive Fix)
+  // CORS Configuration
   // ──────────────────────────────────────────────────────────────────
-  // The previous implementation threw an error for unallowed origins,
-  // causing a 500 Internal Server Error on OPTIONS preflight checks.
-  // The correct and most robust approach is to provide a direct list
-  // of allowed origins and let the underlying library handle validation.
   const allowedOrigins = frontendUrls!.split(',').map(url => url.trim()).filter(Boolean);
   
   if (allowedOrigins.length > 0) {
