@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -65,60 +66,52 @@ const AuthenticatedApp: React.FC = () => {
   );
 };
 
-const AdminApp: React.FC = () => {
-    return (
-        // Admin page may not need all providers, but AuthProvider is already top-level.
-        // Add other providers here if AdminPage starts using their contexts.
-        <AdminPage />
-    );
-};
-
-
+// FIX: Add main App component to handle routing based on authentication state and provide a default export.
 const App: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
-
+  
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-future-dark">
         <Spinner />
       </div>
     );
   }
 
-  const path = window.location.pathname;
-  if (path === '/verify-email') {
+  // Handle specific routes like email verification which can be accessed without being logged in
+  if (window.location.pathname === '/verify-email' && new URLSearchParams(window.location.search).has('token')) {
     return (
-       <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-future-dark via-future-dark to-photonic-blue/20 p-4">
         <VerifyEmailPage />
       </div>
     );
   }
+  
+  if (isAuthenticated && user) {
+    // If authenticated but email not verified, show the verification page.
+    if (!user.isEmailVerified) {
+      return (
+         <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-future-dark via-future-dark to-photonic-blue/20 p-4">
+           <VerifyEmailPage />
+         </div>
+       );
+    }
 
-  if (!isAuthenticated) {
-    return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
-            <AuthNavigator />
-        </div>
-    );
+    // Handle admin route
+    if (user.role === 'ADMIN' && window.location.pathname.startsWith('/admin')) {
+      return <AdminPage />;
+    }
+
+    // Default authenticated app view
+    return <AuthenticatedApp />;
   }
-
-  // Authenticated routing
-  if (path.startsWith('/admin')) {
-      if (user?.role === 'ADMIN') {
-          return <AdminApp />;
-      } else {
-          // If a non-admin tries to access /admin, redirect them to the dashboard.
-          window.location.href = '/';
-          return ( // Render a spinner during the brief moment of redirection
-            <div className="min-h-screen w-full flex items-center justify-center">
-                <Spinner />
-            </div>
-          );
-      }
-  }
-
-  // Default to the main authenticated app
-  return <AuthenticatedApp />;
+  
+  // Default to authentication flow (login, signup, etc.)
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-future-dark via-future-dark to-photonic-blue/20 p-4">
+      <AuthNavigator />
+    </div>
+  );
 };
 
 export default App;

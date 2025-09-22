@@ -196,3 +196,5 @@ curl -X POST http://localhost:8080/auth/login \
 Update database: pnpm prisma:migrate
 Run app: pnpm dev
 Run: ngrok http http://localhost:8080
+
+pm2 start tradepilot-backend
