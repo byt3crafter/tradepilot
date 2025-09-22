@@ -1,3 +1,4 @@
+
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
@@ -10,12 +11,14 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // By passing `{ cors: true }`, we ensure NestJS is ready to handle pre-flight OPTIONS requests
+  // from the very start, which is critical for preventing 404s on those requests.
+  const app = await NestFactory.create(AppModule, { cors: true });
+  
   const configService = app.get(ConfigService);
-
   const port = configService.get<number>('PORT', 8080);
-  const frontendUrls = configService.get<string>('FRONTEND_URL') ?? '';
-  const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
+  const frontendUrls = configService.get<string>('FRONTEND_URL');
+  const nodeEnv = configService.get<string>('NODE_ENV');
 
   // Increase payload size limit for JSON and URL-encoded requests
   app.use(express.json({ limit: '10mb' }));
@@ -26,38 +29,13 @@ async function bootstrap() {
   app.use(compression());
   app.use(cookieParser());
 
-  // ────────────────────────────────────────────────────────────────
-  // CORS (explicit allow-list; never throw -> avoid 500 on preflight)
-  // ────────────────────────────────────────────────────────────────
-  const allowedOrigins = frontendUrls
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
+  // CORS: Use a simple, direct allow-list. This is the most standard and reliable approach.
+  const allowedOrigins = frontendUrls!.split(',').map(url => url.trim());
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no Origin (curl, mobile apps, SSR)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // Not allowed: respond with CORS false (no exception -> no 500)
-      if (nodeEnv !== 'production') {
-        Logger.warn(
-          `CORS blocked Origin: ${origin}. Allowed: ${JSON.stringify(
-            allowedOrigins,
-          )}`,
-          'CORS',
-        );
-      }
-      return callback(null, false);
-    },
+    origin: allowedOrigins,
     credentials: true,
-    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Disposition'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
   // Global Pipes
@@ -66,14 +44,16 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
   // Global Filters
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new PrismaExceptionFilter(httpAdapterHost.httpAdapter));
-
+  
   // Global Interceptors
   app.useGlobalInterceptors(new ResponseInterceptor());
 
