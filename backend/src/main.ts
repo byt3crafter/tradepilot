@@ -23,9 +23,15 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Security Middleware
-  // FIX: Configured helmet to prevent it from setting a conflicting Cross-Origin-Resource-Policy,
-  // which was the root cause of the persistent CORS errors.
-  app.use(helmet({ crossOriginResourcePolicy: false }));
+  // FIX: Configured helmet to disable its own cross-origin policies, which were
+  // conflicting with and overriding the app's primary CORS configuration.
+  app.use(
+    helmet({
+      crossOriginOpenerPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false,
+    }),
+  );
   app.use(compression());
   app.use(cookieParser());
 
