@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import md5 from 'md5';
 import { useAuth } from '../context/AuthContext';
@@ -106,7 +107,7 @@ const ProfileMenu: React.FC<{
       </button>
        {user.role === 'ADMIN' && (
           <a
-            href="/admin-panel"
+            href="/#/admin-panel"
             className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
           >
             <AdminIcon className="w-5 h-5 mr-3" />

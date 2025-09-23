@@ -1,6 +1,5 @@
 
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -78,6 +77,15 @@ const AdminApp: React.FC = () => {
 
 const App: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const [locationHash, setLocationHash] = useState(window.location.hash);
+
+  useEffect(() => {
+      const handleHashChange = () => {
+          setLocationHash(window.location.hash);
+      };
+      window.addEventListener('hashchange', handleHashChange);
+      return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   if (isLoading) {
     return (
@@ -88,6 +96,18 @@ const App: React.FC = () => {
   }
 
   const path = window.location.pathname;
+  
+  // Redirect legacy /admin-panel path to new hash-based route.
+  // This helps if the user has it bookmarked and works in local dev.
+  if (path.startsWith('/admin-panel')) {
+      window.location.href = '/#/admin-panel';
+      return (
+          <div className="min-h-screen w-full flex items-center justify-center">
+              <Spinner />
+          </div>
+      );
+  }
+  
   if (path === '/verify-email') {
     return (
        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
@@ -104,12 +124,12 @@ const App: React.FC = () => {
     );
   }
 
-  // Authenticated routing
-  if (path.startsWith('/admin-panel')) {
+  // Authenticated routing using hash
+  if (locationHash.startsWith('#/admin-panel')) {
       if (user?.role === 'ADMIN') {
           return <AdminApp />;
       } else {
-          // If a non-admin tries to access /admin, redirect them to the dashboard.
+          // If a non-admin tries to access, redirect them to the dashboard.
           window.location.href = '/';
           return ( // Render a spinner during the brief moment of redirection
             <div className="min-h-screen w-full flex items-center justify-center">
