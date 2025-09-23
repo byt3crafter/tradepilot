@@ -25,36 +25,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [accessToken, setAccessToken] = useState<string | null>(localStorage.getItem('accessToken'));
   const [isLoading, setIsLoading] = useState(true);
 
+  const logout = useCallback(() => {
+    if(accessToken) {
+        api.post('/auth/logout', {}, accessToken).catch(err => console.error("Logout failed on backend", err));
+    }
+    setUser(null);
+    setAccessToken(null);
+    localStorage.removeItem('accessToken');
+  }, [accessToken]);
+
+
   const refreshUser = useCallback(async (): Promise<User | undefined> => {
-    if (!accessToken) {
+    const currentToken = localStorage.getItem('accessToken');
+    if (!currentToken) {
       setUser(null);
       return undefined;
     }
     try {
-      const userData = await api.get<User>('/users/me', accessToken);
+      const userData = await api.get<User>('/users/me', currentToken);
       setUser(userData);
       return userData;
     } catch (error) {
       console.error('Failed to fetch user, logging out.', error);
-      setUser(null);
-      setAccessToken(null);
-      localStorage.removeItem('accessToken');
+      logout();
       return undefined;
     }
-  }, [accessToken]);
+  }, [logout]);
 
 
   useEffect(() => {
     const loadUser = async () => {
       setIsLoading(true);
-      if (accessToken) {
+      const currentToken = localStorage.getItem('accessToken');
+      if (currentToken) {
         await refreshUser();
       }
       setIsLoading(false);
     };
 
     loadUser();
-  }, [accessToken, refreshUser]);
+  }, [refreshUser]);
+  
+  useEffect(() => {
+    const handleTokenRefresh = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('[AuthContext] Token refreshed event received, updating state.');
+        setAccessToken(customEvent.detail);
+    };
+
+    const handleLogoutEvent = () => {
+        console.log('[AuthContext] Logout event received from API service.');
+        logout();
+    };
+
+    window.addEventListener('tokenRefreshed', handleTokenRefresh);
+    window.addEventListener('logout', handleLogoutEvent);
+
+    return () => {
+        window.removeEventListener('tokenRefreshed', handleTokenRefresh);
+        window.removeEventListener('logout', handleLogoutEvent);
+    };
+  }, [logout]);
+
 
   const login = async (email: string, password: string) => {
     const { user, accessToken: newAccessToken } = await api.post<{ user: User, accessToken: string }>('/auth/login', { email, password });
@@ -71,18 +103,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await api.post('/auth/resend-verification', { email });
   }
 
-  const logout = () => {
-    if(accessToken) {
-        api.post('/auth/logout', {}, accessToken).catch(err => console.error("Logout failed on backend", err));
-    }
-    setUser(null);
-    setAccessToken(null);
-    localStorage.removeItem('accessToken');
-  };
-
   const subscriptionState = useMemo(() => {
-    // A user has gifted access if their proAccessExpiresAt date is in the future.
-    const hasGiftedAccess = user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date();
+    const hasGiftedAccess = user?.proAccessExpiresAt === null || (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date());
     
     const isSubscribed = user?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
     const isTrialing = user?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;

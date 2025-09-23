@@ -63,7 +63,7 @@ export class TradesService {
         aiAnalysis: true, // Include the analysis data when fetching trades
         tradeJournal: true, // Include the journal data
       },
-      orderBy: { tradeDate: 'desc' },
+      orderBy: { entryDate: 'desc' },
     });
   }
 

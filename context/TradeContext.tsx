@@ -1,17 +1,21 @@
 // @refresh full
-import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Trade, TradeJournal } from '../types';
 import { useAuth } from './AuthContext';
 import { useAccount } from './AccountContext';
 
 interface TradeContextType {
+  // FIX: Added 'trades' to provide all trades to consumers.
   trades: Trade[];
+  liveTrades: Trade[];
   pendingTrades: Trade[];
+  closedTrades: Trade[];
   isLoading: boolean;
   createTrade: (data: Partial<Trade>) => Promise<void>;
   updateTrade: (id: string, data: Partial<Trade>) => Promise<void>;
   deleteTrade: (id: string) => Promise<void>;
+  activatePendingOrder: (id: string) => Promise<void>;
   analyzeTrade: (tradeId: string) => Promise<void>;
   createOrUpdateJournal: (tradeId: string, journalData: Omit<TradeJournal, 'id' | 'tradeId'>) => Promise<void>;
   refreshTrades: () => Promise<void>;
@@ -54,6 +58,14 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         refreshAllProgress();
     });
   }, [refreshTrades, refreshAllProgress]);
+  
+  const { liveTrades, pendingTrades, closedTrades } = useMemo(() => {
+    const pending = allTrades.filter(t => t.isPendingOrder);
+    const closed = allTrades.filter(t => !t.isPendingOrder && t.result);
+    const live = allTrades.filter(t => !t.isPendingOrder && !t.result);
+    return { liveTrades: live, pendingTrades: pending, closedTrades: closed };
+  }, [allTrades]);
+
 
   const createTrade = async (data: Partial<Trade>) => {
     if (!accessToken || !activeAccount) throw new Error("Not authenticated or no active account");
@@ -68,23 +80,19 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshTrades();
     await refreshAllProgress();
   };
+  
+  const activatePendingOrder = async (id: string) => {
+    if (!accessToken) throw new Error("Not authenticated");
+    await api.updateTrade(id, { isPendingOrder: false, entryDate: new Date().toISOString() }, accessToken);
+    await refreshTrades();
+    await refreshAllProgress();
+  };
 
   const deleteTrade = async (id: string) => {
-    console.log(`[TradeContext] Attempting to delete trade with ID: ${id}`);
-    if (!accessToken) {
-      console.error('[TradeContext] Delete failed: Not authenticated.');
-      throw new Error("Not authenticated");
-    }
-    try {
-      console.log('[TradeContext] Calling API to delete trade...');
-      const response = await api.deleteTrade(id, accessToken);
-      console.log('[TradeContext] API call successful:', response);
-      await refreshTrades();
-      await refreshAllProgress();
-    } catch (error) {
-      console.error('[TradeContext] An error occurred during deleteTrade:', error);
-      throw error;
-    }
+    if (!accessToken) throw new Error("Not authenticated");
+    await api.deleteTrade(id, accessToken);
+    await refreshTrades();
+    await refreshAllProgress();
   };
 
   const analyzeTrade = async (tradeId: string) => {
@@ -110,16 +118,17 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshTrades();
   }
 
-  const trades = allTrades.filter(t => !t.isPendingOrder);
-  const pendingTrades = allTrades.filter(t => t.isPendingOrder);
-
   const value = {
-    trades,
+    // FIX: Expose all trades under the 'trades' property.
+    trades: allTrades,
+    liveTrades,
     pendingTrades,
+    closedTrades,
     isLoading,
     createTrade,
     updateTrade,
     deleteTrade,
+    activatePendingOrder,
     analyzeTrade,
     createOrUpdateJournal,
     refreshTrades,

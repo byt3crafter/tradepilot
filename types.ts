@@ -69,6 +69,8 @@ export interface TradeJournal {
   tradeId: string;
 }
 
+export type TradeStatus = 'LIVE' | 'PENDING' | 'CLOSED';
+
 export interface Trade {
   id: string;
   entryDate: string;

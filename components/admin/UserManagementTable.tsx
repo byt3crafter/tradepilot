@@ -15,7 +15,7 @@ interface UserManagementTableProps {
 
 const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGrantPro, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { accessToken } = useAuth();
+  const { accessToken, user: currentUser } = useAuth();
 
   const filteredUsers = useMemo(() => {
     if (!searchTerm) return users;
@@ -36,18 +36,23 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
       }
     }
   };
-  
+
   const handleDelete = async (userId: string) => {
-    if (window.confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
-      if (!accessToken) return;
-      try {
-        await api.deleteUser(userId, accessToken);
-        onRefresh();
-      } catch (err: any) {
-        alert(`Failed to delete user: ${err.message}`);
-      }
+    if (currentUser && userId === currentUser.id) {
+        alert("You cannot delete your own account from the admin panel.");
+        return;
+    }
+    if (window.confirm('Are you sure you want to PERMANENTLY delete this user? This action cannot be undone.')) {
+        if (!accessToken) return;
+        try {
+            await api.deleteUser(userId, accessToken);
+            onRefresh();
+        } catch (err: any) {
+            alert(`Failed to delete user: ${err.message}`);
+        }
     }
   };
+
 
   return (
     <Card>
@@ -92,14 +97,13 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
                     <DropdownMenuItem onSelect={() => onGrantPro(user)}>
                       Grant Pro Access
                     </DropdownMenuItem>
-                    {(user.proAccessExpiresAt) && (
+                    {user.proAccessExpiresAt !== undefined && (
                       <DropdownMenuItem onSelect={() => handleRevoke(user.id)} className="text-risk-high hover:bg-risk-high/10">
                         Revoke Pro Access
                       </DropdownMenuItem>
                     )}
-                    <div className="my-1 border-t border-photonic-blue/10"></div>
                      <DropdownMenuItem onSelect={() => handleDelete(user.id)} className="text-risk-high hover:bg-risk-high/10">
-                      Delete User
+                        Delete User
                     </DropdownMenuItem>
                   </DropdownMenu>
                 </td>

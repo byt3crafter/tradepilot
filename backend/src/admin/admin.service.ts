@@ -4,10 +4,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
+  ) {}
 
   async getStats(): Promise<AdminStatsDto> {
     const totalUsers = await (this.prisma as any).user.count();
@@ -47,12 +51,21 @@ export class AdminService {
         throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
+    const dataToUpdate: any = {
+        proAccessExpiresAt: grantProDto.expiresAt,
+        proAccessReason: grantProDto.reason,
+    };
+    
+    // If user is in trial, end the trial by setting status to CANCELED (no active paddle sub)
+    // This makes the user state less ambiguous.
+    if (user.subscriptionStatus === 'TRIALING') {
+        dataToUpdate.subscriptionStatus = 'CANCELED';
+        dataToUpdate.trialEndsAt = null;
+    }
+
     const updatedUser = await (this.prisma as any).user.update({
         where: { id: userId },
-        data: {
-            proAccessExpiresAt: grantProDto.expiresAt,
-            proAccessReason: grantProDto.reason,
-        },
+        data: dataToUpdate,
     });
 
     return plainToInstance(AdminUserDto, updatedUser, { excludeExtraneousValues: true });
@@ -67,8 +80,9 @@ export class AdminService {
     const updatedUser = await (this.prisma as any).user.update({
         where: { id: userId },
         data: {
-            proAccessExpiresAt: null,
-            proAccessReason: null,
+            // Set expiresAt to a past date. Setting to 'null' grants lifetime access.
+            proAccessExpiresAt: new Date(0), 
+            proAccessReason: 'Access revoked by admin.',
         },
     });
 
@@ -76,15 +90,6 @@ export class AdminService {
   }
 
   async deleteUser(userId: string): Promise<{ message: string }> {
-    const user = await (this.prisma as any).user.findUnique({ where: { id: userId }});
-    if (!user) {
-        throw new NotFoundException(`User with ID ${userId} not found.`);
-    }
-
-    await (this.prisma as any).user.delete({
-        where: { id: userId },
-    });
-
-    return { message: `User ${user.email} has been deleted successfully.` };
+    return this.usersService.delete(userId);
   }
 }
