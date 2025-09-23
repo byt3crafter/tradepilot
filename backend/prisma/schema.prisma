@@ -1,1 +1,322 @@
-�
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Enums
+// ───────────────────────────────────────────────────────────────────────────────
+
+enum VerificationTokenType {
+  EMAIL_VERIFY
+  EMAIL_CHANGE
+}
+
+enum BrokerAccountType {
+  DEMO
+  LIVE
+  PROP_FIRM
+}
+
+enum TradeResult {
+  Win
+  Loss
+  Breakeven
+}
+
+enum Direction {
+  Buy
+  Sell
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+// NEW: Enum for different types of checklist items within a playbook setup
+enum ChecklistItemType {
+  ENTRY_CRITERIA
+  RISK_MANAGEMENT
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Models
+// ───────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique @db.Citext
+  passwordHash    String
+  fullName        String?
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastLoginAt     DateTime?
+
+  role                 Role               @default(USER)
+  subscriptionStatus   SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?
+  paddleCustomerId     String?            @unique
+  paddleSubscriptionId String?            @unique
+  proAccessExpiresAt   DateTime?
+  proAccessReason      String?
+
+  refreshSessions     RefreshSession[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  authAudits          AuthAudit[]
+
+  // Domain models
+  brokerAccounts BrokerAccount[]
+  playbooks      Playbook[] // UPDATED: from strategies
+  checklistRules ChecklistRule[] // This is the old, global checklist. Can be removed if fully replaced.
+  trades         Trade[]
+
+  @@map("users")
+}
+
+model RefreshSession {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  @@index([userId])
+  @@map("refresh_sessions")
+}
+
+model VerificationToken {
+  id        String                @id @default(uuid())
+  tokenHash String
+  type      VerificationTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime              @default(now())
+  payload   Json?
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  @@unique([tokenHash, type])
+  @@index([userId])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AuthAudit {
+  id         String   @id @default(uuid())
+  event      String
+  emailTried String?  @db.Citext
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  @@index([userId])
+  @@index([emailTried])
+  @@map("auth_audits")
+}
+
+model BrokerAccount {
+  id             String            @id @default(cuid())
+  name           String
+  type           BrokerAccountType
+  initialBalance Float
+  currentBalance Float
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  trades         Trade[]
+  objectives     TradingObjective?
+  smartLimits    SmartLimit?
+  @@index([userId])
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// NEW: Playbook Schema
+// This replaces the old `Strategy` model with a more detailed structure.
+// ───────────────────────────────────────────────────────────────────────────────
+
+model Playbook {
+  id            String   @id @default(cuid())
+  name          String
+  coreIdea      String?
+  isPublic      Boolean  @default(false)
+  tradingStyles String[]
+  instruments   String[]
+  timeframes    String[]
+  pros          String[]
+  cons          String[]
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  setups PlaybookSetup[]
+  trades Trade[]
+
+  @@index([userId])
+}
+
+model PlaybookSetup {
+  id        String   @id @default(cuid())
+  name      String
+  screenshotBeforeUrl String?
+  screenshotAfterUrl  String?
+
+  playbookId String
+  playbook   Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  checklistItems ChecklistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([playbookId])
+}
+
+model ChecklistItem {
+  id      String            @id @default(cuid())
+  text    String
+  type    ChecklistItemType
+
+  setupId String
+  setup   PlaybookSetup @relation(fields: [setupId], references: [id], onDelete: Cascade)
+
+  @@index([setupId])
+}
+
+// This model is for the global, user-level checklist. It's separate from the new
+// playbook-specific checklists.
+model ChecklistRule {
+  id        String   @id @default(cuid())
+  rule      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Trades, Journals & AI Analysis
+// ───────────────────────────────────────────────────────────────────────────────
+
+model Trade {
+  id             String       @id @default(cuid())
+  asset          String
+  entryDate      DateTime     @default(now())
+  exitDate       DateTime?
+  direction      Direction
+  entryPrice     Float
+  exitPrice      Float?
+  riskPercentage Float
+  rr             Float?
+  profitLoss     Float?
+  result         TradeResult?
+  isPendingOrder Boolean      @default(false)
+  lotSize        Float?
+  stopLoss       Float?
+  takeProfit     Float?
+  commission     Float?
+  swap           Float?
+
+  screenshotBeforeUrl String?
+  screenshotAfterUrl  String?
+
+  aiAnalysis   AiAnalysis?
+  tradeJournal TradeJournal?
+
+  // Relations
+  userId        String
+  user          User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  brokerAccountId String
+  brokerAccount BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+
+  // UPDATED: from strategyId to playbookId
+  playbookId String
+  playbook   Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([brokerAccountId])
+  @@index([playbookId])
+}
+
+model TradeJournal {
+  id             String   @id @default(cuid())
+  mindsetBefore  String
+  exitReasoning  String
+  lessonsLearned String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tradeId        String   @unique
+  trade          Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model AiAnalysis {
+  id         String   @id @default(cuid())
+  summary    String
+  mistakes   Json
+  goodPoints Json
+  createdAt  DateTime @default(now())
+  tradeId    String   @unique
+  trade      Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model TradingObjective {
+  id              String        @id @default(cuid())
+  profitTarget    Float?
+  minTradingDays  Int?
+  maxLoss         Float?
+  maxDailyLoss    Float?
+  isEnabled       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+model SmartLimit {
+  id              String        @id @default(cuid())
+  isEnabled       Boolean       @default(false)
+  maxRiskPerTrade Float?
+  maxTradesPerDay Int?
+  maxLossesPerDay Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
