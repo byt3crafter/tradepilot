@@ -14,7 +14,7 @@ export class TradesService {
   ) {}
 
   async create(userId: string, createTradeDto: CreateTradeDto) {
-    const { brokerAccountId, strategyId, riskPercentage } = createTradeDto;
+    const { brokerAccountId, playbookId, riskPercentage } = createTradeDto;
     
     const brokerAccount = await (this.prisma as any).brokerAccount.findFirst({
         where: { id: brokerAccountId, userId },
@@ -38,11 +38,11 @@ export class TradesService {
     }
     // --- End of Enforcement ---
 
-    const strategy = await (this.prisma as any).strategy.findFirst({
-        where: { id: strategyId, userId }
+    const playbook = await (this.prisma as any).playbook.findFirst({
+        where: { id: playbookId, userId }
     });
-    if (!strategy) {
-        throw new BadRequestException('Strategy not found or does not belong to the user.');
+    if (!playbook) {
+        throw new BadRequestException('Playbook not found or does not belong to the user.');
     }
 
     return (this.prisma as any).trade.create({
@@ -73,7 +73,7 @@ export class TradesService {
       include: { 
         aiAnalysis: includeRelations,
         tradeJournal: includeRelations,
-        strategy: includeRelations,
+        playbook: includeRelations,
       },
     });
 
@@ -114,8 +114,8 @@ export class TradesService {
       throw new BadRequestException('Both "Before" and "After" screenshots are required for analysis.');
     }
     
-    if (!trade.strategy) {
-      throw new BadRequestException('Trade strategy is missing.');
+    if (!trade.playbook) {
+      throw new BadRequestException('Trade playbook is missing.');
     }
     
     // Contextual Learning: Find past mistakes from other analyzed trades
@@ -132,7 +132,7 @@ export class TradesService {
         .flatMap((t: { aiAnalysis: { mistakes: { mistake: string }[] } }) => t.aiAnalysis.mistakes.map((m: { mistake: string }) => m.mistake))
         .join(', ');
 
-    const analysisResult = await this.aiService.getTradeAnalysis(trade, trade.strategy, pastMistakes);
+    const analysisResult = await this.aiService.getTradeAnalysis(trade, trade.playbook, pastMistakes);
 
     // Save the analysis to the database
     const updatedTrade = await (this.prisma as any).trade.update({

@@ -38,5 +38,13 @@ export class CreateTradeDto {
 
   @IsString()
   @IsNotEmpty()
-  strategyId: string;
+  playbookId: string;
+
+  @IsNumber()
+  @IsOptional()
+  stopLoss?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  takeProfit?: number | null;
 }

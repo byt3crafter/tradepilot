@@ -96,5 +96,5 @@ export class UpdateTradeDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  strategyId?: string;
+  playbookId?: string;
 }
