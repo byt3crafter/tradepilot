@@ -18,6 +18,7 @@ import { useSubscription } from '../context/SubscriptionContext';
 import LiveTradeRow from './trades/LiveTradeRow.tsx';
 import CloseTradeModal from './trades/CloseTradeModal';
 import { DropdownMenu, DropdownMenuItem } from './ui/DropdownMenu';
+import EditTradeForm from './trades/EditTradeForm';
 
 type TradeView = 'live' | 'pending' | 'history';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
@@ -33,8 +34,9 @@ const TradeJournal: React.FC = () => {
   const [addTradeStep, setAddTradeStep] = useState<AddTradeStep>('closed');
   const [isPending, setIsPending] = useState(false);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [editingClosedTrade, setEditingClosedTrade] = useState<Trade | null>(null);
   const [closingTrade, setClosingTrade] = useState<Trade | null>(null);
-  const [currentView, setCurrentView] = useState<TradeView>('live');
+  const [currentView, setCurrentView] = useState<TradeView>('history');
 
   const headers = {
     live: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'SL / TP', 'Actions'],
@@ -69,6 +71,10 @@ const TradeJournal: React.FC = () => {
     setIsPending(trade.isPendingOrder);
     setAddTradeStep('form');
   };
+  
+  const handleOpenEditClosedTrade = (trade: Trade) => {
+    setEditingClosedTrade(trade);
+  };
 
   const handleOpenCloseTrade = (trade: Trade) => {
     setClosingTrade(trade);
@@ -82,6 +88,7 @@ const TradeJournal: React.FC = () => {
     setAddTradeStep('closed');
     setEditingTrade(null);
     setClosingTrade(null);
+    setEditingClosedTrade(null);
   };
 
   const renderContent = () => {
@@ -116,7 +123,7 @@ const TradeJournal: React.FC = () => {
       case 'pending':
         return pendingTrades.map(trade => <PendingOrderRow key={trade.id} trade={trade} onEdit={() => handleOpenEditTrade(trade)} />);
       case 'history':
-        return closedTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => handleOpenEditTrade(trade)} />);
+        return closedTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => handleOpenEditClosedTrade(trade)} />);
       default:
         return null;
     }
@@ -214,6 +221,12 @@ const TradeJournal: React.FC = () => {
           tradeToClose={closingTrade}
           onClose={closeModals}
         />
+      )}
+
+      {editingClosedTrade && (
+        <Modal title={`Edit Closed Trade: ${editingClosedTrade.asset}`} onClose={closeModals} size="4xl">
+          <EditTradeForm tradeToEdit={editingClosedTrade} onSuccess={closeModals} />
+        </Modal>
       )}
     </>
   );
