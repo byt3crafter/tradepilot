@@ -1,28 +1,40 @@
 import React, { useState } from 'react';
 import Card from '../components/Card';
 import Button from '../components/ui/Button';
-import { useStrategy } from '../context/StrategyContext';
+import { usePlaybook } from '../context/PlaybookContext';
 import Spinner from '../components/Spinner';
 import { PlusIcon } from '../components/icons/PlusIcon';
-import Modal from '../components/ui/Modal';
-import { Strategy } from '../types';
-import StrategyCard from '../components/strategies/StrategyCard';
-import StrategyForm from '../components/strategies/StrategyForm';
+import { Playbook } from '../types';
+import PlaybookCard from '../components/playbooks/PlaybookCard';
+import PlaybookBuilderModal from '../components/playbooks/PlaybookBuilderModal';
+import PlaybookDetailModal from '../components/playbooks/PlaybookDetailModal';
 
 const StrategiesPage: React.FC = () => {
-  const { strategies, isLoading } = useStrategy();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null);
+  const { playbooks, isLoading } = usePlaybook();
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [editingPlaybook, setEditingPlaybook] = useState<Playbook | null>(null);
+  const [viewingPlaybook, setViewingPlaybook] = useState<Playbook | null>(null);
 
   const openAddModal = () => {
-    setEditingStrategy(null);
-    setIsModalOpen(true);
+    setEditingPlaybook(null);
+    setIsBuilderOpen(true);
   };
 
-  const openEditModal = (strategy: Strategy) => {
-    setEditingStrategy(strategy);
-    setIsModalOpen(true);
+  const openEditModal = (playbook: Playbook) => {
+    setEditingPlaybook(playbook);
+    setViewingPlaybook(null);
+    setIsBuilderOpen(true);
   };
+  
+  const openDetailModal = (playbook: Playbook) => {
+    setViewingPlaybook(playbook);
+  };
+  
+  const closeAllModals = () => {
+    setIsBuilderOpen(false);
+    setEditingPlaybook(null);
+    setViewingPlaybook(null);
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in-up">
@@ -33,7 +45,7 @@ const StrategiesPage: React.FC = () => {
         </div>
         <Button onClick={openAddModal} className="w-auto flex items-center gap-2">
           <PlusIcon className="w-5 h-5" />
-          <span>New Strategy</span>
+          <span>New Playbook</span>
         </Button>
       </div>
 
@@ -42,38 +54,40 @@ const StrategiesPage: React.FC = () => {
           <div className="flex justify-center p-8">
             <Spinner />
           </div>
-        ) : strategies.length === 0 ? (
+        ) : playbooks.length === 0 ? (
           <div className="text-center p-12 border-2 border-dashed border-photonic-blue/20 rounded-lg">
             <h3 className="text-lg font-semibold text-future-light">Your Playbook is Empty</h3>
-            <p className="text-future-gray mt-2 mb-4">Create your first strategy to get started.</p>
+            <p className="text-future-gray mt-2 mb-4">Create your first playbook to get started.</p>
             <Button onClick={openAddModal} className="w-auto">
-              Add a Strategy
+              Create a Playbook
             </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {strategies.map(strategy => (
-                <StrategyCard
-                    key={strategy.id} 
-                    strategy={strategy} 
-                    onEdit={() => openEditModal(strategy)} 
+            {playbooks.map(playbook => (
+                <PlaybookCard
+                    key={playbook.id} 
+                    playbook={playbook} 
+                    onViewDetails={() => openDetailModal(playbook)} 
                 />
             ))}
           </div>
         )}
       </Card>
       
-      {isModalOpen && (
-        <Modal 
-            title={editingStrategy ? "Edit Strategy" : "Add New Strategy"} 
-            onClose={() => setIsModalOpen(false)}
-            size="md"
-        >
-            <StrategyForm 
-                strategy={editingStrategy} 
-                onSuccess={() => setIsModalOpen(false)} 
-            />
-        </Modal>
+      {isBuilderOpen && (
+        <PlaybookBuilderModal 
+            playbookToEdit={editingPlaybook}
+            onClose={closeAllModals}
+        />
+      )}
+      
+      {viewingPlaybook && (
+        <PlaybookDetailModal
+            playbook={viewingPlaybook}
+            onClose={closeAllModals}
+            onEdit={() => openEditModal(viewingPlaybook)}
+        />
       )}
     </div>
   );

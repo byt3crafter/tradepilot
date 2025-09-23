@@ -3,7 +3,7 @@ import { Trade, Direction } from '../../types';
 import { ArrowUpIcon } from '../icons/ArrowUpIcon';
 import { ArrowDownIcon } from '../icons/ArrowDownIcon';
 import { useTrade } from '../../context/TradeContext';
-import { useStrategy } from '../../context/StrategyContext';
+import { usePlaybook } from '../../context/PlaybookContext';
 import { ActivateIcon } from '../icons/ActivateIcon';
 import { CancelIcon } from '../icons/CancelIcon';
 import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
@@ -29,9 +29,9 @@ const DirectionIndicator: React.FC<{ direction: Direction }> = ({ direction }) =
 
 const PendingOrderRow: React.FC<PendingOrderRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, activatePendingOrder } = useTrade();
-  const { strategies } = useStrategy();
+  const { playbooks } = usePlaybook();
   
-  const strategyName = strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown';
+  const playbookName = playbooks.find(s => s.id === trade.playbookId)?.name || 'Unknown';
 
   const handleActivate = async () => {
     if (window.confirm('Activate this pending order? This will move it to your Live Trades.')) {
@@ -53,7 +53,7 @@ const PendingOrderRow: React.FC<PendingOrderRowProps> = ({ trade, onEdit }) => {
       <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
       <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(5)}</td>
       <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
-      <td className="p-3 text-future-light">{strategyName}</td>
+      <td className="p-3 text-future-light">{playbookName}</td>
       <td className="p-3">
         <div className="flex gap-2">
             <button onClick={handleActivate} className="flex items-center gap-1 text-sm text-momentum-green hover:underline">

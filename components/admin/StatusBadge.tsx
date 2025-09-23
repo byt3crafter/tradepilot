@@ -6,11 +6,11 @@ interface StatusBadgeProps {
 }
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ user }) => {
-  const hasGiftedAccess = user.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date();
+  const hasGiftedAccess = user.proAccessExpiresAt === null || (user.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date());
 
   if (hasGiftedAccess) {
     return (
-       <div className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-future-purple/10 text-future-purple border-future-purple/30`}>
+       <div className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-purple-500/10 text-purple-400 border-purple-400/30`}>
         PRO (GIFTED)
       </div>
     );

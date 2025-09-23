@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { StrategiesService } from './strategies.service';
-import { CreateStrategyDto } from './dtos/create-strategy.dto';
-import { UpdateStrategyDto } from './dtos/update-strategy.dto';
+// FIX: Corrected DTO import name to CreatePlaybookDto.
+import { CreatePlaybookDto } from './dtos/create-strategy.dto';
+// FIX: Corrected DTO import name to UpdatePlaybookDto.
+import { UpdatePlaybookDto } from './dtos/update-strategy.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
 
@@ -17,9 +19,10 @@ export class StrategiesController {
   constructor(private readonly strategiesService: StrategiesService) {}
 
   @Post()
-  create(@Body() createStrategyDto: CreateStrategyDto, @Req() req: AuthenticatedRequest) {
+  // FIX: Corrected type hint and variable name to CreatePlaybookDto.
+  create(@Body() createPlaybookDto: CreatePlaybookDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
-    return this.strategiesService.create(userId, createStrategyDto);
+    return this.strategiesService.create(userId, createPlaybookDto);
   }
 
   @Get()
@@ -34,10 +37,17 @@ export class StrategiesController {
     return this.strategiesService.findOne(id, userId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStrategyDto: UpdateStrategyDto, @Req() req: AuthenticatedRequest) {
+  @Get(':id/stats')
+  getStats(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
-    return this.strategiesService.update(id, userId, updateStrategyDto);
+    return this.strategiesService.getPlaybookStats(id, userId);
+  }
+
+  @Patch(':id')
+  // FIX: Corrected type hint and variable name to UpdatePlaybookDto.
+  update(@Param('id') id: string, @Body() updatePlaybookDto: UpdatePlaybookDto, @Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return this.strategiesService.update(id, userId, updatePlaybookDto);
   }
 
   @Delete(':id')

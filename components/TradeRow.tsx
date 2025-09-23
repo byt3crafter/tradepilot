@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Trade, TradeResult, Direction } from '../types';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
@@ -7,7 +6,7 @@ import { DropdownMenu, DropdownMenuItem } from './ui/DropdownMenu';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { useTrade } from '../context/TradeContext';
-import { useStrategy } from '../context/StrategyContext';
+import { usePlaybook } from '../context/PlaybookContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import Button from './ui/Button';
 import Spinner from './Spinner';
@@ -60,7 +59,7 @@ const DetailItem: React.FC<{ label: string, children: React.ReactNode, className
 
 const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, analyzeTrade } = useTrade();
-  const { strategies } = useStrategy();
+  const { playbooks } = usePlaybook();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
@@ -88,7 +87,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
     }
   };
   
-  const strategyName = strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown';
+  const playbookName = playbooks.find(s => s.id === trade.playbookId)?.name || 'Unknown';
   const canAnalyze = trade.screenshotBeforeUrl && trade.screenshotAfterUrl && !trade.aiAnalysis;
 
   const profitLoss = trade.profitLoss ?? 0;
@@ -141,9 +140,9 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         </td>
       </tr>
       {isExpanded && (
-        <tr className="bg-black/20">
+        <tr className="bg-future-panel/30">
             <td></td>
-            <td colSpan={8} className="p-4 pt-6 pb-8">
+            <td colSpan={8} className="p-4">
               <div className="relative">
                 <Button
                     onClick={onEdit}
@@ -167,7 +166,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                     <DetailItem label="Net P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>
                 </div>
                 
-                <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+                <div className="mt-4 pt-4 border-t border-photonic-blue/10">
                   <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Screenshots</h4>
                    <div className="flex flex-col md:flex-row gap-4 mb-4">
                       <div className="w-full md:w-1/2">
@@ -181,7 +180,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-photonic-blue/10 grid grid-cols-1 md:grid-cols-2 gap-y-6 md:gap-x-8">
+                <div className="mt-4 pt-4 border-t border-photonic-blue/10 grid grid-cols-1 md:grid-cols-2 gap-y-4 md:gap-x-8">
                        <div className="flex-1">
                             <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">My Journal</h4>
                             {trade.tradeJournal ? (

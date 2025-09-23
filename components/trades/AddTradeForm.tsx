@@ -3,7 +3,7 @@ import AuthInput from '../auth/AuthInput';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
-import { useStrategy } from '../../context/StrategyContext';
+import { usePlaybook } from '../../context/PlaybookContext';
 import { Trade } from '../../types';
 import Checkbox from '../ui/Checkbox';
 import { useTrade } from '../../context/TradeContext';
@@ -26,7 +26,7 @@ const toDateTimeLocal = (dateString?: string | null) => {
 };
 
 const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSuccess }) => {
-  const { strategies } = useStrategy();
+  const { playbooks } = usePlaybook();
   const { createTrade, updateTrade } = useTrade();
   const { activeAccount } = useAccount();
   
@@ -37,7 +37,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
     direction: 'Buy',
     entryPrice: 0,
     riskPercentage: 1,
-    strategyId: strategies[0]?.id || '',
+    playbookId: playbooks[0]?.id || '',
     isPendingOrder: isPending,
     entryDate: toDateTimeLocal(new Date().toISOString()),
   });
@@ -57,10 +57,10 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
       setFormState(prev => ({ 
         ...prev, 
         isPendingOrder: isPending,
-        strategyId: strategies[0]?.id || '' 
+        playbookId: playbooks[0]?.id || '' 
       }));
     }
-  }, [tradeToEdit, isEditMode, isPending, strategies]);
+  }, [tradeToEdit, isEditMode, isPending, playbooks]);
 
   const maxRiskLimit = useMemo(() => {
     if (activeAccount?.smartLimits?.isEnabled && activeAccount.smartLimits.maxRiskPerTrade) {
@@ -87,7 +87,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
     }));
   };
   
-  const canSubmit = formState.strategyId && formState.asset && !riskValidationError;
+  const canSubmit = formState.playbookId && formState.asset && !riskValidationError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +101,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
       direction: formState.direction,
       entryPrice: Number(formState.entryPrice),
       riskPercentage: Number(formState.riskPercentage),
-      strategyId: formState.strategyId,
+      playbookId: formState.playbookId,
       isPendingOrder: formState.isPendingOrder,
       entryDate: formState.entryDate ? new Date(formState.entryDate).toISOString() : new Date().toISOString(),
       stopLoss: formState.stopLoss ? Number(formState.stopLoss) : null,
@@ -206,15 +206,15 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
       </div>
 
         <SelectInput
-          label="Strategy"
-          id="strategyId"
-          name="strategyId"
-          value={formState.strategyId}
+          label="Playbook"
+          id="playbookId"
+          name="playbookId"
+          value={formState.playbookId}
           onChange={handleInputChange}
-          disabled={strategies.length === 0}
-          options={strategies.length > 0
-            ? strategies.map(s => ({ value: s.id, label: s.name }))
-            : [{ value: '', label: 'Create a strategy first' }]
+          disabled={playbooks.length === 0}
+          options={playbooks.length > 0
+            ? playbooks.map(s => ({ value: s.id, label: s.name }))
+            : [{ value: '', label: 'Create a playbook first' }]
           }
         />
                 

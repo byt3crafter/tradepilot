@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -12,7 +15,7 @@ import { ViewProvider } from './context/ViewContext';
 import { PaddleProvider } from './context/PaddleContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { AccountProvider } from './context/AccountContext';
-import { StrategyProvider } from './context/StrategyContext';
+import { PlaybookProvider } from './context/PlaybookContext';
 import { ChecklistProvider } from './context/ChecklistContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { TradeProvider } from './context/TradeContext';
@@ -49,7 +52,7 @@ const AuthenticatedApp: React.FC = () => {
         <PaddleProvider>
           <SubscriptionProvider>
             <AccountProvider>
-              <StrategyProvider>
+              <PlaybookProvider>
                 <ChecklistProvider>
                   <SettingsProvider>
                     <TradeProvider>
@@ -57,7 +60,7 @@ const AuthenticatedApp: React.FC = () => {
                     </TradeProvider>
                   </SettingsProvider>
                 </ChecklistProvider>
-              </StrategyProvider>
+              </PlaybookProvider>
             </AccountProvider>
           </SubscriptionProvider>
         </PaddleProvider>

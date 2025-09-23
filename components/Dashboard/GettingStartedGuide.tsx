@@ -1,16 +1,16 @@
 import React from 'react';
 import { useAccount } from '../../context/AccountContext';
-import { useStrategy } from '../../context/StrategyContext';
+import { usePlaybook } from '../../context/PlaybookContext';
 import { useView } from '../../context/ViewContext';
 import StepCard from './StepCard';
 
 const GettingStartedGuide: React.FC = () => {
   const { accounts } = useAccount();
-  const { strategies } = useStrategy();
+  const { playbooks } = usePlaybook();
   const { navigateTo } = useView();
 
   const hasAccounts = accounts.length > 0;
-  const hasStrategies = strategies.length > 0;
+  const hasPlaybooks = playbooks.length > 0;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -33,7 +33,7 @@ const GettingStartedGuide: React.FC = () => {
           description="Document your trading strategies to analyze their performance over time."
           ctaText="Add Strategy"
           ctaAction={() => navigateTo('strategies')}
-          isComplete={hasStrategies}
+          isComplete={hasPlaybooks}
         />
         <StepCard
           stepNumber={3}
@@ -42,7 +42,7 @@ const GettingStartedGuide: React.FC = () => {
           ctaText="Log Trade"
           ctaAction={() => navigateTo('journal')}
           isComplete={false} // This step is complete when the component disappears
-          isLocked={!hasAccounts || !hasStrategies}
+          isLocked={!hasAccounts || !hasPlaybooks}
         />
       </div>
     </div>

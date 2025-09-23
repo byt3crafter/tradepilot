@@ -99,17 +99,67 @@ export interface Trade {
 
   userId: string;
   brokerAccountId: string;
-  strategyId: string;
+  playbookId: string;
   
   createdAt: string;
   updatedAt: string;
 }
 
-export interface Strategy {
+// --- NEW: Playbook data structure ---
+
+export enum ChecklistItemType {
+  ENTRY_CRITERIA = 'ENTRY_CRITERIA',
+  RISK_MANAGEMENT = 'RISK_MANAGEMENT',
+}
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  type: ChecklistItemType;
+}
+
+export interface PlaybookSetup {
   id: string;
   name: string;
-  description?: string;
+  screenshotBeforeUrl?: string | null;
+  screenshotAfterUrl?: string | null;
+  entryCriteria: ChecklistItem[];
+  riskManagement: ChecklistItem[];
 }
+
+export interface Playbook {
+  id: string;
+  name: string;
+  coreIdea?: string | null;
+  isPublic: boolean;
+  tradingStyles: string[];
+  instruments: string[];
+  timeframes: string[];
+  pros: string[];
+  cons: string[];
+  userId: string;
+  setups: PlaybookSetup[];
+}
+
+// --- NEW: Playbook Analytics ---
+
+export interface EquityDataPoint {
+  date: string;
+  cumulativePL: number;
+}
+
+export interface PlaybookStats {
+  netPL: number;
+  totalTrades: number;
+  winRate: number;
+  avgWin: number;
+  avgLoss: number;
+  profitFactor: number;
+  expectancy: number;
+  avgHoldTimeHours: number;
+  equityCurve: EquityDataPoint[];
+}
+
 
 export interface ChecklistRule {
   id: string;

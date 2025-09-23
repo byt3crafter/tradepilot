@@ -16,7 +16,7 @@ const SubscriptionPage: React.FC = () => {
   const [uiStage, setUiStage] = useState<UiStage>('idle');
   const [error, setError] = useState<string>('');
   
-  const hasGiftedAccess = useMemo(() => user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date(), [user]);
+  const hasGiftedAccess = useMemo(() => user?.proAccessExpiresAt === null || (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date()), [user]);
 
 
   // Debug
@@ -92,7 +92,7 @@ const SubscriptionPage: React.FC = () => {
   const renderStatusPill = () => {
     if (hasGiftedAccess) {
        return (
-        <div className="bg-future-purple/10 text-future-purple text-sm font-semibold px-3 py-1 rounded-full inline-block">
+        <div className="bg-purple-500/10 text-purple-400 text-sm font-semibold px-3 py-1 rounded-full inline-block">
           Pro (Gifted)
         </div>
       );
@@ -119,20 +119,19 @@ const SubscriptionPage: React.FC = () => {
   };
 
   if (hasGiftedAccess) {
-     const isLifetime = new Date(user?.proAccessExpiresAt || 0).getFullYear() > 9000;
      return (
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
         <div className="mb-8">
           <h1 className="text-3xl font-orbitron text-future-light">Subscription</h1>
           <p className="text-future-gray">You have full access to all tradePilot features.</p>
         </div>
-        <Card className="!p-0">
-          <div className="text-center p-8 bg-future-panel rounded-lg">
-            <CheckCircleIcon className="w-16 h-16 mx-auto text-future-purple" />
+        <Card>
+          <div className="text-center p-8">
+            <CheckCircleIcon className="w-16 h-16 mx-auto text-purple-400" />
             <h3 className="text-xl font-semibold text-future-light mt-4">Pro Access Granted</h3>
             <p className="text-future-gray mt-2">
-              An administrator has granted you Pro access. 
-              {isLifetime ? ' You have lifetime access.' : ` Your access is valid until ${new Date(user!.proAccessExpiresAt!).toLocaleDateString()}.`}
+              An administrator has granted you Pro access.
+              {user?.proAccessExpiresAt ? ` Your access is valid until ${new Date(user.proAccessExpiresAt).toLocaleDateString()}.` : ' You have lifetime access.'}
             </p>
           </div>
         </Card>

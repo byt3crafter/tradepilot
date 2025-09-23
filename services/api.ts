@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Strategy, Trade, TradeJournal } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -29,11 +29,13 @@ interface ApiService {
   getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]>;
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress>;
 
-  // Strategies
-  getStrategies(token: string): Promise<Strategy[]>;
-  createStrategy(data: { name: string; description?: string }, token: string): Promise<Strategy>;
-  updateStrategy(id: string, data: Partial<Strategy>, token: string): Promise<Strategy>;
-  deleteStrategy(id: string, token: string): Promise<{ message: string }>;
+  // FIX: Renamed Strategy methods to Playbook to match the data model.
+  // Playbooks
+  getPlaybooks(token: string): Promise<Playbook[]>;
+  createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook>;
+  updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook>;
+  deletePlaybook(id: string, token: string): Promise<{ message: string }>;
+  getPlaybookStats(id: string, token: string): Promise<PlaybookStats>;
 
   // Checklist Rules
   getChecklistRules(token: string): Promise<ChecklistRule[]>;
@@ -241,18 +243,22 @@ const api: ApiService = {
     return (this as ApiService).get<SmartLimitProgress>(`/broker-accounts/${id}/smart-limits-progress`, token);
   },
 
-  // Strategy Methods
-  getStrategies(token: string): Promise<Strategy[]> {
-    return (this as ApiService).get<Strategy[]>('/strategies', token);
+  // FIX: Renamed Strategy methods to Playbook.
+  // Playbook Methods
+  getPlaybooks(token: string): Promise<Playbook[]> {
+    return (this as ApiService).get<Playbook[]>('/strategies', token);
   },
-  createStrategy(data: { name: string; description?: string }, token: string): Promise<Strategy> {
-    return (this as ApiService).post<Strategy>('/strategies', data, token);
+  createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook> {
+    return (this as ApiService).post<Playbook>('/strategies', data, token);
   },
-  updateStrategy(id: string, data: Partial<Strategy>, token: string): Promise<Strategy> {
-    return (this as ApiService).patch<Strategy>(`/strategies/${id}`, data, token);
+  updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook> {
+    return (this as ApiService).patch<Playbook>(`/strategies/${id}`, data, token);
   },
-  deleteStrategy(id: string, token: string): Promise<{ message: string }> {
+  deletePlaybook(id: string, token: string): Promise<{ message: string }> {
     return (this as ApiService).delete<{ message: string }>(`/strategies/${id}`, token);
+  },
+  getPlaybookStats(id: string, token: string): Promise<PlaybookStats> {
+    return (this as ApiService).get<PlaybookStats>(`/strategies/${id}/stats`, token);
   },
 
   // Checklist Rule Methods

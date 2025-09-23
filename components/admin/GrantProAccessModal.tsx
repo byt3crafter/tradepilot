@@ -15,12 +15,10 @@ interface GrantProAccessModalProps {
 
 const GrantProAccessModal: React.FC<GrantProAccessModalProps> = ({ user, onSuccess }) => {
   const { accessToken } = useAuth();
-  
-  const isCurrentlyLifetime = user.proAccessExpiresAt && new Date(user.proAccessExpiresAt).getFullYear() > 9000;
-  const [isLifetime, setIsLifetime] = useState(isCurrentlyLifetime);
+  const [isLifetime, setIsLifetime] = useState(user.proAccessExpiresAt === null);
   
   const toInputDate = (dateString?: string | null) => {
-    if (!dateString || (new Date(dateString).getFullYear() > 9000)) return '';
+    if (!dateString) return '';
     try {
       return new Date(dateString).toISOString().split('T')[0];
     } catch (e) {
@@ -44,11 +42,8 @@ const GrantProAccessModal: React.FC<GrantProAccessModalProps> = ({ user, onSucce
       return;
     }
 
-    // Use a far-future date to represent "lifetime" to avoid null/undefined ambiguity
-    const lifetimeDate = '9999-12-31T23:59:59.999Z';
-
     const payload = {
-      expiresAt: isLifetime ? lifetimeDate : (expiresAt ? new Date(expiresAt).toISOString() : null),
+      expiresAt: isLifetime ? null : (expiresAt ? new Date(expiresAt).toISOString() : null),
       reason,
     };
     

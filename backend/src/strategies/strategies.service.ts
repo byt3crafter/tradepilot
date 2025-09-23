@@ -1,60 +1,220 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateStrategyDto } from './dtos/create-strategy.dto';
-import { UpdateStrategyDto } from './dtos/update-strategy.dto';
+import { CreatePlaybookDto } from './dtos/create-strategy.dto';
+import { UpdatePlaybookDto } from './dtos/update-strategy.dto';
 
 @Injectable()
 export class StrategiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, createStrategyDto: CreateStrategyDto) {
-    return (this.prisma as any).strategy.create({
+  // Helper function to transform the Prisma result to match the frontend's expected structure.
+  private transformPlaybook(playbook: any) {
+    if (!playbook) return null;
+
+    const transformedSetups = playbook.setups.map((setup: any) => {
+      const entryCriteria = setup.checklistItems.filter((item: any) => item.type === 'ENTRY_CRITERIA');
+      const riskManagement = setup.checklistItems.filter((item: any) => item.type === 'RISK_MANAGEMENT');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { checklistItems, ...restOfSetup } = setup;
+      return { ...restOfSetup, entryCriteria, riskManagement };
+    });
+
+    return { ...playbook, setups: transformedSetups };
+  }
+
+  async create(userId: string, createDto: CreatePlaybookDto) {
+    const { setups, ...playbookData } = createDto;
+
+    return (this.prisma as any).playbook.create({
       data: {
-        ...createStrategyDto,
+        ...playbookData,
         userId,
+        setups: {
+          create: setups?.map(setup => {
+            const entryCriteriaItems = setup.entryCriteria?.map(item => ({
+              text: item.text,
+              type: 'ENTRY_CRITERIA',
+            })) || [];
+            
+            const riskManagementItems = setup.riskManagement?.map(item => ({
+              text: item.text,
+              type: 'RISK_MANAGEMENT',
+            })) || [];
+            
+            return {
+              name: setup.name,
+              screenshotBeforeUrl: setup.screenshotBeforeUrl,
+              screenshotAfterUrl: setup.screenshotAfterUrl,
+              checklistItems: {
+                create: [...entryCriteriaItems, ...riskManagementItems],
+              },
+            };
+          }) || [],
+        },
       },
     });
   }
 
   async findAll(userId: string) {
-    return (this.prisma as any).strategy.findMany({
+    const playbooks = await (this.prisma as any).playbook.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
+      include: {
+        setups: {
+          include: {
+            checklistItems: true,
+          },
+        },
+      },
     });
+    return playbooks.map((p: any) => this.transformPlaybook(p));
   }
 
-  async findOne(id: string, userId: string) {
-    const strategy = await (this.prisma as any).strategy.findUnique({
+  async findOne(id: string, userId: string, transform = true) {
+    const playbook = await (this.prisma as any).playbook.findUnique({
       where: { id },
+      include: {
+        setups: {
+          include: {
+            checklistItems: true,
+          },
+        },
+      },
     });
 
-    if (!strategy) {
-      throw new NotFoundException(`Strategy with ID ${id} not found.`);
+    if (!playbook) {
+      throw new NotFoundException(`Playbook with ID ${id} not found.`);
     }
-
-    if (strategy.userId !== userId) {
-      throw new ForbiddenException('You are not authorized to access this strategy.');
+    if (playbook.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to access this playbook.');
     }
-
-    return strategy;
+    return transform ? this.transformPlaybook(playbook) : playbook;
   }
 
-  async update(id: string, userId: string, updateStrategyDto: UpdateStrategyDto) {
-    await this.findOne(id, userId); // Authorization check
+  async update(id: string, userId: string, updateDto: UpdatePlaybookDto) {
+    await this.findOne(id, userId, false); // Authorization check without transformation
+    const { setups, ...playbookData } = updateDto;
 
-    return (this.prisma as any).strategy.update({
-      where: { id },
-      data: updateStrategyDto,
+    const updatedPlaybook = await (this.prisma as any).playbook.update({
+        where: { id },
+        data: {
+            ...playbookData,
+            setups: {
+                deleteMany: {},
+                create: setups?.map(setup => {
+                  const entryCriteriaItems = setup.entryCriteria?.map(item => ({
+                    text: item.text,
+                    type: 'ENTRY_CRITERIA',
+                  })) || [];
+                  
+                  const riskManagementItems = setup.riskManagement?.map(item => ({
+                    text: item.text,
+                    type: 'RISK_MANAGEMENT',
+                  })) || [];
+
+                  return {
+                    name: setup.name,
+                    screenshotBeforeUrl: setup.screenshotBeforeUrl,
+                    screenshotAfterUrl: setup.screenshotAfterUrl,
+                    checklistItems: {
+                      create: [...entryCriteriaItems, ...riskManagementItems],
+                    },
+                  };
+                }) || [],
+            },
+        },
+        include: {
+          setups: {
+            include: {
+              checklistItems: true,
+            },
+          },
+        },
     });
+    return this.transformPlaybook(updatedPlaybook);
   }
 
   async remove(id: string, userId: string) {
-    await this.findOne(id, userId); // Authorization check
-    
-    await (this.prisma as any).strategy.delete({
-      where: { id },
+    await this.findOne(id, userId, false); // Authorization check
+    await (this.prisma as any).playbook.delete({ where: { id } });
+    return { message: 'Playbook deleted successfully.' };
+  }
+
+  async getPlaybookStats(id: string, userId: string) {
+    await this.findOne(id, userId, false); // Authorization check
+
+    const closedTrades = await (this.prisma as any).trade.findMany({
+      where: {
+        playbookId: id,
+        userId,
+        result: { not: null },
+      },
+      orderBy: { exitDate: 'asc' },
     });
+
+    if (closedTrades.length === 0) {
+      return {
+        netPL: 0,
+        totalTrades: 0,
+        winRate: 0,
+        avgWin: 0,
+        avgLoss: 0,
+        profitFactor: 0,
+        expectancy: 0,
+        avgHoldTimeHours: 0,
+        equityCurve: [],
+      };
+    }
+
+    const winningTrades = closedTrades.filter((t: any) => t.result === 'Win');
+    const losingTrades = closedTrades.filter((t: any) => t.result === 'Loss');
     
-    return { message: 'Strategy deleted successfully.' };
+    const grossProfit = winningTrades.reduce((sum: number, trade: any) => sum + (trade.profitLoss ?? 0), 0);
+    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: any) => sum + (trade.profitLoss ?? 0), 0));
+    
+    const totalCommission = closedTrades.reduce((sum: number, trade: any) => sum + (trade.commission ?? 0), 0);
+    const totalSwap = closedTrades.reduce((sum: number, trade: any) => sum + (trade.swap ?? 0), 0);
+    
+    const netPL = grossProfit - grossLoss - totalCommission - totalSwap;
+    
+    const tradesForRate = winningTrades.length + losingTrades.length;
+    const winRate = tradesForRate > 0 ? (winningTrades.length / tradesForRate) * 100 : 0;
+    
+    const avgWin = winningTrades.length > 0 ? grossProfit / winningTrades.length : 0;
+    const avgLoss = losingTrades.length > 0 ? grossLoss / losingTrades.length : 0;
+    
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : Infinity;
+    
+    const expectancy = (winRate / 100 * avgWin) - ((1 - (winRate / 100)) * avgLoss);
+
+    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: any) => {
+        if (trade.entryDate && trade.exitDate) {
+            return sum + (new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime());
+        }
+        return sum;
+    }, 0);
+    const avgHoldTimeHours = closedTrades.length > 0 ? (totalHoldTimeMs / closedTrades.length) / (1000 * 60 * 60) : 0;
+
+    let cumulativePL = 0;
+    const equityCurve = closedTrades.map((trade: any) => {
+        const tradeNetPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
+        cumulativePL += tradeNetPL;
+        return {
+            date: trade.exitDate.toISOString().split('T')[0],
+            cumulativePL,
+        };
+    });
+
+    return {
+      netPL,
+      totalTrades: closedTrades.length,
+      winRate,
+      avgWin,
+      avgLoss,
+      profitFactor,
+      expectancy,
+      avgHoldTimeHours,
+      equityCurve,
+    };
   }
 }
