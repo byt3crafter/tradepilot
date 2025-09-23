@@ -47,4 +47,8 @@ export class CreateTradeDto {
   @IsNumber()
   @IsOptional()
   takeProfit?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  rr?: number | null;
 }

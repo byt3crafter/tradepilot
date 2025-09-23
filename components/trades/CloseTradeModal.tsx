@@ -9,6 +9,7 @@ import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import Textarea from '../ui/Textarea';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
+import { formatDuration, calculateRR } from '../../utils/calculations';
 
 interface CloseTradeModalProps {
   tradeToClose: Trade;
@@ -31,7 +32,7 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
     exitPrice: '',
     result: '',
     profitLoss: '',
-    rr: '',
+    rr: tradeToClose.rr?.toString() || '',
     commission: '',
     swap: '',
     screenshotBeforeUrl: tradeToClose.screenshotBeforeUrl || null,
@@ -42,9 +43,35 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
     lessonsLearned: tradeToClose.tradeJournal?.lessonsLearned || '',
   });
 
+  const [calculatedDuration, setCalculatedDuration] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isExecutionDetailsOpen, setIsExecutionDetailsOpen] = useState(false);
+
+  // --- Smart Calculator Effect for Duration ---
+  useEffect(() => {
+    if (formState.exitDate) {
+      const duration = formatDuration(tradeToClose.entryDate, formState.exitDate);
+      setCalculatedDuration(duration);
+    }
+  }, [formState.exitDate, tradeToClose.entryDate]);
+  
+  // --- Smart Calculator Effect for R:R ---
+  useEffect(() => {
+    const { entryPrice, stopLoss, takeProfit, direction } = tradeToClose;
+    if (entryPrice && stopLoss && takeProfit) {
+      const rr = calculateRR(
+        Number(entryPrice), 
+        Number(stopLoss), 
+        Number(takeProfit), 
+        direction
+      );
+      if (isFinite(rr) && rr > 0) {
+        setFormState(prev => ({ ...prev, rr: rr.toFixed(2) }));
+      }
+    }
+  }, [tradeToClose]);
+
 
   useEffect(() => {
     // If trade already had commission/swap from edit, pre-fill it
@@ -115,6 +142,11 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
                 id="exitDate" name="exitDate" type="datetime-local"
                 value={formState.exitDate} onChange={handleInputChange} required step="1"
             />
+             {calculatedDuration && (
+                <div className="text-sm text-center bg-future-dark/50 p-2 rounded-md border border-photonic-blue/10 -mt-2">
+                    Trade Duration: <span className="font-bold text-photonic-blue">{calculatedDuration}</span>
+                </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <AuthInput
                   label="Exit Price"
@@ -145,6 +177,7 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
                   id="rr" name="rr" type="number" step="0.01"
                   placeholder="e.g., 2.5"
                   value={formState.rr} onChange={handleInputChange}
+                  readOnly={!!tradeToClose.stopLoss && !!tradeToClose.takeProfit}
               />
             </div>
 

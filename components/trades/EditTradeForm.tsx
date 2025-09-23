@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trade, TradeResult, Direction } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import AuthInput from '../auth/AuthInput';
 import SelectInput from '../ui/SelectInput';
 import ImageUploader from './ImageUploader';
-import Textarea from '../ui/Textarea';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
+import { calculateRR, formatDuration } from '../../utils/calculations';
 
 interface EditTradeFormProps {
   tradeToEdit: Trade;
@@ -44,8 +44,36 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
     screenshotAfterUrl: tradeToEdit.screenshotAfterUrl || null,
   });
 
+  const [calculatedDuration, setCalculatedDuration] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // --- Smart Calculator Effect for Duration ---
+  useEffect(() => {
+    if (formState.entryDate && formState.exitDate) {
+      const duration = formatDuration(formState.entryDate, formState.exitDate);
+      setCalculatedDuration(duration);
+    }
+  }, [formState.entryDate, formState.exitDate]);
+
+  // --- Smart Calculator Effect for R:R ---
+  useEffect(() => {
+    const { entryPrice, stopLoss, takeProfit, direction } = formState;
+    if (entryPrice && stopLoss && takeProfit) {
+      const rr = calculateRR(
+        Number(entryPrice),
+        Number(stopLoss),
+        Number(takeProfit),
+        direction as Direction
+      );
+      if (isFinite(rr) && rr > 0) {
+        setFormState(prev => ({ ...prev, rr: rr.toFixed(2) }));
+      } else {
+        setFormState(prev => ({ ...prev, rr: '' }));
+      }
+    }
+  }, [formState.entryPrice, formState.stopLoss, formState.takeProfit, formState.direction]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -94,6 +122,11 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
 
   return (
     <form onSubmit={handleSubmit}>
+       {calculatedDuration && (
+          <div className="text-sm text-center bg-future-dark/50 p-2 rounded-md border border-photonic-blue/10 mb-4">
+              Trade Duration: <span className="font-bold text-photonic-blue">{calculatedDuration}</span>
+          </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
         {/* LEFT COLUMN */}
         <div className="space-y-4">
@@ -117,7 +150,7 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
             <h3 className="text-base font-orbitron text-photonic-blue/80 mb-2 pt-4 border-t border-photonic-blue/10">Performance</h3>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AuthInput label="Gross P/L ($)" id="profitLoss" name="profitLoss" type="number" step="any" value={formState.profitLoss} onChange={handleInputChange} />
-                <AuthInput label="R:R Ratio" id="rr" name="rr" type="number" step="0.01" value={formState.rr} onChange={handleInputChange} />
+                <AuthInput label="R:R Ratio" id="rr" name="rr" type="number" step="0.01" value={formState.rr} onChange={handleInputChange} readOnly={!!(formState.stopLoss && formState.takeProfit)} />
              </div>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AuthInput label="Commission ($)" id="commission" name="commission" type="number" step="any" value={formState.commission} onChange={handleInputChange} />

@@ -8,6 +8,7 @@ import { Trade } from '../../types';
 import Checkbox from '../ui/Checkbox';
 import { useTrade } from '../../context/TradeContext';
 import { useAccount } from '../../context/AccountContext';
+import { calculateRR } from '../../utils/calculations';
 
 interface TradeFormProps {
   tradeToEdit?: Trade | null;
@@ -40,10 +41,32 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
     playbookId: playbooks[0]?.id || '',
     isPendingOrder: isPending,
     entryDate: toDateTimeLocal(new Date().toISOString()),
+    stopLoss: undefined,
+    takeProfit: undefined,
+    rr: undefined,
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // --- Smart Calculator Effect for R:R ---
+  useEffect(() => {
+    const { entryPrice, stopLoss, takeProfit, direction } = formState;
+    if (entryPrice && stopLoss && takeProfit) {
+      const rr = calculateRR(
+        Number(entryPrice), 
+        Number(stopLoss), 
+        Number(takeProfit), 
+        direction
+      );
+      if (isFinite(rr) && rr > 0) {
+        setFormState(prev => ({ ...prev, rr }));
+      } else {
+        setFormState(prev => ({ ...prev, rr: undefined }));
+      }
+    }
+  }, [formState.entryPrice, formState.stopLoss, formState.takeProfit, formState.direction]);
+
 
   useEffect(() => {
     if (isEditMode) {
@@ -106,6 +129,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
       entryDate: formState.entryDate ? new Date(formState.entryDate).toISOString() : new Date().toISOString(),
       stopLoss: formState.stopLoss ? Number(formState.stopLoss) : null,
       takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
+      rr: formState.rr ? Number(formState.rr) : null,
     };
 
     try {
@@ -204,6 +228,12 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, isPending, onSucc
             onChange={handleInputChange}
           />
       </div>
+      
+      {formState.rr && (
+        <div className="text-sm text-center bg-future-dark/50 p-2 rounded-md border border-photonic-blue/10">
+            Calculated R:R Ratio: <span className="font-bold text-photonic-blue">{formState.rr.toFixed(2)}R</span>
+        </div>
+      )}
 
         <SelectInput
           label="Playbook"
