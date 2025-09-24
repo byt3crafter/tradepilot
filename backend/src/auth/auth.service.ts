@@ -10,6 +10,7 @@ import { MailService } from '../mail/mail.service';
 // import { User, VerificationTokenType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dtos/change-password.dto';
+import { AssetsService } from '../assets/assets.service';
 
 // FIX: Define local types to satisfy TypeScript during compile time.
 type User = any;
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly mailService: MailService,
     private readonly prisma: PrismaService,
+    private readonly assetsService: AssetsService,
   ) {}
 
   async register(registerDto: RegisterDto, ip: string, userAgent: string) {
@@ -42,6 +44,9 @@ export class AuthService {
       fullName,
       trialEndsAt,
     });
+
+    // Seed default assets for the new user to improve onboarding
+    await this.assetsService.seedDefaultAssetsForUser(user.id);
 
     const { token } = await this.tokenService.createEmailVerificationToken(user.id);
     await this.mailService.sendVerificationEmail(user.email, token);

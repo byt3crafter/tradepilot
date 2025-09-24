@@ -8,6 +8,8 @@ import TradeRow from '../TradeRow';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import PlaybookStatsTab from './PlaybookStatsTab';
+import { usePlaybook } from '../../context/PlaybookContext';
+import { TrashIcon } from '../icons/TrashIcon';
 
 interface PlaybookDetailModalProps {
   playbook: Playbook;
@@ -120,6 +122,7 @@ const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
 
 const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onClose, onEdit }) => {
   const { accessToken } = useAuth();
+  const { deletePlaybook } = usePlaybook();
   const [activeTab, setActiveTab] = useState<'details' | 'stats'>('details');
   const [stats, setStats] = useState<PlaybookStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -141,11 +144,23 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
     fetchStats();
   }, [playbook.id, accessToken]);
 
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this playbook?')) {
+      await deletePlaybook(playbook.id);
+      onClose();
+    }
+  };
+
   return (
     <Modal title={playbook.name} onClose={onClose} size="4xl">
-      <Button onClick={onEdit} variant="link" className="absolute top-4 right-20 flex items-center gap-1 text-sm p-0">
-        <PencilIcon className="w-4 h-4 mr-1" /> Edit
-      </Button>
+      <div className="absolute top-4 right-20 flex items-center gap-4">
+        <Button onClick={onEdit} variant="link" className="flex items-center gap-1 text-sm p-0">
+          <PencilIcon className="w-4 h-4 mr-1" /> Edit
+        </Button>
+         <Button onClick={handleDelete} variant="link" className="flex items-center gap-1 text-sm p-0 text-risk-high">
+          <TrashIcon className="w-4 h-4 mr-1" /> Delete
+        </Button>
+      </div>
 
       <div className="border-b border-photonic-blue/20 mb-4">
         <nav className="flex space-x-4 -mt-2">

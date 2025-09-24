@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import md5 from 'md5';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +11,7 @@ import { LogoutIcon } from './icons/LogoutIcon';
 import { UserIcon } from './icons/UserIcon';
 import { useAccount } from '../context/AccountContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import { StrategyIcon } from './icons/StrategyIcon';
+import { PlaybookIcon } from './icons/PlaybookIcon';
 import { CreditCardIcon } from './icons/CreditCardIcon';
 import { AdminIcon } from './icons/AdminIcon';
 import { useView } from '../context/ViewContext';
@@ -271,16 +272,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           />
           <NavItem
             icon={<JournalIcon className="w-6 h-6" />}
-            label="Trading History"
+            label="Trade Journal"
             isActive={currentView === 'journal'}
             onClick={() => handleSetView('journal')}
             isCollapsed={isSidebarCollapsed}
           />
           <NavItem
-            icon={<StrategyIcon className="w-6 h-6" />}
-            label="Strategies"
-            isActive={currentView === 'strategies'}
-            onClick={() => handleSetView('strategies')}
+            icon={<PlaybookIcon className="w-6 h-6" />}
+            label="Playbooks"
+            isActive={currentView === 'playbooks'}
+            onClick={() => handleSetView('playbooks')}
             isCollapsed={isSidebarCollapsed}
           />
            <NavItem

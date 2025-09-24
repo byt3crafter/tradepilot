@@ -54,4 +54,8 @@ export class CreateTradeDto {
   @IsNumber()
   @IsOptional()
   takeProfit?: number | null;
+
+  @IsString()
+  @IsOptional()
+  screenshotBeforeUrl?: string | null;
 }

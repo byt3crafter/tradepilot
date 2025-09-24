@@ -3,7 +3,7 @@ import Sidebar from '../components/Sidebar';
 import TradeJournal from '../components/TradeJournal';
 import PersonalisationPage from './PersonalisationPage';
 import SettingsPage from './SettingsPage';
-import StrategiesPage from './StrategiesPage';
+import PlaybooksPage from './PlaybooksPage';
 import { MenuIcon } from '../components/icons/MenuIcon';
 import TrialBanner from '../components/billing/TrialBanner';
 import { useAuth } from '../context/AuthContext';
@@ -13,8 +13,8 @@ import SubscriptionPage from './SubscriptionPage';
 import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 
-export type DashboardView = 'dashboard' | 'journal' | 'strategies' | 'personalisation' | 'settings' | 'subscription';
-export type SettingsSubView = 'accounts' | 'checklist' | 'security';
+export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'personalisation' | 'settings' | 'subscription';
+export type SettingsSubView = 'accounts' | 'checklist' | 'security' | 'assets';
 
 const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -26,8 +26,8 @@ const DashboardPage: React.FC = () => {
     switch (currentView) {
       case 'journal':
         return <TradeJournal />;
-      case 'strategies':
-        return <StrategiesPage />;
+      case 'playbooks':
+        return <PlaybooksPage />;
       case 'personalisation':
         return <PersonalisationPage />;
       case 'settings':

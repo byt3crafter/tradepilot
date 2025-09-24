@@ -9,6 +9,7 @@ import Spinner from '../components/Spinner';
 import api from '../services/api';
 import { useView } from '../context/ViewContext';
 import { SettingsSubView } from './DashboardPage';
+import AssetManager from '../components/assets/AssetManager';
 
 const SecuritySettings: React.FC = () => {
     const { accessToken } = useAuth();
@@ -80,6 +81,8 @@ const SettingsPage: React.FC = () => {
                 return <Card><AccountManager /></Card>;
             case 'checklist':
                 return <Card><ChecklistManager /></Card>;
+            case 'assets':
+                return <Card><AssetManager /></Card>;
             case 'security':
                 return <SecuritySettings />;
             default:
@@ -108,6 +111,7 @@ const SettingsPage: React.FC = () => {
                     <div className="flex flex-row md:flex-col gap-2 p-2 bg-future-panel/50 rounded-lg">
                         <NavButton tab="accounts" label="Accounts" />
                         <NavButton tab="checklist" label="Checklist" />
+                        <NavButton tab="assets" label="Assets" />
                         <NavButton tab="security" label="Security" />
                     </div>
                 </nav>

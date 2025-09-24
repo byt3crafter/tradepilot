@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import LiveTradeRow from './trades/LiveTradeRow.tsx';
 import CloseTradeModal from './trades/CloseTradeModal';
-import { DropdownMenu, DropdownMenuItem } from './ui/DropdownMenu';
+import EditTradeForm from './trades/EditTradeForm';
 
 type TradeView = 'live' | 'pending' | 'history';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
@@ -31,7 +31,6 @@ const TradeJournal: React.FC = () => {
   const { showUpgradeModal } = useSubscription();
 
   const [addTradeStep, setAddTradeStep] = useState<AddTradeStep>('closed');
-  const [isPending, setIsPending] = useState(false);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [closingTrade, setClosingTrade] = useState<Trade | null>(null);
   const [currentView, setCurrentView] = useState<TradeView>('live');
@@ -39,7 +38,7 @@ const TradeJournal: React.FC = () => {
   const headers = {
     live: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'SL / TP', 'Actions'],
     history: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Net P/L', 'Actions'],
-    pending: ['', 'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Strategy', 'Actions'],
+    pending: ['', 'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Playbook', 'Actions'],
   };
 
   const dailyLossRule = objectivesProgress?.find(obj => obj.key === 'maxDailyLoss');
@@ -48,7 +47,7 @@ const TradeJournal: React.FC = () => {
   const isSmartLimitBlocked = smartLimitsProgress?.isTradeCreationBlocked ?? false;
   const blockReason = isObjectiveBlocked ? 'Daily loss limit reached.' : smartLimitsProgress?.blockReason;
 
-  const handleOpenAddTrade = (pending: boolean) => {
+  const handleOpenAddTrade = () => {
     if (isTrialExpired) {
       showUpgradeModal();
       return;
@@ -56,7 +55,6 @@ const TradeJournal: React.FC = () => {
     if (isObjectiveBlocked || isSmartLimitBlocked) return;
 
     setEditingTrade(null);
-    setIsPending(pending);
     if (enforceChecklist && rules.length > 0) {
       setAddTradeStep('checklist');
     } else {
@@ -66,7 +64,6 @@ const TradeJournal: React.FC = () => {
   
   const handleOpenEditTrade = (trade: Trade) => {
     setEditingTrade(trade);
-    setIsPending(trade.isPendingOrder);
     setAddTradeStep('form');
   };
 
@@ -121,6 +118,36 @@ const TradeJournal: React.FC = () => {
         return null;
     }
   };
+  
+  const renderModal = () => {
+    if (addTradeStep !== 'form') return null;
+
+    if (editingTrade) {
+      // If the trade is closed (has a result), show the comprehensive edit form.
+      if (editingTrade.result) {
+        return (
+          <Modal title={`Edit Closed Trade: ${editingTrade.asset}`} onClose={closeModals} size="4xl">
+            <EditTradeForm tradeToEdit={editingTrade} onSuccess={closeModals} />
+          </Modal>
+        );
+      }
+      // Otherwise (live or pending), show the simpler entry form.
+      const title = editingTrade.isPendingOrder ? "Edit Pending Order" : `Edit Live Trade: ${editingTrade.asset}`;
+      return (
+        <Modal title={title} onClose={closeModals} size="lg">
+          <AddTradeForm tradeToEdit={editingTrade} onSuccess={closeModals} />
+        </Modal>
+      );
+    }
+
+    // This is for creating a new trade.
+    return (
+      <Modal title="Log Trade" onClose={closeModals} size="lg">
+        <AddTradeForm onSuccess={closeModals} />
+      </Modal>
+    );
+  };
+
 
   return (
     <>
@@ -131,14 +158,10 @@ const TradeJournal: React.FC = () => {
             <p className="text-future-gray text-sm">Log and review your trades for <span className="text-future-light font-semibold">{activeAccount?.name || '...'}</span></p>
           </div>
           <div className="relative">
-             <DropdownMenu>
-                <DropdownMenuItem onSelect={() => handleOpenAddTrade(false)}>
-                    Log Live Trade
-                </DropdownMenuItem>
-                 <DropdownMenuItem onSelect={() => handleOpenAddTrade(true)}>
-                    Log Pending Order
-                </DropdownMenuItem>
-             </DropdownMenu>
+             <Button onClick={handleOpenAddTrade} disabled={isObjectiveBlocked || isSmartLimitBlocked} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
+                <PlusIcon className="w-5 h-5" />
+                <span>Log Trade</span>
+             </Button>
 
             {(isObjectiveBlocked || isSmartLimitBlocked) && (
                  <div className="absolute -top-10 right-0 text-xs bg-risk-high text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
@@ -199,15 +222,7 @@ const TradeJournal: React.FC = () => {
         />
       )}
 
-      {addTradeStep === 'form' && (
-        <Modal 
-          title={editingTrade ? (isPending ? "Edit Pending Order" : "Edit Live Trade") : (isPending ? "Log Pending Order" : "Log Live Trade")}
-          onClose={closeModals}
-          size='lg'
-        >
-          <AddTradeForm tradeToEdit={editingTrade} isPending={isPending} onSuccess={closeModals} />
-        </Modal>
-      )}
+      {renderModal()}
 
       {closingTrade && (
         <CloseTradeModal

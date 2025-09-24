@@ -10,6 +10,7 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { MailModule } from '../mail/mail.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AssetsModule } from '../assets/assets.module';
 
 // FIX: Helper to parse TTL string to seconds to resolve type issue with `expiresIn`.
 const parseTtlToSeconds = (ttl: string): number => {
@@ -31,6 +32,7 @@ const parseTtlToSeconds = (ttl: string): number => {
     ConfigModule,
     MailModule,
     PrismaModule,
+    AssetsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

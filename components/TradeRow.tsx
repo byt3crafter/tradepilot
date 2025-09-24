@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Trade, TradeResult, Direction } from '../types';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
@@ -53,9 +54,17 @@ const DirectionIndicator: React.FC<{ direction: Direction }> = ({ direction }) =
 const DetailItem: React.FC<{ label: string, children: React.ReactNode, className?: string }> = ({ label, children, className = '' }) => (
     <div className={className}>
         <span className="text-xs text-future-gray font-orbitron uppercase">{label}</span>
-        <div className="mt-1 text-future-light">{children}</div>
+        <div className="mt-1 text-future-light font-tech-mono">{children}</div>
     </div>
 );
+
+const SectionHeader: React.FC<{ title: string; sectionKey: string; isOpen: boolean; onClick: (key: string) => void }> = ({ title, sectionKey, isOpen, onClick }) => (
+    <button type="button" className="w-full flex items-center justify-between py-2" onClick={() => onClick(sectionKey)}>
+        <h4 className="text-sm font-orbitron text-photonic-blue/80">{title}</h4>
+        <ChevronDownIcon className={`w-5 h-5 text-photonic-blue/80 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    </button>
+);
+
 
 const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, analyzeTrade } = useTrade();
@@ -63,6 +72,11 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (sectionKey: string) => {
+    setOpenSection(prev => (prev === sectionKey ? null : sectionKey));
+  };
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this trade?')) {
@@ -90,19 +104,25 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const playbookName = playbooks.find(s => s.id === trade.playbookId)?.name || 'Unknown';
   const canAnalyze = trade.screenshotBeforeUrl && trade.screenshotAfterUrl && !trade.aiAnalysis;
 
-  const profitLoss = trade.profitLoss ?? 0;
+  const netProfitLoss = trade.profitLoss ?? 0;
   const commission = trade.commission ?? 0;
   const swap = trade.swap ?? 0;
-  const netProfitLoss = profitLoss - commission - swap;
+  const grossProfitLoss = netProfitLoss + commission + swap;
 
-  const profitLossColor = profitLoss > 0 ? 'text-momentum-green' : profitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
+  const profitLossColor = grossProfitLoss > 0 ? 'text-momentum-green' : grossProfitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
   const netProfitLossColor = netProfitLoss > 0 ? 'text-momentum-green' : netProfitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
 
+  const formatTime = (dateString?: string | null) => {
+    if (!dateString) return '–';
+    return new Date(dateString).toLocaleTimeString(undefined, {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+  
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return '–';
     return new Date(dateString).toLocaleString(undefined, {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
   }
 
@@ -152,65 +172,75 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                     <PencilIcon className="w-4 h-4 mr-1" />
                     Edit
                 </Button>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 text-sm pr-16">
-                    <DetailItem label="Entry Time">{formatDateTime(trade.entryDate)}</DetailItem>
-                    <DetailItem label="Exit Time">{formatDateTime(trade.exitDate)}</DetailItem>
-                    <DetailItem label="Stop Loss">{trade.stopLoss?.toFixed(5) ?? '–'}</DetailItem>
-                    <DetailItem label="Take Profit">{trade.takeProfit?.toFixed(5) ?? '–'}</DetailItem>
-                    <DetailItem label="Lot Size">{trade.lotSize ?? '–'}</DetailItem>
+                
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-6 text-sm pr-16 mb-4">
+                    <DetailItem label="ENTRY TIME">{formatDateTime(trade.entryDate)}</DetailItem>
+                    <DetailItem label="EXIT TIME">{formatDateTime(trade.exitDate)}</DetailItem>
+                    <DetailItem label="STOP LOSS">{trade.stopLoss?.toFixed(2) ?? '–'}</DetailItem>
+                    <DetailItem label="TAKE PROFIT">{trade.takeProfit?.toFixed(2) ?? '–'}</DetailItem>
+                    <DetailItem label="LOT SIZE">{trade.lotSize ?? '–'}</DetailItem>
                     
-                    <DetailItem label="Gross P/L"><span className={profitLossColor}>${profitLoss.toFixed(2)}</span></DetailItem>
+                    <DetailItem label="GROSS P/L"><span className={profitLossColor}>${grossProfitLoss.toFixed(2)}</span></DetailItem>
                     <DetailItem label="R:R">{trade.rr?.toFixed(2) ?? '–'}</DetailItem>
-                    <DetailItem label="Commission">{trade.commission ? `-$${commission.toFixed(2)}` : '–'}</DetailItem>
-                    <DetailItem label="Swap">{trade.swap ? `-$${swap.toFixed(2)}` : '–'}</DetailItem>
-                    <DetailItem label="Net P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>
+                    <DetailItem label="COMMISSION">{trade.commission ? `-$${commission.toFixed(2)}` : '–'}</DetailItem>
+                    <DetailItem label="SWAP">{trade.swap ? `-$${swap.toFixed(2)}` : '–'}</DetailItem>
+                    <DetailItem label="NET P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>
                 </div>
                 
-                <div className="mt-4 pt-4 border-t border-photonic-blue/10">
-                  <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Screenshots</h4>
-                   <div className="flex flex-col md:flex-row gap-4 mb-4">
-                      <div className="w-full md:w-1/2">
-                          <span className="text-xs text-future-gray">Before Entry</span>
-                          {trade.screenshotBeforeUrl ? <img src={trade.screenshotBeforeUrl} alt="Before trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
-                      </div>
-                      <div className="w-full md:w-1/2">
-                          <span className="text-xs text-future-gray">After Exit</span>
-                          {trade.screenshotAfterUrl ? <img src={trade.screenshotAfterUrl} alt="After trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
-                      </div>
-                  </div>
+                <div className="border-t border-photonic-blue/10">
+                   <SectionHeader title="Screenshots" sectionKey="screenshots" isOpen={openSection === 'screenshots'} onClick={toggleSection} />
+                   {openSection === 'screenshots' && (
+                     <div className="animate-fade-in-up flex flex-col md:flex-row gap-4 mb-4">
+                        <div className="w-full md:w-1/2">
+                            <span className="text-xs text-future-gray">Before Entry</span>
+                            {trade.screenshotBeforeUrl ? <img src={trade.screenshotBeforeUrl} alt="Before trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                        </div>
+                        <div className="w-full md:w-1/2">
+                            <span className="text-xs text-future-gray">After Exit</span>
+                            {trade.screenshotAfterUrl ? <img src={trade.screenshotAfterUrl} alt="After trade" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                        </div>
+                    </div>
+                   )}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-photonic-blue/10 grid grid-cols-1 md:grid-cols-2 gap-y-4 md:gap-x-8">
-                       <div className="flex-1">
-                            <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">My Journal</h4>
-                            {trade.tradeJournal ? (
-                                <JournalEntry journal={trade.tradeJournal} />
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center bg-future-dark/50 p-4 rounded-md">
-                                    <p className="text-sm text-future-gray mb-3 text-center">No journal entry yet. What did you learn?</p>
-                                    <Button onClick={() => setIsJournalModalOpen(true)} className="w-auto flex items-center gap-2">
-                                        <PlusIcon className="w-4 h-4" /> Add Journal Entry
-                                    </Button>
-                                </div>
-                            )}
-                       </div>
-                       <div className="flex-1">
-                            <h4 className="text-sm font-orbitron text-photonic-blue/80 mb-2">AI Analysis</h4>
-                            {trade.aiAnalysis ? (
-                                <AiAnalysisDisplay analysis={trade.aiAnalysis} />
-                            ) : canAnalyze ? (
-                                <div className="h-full flex flex-col items-center justify-center bg-future-dark/50 p-4 rounded-md">
-                                    <p className="text-sm text-future-gray mb-3 text-center">Ready to analyze trade execution.</p>
-                                    <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-auto">
-                                        {isAnalyzing ? <Spinner /> : 'Analyze with AI'}
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="h-full flex items-center justify-center bg-future-dark/50 p-4 rounded-md">
-                                     <p className="text-sm text-future-gray text-center">Upload "Before" and "After" screenshots to enable AI analysis.</p>
-                                </div>
-                            )}
-                       </div>
+                <div className="border-t border-photonic-blue/10">
+                   <SectionHeader title="My Journal" sectionKey="journal" isOpen={openSection === 'journal'} onClick={toggleSection} />
+                   {openSection === 'journal' && (
+                     <div className="animate-fade-in-up">
+                          {trade.tradeJournal ? (
+                              <JournalEntry journal={trade.tradeJournal} />
+                          ) : (
+                              <div className="h-full flex flex-col items-center justify-center bg-future-dark/50 p-4 rounded-md">
+                                  <p className="text-sm text-future-gray mb-3 text-center">No journal entry yet. What did you learn?</p>
+                                  <Button onClick={() => setIsJournalModalOpen(true)} className="w-auto flex items-center gap-2">
+                                      <PlusIcon className="w-4 h-4" /> Add Journal Entry
+                                  </Button>
+                              </div>
+                          )}
+                     </div>
+                   )}
+                </div>
+
+                <div className="border-t border-photonic-blue/10">
+                   <SectionHeader title="AI Analysis" sectionKey="ai" isOpen={openSection === 'ai'} onClick={toggleSection} />
+                   {openSection === 'ai' && (
+                     <div className="animate-fade-in-up">
+                        {trade.aiAnalysis ? (
+                            <AiAnalysisDisplay analysis={trade.aiAnalysis} />
+                        ) : canAnalyze ? (
+                            <div className="h-full flex flex-col items-center justify-center bg-future-dark/50 p-4 rounded-md">
+                                <p className="text-sm text-future-gray mb-3 text-center">Ready to analyze trade execution.</p>
+                                <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-auto">
+                                    {isAnalyzing ? <Spinner /> : 'Analyze with AI'}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="h-full flex items-center justify-center bg-future-dark/50 p-4 rounded-md">
+                                 <p className="text-sm text-future-gray text-center">Upload "Before" and "After" screenshots to enable AI analysis.</p>
+                            </div>
+                        )}
+                     </div>
+                   )}
                 </div>
               </div>
             </td>

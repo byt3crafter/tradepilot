@@ -29,7 +29,6 @@ interface ApiService {
   getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]>;
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress>;
 
-  // FIX: Renamed Strategy methods to Playbook to match the data model.
   // Playbooks
   getPlaybooks(token: string): Promise<Playbook[]>;
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook>;
@@ -49,8 +48,6 @@ interface ApiService {
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade>;
   deleteTrade(id: string, token: string): Promise<{ message: string }>;
   analyzeTrade(id: string, token: string): Promise<Trade>;
-  calculateRisk(data: any, token: string): Promise<{ monetaryRisk: number; riskPercentage: number; }>;
-  calculatePositionSize(data: any, token: string): Promise<{ lotSize: number; }>;
   
   // Trade Journals
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
@@ -69,6 +66,9 @@ interface ApiService {
 
   // Assets
   getAssetSpecs(token: string): Promise<AssetSpecification[]>;
+  createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification>;
+  updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification>;
+  deleteAssetSpec(id: string, token: string): Promise<{ message: string }>;
 }
 
 const buildHeaders = (token?: string): HeadersInit => {
@@ -248,22 +248,21 @@ const api: ApiService = {
     return (this as ApiService).get<SmartLimitProgress>(`/broker-accounts/${id}/smart-limits-progress`, token);
   },
 
-  // FIX: Renamed Strategy methods to Playbook.
   // Playbook Methods
   getPlaybooks(token: string): Promise<Playbook[]> {
-    return (this as ApiService).get<Playbook[]>('/strategies', token);
+    return (this as ApiService).get<Playbook[]>('/playbooks', token);
   },
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook> {
-    return (this as ApiService).post<Playbook>('/strategies', data, token);
+    return (this as ApiService).post<Playbook>('/playbooks', data, token);
   },
   updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook> {
-    return (this as ApiService).patch<Playbook>(`/strategies/${id}`, data, token);
+    return (this as ApiService).patch<Playbook>(`/playbooks/${id}`, data, token);
   },
   deletePlaybook(id: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/strategies/${id}`, token);
+    return (this as ApiService).delete<{ message: string }>(`/playbooks/${id}`, token);
   },
   getPlaybookStats(id: string, token: string): Promise<PlaybookStats> {
-    return (this as ApiService).get<PlaybookStats>(`/strategies/${id}/stats`, token);
+    return (this as ApiService).get<PlaybookStats>(`/playbooks/${id}/stats`, token);
   },
 
   // Checklist Rule Methods
@@ -295,12 +294,6 @@ const api: ApiService = {
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
     return (this as ApiService).post<Trade>(`/trades/${id}/analyze`, {}, token);
-  },
-  calculateRisk(data: any, token: string): Promise<{ monetaryRisk: number; riskPercentage: number; }> {
-    return (this as ApiService).post('/trades/calculate-risk', data, token);
-  },
-  calculatePositionSize(data: any, token: string): Promise<{ lotSize: number; }> {
-    return (this as ApiService).post('/trades/calculate-position-size', data, token);
   },
 
   // Trade Journal Methods
@@ -340,6 +333,15 @@ const api: ApiService = {
   getAssetSpecs(token: string): Promise<AssetSpecification[]> {
       return (this as ApiService).get<AssetSpecification[]>('/assets/specs', token);
   },
+  createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
+    return (this as ApiService).post<AssetSpecification>('/assets', data, token);
+  },
+  updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
+    return (this as ApiService).patch<AssetSpecification>(`/assets/${id}`, data, token);
+  },
+  deleteAssetSpec(id: string, token: string): Promise<{ message: string }> {
+    return (this as ApiService).delete<{ message: string }>(`/assets/${id}`, token);
+  }
 };
 
 
