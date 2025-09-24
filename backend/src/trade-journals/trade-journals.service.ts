@@ -15,7 +15,7 @@ export class TradeJournalsService {
         // Ensure the user owns the trade they are trying to journal
         await this.tradesService.findOne(tradeId, userId);
 
-        return (this.prisma as any).tradeJournal.create({
+        return this.prisma.tradeJournal.create({
             data: {
                 ...createDto,
                 tradeId,
@@ -24,7 +24,7 @@ export class TradeJournalsService {
     }
 
     async update(userId: string, journalId: string, updateDto: UpdateTradeJournalDto) {
-        const journal = await (this.prisma as any).tradeJournal.findUnique({
+        const journal = await this.prisma.tradeJournal.findUnique({
             where: { id: journalId },
             include: { trade: true }
         });
@@ -37,7 +37,7 @@ export class TradeJournalsService {
             throw new ForbiddenException('You do not have permission to edit this journal entry.');
         }
 
-        return (this.prisma as any).tradeJournal.update({
+        return this.prisma.tradeJournal.update({
             where: { id: journalId },
             data: updateDto
         });

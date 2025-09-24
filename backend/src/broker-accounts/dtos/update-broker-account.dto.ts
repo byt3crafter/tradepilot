@@ -1,7 +1,11 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsBoolean } from 'class-validator';
-import { Type } from 'class-transformer';
 
-enum BrokerAccountType {
+import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsBoolean, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { BrokerAccountType } from '@prisma/client';
+
+// FIX: Define local enum to satisfy TypeScript during compile time.
+export enum BrokerAccountType {
   DEMO = 'DEMO',
   LIVE = 'LIVE',
   PROP_FIRM = 'PROP_FIRM',
@@ -73,6 +77,14 @@ export class UpdateBrokerAccountDto {
   @Min(0)
   @IsOptional()
   currentBalance?: number;
+
+  @IsString()
+  @IsOptional()
+  currency?: string;
+
+  @IsInt()
+  @IsOptional()
+  leverage?: number;
 
   @IsOptional()
   @ValidateNested()

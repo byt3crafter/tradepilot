@@ -4,15 +4,9 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { execSync } from 'child_process';
-// FIX: Import bcrypt instead of using require.
 import * as bcrypt from 'bcrypt';
-
-// FIX: Declare Jest globals to resolve "Cannot find name" errors.
-declare const describe: any;
-declare const it: any;
-declare const expect: any;
-declare const beforeAll: any;
-declare const afterAll: any;
+// FIX: Add explicit imports for Jest functions to satisfy TypeScript.
+import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -60,8 +54,7 @@ describe('AuthController (e2e)', () => {
 
     it('should fail if email is already taken', async () => {
       // Create user first
-      // FIX: Cast `prisma` to `any` to bypass TypeScript errors.
-      await (prisma as any).user.create({
+      await prisma.user.create({
         data: {
           email: 'taken@example.com',
           passwordHash: 'somehash',
@@ -82,11 +75,9 @@ describe('AuthController (e2e)', () => {
   describe('/auth/login (POST)', () => {
     let user: any;
     beforeAll(async () => {
-      // FIX: Cast `prisma` to `any` to bypass TypeScript errors.
-      user = await (prisma as any).user.create({
+      user = await prisma.user.create({
         data: {
           email: 'login.test@example.com',
-          // FIX: Use imported bcrypt instead of require.
           passwordHash: await bcrypt.hash('Password123!', 10),
           isEmailVerified: true,
           fullName: 'Login User',
@@ -124,11 +115,9 @@ describe('AuthController (e2e)', () => {
   describe('/users/me (GET)', () => {
     let accessToken: string;
     beforeAll(async () => {
-      // FIX: Cast `prisma` to `any` to bypass TypeScript errors.
-       await (prisma as any).user.create({
+       await prisma.user.create({
         data: {
           email: 'me.test@example.com',
-          // FIX: Use imported bcrypt instead of require.
           passwordHash: await bcrypt.hash('Password123!', 10),
           isEmailVerified: true,
           fullName: 'Me User',

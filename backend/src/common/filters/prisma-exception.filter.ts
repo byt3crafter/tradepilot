@@ -1,10 +1,11 @@
 
+
 import { ArgumentsHost, Catch, HttpStatus } from '@nestjs/common';
 import { AbstractHttpAdapter, BaseExceptionFilter } from '@nestjs/core';
-// import { Prisma } from '@prisma/client'; // FIX: Removed to fix type error.
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 
-// FIX: Catching all errors and checking for prisma error structurally as Prisma types are unavailable.
 @Catch()
 export class PrismaExceptionFilter extends BaseExceptionFilter {
   constructor(applicationRef?: AbstractHttpAdapter) {
@@ -12,11 +13,11 @@ export class PrismaExceptionFilter extends BaseExceptionFilter {
   }
 
   catch(exception: any, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
+    // FIX: Check for Prisma error shape instead of type due to import issues.
+    if (exception?.code && typeof exception.code === 'string' && exception.code.startsWith('P')) {
+      const ctx = host.switchToHttp();
+      const response = ctx.getResponse<Response>();
 
-    // FIX: Check for Prisma error structurally since type is unavailable.
-    if (exception && typeof exception.code === 'string' && exception.code.startsWith('P')) {
       let status = HttpStatus.INTERNAL_SERVER_ERROR;
       let message = 'An unexpected error occurred';
       let details: any = {};
@@ -40,7 +41,7 @@ export class PrismaExceptionFilter extends BaseExceptionFilter {
           return;
       }
 
-      // FIX: Cast response to any to resolve 'status' property does not exist error.
+      // FIX: Cast response to 'any' to resolve status method typing issue.
       (response as any).status(status).json({
         success: false,
         error: {
@@ -50,6 +51,7 @@ export class PrismaExceptionFilter extends BaseExceptionFilter {
         },
       });
     } else {
+      // If it's not a Prisma error, delegate to the default NestJS exception filter.
       super.catch(exception, host);
     }
   }

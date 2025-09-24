@@ -8,7 +8,7 @@ export class ChecklistRulesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, createChecklistRuleDto: CreateChecklistRuleDto) {
-    return (this.prisma as any).checklistRule.create({
+    return this.prisma.checklistRule.create({
       data: {
         ...createChecklistRuleDto,
         userId,
@@ -17,14 +17,14 @@ export class ChecklistRulesService {
   }
 
   async findAll(userId: string) {
-    return (this.prisma as any).checklistRule.findMany({
+    return this.prisma.checklistRule.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async findOne(id: string, userId: string) {
-    const rule = await (this.prisma as any).checklistRule.findUnique({
+    const rule = await this.prisma.checklistRule.findUnique({
       where: { id },
     });
 
@@ -42,7 +42,7 @@ export class ChecklistRulesService {
   async update(id: string, userId: string, updateChecklistRuleDto: UpdateChecklistRuleDto) {
     await this.findOne(id, userId); // Authorization check
 
-    return (this.prisma as any).checklistRule.update({
+    return this.prisma.checklistRule.update({
       where: { id },
       data: updateChecklistRuleDto,
     });
@@ -51,7 +51,7 @@ export class ChecklistRulesService {
   async remove(id: string, userId: string) {
     await this.findOne(id, userId); // Authorization check
     
-    await (this.prisma as any).checklistRule.delete({
+    await this.prisma.checklistRule.delete({
       where: { id },
     });
     

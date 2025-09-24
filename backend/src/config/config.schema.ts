@@ -34,7 +34,7 @@ export const JoiValidationSchema = Joi.object({
   THROTTLE_LIMIT: Joi.number().default(10),
 
   // AI
-  GEMINI_API_KEY: Joi.string().required(),
+  API_KEY: Joi.string().required(),
 
   // Paddle Billing
   PADDLE_API_KEY: Joi.string().required(),

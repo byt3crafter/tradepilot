@@ -1,50 +1,73 @@
-import { Injectable } from '@nestjs/common';
 
-export interface AssetSpecification {
-  symbol: string;
-  name: string;
-  valuePerPoint: number;
-  pipSize: number; // The smallest price move (e.g., 0.0001 for EURUSD, 1 for indices)
-  lotSize: number; // Number of units in one standard lot
-}
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateAssetSpecDto } from './dtos/create-asset-spec.dto';
+import { UpdateAssetSpecDto } from './dtos/update-asset-spec.dto';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { AssetSpecification } from '@prisma/client';
+
+// FIX: Define local type to satisfy TypeScript during compile time.
+type AssetSpecification = any;
 
 @Injectable()
 export class AssetsService {
-  private specifications: AssetSpecification[] = [
-    // Forex Majors
-    { symbol: 'EURUSD', name: 'Euro vs US Dollar', valuePerPoint: 10, pipSize: 0.0001, lotSize: 100000 },
-    { symbol: 'GBPUSD', name: 'Great British Pound vs US Dollar', valuePerPoint: 10, pipSize: 0.0001, lotSize: 100000 },
-    { symbol: 'USDJPY', name: 'US Dollar vs Japanese Yen', valuePerPoint: 10, pipSize: 0.001, lotSize: 100000 },
-    { symbol: 'USDCAD', name: 'US Dollar vs Canadian Dollar', valuePerPoint: 10, pipSize: 0.0001, lotSize: 100000 },
-    { symbol: 'AUDUSD', name: 'Australian Dollar vs US Dollar', valuePerPoint: 10, pipSize: 0.0001, lotSize: 100000 },
-    { symbol: 'NZDUSD', name: 'New Zealand Dollar vs US Dollar', valuePerPoint: 10, pipSize: 0.0001, lotSize: 100000 },
-    { symbol: 'USDCHF', name: 'US Dollar vs Swiss Franc', valuePerPoint: 10, pipSize: 0.0001, lotSize: 100000 },
+  constructor(private readonly prisma: PrismaService) {}
 
-    // Indices
-    { symbol: 'US30', name: 'Dow Jones Industrial Average', valuePerPoint: 1, pipSize: 1, lotSize: 1 },
-    { symbol: 'SPX500', name: 'S&P 500', valuePerPoint: 1, pipSize: 1, lotSize: 1 },
-    { symbol: 'NAS100', name: 'Nasdaq 100', valuePerPoint: 1, pipSize: 1, lotSize: 1 },
-    // DE40 value is ~1 EUR per point, converted to USD.
-    { symbol: 'DE40', name: 'DAX 40 (Germany)', valuePerPoint: 1.15, pipSize: 1, lotSize: 1 },
-    // UK100 value is ~1 GBP per point, converted to USD.
-    { symbol: 'UK100', name: 'FTSE 100', valuePerPoint: 1.25, pipSize: 1, lotSize: 1 },
+  async create(userId: string, createDto: CreateAssetSpecDto): Promise<AssetSpecification> {
+    return this.prisma.assetSpecification.create({
+      data: {
+        symbol: createDto.symbol,
+        name: createDto.name,
+        valuePerPoint: createDto.valuePerPoint ?? 1,
+        pipSize: createDto.pipSize ?? 0.0001,
+        lotSize: createDto.lotSize ?? 100000,
+        userId,
+      },
+    });
+  }
 
-    // Crypto
-    { symbol: 'BTCUSD', name: 'Bitcoin vs US Dollar', valuePerPoint: 1, pipSize: 1, lotSize: 1 },
-    { symbol: 'ETHUSD', name: 'Ethereum vs US Dollar', valuePerPoint: 1, pipSize: 1, lotSize: 1 },
-
-     // Commodities
-    { symbol: 'XAUUSD', name: 'Gold vs US Dollar', valuePerPoint: 1, pipSize: 0.01, lotSize: 100 },
-    { symbol: 'XAGUSD', name: 'Silver vs US Dollar', valuePerPoint: 50, pipSize: 0.01, lotSize: 5000 },
-    { symbol: 'USOIL', name: 'WTI Crude Oil', valuePerPoint: 10, pipSize: 0.01, lotSize: 1000 },
-  ];
-
-  async getSpecifications(): Promise<AssetSpecification[]> {
-    return this.specifications;
+  async findAll(userId: string): Promise<AssetSpecification[]> {
+    return this.prisma.assetSpecification.findMany({
+      where: { userId },
+      orderBy: { symbol: 'asc' },
+    });
   }
   
-  async findSpecBySymbol(symbol: string): Promise<AssetSpecification | null> {
-    const found = this.specifications.find(s => s.symbol.toLowerCase() === symbol.toLowerCase());
+  async findOne(id: string, userId: string): Promise<AssetSpecification> {
+    const assetSpec = await this.prisma.assetSpecification.findUnique({
+      where: { id },
+    });
+
+    if (!assetSpec) {
+      throw new NotFoundException(`Asset with ID ${id} not found.`);
+    }
+    if (assetSpec.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to access this asset.');
+    }
+    return assetSpec;
+  }
+  
+  async update(id: string, userId: string, updateDto: UpdateAssetSpecDto): Promise<AssetSpecification> {
+    await this.findOne(id, userId); // Authorization check
+    return this.prisma.assetSpecification.update({
+      where: { id },
+      data: updateDto,
+    });
+  }
+  
+  async remove(id: string, userId: string) {
+    await this.findOne(id, userId); // Authorization check
+    await this.prisma.assetSpecification.delete({
+      where: { id },
+    });
+    return { message: 'Asset deleted successfully.' };
+  }
+
+  async findSpecBySymbol(symbol: string, userId: string): Promise<AssetSpecification | null> {
+    if (!symbol || !userId) return null;
+    const found = await this.prisma.assetSpecification.findUnique({
+        where: { userId_symbol: { userId, symbol } },
+    });
     return found || null;
   }
 }

@@ -1,10 +1,20 @@
+
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreatePlaybookDto } from './dtos/create-strategy.dto';
-import { UpdatePlaybookDto } from './dtos/update-strategy.dto';
+import { CreatePlaybookDto } from './dtos/create-playbook.dto';
+import { UpdatePlaybookDto } from './dtos/update-playbook.dto';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { ChecklistItemType, Trade } from '@prisma/client';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+export enum ChecklistItemType {
+  ENTRY_CRITERIA = 'ENTRY_CRITERIA',
+  RISK_MANAGEMENT = 'RISK_MANAGEMENT',
+}
+type Trade = any;
 
 @Injectable()
-export class StrategiesService {
+export class PlaybooksService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Helper function to transform the Prisma result to match the frontend's expected structure.
@@ -25,7 +35,7 @@ export class StrategiesService {
   async create(userId: string, createDto: CreatePlaybookDto) {
     const { setups, ...playbookData } = createDto;
 
-    return (this.prisma as any).playbook.create({
+    return this.prisma.playbook.create({
       data: {
         ...playbookData,
         userId,
@@ -33,12 +43,12 @@ export class StrategiesService {
           create: setups?.map(setup => {
             const entryCriteriaItems = setup.entryCriteria?.map(item => ({
               text: item.text,
-              type: 'ENTRY_CRITERIA',
+              type: ChecklistItemType.ENTRY_CRITERIA,
             })) || [];
             
             const riskManagementItems = setup.riskManagement?.map(item => ({
               text: item.text,
-              type: 'RISK_MANAGEMENT',
+              type: ChecklistItemType.RISK_MANAGEMENT,
             })) || [];
             
             return {
@@ -56,7 +66,7 @@ export class StrategiesService {
   }
 
   async findAll(userId: string) {
-    const playbooks = await (this.prisma as any).playbook.findMany({
+    const playbooks = await this.prisma.playbook.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
       include: {
@@ -71,7 +81,7 @@ export class StrategiesService {
   }
 
   async findOne(id: string, userId: string, transform = true) {
-    const playbook = await (this.prisma as any).playbook.findUnique({
+    const playbook = await this.prisma.playbook.findUnique({
       where: { id },
       include: {
         setups: {
@@ -95,7 +105,7 @@ export class StrategiesService {
     await this.findOne(id, userId, false); // Authorization check without transformation
     const { setups, ...playbookData } = updateDto;
 
-    const updatedPlaybook = await (this.prisma as any).playbook.update({
+    const updatedPlaybook = await this.prisma.playbook.update({
         where: { id },
         data: {
             ...playbookData,
@@ -104,12 +114,12 @@ export class StrategiesService {
                 create: setups?.map(setup => {
                   const entryCriteriaItems = setup.entryCriteria?.map(item => ({
                     text: item.text,
-                    type: 'ENTRY_CRITERIA',
+                    type: ChecklistItemType.ENTRY_CRITERIA,
                   })) || [];
                   
                   const riskManagementItems = setup.riskManagement?.map(item => ({
                     text: item.text,
-                    type: 'RISK_MANAGEMENT',
+                    type: ChecklistItemType.RISK_MANAGEMENT,
                   })) || [];
 
                   return {
@@ -136,14 +146,14 @@ export class StrategiesService {
 
   async remove(id: string, userId: string) {
     await this.findOne(id, userId, false); // Authorization check
-    await (this.prisma as any).playbook.delete({ where: { id } });
+    await this.prisma.playbook.delete({ where: { id } });
     return { message: 'Playbook deleted successfully.' };
   }
 
   async getPlaybookStats(id: string, userId: string) {
     await this.findOne(id, userId, false); // Authorization check
 
-    const closedTrades = await (this.prisma as any).trade.findMany({
+    const closedTrades = await this.prisma.trade.findMany({
       where: {
         playbookId: id,
         userId,
@@ -166,14 +176,14 @@ export class StrategiesService {
       };
     }
 
-    const winningTrades = closedTrades.filter((t: any) => t.result === 'Win');
-    const losingTrades = closedTrades.filter((t: any) => t.result === 'Loss');
+    const winningTrades = closedTrades.filter((t: Trade) => t.result === 'Win');
+    const losingTrades = closedTrades.filter((t: Trade) => t.result === 'Loss');
     
-    const grossProfit = winningTrades.reduce((sum: number, trade: any) => sum + (trade.profitLoss ?? 0), 0);
-    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: any) => sum + (trade.profitLoss ?? 0), 0));
+    const grossProfit = winningTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0), 0);
+    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0), 0));
     
-    const totalCommission = closedTrades.reduce((sum: number, trade: any) => sum + (trade.commission ?? 0), 0);
-    const totalSwap = closedTrades.reduce((sum: number, trade: any) => sum + (trade.swap ?? 0), 0);
+    const totalCommission = closedTrades.reduce((sum: number, trade: Trade) => sum + (trade.commission ?? 0), 0);
+    const totalSwap = closedTrades.reduce((sum: number, trade: Trade) => sum + (trade.swap ?? 0), 0);
     
     const netPL = grossProfit - grossLoss - totalCommission - totalSwap;
     
@@ -187,7 +197,7 @@ export class StrategiesService {
     
     const expectancy = (winRate / 100 * avgWin) - ((1 - (winRate / 100)) * avgLoss);
 
-    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: any) => {
+    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: Trade) => {
         if (trade.entryDate && trade.exitDate) {
             return sum + (new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime());
         }
@@ -196,11 +206,11 @@ export class StrategiesService {
     const avgHoldTimeHours = closedTrades.length > 0 ? (totalHoldTimeMs / closedTrades.length) / (1000 * 60 * 60) : 0;
 
     let cumulativePL = 0;
-    const equityCurve = closedTrades.map((trade: any) => {
+    const equityCurve = closedTrades.map((trade: Trade) => {
         const tradeNetPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
         cumulativePL += tradeNetPL;
         return {
-            date: trade.exitDate.toISOString().split('T')[0],
+            date: trade.exitDate!.toISOString().split('T')[0],
             cumulativePL,
         };
     });

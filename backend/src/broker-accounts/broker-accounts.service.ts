@@ -3,6 +3,11 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { Trade } from '@prisma/client';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+type Trade = any;
 
 @Injectable()
 export class BrokerAccountsService {
@@ -10,7 +15,7 @@ export class BrokerAccountsService {
 
   async create(userId: string, createBrokerAccountDto: CreateBrokerAccountDto) {
     const { objectives, smartLimits, ...accountData } = createBrokerAccountDto;
-    return (this.prisma as any).brokerAccount.create({
+    return this.prisma.brokerAccount.create({
       data: {
         ...accountData,
         initialBalance: accountData.initialBalance,
@@ -33,7 +38,7 @@ export class BrokerAccountsService {
   }
 
   async findAll(userId: string) {
-    return (this.prisma as any).brokerAccount.findMany({
+    return this.prisma.brokerAccount.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
       include: {
@@ -44,7 +49,7 @@ export class BrokerAccountsService {
   }
 
   async findOne(id: string, userId: string) {
-    const account = await (this.prisma as any).brokerAccount.findUnique({
+    const account = await this.prisma.brokerAccount.findUnique({
       where: { id },
       include: {
         objectives: true,
@@ -67,7 +72,7 @@ export class BrokerAccountsService {
     await this.findOne(id, userId); // Authorization check
     const { objectives, smartLimits, ...accountData } = updateBrokerAccountDto;
 
-    return (this.prisma as any).brokerAccount.update({
+    return this.prisma.brokerAccount.update({
       where: { id },
       data: {
         ...accountData,
@@ -90,7 +95,7 @@ export class BrokerAccountsService {
   async remove(id: string, userId: string) {
     await this.findOne(id, userId); // Authorization check
     
-    await (this.prisma as any).brokerAccount.delete({
+    await this.prisma.brokerAccount.delete({
       where: { id },
     });
     
@@ -103,7 +108,7 @@ export class BrokerAccountsService {
       return [];
     }
 
-    const trades = await (this.prisma as any).trade.findMany({
+    const trades = await this.prisma.trade.findMany({
       where: { brokerAccountId: id, result: { not: null } },
       orderBy: { entryDate: 'asc' },
     });
@@ -112,13 +117,13 @@ export class BrokerAccountsService {
     const { profitTarget, minTradingDays, maxLoss, maxDailyLoss } = account.objectives;
 
     // --- Calculations ---
-    const totalNetPL = trades.reduce((sum: number, trade: { profitLoss?: number | null; commission?: number | null; swap?: number | null; }) => sum + (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0), 0);
-    const uniqueTradingDays = new Set(trades.map((t: { entryDate: string | Date; }) => new Date(t.entryDate).toDateString())).size;
+    const totalNetPL = trades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0), 0);
+    const uniqueTradingDays = new Set(trades.map((t: Trade) => new Date(t.entryDate).toDateString())).size;
 
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const dailyTrades = trades.filter((t: { entryDate: string | Date; }) => new Date(t.entryDate) >= today);
-    const dailyNetPL = dailyTrades.reduce((sum: number, trade: { profitLoss?: number | null; commission?: number | null; swap?: number | null; }) => sum + (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0), 0);
+    const dailyTrades = trades.filter((t: Trade) => new Date(t.entryDate) >= today);
+    const dailyNetPL = dailyTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0), 0);
 
     // --- Objective 1: Profit Target ---
     if (profitTarget) {
@@ -189,7 +194,7 @@ export class BrokerAccountsService {
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(today.getUTCDate() + 1);
 
-    const dailyTrades = await (this.prisma as any).trade.findMany({
+    const dailyTrades = await this.prisma.trade.findMany({
       where: { 
         brokerAccountId: id, 
         userId,
@@ -201,7 +206,7 @@ export class BrokerAccountsService {
     });
     
     const tradesToday = dailyTrades.length;
-    const lossesToday = dailyTrades.filter((t: any) => t.result === 'Loss').length;
+    const lossesToday = dailyTrades.filter((t: Trade) => t.result === 'Loss').length;
     
     let isTradeCreationBlocked = false;
     let blockReason: string | null = null;

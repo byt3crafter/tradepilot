@@ -1,3 +1,4 @@
+
 import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dtos/register.dto';
@@ -5,9 +6,17 @@ import { LoginDto } from './dtos/login.dto';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './tokens/token.service';
 import { MailService } from '../mail/mail.service';
-// import { User } from '@prisma/client'; // FIX: Removed to resolve type error.
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { User, VerificationTokenType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dtos/change-password.dto';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+type User = any;
+enum VerificationTokenType {
+    EMAIL_VERIFY = 'EMAIL_VERIFY',
+    EMAIL_CHANGE = 'EMAIL_CHANGE',
+}
 
 @Injectable()
 export class AuthService {
@@ -37,8 +46,7 @@ export class AuthService {
     const { token } = await this.tokenService.createEmailVerificationToken(user.id);
     await this.mailService.sendVerificationEmail(user.email, token);
     
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    await (this.prisma as any).authAudit.create({
+    await this.prisma.authAudit.create({
       data: { userId: user.id, ip, userAgent, event: 'register_requested' },
     });
     
@@ -50,8 +58,7 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email.toLowerCase());
 
     if (!user) {
-        // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-        await (this.prisma as any).authAudit.create({
+        await this.prisma.authAudit.create({
             data: { emailTried: email, ip, userAgent, event: 'login_failed_user_not_found' },
         });
         throw new UnauthorizedException('Invalid credentials');
@@ -63,8 +70,7 @@ export class AuthService {
 
     const isPasswordMatching = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordMatching) {
-        // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-        await (this.prisma as any).authAudit.create({
+        await this.prisma.authAudit.create({
             data: { userId: user.id, ip, userAgent, event: 'login_failed_invalid_password' },
         });
         throw new UnauthorizedException('Invalid credentials');
@@ -72,13 +78,11 @@ export class AuthService {
 
     const { accessToken, refreshToken } = await this.generateAndSaveTokens(user, ip, userAgent);
 
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    await (this.prisma as any).user.update({
+    await this.prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
     });
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    await (this.prisma as any).authAudit.create({
+    await this.prisma.authAudit.create({
         data: { userId: user.id, ip, userAgent, event: 'login_success' },
     });
     
@@ -103,15 +107,14 @@ export class AuthService {
       }
   }
 
-  // FIX: Changed User type to any to resolve type error.
-  private async generateAndSaveTokens(user: any, ip: string, userAgent: string) {
+  private async generateAndSaveTokens(user: User, ip: string, userAgent: string) {
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, role: user.role });
     const { token: refreshToken } = await this.tokenService.createRefreshSession(user.id, { ip, userAgent });
     return { accessToken, refreshToken };
   }
 
   async verifyEmail(token: string) {
-    const verification = await this.tokenService.consumeVerificationToken(token, 'EMAIL_VERIFY');
+    const verification = await this.tokenService.consumeVerificationToken(token, VerificationTokenType.EMAIL_VERIFY);
     await this.usersService.update(verification.userId, { isEmailVerified: true });
   }
 
@@ -161,8 +164,8 @@ export class AuthService {
   }
   
   async verifyEmailChange(token: string) {
-      const { userId, payload } = await this.tokenService.consumeVerificationToken(token, 'EMAIL_CHANGE');
-      const newEmail = payload?.newEmail;
+      const { userId, payload } = await this.tokenService.consumeVerificationToken(token, VerificationTokenType.EMAIL_CHANGE);
+      const newEmail = (payload as any)?.newEmail;
       
       if (!newEmail) {
           throw new BadRequestException('Invalid email change token.');

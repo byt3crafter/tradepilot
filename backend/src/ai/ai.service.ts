@@ -1,12 +1,12 @@
-
-
-
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// FIX: Switched to @google/genai and imported GoogleGenAI and Type as per the new SDK guidelines.
 import { GoogleGenAI, Type } from '@google/genai';
-// FIX: Removed unavailable Prisma types to prevent compilation errors.
-// import { Trade, Strategy } from '@prisma/client';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { Trade, Playbook } from '@prisma/client';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+type Trade = any;
+type Playbook = any;
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -22,21 +22,18 @@ const base64ToGenaiPart = (base64Data: string) => {
 @Injectable()
 export class AiService {
     private readonly logger = new Logger(AiService.name);
-    // FIX: Updated to use GoogleGenAI type from the new SDK.
     private genAI: GoogleGenAI;
 
     constructor(private configService: ConfigService) {
-        const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+        const apiKey = this.configService.get<string>('API_KEY');
         if (!apiKey) {
-            throw new InternalServerErrorException('GEMINI_API_KEY is not configured.');
+            this.logger.error('API_KEY is not configured in the environment.');
+            throw new InternalServerErrorException('API_KEY is not configured.');
         }
-        // FIX: Updated to use new GoogleGenAI({apiKey}) initialization.
         this.genAI = new GoogleGenAI({ apiKey });
     }
 
-    // FIX: Refactored to use a single API call with JSON output as per new SDK guidelines.
-    // FIX: Use `any` for Trade and Strategy types due to import issues.
-    async getTradeAnalysis(trade: any, strategy: any, pastMistakes: string) {
+    async getTradeAnalysis(trade: Trade, playbook: Playbook, pastMistakes: string) {
         if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
             throw new Error("Screenshots are missing for AI analysis.");
         }
@@ -48,14 +45,14 @@ export class AiService {
             const textPart = {
               text: `
                 **Your Task:**
-                Analyze the "Before Entry" and "After Exit" screenshots. Based on the trader's stated strategy, objectively evaluate the trade execution.
+                Analyze the "Before Entry" and "After Exit" screenshots. Based on the trader's stated playbook, objectively evaluate the trade execution.
                 ${pastMistakes ? `Pay close attention to see if any of these recurring past mistakes were made: ${pastMistakes}.` : ''}
-                The analysis must be strictly based on the provided strategy and visual evidence.
+                The analysis must be strictly based on the provided playbook and visual evidence.
                 Provide a concise summary and list the good points and mistakes in JSON format.
 
-                **Strategy:**
-                - Name: ${strategy.name}
-                - Description: ${strategy.description}
+                **Playbook:**
+                - Name: ${playbook.name}
+                - Core Idea: ${playbook.coreIdea}
 
                 **Trade Details:**
                 - Asset: ${trade.asset}
@@ -89,7 +86,7 @@ export class AiService {
                           },
                           reasoning: {
                             type: Type.STRING,
-                            description: 'Explain why it was a mistake based on the strategy.',
+                            description: 'Explain why it was a mistake based on the playbook.',
                           },
                         },
                       },
@@ -106,7 +103,7 @@ export class AiService {
                           },
                           reasoning: {
                             type: Type.STRING,
-                            description: 'Explain why it was good based on the strategy.',
+                            description: 'Explain why it was good based on the playbook.',
                           },
                         },
                       },
@@ -116,7 +113,6 @@ export class AiService {
               },
             });
             
-            // FIX: Safely access the .text property to handle potential undefined values.
             const text = response.text;
             if (!text) {
                 this.logger.error('AI analysis returned an empty response from Gemini API.');

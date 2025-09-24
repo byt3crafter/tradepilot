@@ -1,12 +1,21 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
-import { AssetsService } from '../assets/assets.service';
-import { CalculateRiskDto } from './dtos/calculate-risk.dto';
-import { CalculatePositionSizeDto } from './dtos/calculate-position-size.dto';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { TradeResult, Trade, AiAnalysis } from '@prisma/client';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+export enum TradeResult {
+  Win = 'Win',
+  Loss = 'Loss',
+  Breakeven = 'Breakeven',
+}
+type Trade = any;
+type AiAnalysis = any;
 
 @Injectable()
 export class TradesService {
@@ -14,13 +23,12 @@ export class TradesService {
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
     private readonly accountsService: BrokerAccountsService,
-    private readonly assetsService: AssetsService,
   ) {}
 
   async create(userId: string, createTradeDto: CreateTradeDto) {
     const { brokerAccountId, playbookId, riskPercentage } = createTradeDto;
     
-    const brokerAccount = await (this.prisma as any).brokerAccount.findFirst({
+    const brokerAccount = await this.prisma.brokerAccount.findFirst({
         where: { id: brokerAccountId, userId },
         include: { smartLimits: true }
     });
@@ -42,14 +50,14 @@ export class TradesService {
     }
     // --- End of Enforcement ---
 
-    const playbook = await (this.prisma as any).playbook.findFirst({
+    const playbook = await this.prisma.playbook.findFirst({
         where: { id: playbookId, userId }
     });
     if (!playbook) {
         throw new BadRequestException('Playbook not found or does not belong to the user.');
     }
 
-    return (this.prisma as any).trade.create({
+    return this.prisma.trade.create({
       data: {
         ...createTradeDto,
         userId,
@@ -58,7 +66,7 @@ export class TradesService {
   }
 
   async findAllByAccount(userId: string, brokerAccountId: string) {
-    return (this.prisma as any).trade.findMany({
+    return this.prisma.trade.findMany({
       where: { 
         userId,
         brokerAccountId 
@@ -72,7 +80,7 @@ export class TradesService {
   }
 
   async findOne(id: string, userId: string, includeRelations = false) {
-    const trade = await (this.prisma as any).trade.findUnique({
+    const trade = await this.prisma.trade.findUnique({
       where: { id },
       include: { 
         aiAnalysis: includeRelations,
@@ -94,9 +102,24 @@ export class TradesService {
   async update(id: string, userId: string, updateTradeDto: UpdateTradeDto) {
     await this.findOne(id, userId); // Authorization check
 
-    return (this.prisma as any).trade.update({
+    let dataToUpdate: Partial<UpdateTradeDto> = { ...updateTradeDto };
+
+    // If P/L is provided, determine the trade result automatically
+    if (updateTradeDto.profitLoss !== undefined && updateTradeDto.profitLoss !== null) {
+      let result: TradeResult;
+      if (Math.abs(updateTradeDto.profitLoss) < 0.01) {
+          result = TradeResult.Breakeven;
+      } else if (updateTradeDto.profitLoss > 0) {
+          result = TradeResult.Win;
+      } else {
+          result = TradeResult.Loss;
+      }
+      dataToUpdate.result = result;
+    }
+
+    return this.prisma.trade.update({
       where: { id },
-      data: updateTradeDto,
+      data: dataToUpdate,
       include: {
           aiAnalysis: true,
           tradeJournal: true,
@@ -107,7 +130,7 @@ export class TradesService {
   async remove(id: string, userId: string) {
     await this.findOne(id, userId); // Authorization check
     
-    await (this.prisma as any).trade.delete({
+    await this.prisma.trade.delete({
       where: { id },
     });
     
@@ -117,7 +140,7 @@ export class TradesService {
   async analyze(tradeId: string, userId: string) {
     const trade = await this.findOne(tradeId, userId, true);
     
-    const playbook = await (this.prisma as any).playbook.findUnique({ where: { id: trade.playbookId }});
+    const playbook = await this.prisma.playbook.findUnique({ where: { id: trade.playbookId }});
 
     if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
       throw new BadRequestException('Both "Before" and "After" screenshots are required for analysis.');
@@ -127,24 +150,22 @@ export class TradesService {
       throw new BadRequestException('Trade playbook is missing.');
     }
     
-    // Contextual Learning: Find past mistakes from other analyzed trades
-    const pastTrades = await (this.prisma as any).trade.findMany({
+    const pastTrades = await this.prisma.trade.findMany({
       where: {
         userId,
         aiAnalysis: { isNot: null },
       },
-      include: { aiAnalysis: true },
+      select: { aiAnalysis: true },
     });
     
     const pastMistakes = pastTrades
-        .filter((t: { aiAnalysis: { mistakes: unknown[] } | null }) => t.aiAnalysis && t.aiAnalysis.mistakes.length > 0)
-        .flatMap((t: { aiAnalysis: { mistakes: { mistake: string }[] } }) => t.aiAnalysis.mistakes.map((m: { mistake: string }) => m.mistake))
+        .filter((t: { aiAnalysis: AiAnalysis | null }) => t.aiAnalysis && (t.aiAnalysis.mistakes as any[]).length > 0)
+        .flatMap((t: { aiAnalysis: AiAnalysis | null }) => (t.aiAnalysis!.mistakes as any[]).map(m => m.mistake))
         .join(', ');
 
     const analysisResult = await this.aiService.getTradeAnalysis(trade, playbook, pastMistakes);
 
-    // Save the analysis to the database
-    const updatedTrade = await (this.prisma as any).trade.update({
+    const updatedTrade = await this.prisma.trade.update({
       where: { id: tradeId },
       data: {
         aiAnalysis: {
@@ -166,42 +187,5 @@ export class TradesService {
     });
 
     return updatedTrade;
-  }
-
-  async calculateMonetaryRisk(dto: CalculateRiskDto) {
-    const { asset, lotSize, entryPrice, stopLoss, accountBalance } = dto;
-    const spec = await this.assetsService.findSpecBySymbol(asset);
-
-    if (!spec) {
-      throw new BadRequestException(`Asset specification not found for ${asset}.`);
-    }
-
-    const stopDistance = Math.abs(entryPrice - stopLoss) / spec.pipSize;
-    const monetaryRisk = stopDistance * spec.valuePerPoint * lotSize;
-    const riskPercentage = (monetaryRisk / accountBalance) * 100;
-
-    return { monetaryRisk, riskPercentage };
-  }
-  
-  async calculatePositionSize(dto: CalculatePositionSizeDto) {
-    const { asset, riskPercentage, entryPrice, stopLoss, accountBalance } = dto;
-    const spec = await this.assetsService.findSpecBySymbol(asset);
-  
-    if (!spec) {
-      throw new BadRequestException(`Asset specification not found for ${asset}.`);
-    }
-  
-    const monetaryRisk = accountBalance * (riskPercentage / 100);
-    const stopDistance = Math.abs(entryPrice - stopLoss) / spec.pipSize;
-    
-    // Prevent division by zero if entry and SL are the same
-    if (stopDistance === 0) {
-      return { lotSize: 0 };
-    }
-
-    const riskPerLot = stopDistance * spec.valuePerPoint;
-    const lotSize = monetaryRisk / riskPerLot;
-  
-    return { lotSize };
   }
 }

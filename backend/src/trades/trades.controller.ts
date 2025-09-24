@@ -4,8 +4,6 @@ import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
-import { CalculateRiskDto } from './dtos/calculate-risk.dto';
-import { CalculatePositionSizeDto } from './dtos/calculate-position-size.dto';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -22,18 +20,6 @@ export class TradesController {
   create(@Body() createTradeDto: CreateTradeDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.tradesService.create(userId, createTradeDto);
-  }
-
-  @Post('calculate-risk')
-  @HttpCode(HttpStatus.OK)
-  calculateRisk(@Body() calculateRiskDto: CalculateRiskDto) {
-    return this.tradesService.calculateMonetaryRisk(calculateRiskDto);
-  }
-  
-  @Post('calculate-position-size')
-  @HttpCode(HttpStatus.OK)
-  calculatePositionSize(@Body() calculatePositionSizeDto: CalculatePositionSizeDto) {
-    return this.tradesService.calculatePositionSize(calculatePositionSizeDto);
   }
 
   @Get()

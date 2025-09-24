@@ -36,7 +36,7 @@ export class BillingService {
 
   async createCheckoutTransaction(userId: string) {
     try {
-      const user = await (this.prisma as any).user.findUnique({ where: { id: userId } });
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
         throw new NotFoundException(`User with ID ${userId} not found.`);
       }
@@ -52,7 +52,7 @@ export class BillingService {
           });
           customerId = customer.id;
 
-          await (this.prisma as any).user.update({
+          await this.prisma.user.update({
             where: { id: userId },
             data: { paddleCustomerId: customerId },
           });
@@ -128,7 +128,7 @@ export class BillingService {
       return;
     }
 
-    const user = await (this.prisma as any).user.findFirst({
+    const user = await this.prisma.user.findFirst({
       where: { paddleCustomerId: customerId },
     });
 
@@ -142,7 +142,7 @@ export class BillingService {
       case 'subscription.updated':
       case 'subscription.resumed':
       case 'subscription.activated':
-        await (this.prisma as any).user.update({
+        await this.prisma.user.update({
           where: { id: user.id },
           data: {
             subscriptionStatus: this.mapPaddleStatus(data.status),
@@ -154,7 +154,7 @@ export class BillingService {
 
       case 'subscription.paused':
       case 'subscription.canceled':
-        await (this.prisma as any).user.update({
+        await this.prisma.user.update({
           where: { id: user.id },
           data: { subscriptionStatus: 'CANCELED' },
         });

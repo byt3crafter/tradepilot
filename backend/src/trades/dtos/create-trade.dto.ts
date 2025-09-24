@@ -1,10 +1,13 @@
+
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { Direction } from '@prisma/client';
 
-// These must align with the Prisma schema enums
-enum Direction {
-  Buy = 'Buy',
-  Sell = 'Sell',
+// FIX: Define local enum to satisfy TypeScript during compile time.
+export enum Direction {
+    Buy = 'Buy',
+    Sell = 'Sell',
 }
 
 export class CreateTradeDto {
@@ -36,20 +39,19 @@ export class CreateTradeDto {
   @IsNotEmpty()
   brokerAccountId: string;
 
-  // FIX: Renamed 'strategyId' to 'playbookId' to align with the rest of the application's data model.
   @IsString()
   @IsNotEmpty()
   playbookId: string;
+  
+  @IsNumber()
+  @IsOptional()
+  lotSize?: number | null;
 
   @IsNumber()
   @IsOptional()
-  lotSize?: number;
-
+  stopLoss?: number | null;
+  
   @IsNumber()
   @IsOptional()
-  stopLoss?: number;
-
-  @IsNumber()
-  @IsOptional()
-  takeProfit?: number;
+  takeProfit?: number | null;
 }

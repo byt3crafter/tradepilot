@@ -1,3 +1,4 @@
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
@@ -5,6 +6,16 @@ import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
 import { UsersService } from 'src/users/users.service';
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { Prisma, User } from '@prisma/client';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+type User = any;
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Prisma {
+    export type UserUpdateInput = any;
+}
+
 
 @Injectable()
 export class AdminService {
@@ -14,11 +25,11 @@ export class AdminService {
   ) {}
 
   async getStats(): Promise<AdminStatsDto> {
-    const totalUsers = await (this.prisma as any).user.count();
-    const activeSubscriptions = await (this.prisma as any).user.count({
+    const totalUsers = await this.prisma.user.count();
+    const activeSubscriptions = await this.prisma.user.count({
       where: { subscriptionStatus: 'ACTIVE' },
     });
-    const trialUsers = await (this.prisma as any).user.count({
+    const trialUsers = await this.prisma.user.count({
       where: { subscriptionStatus: 'TRIALING' },
     });
     // Placeholder for MRR - this would be a more complex calculation
@@ -34,36 +45,31 @@ export class AdminService {
   }
 
   async getUsers(): Promise<AdminUserDto[]> {
-    const users = await (this.prisma as any).user.findMany({
+    const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    // FIX: The `users` variable is of type `any` due to wider Prisma type issues.
-    // We cast it to `any[]` to ensure TypeScript selects the correct `plainToInstance` overload
-    // that returns an array of DTOs, matching the function's return signature.
-    return plainToInstance(AdminUserDto, users as any[], {
+    return users.map((user: User) => plainToInstance(AdminUserDto, user, {
       excludeExtraneousValues: true,
-    });
+    }));
   }
 
   async grantProAccess(userId: string, grantProDto: GrantProDto): Promise<AdminUserDto> {
-    const user = await (this.prisma as any).user.findUnique({ where: { id: userId }});
+    const user = await this.prisma.user.findUnique({ where: { id: userId }});
     if (!user) {
         throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
-    const dataToUpdate: any = {
+    const dataToUpdate: Prisma.UserUpdateInput = {
         proAccessExpiresAt: grantProDto.expiresAt,
         proAccessReason: grantProDto.reason,
     };
     
-    // If user is in trial, end the trial by setting status to CANCELED (no active paddle sub)
-    // This makes the user state less ambiguous.
     if (user.subscriptionStatus === 'TRIALING') {
         dataToUpdate.subscriptionStatus = 'CANCELED';
         dataToUpdate.trialEndsAt = null;
     }
 
-    const updatedUser = await (this.prisma as any).user.update({
+    const updatedUser = await this.prisma.user.update({
         where: { id: userId },
         data: dataToUpdate,
     });
@@ -72,15 +78,14 @@ export class AdminService {
   }
 
   async revokeProAccess(userId: string): Promise<AdminUserDto> {
-     const user = await (this.prisma as any).user.findUnique({ where: { id: userId }});
+     const user = await this.prisma.user.findUnique({ where: { id: userId }});
     if (!user) {
         throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
-    const updatedUser = await (this.prisma as any).user.update({
+    const updatedUser = await this.prisma.user.update({
         where: { id: userId },
         data: {
-            // Set expiresAt to a past date. Setting to 'null' grants lifetime access.
             proAccessExpiresAt: new Date(0), 
             proAccessReason: 'Access revoked by admin.',
         },

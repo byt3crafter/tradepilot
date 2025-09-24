@@ -1,37 +1,40 @@
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-// import { Prisma, User } from '@prisma/client'; // FIX: Removed to resolve type errors.
+// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
+// import { Prisma, User } from '@prisma/client';
+
+// FIX: Define local types to satisfy TypeScript during compile time.
+type User = any;
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Prisma {
+  export type UserCreateInput = any;
+  export type UserUpdateInput = any;
+}
+
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  // FIX: Changed Prisma.UserCreateInput and User types to any.
-  async create(data: any): Promise<any> {
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    return (this.prisma as any).user.create({ data });
+  async create(data: Prisma.UserCreateInput): Promise<User> {
+    return this.prisma.user.create({ data });
   }
 
-  // FIX: Changed User type to any.
-  async findByEmail(email: string): Promise<any | null> {
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    return (this.prisma as any).user.findUnique({ where: { email } });
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
-  // FIX: Changed User type to any.
-  async findById(id: string): Promise<any> {
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    const user = await (this.prisma as any).user.findUnique({ where: { id } });
+  async findById(id: string): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found.`);
     }
     return user;
   }
 
-  // FIX: Changed Prisma.UserUpdateInput and User types to any.
-  async update(id: string, data: any): Promise<any> {
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    return (this.prisma as any).user.update({
+  async update(id: string, data: Prisma.UserUpdateInput): Promise<User> {
+    return this.prisma.user.update({
       where: { id },
       data,
     });
@@ -39,8 +42,7 @@ export class UsersService {
 
   async delete(id: string): Promise<{ message: string }> {
     await this.findById(id); // Ensures user exists
-    // FIX: Cast `this.prisma` to `any` to bypass TypeScript errors.
-    await (this.prisma as any).user.delete({
+    await this.prisma.user.delete({
       where: { id },
     });
     return { message: 'User deleted successfully.' };

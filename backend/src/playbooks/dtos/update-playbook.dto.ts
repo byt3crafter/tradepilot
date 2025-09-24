@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, ValidateNested, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class ChecklistItemDto {
@@ -33,10 +33,10 @@ class PlaybookSetupDto {
   riskManagement?: ChecklistItemDto[];
 }
 
-export class CreatePlaybookDto {
+export class UpdatePlaybookDto {
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @IsString()
   @IsOptional()
@@ -60,7 +60,7 @@ export class CreatePlaybookDto {
   @IsString({ each: true })
   @IsOptional()
   timeframes?: string[];
-
+  
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

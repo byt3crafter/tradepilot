@@ -9,7 +9,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { JoiValidationSchema } from './config/config.schema';
 import { BrokerAccountsModule } from './broker-accounts/broker-accounts.module';
-import { StrategiesModule } from './strategies/strategies.module';
+import { PlaybooksModule } from './playbooks/playbooks.module';
 import { ChecklistRulesModule } from './checklist-rules/checklist-rules.module';
 import { TradesModule } from './trades/trades.module';
 import { AiModule } from './ai/ai.module';
@@ -35,7 +35,7 @@ import { AssetsModule } from './assets/assets.module';
     PrismaModule,
     MailModule,
     BrokerAccountsModule,
-    StrategiesModule,
+    PlaybooksModule,
     ChecklistRulesModule,
     TradesModule,
     AiModule,
