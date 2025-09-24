@@ -93,6 +93,7 @@ export class UpdateTradeDto {
   @IsOptional()
   swap?: number | null;
 
+  // FIX: Renamed 'strategyId' to 'playbookId' to align with the rest of the application's data model.
   @IsString()
   @IsNotEmpty()
   @IsOptional()

@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -21,6 +17,7 @@ import { SettingsProvider } from './context/SettingsContext';
 import { TradeProvider } from './context/TradeContext';
 import AdminPage from './pages/AdminPage';
 import { UIProvider } from './context/UIContext';
+import { AssetProvider } from './context/AssetContext';
 
 export type AuthPage = 'landing' | 'login' | 'signup' | 'forgot-password';
 
@@ -51,17 +48,19 @@ const AuthenticatedApp: React.FC = () => {
       <ViewProvider>
         <PaddleProvider>
           <SubscriptionProvider>
-            <AccountProvider>
-              <PlaybookProvider>
-                <ChecklistProvider>
-                  <SettingsProvider>
-                    <TradeProvider>
-                      <DashboardPage />
-                    </TradeProvider>
-                  </SettingsProvider>
-                </ChecklistProvider>
-              </PlaybookProvider>
-            </AccountProvider>
+            <AssetProvider>
+              <AccountProvider>
+                <PlaybookProvider>
+                  <ChecklistProvider>
+                    <SettingsProvider>
+                      <TradeProvider>
+                        <DashboardPage />
+                      </TradeProvider>
+                    </SettingsProvider>
+                  </ChecklistProvider>
+                </PlaybookProvider>
+              </AccountProvider>
+            </AssetProvider>
           </SubscriptionProvider>
         </PaddleProvider>
       </ViewProvider>

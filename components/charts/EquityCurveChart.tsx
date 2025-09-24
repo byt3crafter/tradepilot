@@ -1,6 +1,5 @@
 import React from 'react';
 import { EquityDataPoint } from '../../types';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 interface EquityCurveChartProps {
   data: EquityDataPoint[];
@@ -19,6 +18,14 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
 };
 
 const EquityCurveChart: React.FC<EquityCurveChartProps> = ({ data }) => {
+  // Destructure Recharts components inside the render function to ensure the library is loaded.
+  const Recharts = (window as any).Recharts;
+  if (!Recharts) {
+    return <div className="w-full h-full flex items-center justify-center text-future-gray text-sm">Loading Chart...</div>;
+  }
+  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = Recharts;
+
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart

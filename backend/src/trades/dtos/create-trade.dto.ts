@@ -36,19 +36,20 @@ export class CreateTradeDto {
   @IsNotEmpty()
   brokerAccountId: string;
 
+  // FIX: Renamed 'strategyId' to 'playbookId' to align with the rest of the application's data model.
   @IsString()
   @IsNotEmpty()
   playbookId: string;
 
   @IsNumber()
   @IsOptional()
-  stopLoss?: number | null;
+  lotSize?: number;
 
   @IsNumber()
   @IsOptional()
-  takeProfit?: number | null;
+  stopLoss?: number;
 
   @IsNumber()
   @IsOptional()
-  rr?: number | null;
+  takeProfit?: number;
 }

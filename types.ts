@@ -206,3 +206,11 @@ export interface SmartLimitProgress {
   isTradeCreationBlocked: boolean;
   blockReason: string | null;
 }
+
+export interface AssetSpecification {
+  symbol: string;
+  name: string;
+  valuePerPoint: number;
+  pipSize: number;
+  lotSize: number;
+}

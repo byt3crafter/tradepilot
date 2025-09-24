@@ -16,6 +16,7 @@ import { AiModule } from './ai/ai.module';
 import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
 import { TradeJournalsModule } from './trade-journals/trade-journals.module';
+import { AssetsModule } from './assets/assets.module';
 
 
 @Module({
@@ -41,6 +42,7 @@ import { TradeJournalsModule } from './trade-journals/trade-journals.module';
     BillingModule,
     AdminModule,
     TradeJournalsModule,
+    AssetsModule,
   ],
   controllers: [],
   providers: [

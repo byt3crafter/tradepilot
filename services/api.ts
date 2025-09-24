@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -49,6 +49,8 @@ interface ApiService {
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade>;
   deleteTrade(id: string, token: string): Promise<{ message: string }>;
   analyzeTrade(id: string, token: string): Promise<Trade>;
+  calculateRisk(data: any, token: string): Promise<{ monetaryRisk: number; riskPercentage: number; }>;
+  calculatePositionSize(data: any, token: string): Promise<{ lotSize: number; }>;
   
   // Trade Journals
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
@@ -64,6 +66,9 @@ interface ApiService {
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
   revokeProAccess(userId: string, token: string): Promise<AdminUser>;
   deleteUser(userId: string, token: string): Promise<{ message: string }>;
+
+  // Assets
+  getAssetSpecs(token: string): Promise<AssetSpecification[]>;
 }
 
 const buildHeaders = (token?: string): HeadersInit => {
@@ -291,6 +296,12 @@ const api: ApiService = {
   analyzeTrade(id: string, token: string): Promise<Trade> {
     return (this as ApiService).post<Trade>(`/trades/${id}/analyze`, {}, token);
   },
+  calculateRisk(data: any, token: string): Promise<{ monetaryRisk: number; riskPercentage: number; }> {
+    return (this as ApiService).post('/trades/calculate-risk', data, token);
+  },
+  calculatePositionSize(data: any, token: string): Promise<{ lotSize: number; }> {
+    return (this as ApiService).post('/trades/calculate-position-size', data, token);
+  },
 
   // Trade Journal Methods
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal> {
@@ -323,6 +334,11 @@ const api: ApiService = {
   },
   deleteUser(userId: string, token: string): Promise<{ message: string }> {
     return (this as ApiService).delete<{ message: string }>(`/admin/users/${userId}`, token);
+  },
+
+  // Asset Methods
+  getAssetSpecs(token: string): Promise<AssetSpecification[]> {
+      return (this as ApiService).get<AssetSpecification[]>('/assets/specs', token);
   },
 };
 
