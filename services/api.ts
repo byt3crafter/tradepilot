@@ -91,7 +91,7 @@ const refreshToken = async (): Promise<string | null> => {
     isRefreshing = true;
 
     try {
-        const response = await fetch(`${getApiUrl()}/auth/refresh`, {
+        const response = await fetch(`${getApiUrl()}/api/auth/refresh`, {
             method: 'POST',
             credentials: 'include', // Crucial for sending the httpOnly cookie
         });
@@ -132,7 +132,7 @@ async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
     let response = await fetch(fullUrl, options);
     
     // Check for 401 Unauthorized and attempt a token refresh
-    if (response.status === 401 && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
+    if (response.status === 401 && endpoint !== '/api/auth/refresh' && endpoint !== '/api/auth/login') {
         const newAccessToken = await refreshToken();
         
         if (newAccessToken) {
@@ -216,127 +216,127 @@ const api: ApiService = {
   },
 
   verifyEmail(token: string): Promise<{ message: string }> {
-    return this.post<{ message: string }>('/auth/verify-email', { token });
+    return this.post('/api/auth/verify-email', { token });
   },
 
   // Broker Account Methods
   getAccounts(token: string): Promise<BrokerAccount[]> {
-    return this.get<BrokerAccount[]>('/broker-accounts', token);
+    return this.get<BrokerAccount[]>('/api/broker-accounts', token);
   },
 
   createAccount(data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
-    return this.post<BrokerAccount>('/broker-accounts', data, token);
+    return this.post<BrokerAccount>('/api/broker-accounts', data, token);
   },
   
   updateAccount(id: string, data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
-    return this.patch<BrokerAccount>(`/broker-accounts/${id}`, data, token);
+    return this.patch<BrokerAccount>(`/api/broker-accounts/${id}`, data, token);
   },
 
   deleteAccount(id: string, token: string): Promise<{ message: string }> {
-    return this.delete<{ message: string }>(`/broker-accounts/${id}`, token);
+    return this.delete(`/api/broker-accounts/${id}`, token);
   },
   
   getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]> {
-    return this.get<ObjectiveProgress[]>(`/broker-accounts/${id}/objectives`, token);
+    return this.get<ObjectiveProgress[]>(`/api/broker-accounts/${id}/objectives`, token);
   },
 
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress> {
-    return this.get<SmartLimitProgress>(`/broker-accounts/${id}/smart-limits-progress`, token);
+    return this.get<SmartLimitProgress>(`/api/broker-accounts/${id}/smart-limits-progress`, token);
   },
 
   // Playbook Methods
   getPlaybooks(token: string): Promise<Playbook[]> {
-    return this.get<Playbook[]>('/playbooks', token);
+    return this.get<Playbook[]>('/api/playbooks', token);
   },
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook> {
-    return this.post<Playbook>('/playbooks', data, token);
+    return this.post<Playbook>('/api/playbooks', data, token);
   },
   updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook> {
-    return this.patch<Playbook>(`/playbooks/${id}`, data, token);
+    return this.patch<Playbook>(`/api/playbooks/${id}`, data, token);
   },
   deletePlaybook(id: string, token: string): Promise<{ message: string }> {
-    return this.delete<{ message: string }>(`/playbooks/${id}`, token);
+    return this.delete(`/api/playbooks/${id}`, token);
   },
   getPlaybookStats(id: string, token: string): Promise<PlaybookStats> {
-    return this.get<PlaybookStats>(`/playbooks/${id}/stats`, token);
+    return this.get<PlaybookStats>(`/api/playbooks/${id}/stats`, token);
   },
 
   // Checklist Rule Methods
   getChecklistRules(token: string): Promise<ChecklistRule[]> {
-    return this.get<ChecklistRule[]>('/checklist-rules', token);
+    return this.get<ChecklistRule[]>('/api/checklist-rules', token);
   },
   createChecklistRule(data: { rule: string }, token: string): Promise<ChecklistRule> {
-    return this.post<ChecklistRule>('/checklist-rules', data, token);
+    return this.post<ChecklistRule>('/api/checklist-rules', data, token);
   },
   updateChecklistRule(id: string, data: { rule: string }, token: string): Promise<ChecklistRule> {
-    return this.patch<ChecklistRule>(`/checklist-rules/${id}`, data, token);
+    return this.patch<ChecklistRule>(`/api/checklist-rules/${id}`, data, token);
   },
   deleteChecklistRule(id: string, token: string): Promise<{ message: string }> {
-    return this.delete<{ message: string }>(`/checklist-rules/${id}`, token);
+    return this.delete(`/api/checklist-rules/${id}`, token);
   },
 
   // Trade Methods
   getTrades(brokerAccountId: string, token: string): Promise<Trade[]> {
-    return this.get<Trade[]>(`/trades?brokerAccountId=${brokerAccountId}`, token);
+    return this.get<Trade[]>(`/api/trades?brokerAccountId=${brokerAccountId}`, token);
   },
   createTrade(data: Partial<Trade>, token: string): Promise<Trade> {
-    return this.post<Trade>('/trades', data, token);
+    return this.post<Trade>('/api/trades', data, token);
   },
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade> {
-    return this.patch<Trade>(`/trades/${id}`, data, token);
+    return this.patch<Trade>(`/api/trades/${id}`, data, token);
   },
   deleteTrade(id: string, token: string): Promise<{ message: string }> {
-    return this.delete<{ message: string }>(`/trades/${id}`, token);
+    return this.delete(`/api/trades/${id}`, token);
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
-    return this.post<Trade>(`/trades/${id}/analyze`, {}, token);
+    return this.post<Trade>(`/api/trades/${id}/analyze`, {}, token);
   },
 
   // Trade Journal Methods
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal> {
-    return this.post<TradeJournal>(`/trades/${tradeId}/journal`, data, token);
+    return this.post<TradeJournal>(`/api/trades/${tradeId}/journal`, data, token);
   },
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal> {
-    return this.patch<TradeJournal>(`/trade-journals/${journalId}`, data, token);
+    return this.patch<TradeJournal>(`/api/trade-journals/${journalId}`, data, token);
   },
   
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> {
-    return this.get<{ clientSideToken: string }>('/billing/config', token);
+    return this.get<{ clientSideToken: string }>('/api/billing/config', token);
   },
   createCheckoutTransaction(token: string): Promise<{ transactionId: string }> {
-    return this.post<{ transactionId: string }>('/billing/checkout', {}, token);
+    return this.post<{ transactionId: string }>('/api/billing/checkout', {}, token);
   },
   
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> {
-    return this.get<AdminStats>('/admin/stats', token);
+    return this.get<AdminStats>('/api/admin/stats', token);
   },
   getAdminUsers(token: string): Promise<AdminUser[]> {
-    return this.get<AdminUser[]>('/admin/users', token);
+    return this.get<AdminUser[]>('/api/admin/users', token);
   },
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> {
-    return this.patch<AdminUser>(`/admin/users/${userId}/grant-pro`, data, token);
+    return this.patch<AdminUser>(`/api/admin/users/${userId}/grant-pro`, data, token);
   },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> {
-    return this.delete<AdminUser>(`/admin/users/${userId}/grant-pro`, token);
+    return this.delete<AdminUser>(`/api/admin/users/${userId}/grant-pro`, token);
   },
   deleteUser(userId: string, token: string): Promise<{ message: string }> {
-    return this.delete<{ message: string }>(`/admin/users/${userId}`, token);
+    return this.delete(`/api/admin/users/${userId}`, token);
   },
 
   // Asset Methods
   getAssetSpecs(token: string): Promise<AssetSpecification[]> {
-      return this.get<AssetSpecification[]>('/assets/specs', token);
+      return this.get<AssetSpecification[]>('/api/assets/specs', token);
   },
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
-    return this.post<AssetSpecification>('/assets', data, token);
+    return this.post<AssetSpecification>('/api/assets', data, token);
   },
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
-    return this.patch<AssetSpecification>(`/assets/${id}`, data, token);
+    return this.patch<AssetSpecification>(`/api/assets/${id}`, data, token);
   },
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }> {
-    return this.delete<{ message: string }>(`/assets/${id}`, token);
+    return this.delete(`/api/assets/${id}`, token);
   }
 };
 
