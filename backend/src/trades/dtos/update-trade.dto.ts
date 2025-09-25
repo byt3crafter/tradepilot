@@ -1,19 +1,7 @@
-
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsObject, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { Direction, TradeResult } from '@prisma/client';
-
-// FIX: Define local enums to satisfy TypeScript during compile time.
-export enum Direction {
-    Buy = 'Buy',
-    Sell = 'Sell',
-}
-export enum TradeResult {
-  Win = 'Win',
-  Loss = 'Loss',
-  Breakeven = 'Breakeven',
-}
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 export class UpdateTradeDto {
   @IsDate()
@@ -31,9 +19,9 @@ export class UpdateTradeDto {
   @IsOptional()
   asset?: string;
 
-  @IsEnum(Direction)
+  @IsEnum(['Buy', 'Sell'])
   @IsOptional()
-  direction?: Direction;
+  direction?: client.Direction;
 
   @IsNumber()
   @IsOptional()
@@ -56,9 +44,9 @@ export class UpdateTradeDto {
   @IsOptional()
   profitLoss?: number | null;
   
-  @IsEnum(TradeResult)
+  @IsEnum(client.TradeResult)
   @IsOptional()
-  result?: TradeResult | null;
+  result?: client.TradeResult | null;
   
   @IsString()
   @IsOptional()

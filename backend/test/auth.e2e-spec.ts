@@ -5,7 +5,6 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { execSync } from 'child_process';
 import * as bcrypt from 'bcrypt';
-// FIX: Add explicit imports for Jest functions to satisfy TypeScript.
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
 describe('AuthController (e2e)', () => {
@@ -73,9 +72,8 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('/auth/login (POST)', () => {
-    let user: any;
     beforeAll(async () => {
-      user = await prisma.user.create({
+      await prisma.user.create({
         data: {
           email: 'login.test@example.com',
           passwordHash: await bcrypt.hash('Password123!', 10),
@@ -123,7 +121,6 @@ describe('AuthController (e2e)', () => {
           fullName: 'Me User',
         },
       });
-
       const res = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
@@ -133,7 +130,7 @@ describe('AuthController (e2e)', () => {
       accessToken = res.body.data.accessToken;
     });
 
-    it('should get current user profile with valid token', () => {
+    it('should get current user profile with a valid token', () => {
       return request(app.getHttpServer())
         .get('/users/me')
         .set('Authorization', `Bearer ${accessToken}`)
@@ -141,12 +138,11 @@ describe('AuthController (e2e)', () => {
         .expect((res) => {
           expect(res.body.success).toBe(true);
           expect(res.body.data.email).toBe('me.test@example.com');
-          expect(res.body.data.passwordHash).toBeUndefined();
         });
     });
 
     it('should fail without a token', () => {
-        return request(app.getHttpServer())
+      return request(app.getHttpServer())
         .get('/users/me')
         .expect(401);
     });

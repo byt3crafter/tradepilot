@@ -1,4 +1,3 @@
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,16 +5,8 @@ import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
 import { UsersService } from 'src/users/users.service';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { Prisma, User } from '@prisma/client';
-
-// FIX: Define local types to satisfy TypeScript during compile time.
-type User = any;
-// eslint-disable-next-line @typescript-eslint/no-namespace
-namespace Prisma {
-    export type UserUpdateInput = any;
-}
-
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -48,7 +39,7 @@ export class AdminService {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((user: User) => plainToInstance(AdminUserDto, user, {
+    return users.map((user: client.User) => plainToInstance(AdminUserDto, user, {
       excludeExtraneousValues: true,
     }));
   }
@@ -59,7 +50,7 @@ export class AdminService {
         throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
-    const dataToUpdate: Prisma.UserUpdateInput = {
+    const dataToUpdate: client.Prisma.UserUpdateInput = {
         proAccessExpiresAt: grantProDto.expiresAt,
         proAccessReason: grantProDto.reason,
     };

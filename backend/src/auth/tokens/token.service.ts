@@ -1,29 +1,10 @@
-
 import { Injectable, BadRequestException, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { VerificationTokenType } from '@prisma/client';
-
-// FIX: Define local enum to satisfy TypeScript during compile time.
-enum VerificationTokenType {
-    EMAIL_VERIFY = 'EMAIL_VERIFY',
-    EMAIL_CHANGE = 'EMAIL_CHANGE',
-}
-
-const parseTtlToSeconds = (ttl: string): number => {
-  const unit = ttl.slice(-1);
-  const value = parseInt(ttl.slice(0, -1), 10);
-  switch (unit) {
-    case 's': return value;
-    case 'm': return value * 60;
-    case 'h': return value * 60 * 60;
-    case 'd': return value * 24 * 60 * 60;
-    default: throw new InternalServerErrorException(`Invalid TTL format: ${ttl}`);
-  }
-};
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 @Injectable()
 export class TokenService {
@@ -34,16 +15,18 @@ export class TokenService {
   ) {}
 
   generateAccessToken(payload: { sub: string; role: string }): string {
+    // FIX: Provide expiresIn as a number of seconds to fix type issue.
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: parseTtlToSeconds(this.configService.get<string>('ACCESS_TOKEN_TTL')!),
+      expiresIn: this.parseTtl(this.configService.get<string>('ACCESS_TOKEN_TTL')!) / 1000,
     });
   }
 
   generateRefreshToken(payload: { sub: string }): string {
+    // FIX: Provide expiresIn as a number of seconds to fix type issue.
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: parseTtlToSeconds(this.configService.get<string>('REFRESH_TOKEN_TTL')!),
+      expiresIn: this.parseTtl(this.configService.get<string>('REFRESH_TOKEN_TTL')!) / 1000,
     });
   }
 
@@ -108,7 +91,7 @@ export class TokenService {
 
   // --- One-Time Tokens (Verification, Password Reset) ---
 
-  private async createOneTimeToken(userId: string, type: VerificationTokenType, ttl: string, payload?: any) {
+  private async createOneTimeToken(userId: string, type: client.VerificationTokenType, ttl: string, payload?: any) {
     const token = this.generateSecureToken();
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + this.parseTtl(ttl));
@@ -127,11 +110,11 @@ export class TokenService {
   }
   
   async createEmailVerificationToken(userId: string) {
-    return this.createOneTimeToken(userId, VerificationTokenType.EMAIL_VERIFY, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!);
+    return this.createOneTimeToken(userId, client.VerificationTokenType.EMAIL_VERIFY, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!);
   }
 
   async createEmailChangeToken(userId: string, newEmail: string) {
-      return this.createOneTimeToken(userId, VerificationTokenType.EMAIL_CHANGE, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!, { newEmail });
+      return this.createOneTimeToken(userId, client.VerificationTokenType.EMAIL_CHANGE, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!, { newEmail });
   }
 
   async createPasswordResetToken(userId: string) {
@@ -146,7 +129,7 @@ export class TokenService {
     return { token };
   }
 
-  async consumeVerificationToken(token: string, type: VerificationTokenType) {
+  async consumeVerificationToken(token: string, type: client.VerificationTokenType) {
     const tokenHash = this.hashToken(token);
     const verification = await this.prisma.verificationToken.findFirst({
         where: { tokenHash, type }

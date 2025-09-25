@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, BrokerAccountType, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -13,7 +13,6 @@ interface ApiResponse<T> {
   };
 }
 
-// FIX: Define a type for the API service to help TypeScript correctly infer generic method types.
 interface ApiService {
   get<T>(endpoint: string, token?: string): Promise<T>;
   post<T>(endpoint:string, body: any, token?: string): Promise<T>;
@@ -184,15 +183,16 @@ async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
   }
 }
 
+// FIX: Add ApiService type annotation to correctly type `this` inside the object methods.
 const api: ApiService = {
-  async get<T>(endpoint: string, token?: string): Promise<T> {
+  get<T>(endpoint: string, token?: string): Promise<T> {
     return request<T>(endpoint, {
       method: 'GET',
       headers: buildHeaders(token),
     });
   },
 
-  async post<T>(endpoint:string, body: any, token?: string): Promise<T> {
+  post<T>(endpoint:string, body: any, token?: string): Promise<T> {
     return request<T>(endpoint, {
       method: 'POST',
       headers: buildHeaders(token),
@@ -200,7 +200,7 @@ const api: ApiService = {
     });
   },
   
-  async patch<T>(endpoint: string, body: any, token?: string): Promise<T> {
+  patch<T>(endpoint: string, body: any, token?: string): Promise<T> {
      return request<T>(endpoint, {
       method: 'PATCH',
       headers: buildHeaders(token),
@@ -208,139 +208,135 @@ const api: ApiService = {
     });
   },
 
-  async delete<T>(endpoint: string, token?: string): Promise<T> {
+  delete<T>(endpoint: string, token?: string): Promise<T> {
     return request<T>(endpoint, {
       method: 'DELETE',
       headers: buildHeaders(token),
     });
   },
 
-  async verifyEmail(token: string): Promise<{ message: string }> {
-    return request<{ message: string }>('/auth/verify-email', {
-      method: 'POST',
-      headers: buildHeaders(),
-      body: JSON.stringify({ token }),
-    });
+  verifyEmail(token: string): Promise<{ message: string }> {
+    return this.post<{ message: string }>('/auth/verify-email', { token });
   },
 
   // Broker Account Methods
   getAccounts(token: string): Promise<BrokerAccount[]> {
-    return (this as ApiService).get<BrokerAccount[]>('/broker-accounts', token);
+    return this.get<BrokerAccount[]>('/broker-accounts', token);
   },
 
   createAccount(data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
-    return (this as ApiService).post<BrokerAccount>('/broker-accounts', data, token);
+    return this.post<BrokerAccount>('/broker-accounts', data, token);
   },
   
   updateAccount(id: string, data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
-    return (this as ApiService).patch<BrokerAccount>(`/broker-accounts/${id}`, data, token);
+    return this.patch<BrokerAccount>(`/broker-accounts/${id}`, data, token);
   },
 
   deleteAccount(id: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/broker-accounts/${id}`, token);
+    return this.delete<{ message: string }>(`/broker-accounts/${id}`, token);
   },
   
   getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]> {
-    return (this as ApiService).get<ObjectiveProgress[]>(`/broker-accounts/${id}/objectives`, token);
+    return this.get<ObjectiveProgress[]>(`/broker-accounts/${id}/objectives`, token);
   },
 
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress> {
-    return (this as ApiService).get<SmartLimitProgress>(`/broker-accounts/${id}/smart-limits-progress`, token);
+    return this.get<SmartLimitProgress>(`/broker-accounts/${id}/smart-limits-progress`, token);
   },
 
   // Playbook Methods
   getPlaybooks(token: string): Promise<Playbook[]> {
-    return (this as ApiService).get<Playbook[]>('/playbooks', token);
+    return this.get<Playbook[]>('/playbooks', token);
   },
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook> {
-    return (this as ApiService).post<Playbook>('/playbooks', data, token);
+    return this.post<Playbook>('/playbooks', data, token);
   },
   updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook> {
-    return (this as ApiService).patch<Playbook>(`/playbooks/${id}`, data, token);
+    return this.patch<Playbook>(`/playbooks/${id}`, data, token);
   },
   deletePlaybook(id: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/playbooks/${id}`, token);
+    return this.delete<{ message: string }>(`/playbooks/${id}`, token);
   },
   getPlaybookStats(id: string, token: string): Promise<PlaybookStats> {
-    return (this as ApiService).get<PlaybookStats>(`/playbooks/${id}/stats`, token);
+    return this.get<PlaybookStats>(`/playbooks/${id}/stats`, token);
   },
 
   // Checklist Rule Methods
   getChecklistRules(token: string): Promise<ChecklistRule[]> {
-    return (this as ApiService).get<ChecklistRule[]>('/checklist-rules', token);
+    return this.get<ChecklistRule[]>('/checklist-rules', token);
   },
   createChecklistRule(data: { rule: string }, token: string): Promise<ChecklistRule> {
-    return (this as ApiService).post<ChecklistRule>('/checklist-rules', data, token);
+    return this.post<ChecklistRule>('/checklist-rules', data, token);
   },
   updateChecklistRule(id: string, data: { rule: string }, token: string): Promise<ChecklistRule> {
-    return (this as ApiService).patch<ChecklistRule>(`/checklist-rules/${id}`, data, token);
+    return this.patch<ChecklistRule>(`/checklist-rules/${id}`, data, token);
   },
   deleteChecklistRule(id: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/checklist-rules/${id}`, token);
+    return this.delete<{ message: string }>(`/checklist-rules/${id}`, token);
   },
 
   // Trade Methods
   getTrades(brokerAccountId: string, token: string): Promise<Trade[]> {
-    return (this as ApiService).get<Trade[]>(`/trades?brokerAccountId=${brokerAccountId}`, token);
+    return this.get<Trade[]>(`/trades?brokerAccountId=${brokerAccountId}`, token);
   },
   createTrade(data: Partial<Trade>, token: string): Promise<Trade> {
-    return (this as ApiService).post<Trade>('/trades', data, token);
+    return this.post<Trade>('/trades', data, token);
   },
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade> {
-    return (this as ApiService).patch<Trade>(`/trades/${id}`, data, token);
+    return this.patch<Trade>(`/trades/${id}`, data, token);
   },
   deleteTrade(id: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/trades/${id}`, token);
+    return this.delete<{ message: string }>(`/trades/${id}`, token);
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
-    return (this as ApiService).post<Trade>(`/trades/${id}/analyze`, {}, token);
+    return this.post<Trade>(`/trades/${id}/analyze`, {}, token);
   },
 
   // Trade Journal Methods
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal> {
-    return (this as ApiService).post<TradeJournal>(`/trades/${tradeId}/journal`, data, token);
+    return this.post<TradeJournal>(`/trades/${tradeId}/journal`, data, token);
   },
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal> {
-    return (this as ApiService).patch<TradeJournal>(`/trade-journals/${journalId}`, data, token);
+    return this.patch<TradeJournal>(`/trade-journals/${journalId}`, data, token);
   },
   
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> {
-    return (this as ApiService).get<{ clientSideToken: string }>('/billing/config', token);
+    return this.get<{ clientSideToken: string }>('/billing/config', token);
   },
   createCheckoutTransaction(token: string): Promise<{ transactionId: string }> {
-    return (this as ApiService).post<{ transactionId: string }>('/billing/checkout', {}, token);
+    return this.post<{ transactionId: string }>('/billing/checkout', {}, token);
   },
   
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> {
-    return (this as ApiService).get<AdminStats>('/admin/stats', token);
+    return this.get<AdminStats>('/admin/stats', token);
   },
   getAdminUsers(token: string): Promise<AdminUser[]> {
-    return (this as ApiService).get<AdminUser[]>('/admin/users', token);
+    return this.get<AdminUser[]>('/admin/users', token);
   },
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> {
-    return (this as ApiService).patch<AdminUser>(`/admin/users/${userId}/grant-pro`, data, token);
+    return this.patch<AdminUser>(`/admin/users/${userId}/grant-pro`, data, token);
   },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> {
-    return (this as ApiService).delete<AdminUser>(`/admin/users/${userId}/grant-pro`, token);
+    return this.delete<AdminUser>(`/admin/users/${userId}/grant-pro`, token);
   },
   deleteUser(userId: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/admin/users/${userId}`, token);
+    return this.delete<{ message: string }>(`/admin/users/${userId}`, token);
   },
 
   // Asset Methods
   getAssetSpecs(token: string): Promise<AssetSpecification[]> {
-      return (this as ApiService).get<AssetSpecification[]>('/assets/specs', token);
+      return this.get<AssetSpecification[]>('/assets/specs', token);
   },
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
-    return (this as ApiService).post<AssetSpecification>('/assets', data, token);
+    return this.post<AssetSpecification>('/assets', data, token);
   },
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
-    return (this as ApiService).patch<AssetSpecification>(`/assets/${id}`, data, token);
+    return this.patch<AssetSpecification>(`/assets/${id}`, data, token);
   },
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }> {
-    return (this as ApiService).delete<{ message: string }>(`/assets/${id}`, token);
+    return this.delete<{ message: string }>(`/assets/${id}`, token);
   }
 };
 

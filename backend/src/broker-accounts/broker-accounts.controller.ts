@@ -47,7 +47,6 @@ export class BrokerAccountsController {
   }
 
   @Patch(':id')
-  // FIX: Corrected typo in AuthenticatedRequest type name.
   update(@Param('id') id: string, @Body() updateBrokerAccountDto: UpdateBrokerAccountDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.brokerAccountsService.update(id, userId, updateBrokerAccountDto);

@@ -107,7 +107,6 @@ export interface Trade {
   updatedAt: string;
 }
 
-// FIX: Added the missing 'Candle' interface for use in candlestick charts.
 export interface Candle {
   time: number; // UNIX timestamp in seconds
   open: number;
@@ -222,4 +221,7 @@ export interface AssetSpecification {
   id: string;
   symbol: string;
   name: string;
+  pipSize?: number | null;
+  lotSize?: number | null;
+  valuePerPoint?: number | null;
 }

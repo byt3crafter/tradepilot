@@ -8,6 +8,7 @@ import GettingStartedGuide from './GettingStartedGuide';
 import { useAccount } from '../../context/AccountContext';
 import TradingObjectivesCard from './TradingObjectivesCard';
 import SmartLimitsCard from './SmartLimitsCard';
+import AccountStats from './AccountStats';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -39,11 +40,14 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="animate-fade-in-up">
-      <div className="mb-8">
-        <h1 className="text-3xl text-future-light">
-          Good morning, <span className="font-orbitron">{user?.fullName.split(' ')[0]}!</span>
-        </h1>
-        <p className="text-future-gray">Here's your mission overview for today.</p>
+      <div className="mb-8 flex flex-col md:flex-row justify-between md:items-start gap-4">
+        <div>
+          <h1 className="text-3xl text-future-light">
+            Good morning, <span className="font-orbitron">{user?.fullName.split(' ')[0]}!</span>
+          </h1>
+          <p className="text-future-gray">Here's your mission overview for today.</p>
+        </div>
+        <AccountStats />
       </div>
 
       {renderContent()}

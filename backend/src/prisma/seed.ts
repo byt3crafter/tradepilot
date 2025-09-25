@@ -1,9 +1,8 @@
-
-// FIX: Replaced require with import for proper PrismaClient type resolution.
-import { PrismaClient } from '@prisma/client';
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
+const prisma = new client.PrismaClient();
 
 const assetSpecifications = [
     // Forex Majors
@@ -80,8 +79,7 @@ async function main() {
 main()
   .catch((e) => {
     console.error(e);
-    // FIX: Cast 'process' to 'any' to resolve TypeScript error when @types/node is not available.
-    (process as any).exit(1);
+    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();

@@ -6,7 +6,6 @@ import { useAuth } from './AuthContext';
 import { useAccount } from './AccountContext';
 
 interface TradeContextType {
-  // FIX: Added 'trades' to provide all trades to consumers.
   trades: Trade[];
   liveTrades: Trade[];
   pendingTrades: Trade[];
@@ -25,14 +24,16 @@ const TradeContext = createContext<TradeContextType | undefined>(undefined);
 
 export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { accessToken } = useAuth();
-  const { activeAccount, refreshObjectives, refreshSmartLimitsProgress } = useAccount();
+  const { activeAccount, refreshAccounts, refreshObjectives, refreshSmartLimitsProgress } = useAccount();
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshAllProgress = useCallback(async () => {
+    // Refresh account first to update balance, then refresh dependent progress
+    await refreshAccounts();
     await refreshObjectives();
     await refreshSmartLimitsProgress();
-  }, [refreshObjectives, refreshSmartLimitsProgress]);
+  }, [refreshAccounts, refreshObjectives, refreshSmartLimitsProgress]);
 
   const refreshTrades = useCallback(async () => {
     if (activeAccount && accessToken) {
@@ -53,11 +54,12 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [activeAccount, accessToken]);
 
   useEffect(() => {
-    refreshTrades().then(() => {
-        // After trades are refreshed, refresh the objectives to reflect new data
-        refreshAllProgress();
-    });
-  }, [refreshTrades, refreshAllProgress]);
+    // On initial load, just refresh the trades. The AccountContext is already
+    // handling the initial fetch of account data. Objectives and Smart Limits
+    // will be refreshed by the useEffect in AccountContext when the active account changes.
+    // This prevents a "Too Many Requests" error from multiple simultaneous calls.
+    refreshTrades();
+  }, [refreshTrades]);
   
   const { liveTrades, pendingTrades, closedTrades } = useMemo(() => {
     const pending = allTrades.filter(t => t.isPendingOrder);
@@ -119,7 +121,6 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }
 
   const value = {
-    // FIX: Expose all trades under the 'trades' property.
     trades: allTrades,
     liveTrades,
     pendingTrades,

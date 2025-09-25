@@ -1,13 +1,8 @@
-
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { Trade } from '@prisma/client';
-
-// FIX: Define local types to satisfy TypeScript during compile time.
-type Trade = any;
+import { Trade } from '@prisma/client';
 
 @Injectable()
 export class BrokerAccountsService {
@@ -100,6 +95,27 @@ export class BrokerAccountsService {
     });
     
     return { message: 'Account deleted successfully.' };
+  }
+
+  public async recalculateBalance(accountId: string, userId: string): Promise<void> {
+    const account = await this.findOne(accountId, userId); // Ensures ownership and gets initialBalance
+
+    const trades = await this.prisma.trade.findMany({
+      where: {
+        brokerAccountId: accountId,
+        result: { not: null }, // Only closed trades
+      },
+    });
+
+    // Summing only the net profit/loss of each trade
+    const totalNetPL = trades.reduce((sum, trade) => sum + (trade.profitLoss ?? 0), 0);
+    
+    const newCurrentBalance = account.initialBalance + totalNetPL;
+
+    await this.prisma.brokerAccount.update({
+      where: { id: accountId },
+      data: { currentBalance: newCurrentBalance },
+    });
   }
 
   async getObjectivesProgress(id: string, userId: string) {

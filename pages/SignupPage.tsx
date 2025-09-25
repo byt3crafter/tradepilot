@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { AuthPage } from '../App';
 import AuthCard from '../components/auth/AuthCard';
@@ -25,7 +23,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ navigate }) => {
   const [resendSuccess, setResendSuccess] = useState(false);
 
   useEffect(() => {
-    // FIX: Changed NodeJS.Timeout to ReturnType<typeof setTimeout> for browser compatibility.
     let timer: ReturnType<typeof setTimeout>;
     if (resendCooldown > 0) {
       timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);

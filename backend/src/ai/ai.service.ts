@@ -1,12 +1,8 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { Trade, Playbook } from '@prisma/client';
-
-// FIX: Define local types to satisfy TypeScript during compile time.
-type Trade = any;
-type Playbook = any;
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -33,7 +29,7 @@ export class AiService {
         this.genAI = new GoogleGenAI({ apiKey });
     }
 
-    async getTradeAnalysis(trade: Trade, playbook: Playbook, pastMistakes: string) {
+    async getTradeAnalysis(trade: client.Trade, playbook: client.Playbook, pastMistakes: string) {
         if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
             throw new Error("Screenshots are missing for AI analysis.");
         }

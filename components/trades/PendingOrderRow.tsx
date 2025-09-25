@@ -8,6 +8,7 @@ import { ActivateIcon } from '../icons/ActivateIcon';
 import { CancelIcon } from '../icons/CancelIcon';
 import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
 import { PencilIcon } from '../icons/PencilIcon';
+import { useAssets } from '../../context/AssetContext';
 
 interface PendingOrderRowProps {
   trade: Trade;
@@ -27,10 +28,28 @@ const DirectionIndicator: React.FC<{ direction: Direction }> = ({ direction }) =
     );
 };
 
+const getDecimalPlaces = (pipSize?: number | null) => {
+  if (pipSize === undefined || pipSize === null) {
+    return 2; // Default for un-configured assets
+  }
+  if (pipSize >= 1) { // This handles indices like US30 (pipSize=1)
+    return 2;
+  }
+  if (pipSize <= 0) {
+    return 2; // Default
+  }
+  const places = Math.max(0, Math.ceil(-Math.log10(pipSize)));
+  return isFinite(places) ? places : 5; // Fallback for forex
+};
+
 const PendingOrderRow: React.FC<PendingOrderRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, activatePendingOrder } = useTrade();
   const { playbooks } = usePlaybook();
+  const { findSpec } = useAssets();
   
+  const assetSpec = findSpec(trade.asset);
+  const priceDecimals = getDecimalPlaces(assetSpec?.pipSize);
+
   const playbookName = playbooks.find(s => s.id === trade.playbookId)?.name || 'Unknown';
 
   const handleActivate = async () => {
@@ -51,7 +70,7 @@ const PendingOrderRow: React.FC<PendingOrderRowProps> = ({ trade, onEdit }) => {
       <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.createdAt).toLocaleDateString()}</td>
       <td className="p-3 font-tech-mono font-semibold text-future-light">{trade.asset}</td>
       <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
-      <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(5)}</td>
+      <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(priceDecimals)}</td>
       <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
       <td className="p-3 text-future-light">{playbookName}</td>
       <td className="p-3">

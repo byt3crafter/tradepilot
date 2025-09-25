@@ -3,7 +3,6 @@ import Modal from '../ui/Modal';
 import { Trade, TradeResult } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import AuthInput from '../auth/AuthInput';
-import SelectInput from '../ui/SelectInput';
 import ImageUploader from './ImageUploader';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import Textarea from '../ui/Textarea';
@@ -29,7 +28,6 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
   const [formState, setFormState] = useState({
     exitDate: toDateTimeLocal(new Date().toISOString()),
     exitPrice: '',
-    result: '',
     profitLoss: '',
     rr: '',
     commission: '',
@@ -76,7 +74,6 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
       const tradePayload: Partial<Trade> = {
         exitDate: formState.exitDate ? new Date(formState.exitDate).toISOString() : new Date().toISOString(),
         exitPrice: formState.exitPrice ? Number(formState.exitPrice) : null,
-        result: (formState.result as TradeResult) || null,
         profitLoss: formState.profitLoss ? Number(formState.profitLoss) : null,
         rr: formState.rr ? Number(formState.rr) : null,
         commission: formState.commission ? Number(formState.commission) : null,
@@ -110,44 +107,31 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
           {/* --- LEFT COLUMN (Data Entry) --- */}
           <div className="space-y-4">
-            <AuthInput
-                label="Exit Date & Time"
-                id="exitDate" name="exitDate" type="datetime-local"
-                value={formState.exitDate} onChange={handleInputChange} required step="1"
-            />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <AuthInput
-                  label="Exit Price"
-                  id="exitPrice" name="exitPrice" type="number" step="any"
-                  value={formState.exitPrice} onChange={handleInputChange} required
-              />
-              <SelectInput
-                  label="Result"
-                  id="result" name="result"
-                  value={formState.result} onChange={handleInputChange} required
-                  options={[
-                  { value: '', label: 'Select Result' },
-                  { value: TradeResult.Win, label: 'Win' },
-                  { value: TradeResult.Loss, label: 'Loss' },
-                  { value: TradeResult.Breakeven, label: 'Breakeven' },
-                  ]}
-              />
+                <AuthInput
+                    label="Exit Date & Time"
+                    id="exitDate" name="exitDate" type="datetime-local"
+                    value={formState.exitDate} onChange={handleInputChange} required step="1"
+                />
+                <AuthInput
+                    label="Exit Price"
+                    id="exitPrice" name="exitPrice" type="number" step="any"
+                    value={formState.exitPrice} onChange={handleInputChange} required
+                />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <AuthInput
-                  label="Profit / Loss ($)"
-                  id="profitLoss" name="profitLoss" type="number" step="any"
-                  placeholder="e.g., 250.50"
-                  value={formState.profitLoss} onChange={handleInputChange}
-              />
-              <AuthInput
-                  label="R:R Ratio"
-                  id="rr" name="rr" type="number" step="0.01"
-                  placeholder="e.g., 2.5"
-                  value={formState.rr} onChange={handleInputChange}
-              />
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <AuthInput
+                    label="Net P/L ($)"
+                    id="profitLoss" name="profitLoss" type="number" step="any"
+                    value={formState.profitLoss} onChange={handleInputChange} required
+                />
+                <AuthInput
+                    label="R:R (Optional)"
+                    id="rr" name="rr" type="number" step="any"
+                    value={formState.rr} onChange={handleInputChange}
+                />
             </div>
-
+            
             <div className="pt-4 border-t border-photonic-blue/10">
               <button
                   type="button"

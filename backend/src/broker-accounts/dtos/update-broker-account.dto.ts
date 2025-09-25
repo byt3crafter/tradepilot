@@ -1,15 +1,7 @@
-
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsBoolean, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { BrokerAccountType } from '@prisma/client';
-
-// FIX: Define local enum to satisfy TypeScript during compile time.
-export enum BrokerAccountType {
-  DEMO = 'DEMO',
-  LIVE = 'LIVE',
-  PROP_FIRM = 'PROP_FIRM',
-}
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 class TradingObjectiveDto {
   @IsBoolean()
@@ -63,10 +55,10 @@ export class UpdateBrokerAccountDto {
   @IsOptional()
   name?: string;
 
-  @IsEnum(BrokerAccountType)
+  @IsEnum(client.BrokerAccountType)
   @IsNotEmpty()
   @IsOptional()
-  type?: BrokerAccountType;
+  type?: client.BrokerAccountType;
 
   @IsNumber()
   @Min(0)

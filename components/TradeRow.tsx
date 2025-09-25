@@ -1,6 +1,4 @@
-
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Trade, TradeResult, Direction } from '../types';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
@@ -17,6 +15,7 @@ import JournalEntry from './journal/JournalEntry';
 import Modal from './ui/Modal';
 import JournalForm from './journal/JournalForm';
 import { PlusIcon } from './icons/PlusIcon';
+import { useAssets } from '../context/AssetContext';
 
 interface TradeRowProps {
   trade: Trade;
@@ -66,14 +65,71 @@ const SectionHeader: React.FC<{ title: string; sectionKey: string; isOpen: boole
     </button>
 );
 
+const getDecimalPlaces = (pipSize?: number | null) => {
+  if (pipSize === undefined || pipSize === null) {
+    return 2; // Default for un-configured assets
+  }
+  if (pipSize >= 1) { // This handles indices like US30 (pipSize=1)
+    return 2;
+  }
+  if (pipSize <= 0) {
+    return 2; // Default
+  }
+  const places = Math.max(0, Math.ceil(-Math.log10(pipSize)));
+  return isFinite(places) ? places : 5; // Fallback for forex
+};
+
+const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return '–';
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate.getTime() - startDate.getTime();
+
+    if (diffMs < 0) return '–';
+
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0) parts.push(`${seconds}s`);
+    
+    return parts.length > 0 ? parts.join(' ') : '0s';
+};
+
 
 const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, analyzeTrade } = useTrade();
   const { playbooks } = usePlaybook();
+  const { findSpec } = useAssets();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const assetSpec = findSpec(trade.asset);
+  const priceDecimals = getDecimalPlaces(assetSpec?.pipSize);
+  
+  const pipsMoved = useMemo(() => {
+    const { entryPrice, exitPrice, direction } = trade;
+    const pipSize = assetSpec?.pipSize;
+
+    if (typeof pipSize !== 'number' || pipSize <= 0 || typeof exitPrice !== 'number') {
+      return null;
+    }
+
+    if (direction === 'Buy') {
+      return (exitPrice - entryPrice) / pipSize;
+    } else {
+      return (entryPrice - exitPrice) / pipSize;
+    }
+  }, [trade, assetSpec]);
+
+  const pipsColor = pipsMoved === null ? 'text-future-gray' : pipsMoved > 0 ? 'text-momentum-green' : pipsMoved < 0 ? 'text-risk-high' : 'text-risk-medium';
 
   const toggleSection = (sectionKey: string) => {
     const newOpenSection = openSection === sectionKey ? null : sectionKey;
@@ -117,7 +173,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return '–';
     return new Date(dateString).toLocaleString(undefined, {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
   }
 
@@ -133,9 +189,18 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.entryDate).toLocaleDateString()}</td>
         <td className="p-3 font-tech-mono font-semibold text-future-light">{trade.asset}</td>
         <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
-        <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(2)}</td>
+        <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(priceDecimals)}</td>
         <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
         <td className="p-3 font-tech-mono"><ResultBadge result={trade.result} /></td>
+        <td className="p-3 font-tech-mono">
+          {pipsMoved !== null ? (
+            <span className={`${pipsColor} font-semibold`}>
+              {pipsMoved.toFixed(1)}
+            </span>
+          ) : (
+            '–'
+          )}
+        </td>
         <td className="p-3 font-tech-mono">
           <span className={`${netProfitLossColor} font-semibold`}>
             ${netProfitLoss.toFixed(2)}
@@ -157,7 +222,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
       {isExpanded && (
         <tr className="bg-future-panel/30">
             <td></td>
-            <td colSpan={8} className="p-4">
+            <td colSpan={9} className="p-4">
               <div className="relative">
                 <Button
                     onClick={onEdit}
@@ -171,12 +236,23 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-6 text-sm pr-16 mb-4">
                     <DetailItem label="ENTRY TIME">{formatDateTime(trade.entryDate)}</DetailItem>
                     <DetailItem label="EXIT TIME">{formatDateTime(trade.exitDate)}</DetailItem>
-                    <DetailItem label="STOP LOSS">{trade.stopLoss?.toFixed(2) ?? '–'}</DetailItem>
-                    <DetailItem label="TAKE PROFIT">{trade.takeProfit?.toFixed(2) ?? '–'}</DetailItem>
-                    <DetailItem label="LOT SIZE">{trade.lotSize ?? '–'}</DetailItem>
+                    <DetailItem label="DURATION">{calculateDuration(trade.entryDate, trade.exitDate)}</DetailItem>
+                    <DetailItem label="ENTRY PRICE">{trade.entryPrice.toFixed(priceDecimals)}</DetailItem>
+                    <DetailItem label="EXIT PRICE">{trade.exitPrice?.toFixed(priceDecimals) ?? '–'}</DetailItem>
                     
-                    <DetailItem label="GROSS P/L"><span className={profitLossColor}>${grossProfitLoss.toFixed(2)}</span></DetailItem>
+                    <DetailItem label="STOP LOSS">{trade.stopLoss?.toFixed(priceDecimals) ?? '–'}</DetailItem>
+                    <DetailItem label="TAKE PROFIT">{trade.takeProfit?.toFixed(priceDecimals) ?? '–'}</DetailItem>
+                    <DetailItem label="LOT SIZE">{trade.lotSize ?? '–'}</DetailItem>
                     <DetailItem label="R:R">{trade.rr ? (typeof trade.rr === 'number' ? trade.rr.toFixed(2) : trade.rr) : '–'}</DetailItem>
+                    <DetailItem label="PIPS">
+                      {pipsMoved !== null ? (
+                        <span className={pipsColor}>{pipsMoved.toFixed(1)}</span>
+                      ) : (
+                        '–'
+                      )}
+                    </DetailItem>
+                    <DetailItem label="GROSS P/L"><span className={profitLossColor}>${grossProfitLoss.toFixed(2)}</span></DetailItem>
+                    
                     <DetailItem label="COMMISSION">{trade.commission ? `-$${commission.toFixed(2)}` : '–'}</DetailItem>
                     <DetailItem label="SWAP">{trade.swap ? `-$${swap.toFixed(2)}` : '–'}</DetailItem>
                     <DetailItem label="NET P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>

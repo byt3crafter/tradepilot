@@ -32,7 +32,7 @@ const GettingStartedGuide: React.FC = () => {
           title="Define a Strategy"
           description="Document your trading strategies to analyze their performance over time."
           ctaText="Add Strategy"
-          ctaAction={() => navigateTo('strategies')}
+          ctaAction={() => navigateTo('playbooks')}
           isComplete={hasPlaybooks}
         />
         <StepCard

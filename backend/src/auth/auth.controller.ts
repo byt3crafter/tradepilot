@@ -1,4 +1,3 @@
-
 import { Controller, Post, Body, Get, Query, Req, Res, UseGuards, Patch, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dtos/register.dto';
@@ -30,8 +29,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
-    // FIX: Cast req to any to access ip and headers properties.
     const ip = (req as any).ip ?? '';
+    // FIX: Cast req to any to access headers
     const userAgent = (req as any).headers['user-agent'] || '';
     await this.authService.register(registerDto, ip, userAgent);
     return { message: 'Registration successful. Please check your email to verify your account.' };
@@ -56,12 +55,12 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // FIX: Cast req to any to access ip and headers properties.
     const ip = (req as any).ip ?? '';
+    // FIX: Cast req to any to access headers
     const userAgent = (req as any).headers['user-agent'] || '';
     const { accessToken, refreshToken, user } = await this.authService.login(loginDto, ip, userAgent);
 
-    // FIX: Cast res to any to access the cookie method.
+    // FIX: Cast res to any to access cookie method
     (res as any).cookie('refresh_token', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -77,7 +76,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response) {
     const userId = req.user.sub;
-    // FIX: Cast req to any to access the cookies property.
     const oldRefreshToken = (req as any).cookies.refresh_token;
 
     if (!userId || !oldRefreshToken) {
@@ -86,7 +84,7 @@ export class AuthController {
     
     const { newAccessToken, newRefreshToken } = await this.authService.rotateRefreshToken(userId, oldRefreshToken);
 
-    // FIX: Cast res to any to access the cookie method.
+    // FIX: Cast res to any to access cookie method
     (res as any).cookie('refresh_token', newRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -101,12 +99,11 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response) {
-      // FIX: Cast req to any to access the cookies property.
       const refreshToken = (req as any).cookies.refresh_token;
       if (refreshToken) {
         await this.authService.logout(refreshToken);
       }
-      // FIX: Cast res to any to access the clearCookie method.
+      // FIX: Cast res to any to access clearCookie method
       (res as any).clearCookie('refresh_token', { path: '/auth/refresh' });
       return { message: 'Logged out successfully.' };
   }

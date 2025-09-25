@@ -72,8 +72,6 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
     setIsLoading(true);
     setError('');
 
-    // Create a sanitized payload to send to the backend, removing any read-only fields
-    // like 'id', 'userId', etc., which cause validation errors.
     const sanitizedPayload = {
       name: playbook.name,
       coreIdea: playbook.coreIdea,
@@ -94,14 +92,8 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
 
     try {
       if (isEditMode) {
-        // FIX: Cast sanitizedPayload to 'any' to resolve type mismatch. The payload is
-        // intentionally shaped to match the backend DTO for an update operation, which
-        // does not expect IDs for nested entities.
         await updatePlaybook(playbookToEdit.id, sanitizedPayload as any);
       } else {
-        // FIX: Cast sanitizedPayload to 'any' to resolve type mismatch. The payload is
-        // intentionally shaped to match the backend DTO for a create operation, which
-        // does not expect IDs for nested entities.
         await createPlaybook(sanitizedPayload as any);
       }
       onClose();

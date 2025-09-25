@@ -12,19 +12,19 @@ const Gauge: React.FC<{ value: number }> = ({ value }) => {
   // Display a tiny sliver for 0 or less, as in screenshot
   const percentage = value <= 0 ? 0.01 : clampedValue / 4;
 
-  const strokeWidth = 8;
-  const radius = 38;
+  const strokeWidth = 7;
+  const radius = 36;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (circumference * percentage);
   
   const colorClass = isInfinite || value >= 1.5 ? 'stroke-momentum-green' : value >= 1 ? 'stroke-risk-medium' : 'stroke-risk-high';
 
   return (
-    <div className="relative w-24 h-24 mx-auto">
-      <svg viewBox="0 0 84 84" className="w-full h-full transform -rotate-90">
-        <circle cx="42" cy="42" r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-future-dark/50" />
+    <div className="relative w-20 h-20 mx-auto">
+      <svg viewBox="0 0 80 80" className="w-full h-full transform -rotate-90">
+        <circle cx="40" cy="40" r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-future-dark/50" />
         <circle
-            cx="42" cy="42" r={radius}
+            cx="40" cy="40" r={radius}
             fill="none" strokeWidth={strokeWidth}
             className={colorClass}
             strokeDasharray={`${circumference} ${circumference}`}
@@ -33,7 +33,7 @@ const Gauge: React.FC<{ value: number }> = ({ value }) => {
         />
       </svg>
        <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-bold font-tech-mono text-future-light">{displayValue}</span>
+        <span className="text-xl font-bold font-tech-mono text-future-light">{displayValue}</span>
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ const KeyMetricsDashboard: React.FC = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
       <StatCard title="Net P&L">
           <div className="flex-1 flex items-end pb-2">
-            <p className={`text-4xl lg:text-5xl font-orbitron ${stats.netPL >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
+            <p className={`text-2xl lg:text-3xl font-tech-mono ${stats.netPL >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
               {stats.netPL < 0 ? '$-' : '$'}{Math.abs(stats.netPL).toFixed(2)}
             </p>
           </div>
@@ -113,7 +113,7 @@ const KeyMetricsDashboard: React.FC = () => {
       
       <StatCard title="Trade Expectancy">
            <div className="flex-1 flex items-end pb-2">
-              <p className={`text-4xl lg:text-5xl font-orbitron ${stats.expectancy >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
+              <p className={`text-2xl lg:text-3xl font-tech-mono ${stats.expectancy >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
                   {stats.expectancy < 0 ? '$-' : '$'}{Math.abs(stats.expectancy).toFixed(2)}
               </p>
           </div>
@@ -128,7 +128,7 @@ const KeyMetricsDashboard: React.FC = () => {
       
        <StatCard title="Win %">
           <div className="flex-1 flex flex-col items-center justify-end pb-2">
-              <p className="text-4xl lg:text-5xl font-orbitron text-center">{stats.winRate.toFixed(2)}%</p>
+              <p className="text-2xl lg:text-3xl font-tech-mono text-center">{stats.winRate.toFixed(2)}%</p>
           </div>
           <div className="flex items-center justify-center gap-4">
               <DonutChart wins={stats.winningTrades} losses={stats.losingTrades} />
@@ -141,7 +141,7 @@ const KeyMetricsDashboard: React.FC = () => {
       
       <StatCard title="Avg win/loss trade">
          <div className="flex-1 flex items-end pb-2">
-            <p className="text-4xl lg:text-5xl font-orbitron">{avgWinLossRatio.toFixed(2)} R</p>
+            <p className="text-2xl lg:text-3xl font-tech-mono">{avgWinLossRatio.toFixed(2)} R</p>
          </div>
          <ProgressBar value1={stats.avgWin} value2={stats.avgLoss} />
       </StatCard>

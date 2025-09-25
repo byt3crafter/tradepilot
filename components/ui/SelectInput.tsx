@@ -10,14 +10,14 @@ interface SelectInputProps extends React.SelectHTMLAttributes<HTMLSelectElement>
 const SelectInput: React.FC<SelectInputProps> = ({ label, id, options, subLabel, ...props }) => {
   return (
     <div className="mb-4">
-      <label htmlFor={id} className="block text-lg font-semibold text-future-light">
+      <label htmlFor={id} className="block text-sm font-medium text-future-gray mb-2">
         {label}
       </label>
       {subLabel && <p className="text-sm text-future-gray mb-3 -mt-1">{subLabel}</p>}
       <div className="relative">
         <select
           id={id}
-          className="w-full bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-3 text-future-light placeholder-future-gray/50 focus:outline-none focus:ring-2 focus:ring-photonic-blue focus:border-transparent transition-shadow appearance-none"
+          className="w-full bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-2 text-future-light placeholder-future-gray/50 focus:outline-none focus:ring-2 focus:ring-photonic-blue focus:border-transparent transition-shadow appearance-none"
           {...props}
         >
           {options.map(option => (

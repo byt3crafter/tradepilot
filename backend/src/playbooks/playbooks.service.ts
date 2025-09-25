@@ -1,17 +1,9 @@
-
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlaybookDto } from './dtos/create-playbook.dto';
 import { UpdatePlaybookDto } from './dtos/update-playbook.dto';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { ChecklistItemType, Trade } from '@prisma/client';
-
-// FIX: Define local types to satisfy TypeScript during compile time.
-export enum ChecklistItemType {
-  ENTRY_CRITERIA = 'ENTRY_CRITERIA',
-  RISK_MANAGEMENT = 'RISK_MANAGEMENT',
-}
-type Trade = any;
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 @Injectable()
 export class PlaybooksService {
@@ -43,12 +35,12 @@ export class PlaybooksService {
           create: setups?.map(setup => {
             const entryCriteriaItems = setup.entryCriteria?.map(item => ({
               text: item.text,
-              type: ChecklistItemType.ENTRY_CRITERIA,
+              type: client.ChecklistItemType.ENTRY_CRITERIA,
             })) || [];
             
             const riskManagementItems = setup.riskManagement?.map(item => ({
               text: item.text,
-              type: ChecklistItemType.RISK_MANAGEMENT,
+              type: client.ChecklistItemType.RISK_MANAGEMENT,
             })) || [];
             
             return {
@@ -114,12 +106,12 @@ export class PlaybooksService {
                 create: setups?.map(setup => {
                   const entryCriteriaItems = setup.entryCriteria?.map(item => ({
                     text: item.text,
-                    type: ChecklistItemType.ENTRY_CRITERIA,
+                    type: client.ChecklistItemType.ENTRY_CRITERIA,
                   })) || [];
                   
                   const riskManagementItems = setup.riskManagement?.map(item => ({
                     text: item.text,
-                    type: ChecklistItemType.RISK_MANAGEMENT,
+                    type: client.ChecklistItemType.RISK_MANAGEMENT,
                   })) || [];
 
                   return {
@@ -176,14 +168,14 @@ export class PlaybooksService {
       };
     }
 
-    const winningTrades = closedTrades.filter((t: Trade) => t.result === 'Win');
-    const losingTrades = closedTrades.filter((t: Trade) => t.result === 'Loss');
+    const winningTrades = closedTrades.filter((t: client.Trade) => t.result === 'Win');
+    const losingTrades = closedTrades.filter((t: client.Trade) => t.result === 'Loss');
     
-    const grossProfit = winningTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0), 0);
-    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0), 0));
+    const grossProfit = winningTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.profitLoss ?? 0), 0);
+    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.profitLoss ?? 0), 0));
     
-    const totalCommission = closedTrades.reduce((sum: number, trade: Trade) => sum + (trade.commission ?? 0), 0);
-    const totalSwap = closedTrades.reduce((sum: number, trade: Trade) => sum + (trade.swap ?? 0), 0);
+    const totalCommission = closedTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.commission ?? 0), 0);
+    const totalSwap = closedTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.swap ?? 0), 0);
     
     const netPL = grossProfit - grossLoss - totalCommission - totalSwap;
     
@@ -197,7 +189,7 @@ export class PlaybooksService {
     
     const expectancy = (winRate / 100 * avgWin) - ((1 - (winRate / 100)) * avgLoss);
 
-    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: Trade) => {
+    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: client.Trade) => {
         if (trade.entryDate && trade.exitDate) {
             return sum + (new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime());
         }
@@ -206,7 +198,7 @@ export class PlaybooksService {
     const avgHoldTimeHours = closedTrades.length > 0 ? (totalHoldTimeMs / closedTrades.length) / (1000 * 60 * 60) : 0;
 
     let cumulativePL = 0;
-    const equityCurve = closedTrades.map((trade: Trade) => {
+    const equityCurve = closedTrades.map((trade: client.Trade) => {
         const tradeNetPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
         cumulativePL += tradeNetPL;
         return {

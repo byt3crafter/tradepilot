@@ -1,31 +1,21 @@
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { Prisma, User } from '@prisma/client';
-
-// FIX: Define local types to satisfy TypeScript during compile time.
-type User = any;
-// eslint-disable-next-line @typescript-eslint/no-namespace
-namespace Prisma {
-  export type UserCreateInput = any;
-  export type UserUpdateInput = any;
-}
-
+// FIX: Changed import to wildcard to resolve module member issues.
+import * as client from '@prisma/client';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: Prisma.UserCreateInput): Promise<User> {
+  async create(data: client.Prisma.UserCreateInput): Promise<client.User> {
     return this.prisma.user.create({ data });
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<client.User | null> {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findById(id: string): Promise<User> {
+  async findById(id: string): Promise<client.User> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found.`);
@@ -33,7 +23,7 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, data: Prisma.UserUpdateInput): Promise<User> {
+  async update(id: string, data: client.Prisma.UserUpdateInput): Promise<client.User> {
     return this.prisma.user.update({
       where: { id },
       data,

@@ -13,7 +13,6 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   ) {
     super({
       jwtFromRequest: (req: Request) => {
-        // FIX: Cast req to any to access cookies property.
         if (req && (req as any).cookies) {
           return (req as any).cookies['refresh_token'];
         }
@@ -26,7 +25,6 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(req: Request, payload: { sub: string; email: string }) {
-    // FIX: Cast req to any to access cookies property.
     const refreshToken = (req as any).cookies.refresh_token;
     if (!refreshToken) {
         throw new UnauthorizedException('No refresh token provided');

@@ -1,4 +1,3 @@
-
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
@@ -23,8 +22,6 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Security Middleware
-  // FIX: Configured helmet to disable its own cross-origin policies, which were
-  // conflicting with and overriding the app's primary CORS configuration.
   app.use(
     helmet({
       crossOriginOpenerPolicy: false,

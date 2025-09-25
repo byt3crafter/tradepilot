@@ -17,6 +17,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const [name, setName] = useState(account?.name || '');
   const [type, setType] = useState<BrokerAccountType>(account?.type || BrokerAccountType.LIVE);
   const [initialBalance, setInitialBalance] = useState(account?.initialBalance || '');
+  const [currency, setCurrency] = useState(account?.currency || 'USD');
+  const [leverage, setLeverage] = useState(account?.leverage || '');
   
   const [objectivesEnabled, setObjectivesEnabled] = useState(account?.objectives?.isEnabled || false);
   const [profitTarget, setProfitTarget] = useState(account?.objectives?.profitTarget ?? '');
@@ -56,18 +58,26 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       maxTradesPerDay: maxTradesPerDay ? parseInt(maxTradesPerDay as string, 10) : null,
       maxLossesPerDay: maxLossesPerDay ? parseInt(maxLossesPerDay as string, 10) : null,
     };
+    
+    const accountPayload = {
+      name,
+      type,
+      initialBalance: balance,
+      currency,
+      leverage: leverage ? parseInt(leverage as string, 10) : null,
+    };
 
     try {
       if (account) {
         // UPDATE: Payload includes isEnabled
         const objectivesPayload = { isEnabled: objectivesEnabled, ...baseObjectivesPayload };
         const smartLimitsPayload = { isEnabled: smartLimitsEnabled, ...baseSmartLimitsPayload };
-        await updateAccount(account.id, { name, type, initialBalance: balance, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
+        await updateAccount(account.id, { ...accountPayload, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
       } else {
         // CREATE: Payload does NOT include isEnabled. Send undefined if not enabled.
         const objectivesPayload = objectivesEnabled ? baseObjectivesPayload : undefined;
         const smartLimitsPayload = smartLimitsEnabled ? baseSmartLimitsPayload : undefined;
-        await createAccount({ name, type, initialBalance: balance, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
+        await createAccount({ ...accountPayload, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
       }
       onSuccess();
     } catch (err: any) {
@@ -100,7 +110,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         ]}
       />
       <AuthInput
-        label="Initial Balance ($)"
+        label="Initial Balance"
         id="initialBalance"
         type="number"
         placeholder="e.g., 100000"
@@ -108,6 +118,31 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         onChange={(e) => setInitialBalance(e.target.value)}
         required
       />
+      <div className="grid grid-cols-2 gap-4">
+        <SelectInput
+          label="Currency"
+          id="currency"
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value)}
+          options={[
+            { value: 'USD', label: 'USD' },
+            { value: 'EUR', label: 'EUR' },
+            { value: 'GBP', label: 'GBP' },
+            { value: 'JPY', label: 'JPY' },
+            { value: 'AUD', label: 'AUD' },
+            { value: 'CAD', label: 'CAD' },
+            { value: 'CHF', label: 'CHF' },
+          ]}
+        />
+         <AuthInput
+          label="Leverage (e.g., 100 for 1:100)"
+          id="leverage"
+          type="number"
+          placeholder="100"
+          value={leverage}
+          onChange={(e) => setLeverage(e.target.value)}
+        />
+      </div>
 
       <div className="my-4 pt-4 border-t border-photonic-blue/20">
         <ToggleSwitch 

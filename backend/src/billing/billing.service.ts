@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Paddle, Environment, PaddleOptions } from '@paddle/paddle-node-sdk';
+import * as client from '@prisma/client';
 
 @Injectable()
 export class BillingService {
@@ -156,7 +157,7 @@ export class BillingService {
       case 'subscription.canceled':
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { subscriptionStatus: 'CANCELED' },
+          data: { subscriptionStatus: client.SubscriptionStatus.CANCELED },
         });
         this.logger.log(`Canceled subscription for user ${user.id}`);
         break;
@@ -166,20 +167,20 @@ export class BillingService {
     }
   }
 
-  private mapPaddleStatus(paddleStatus: string): string {
+  private mapPaddleStatus(paddleStatus: string): client.SubscriptionStatus {
     switch (paddleStatus) {
       case 'active':
-        return 'ACTIVE';
+        return client.SubscriptionStatus.ACTIVE;
       case 'trialing':
-        return 'TRIALING';
+        return client.SubscriptionStatus.TRIALING;
       case 'past_due':
-        return 'PAST_DUE';
+        return client.SubscriptionStatus.PAST_DUE;
       case 'paused':
       case 'canceled':
-        return 'CANCELED';
+        return client.SubscriptionStatus.CANCELED;
       default:
         this.logger.warn(`Unknown Paddle status encountered: ${paddleStatus}`);
-        return 'TRIALING';
+        return client.SubscriptionStatus.TRIALING;
     }
   }
 }

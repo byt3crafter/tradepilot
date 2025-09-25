@@ -25,7 +25,6 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ id, icon, title, descri
       </button>
 
       <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-photonic-blue/10 text-photonic-blue rounded-lg mb-3">
-        {/* FIX: Explicitly cast the icon to React.ReactElement<any> to resolve type inference issue with cloneElement. */}
         {React.cloneElement(icon as React.ReactElement<any>, { className: 'w-6 h-6' })}
       </div>
       <div className="flex-grow">

@@ -1,22 +1,10 @@
-
-
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
-// FIX: The import from '@prisma/client' fails when `prisma generate` has not been run.
-// import { TradeResult, Trade, AiAnalysis } from '@prisma/client';
-
-// FIX: Define local types to satisfy TypeScript during compile time.
-export enum TradeResult {
-  Win = 'Win',
-  Loss = 'Loss',
-  Breakeven = 'Breakeven',
-}
-type Trade = any;
-type AiAnalysis = any;
+import { AiAnalysis, TradeResult } from '@prisma/client';
 
 @Injectable()
 export class TradesService {
@@ -118,7 +106,7 @@ export class TradesService {
       dataToUpdate.result = result;
     }
 
-    return this.prisma.trade.update({
+    const updatedTrade = await this.prisma.trade.update({
       where: { id },
       data: dataToUpdate,
       include: {
@@ -126,15 +114,21 @@ export class TradesService {
           tradeJournal: true,
       }
     });
+
+    await this.accountsService.recalculateBalance(updatedTrade.brokerAccountId, userId);
+
+    return updatedTrade;
   }
 
   async remove(id: string, userId: string) {
-    await this.findOne(id, userId); // Authorization check
+    const tradeToDelete = await this.findOne(id, userId); // Authorization check
     
     await this.prisma.trade.delete({
       where: { id },
     });
     
+    await this.accountsService.recalculateBalance(tradeToDelete.brokerAccountId, userId);
+
     return { message: 'Trade deleted successfully.' };
   }
 

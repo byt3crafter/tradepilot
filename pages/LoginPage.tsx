@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { AuthPage } from '../App';
 import AuthCard from '../components/auth/AuthCard';
@@ -10,7 +8,6 @@ import Spinner from '../components/Spinner';
 
 const UNVERIFIED_EMAIL_MESSAGE = 'Please verify your email address before logging in.';
 
-// FIX: Defined the missing LoginPageProps interface.
 interface LoginPageProps {
   navigate: (page: AuthPage) => void;
 }
@@ -27,7 +24,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
 
 
   useEffect(() => {
-    // FIX: Changed NodeJS.Timeout to ReturnType<typeof setTimeout> for browser compatibility.
     let timer: ReturnType<typeof setTimeout>;
     if (resendCooldown > 0) {
       timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
