@@ -92,7 +92,11 @@ const refreshToken = async (): Promise<string | null> => {
     isRefreshing = true;
 
     try {
-        const response = await fetch(`${getApiUrl()}/api/auth/refresh`, {
+        const apiUrl = getApiUrl();
+        const refreshEndpoint = '/api/auth/refresh';
+        const fullUrl = `${apiUrl}${refreshEndpoint}`;
+
+        const response = await fetch(fullUrl, {
             method: 'POST',
             credentials: 'include', // Crucial for sending the httpOnly cookie
         });
