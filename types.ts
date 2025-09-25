@@ -151,6 +151,20 @@ export interface Playbook {
   setups: PlaybookSetup[];
 }
 
+// Sanitized version for community viewing
+export interface CommunityPlaybook {
+  id: string;
+  name: string;
+  coreIdea?: string | null;
+  tradingStyles: string[];
+  instruments: string[];
+  timeframes: string[];
+  pros: string[];
+  cons: string[];
+  authorName: string;
+  setups: PlaybookSetup[];
+}
+
 // --- NEW: Playbook Analytics ---
 
 export interface EquityDataPoint {

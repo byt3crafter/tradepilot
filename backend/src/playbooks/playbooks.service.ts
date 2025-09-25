@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlaybookDto } from './dtos/create-playbook.dto';
 import { UpdatePlaybookDto } from './dtos/update-playbook.dto';
 // FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+import { ChecklistItemType, Trade } from '@prisma/client';
 
 @Injectable()
 export class PlaybooksService {
@@ -35,12 +35,12 @@ export class PlaybooksService {
           create: setups?.map(setup => {
             const entryCriteriaItems = setup.entryCriteria?.map(item => ({
               text: item.text,
-              type: client.ChecklistItemType.ENTRY_CRITERIA,
+              type: ChecklistItemType.ENTRY_CRITERIA,
             })) || [];
             
             const riskManagementItems = setup.riskManagement?.map(item => ({
               text: item.text,
-              type: client.ChecklistItemType.RISK_MANAGEMENT,
+              type: ChecklistItemType.RISK_MANAGEMENT,
             })) || [];
             
             return {
@@ -70,6 +70,39 @@ export class PlaybooksService {
       },
     });
     return playbooks.map((p: any) => this.transformPlaybook(p));
+  }
+
+  async findAllPublic(currentUserId: string) {
+    const publicPlaybooks = await this.prisma.playbook.findMany({
+      where: {
+        isPublic: true,
+      },
+      include: { // Use include instead of select to get all relations
+        user: {
+          select: {
+            fullName: true,
+          },
+        },
+        setups: {
+          include: {
+            checklistItems: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return publicPlaybooks.map((playbook) => {
+      const transformed = this.transformPlaybook(playbook); // Reuse existing transformer
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { userId, ...rest } = transformed; // Remove userId for privacy
+      return {
+        ...rest,
+        authorName: playbook.user.fullName,
+      };
+    });
   }
 
   async findOne(id: string, userId: string, transform = true) {
@@ -106,12 +139,12 @@ export class PlaybooksService {
                 create: setups?.map(setup => {
                   const entryCriteriaItems = setup.entryCriteria?.map(item => ({
                     text: item.text,
-                    type: client.ChecklistItemType.ENTRY_CRITERIA,
+                    type: ChecklistItemType.ENTRY_CRITERIA,
                   })) || [];
                   
                   const riskManagementItems = setup.riskManagement?.map(item => ({
                     text: item.text,
-                    type: client.ChecklistItemType.RISK_MANAGEMENT,
+                    type: ChecklistItemType.RISK_MANAGEMENT,
                   })) || [];
 
                   return {
@@ -168,14 +201,14 @@ export class PlaybooksService {
       };
     }
 
-    const winningTrades = closedTrades.filter((t: client.Trade) => t.result === 'Win');
-    const losingTrades = closedTrades.filter((t: client.Trade) => t.result === 'Loss');
+    const winningTrades = closedTrades.filter((t: Trade) => t.result === 'Win');
+    const losingTrades = closedTrades.filter((t: Trade) => t.result === 'Loss');
     
-    const grossProfit = winningTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.profitLoss ?? 0), 0);
-    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.profitLoss ?? 0), 0));
+    const grossProfit = winningTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0), 0);
+    const grossLoss = Math.abs(losingTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0), 0));
     
-    const totalCommission = closedTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.commission ?? 0), 0);
-    const totalSwap = closedTrades.reduce((sum: number, trade: client.Trade) => sum + (trade.swap ?? 0), 0);
+    const totalCommission = closedTrades.reduce((sum: number, trade: Trade) => sum + (trade.commission ?? 0), 0);
+    const totalSwap = closedTrades.reduce((sum: number, trade: Trade) => sum + (trade.swap ?? 0), 0);
     
     const netPL = grossProfit - grossLoss - totalCommission - totalSwap;
     
@@ -189,7 +222,7 @@ export class PlaybooksService {
     
     const expectancy = (winRate / 100 * avgWin) - ((1 - (winRate / 100)) * avgLoss);
 
-    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: client.Trade) => {
+    const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: Trade) => {
         if (trade.entryDate && trade.exitDate) {
             return sum + (new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime());
         }
@@ -198,7 +231,7 @@ export class PlaybooksService {
     const avgHoldTimeHours = closedTrades.length > 0 ? (totalHoldTimeMs / closedTrades.length) / (1000 * 60 * 60) : 0;
 
     let cumulativePL = 0;
-    const equityCurve = closedTrades.map((trade: client.Trade) => {
+    const equityCurve = closedTrades.map((trade: Trade) => {
         const tradeNetPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
         cumulativePL += tradeNetPL;
         return {

@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -30,6 +30,7 @@ interface ApiService {
 
   // Playbooks
   getPlaybooks(token: string): Promise<Playbook[]>;
+  getCommunityPlaybooks(token: string): Promise<CommunityPlaybook[]>;
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook>;
   updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook>;
   deletePlaybook(id: string, token: string): Promise<{ message: string }>;
@@ -247,6 +248,9 @@ const api: ApiService = {
   // Playbook Methods
   getPlaybooks(token: string): Promise<Playbook[]> {
     return this.get<Playbook[]>('/api/playbooks', token);
+  },
+  getCommunityPlaybooks(token: string): Promise<CommunityPlaybook[]> {
+    return this.get<CommunityPlaybook[]>('/api/playbooks/community', token);
   },
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook> {
     return this.post<Playbook>('/api/playbooks', data, token);

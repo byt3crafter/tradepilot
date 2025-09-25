@@ -28,6 +28,12 @@ export class PlaybooksController {
     return this.playbooksService.findAll(userId);
   }
 
+  @Get('community')
+  findAllPublic(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return this.playbooksService.findAllPublic(userId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;

@@ -17,6 +17,9 @@ async function bootstrap() {
   const frontendUrls = configService.get<string>('FRONTEND_URL');
   const nodeEnv = configService.get<string>('NODE_ENV');
 
+  // Set a global prefix for all routes to '/api'
+  app.setGlobalPrefix('api');
+
   // Increase payload size limit for JSON and URL-encoded requests
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
