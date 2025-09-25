@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(() => {
     if(accessToken) {
-        api.post('/auth/logout', {}, accessToken).catch(err => console.error("Logout failed on backend", err));
+        api.post('/api/auth/logout', {}, accessToken).catch(err => console.error("Logout failed on backend", err));
     }
     setUser(null);
     setAccessToken(null);
@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return undefined;
     }
     try {
-      const userData = await api.get<User>('/users/me', currentToken);
+      const userData = await api.get<User>('/api/users/me', currentToken);
       setUser(userData);
       return userData;
     } catch (error) {
@@ -89,18 +89,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   const login = async (email: string, password: string) => {
-    const { user, accessToken: newAccessToken } = await api.post<{ user: User, accessToken: string }>('/auth/login', { email, password });
+    const { user, accessToken: newAccessToken } = await api.post<{ user: User, accessToken: string }>('/api/auth/login', { email, password });
     setUser(user);
     setAccessToken(newAccessToken);
     localStorage.setItem('accessToken', newAccessToken);
   };
   
   const register = async (email: string, password: string, fullName: string) => {
-    await api.post('/auth/register', { email, password, fullName });
+    await api.post('/api/auth/register', { email, password, fullName });
   };
 
   const resendVerification = async (email: string) => {
-    await api.post('/auth/resend-verification', { email });
+    await api.post('/api/auth/resend-verification', { email });
   }
 
   const subscriptionState = useMemo(() => {
