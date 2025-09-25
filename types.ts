@@ -40,6 +40,8 @@ export interface BrokerAccount {
   type: BrokerAccountType;
   initialBalance: number;
   currentBalance: number;
+  currency: string;
+  leverage?: number | null;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -103,6 +105,15 @@ export interface Trade {
   
   createdAt: string;
   updatedAt: string;
+}
+
+// FIX: Added the missing 'Candle' interface for use in candlestick charts.
+export interface Candle {
+  time: number; // UNIX timestamp in seconds
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
 
 // --- NEW: Playbook data structure ---
@@ -208,9 +219,7 @@ export interface SmartLimitProgress {
 }
 
 export interface AssetSpecification {
+  id: string;
   symbol: string;
   name: string;
-  valuePerPoint: number;
-  pipSize: number;
-  lotSize: number;
 }

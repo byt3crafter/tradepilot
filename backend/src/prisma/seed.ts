@@ -1,8 +1,6 @@
 
-// FIX: Use require to import PrismaClient to work around module resolution issues.
-// import { PrismaClient } from '@prisma/client';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { PrismaClient } = require('@prisma/client');
+// FIX: Replaced require with import for proper PrismaClient type resolution.
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -82,7 +80,8 @@ async function main() {
 main()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
+    // FIX: Cast 'process' to 'any' to resolve TypeScript error when @types/node is not available.
+    (process as any).exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();

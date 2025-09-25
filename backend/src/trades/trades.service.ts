@@ -1,4 +1,5 @@
 
+
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';

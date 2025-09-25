@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Trade, TradeResult, Direction } from '../types';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
@@ -75,7 +76,8 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const [openSection, setOpenSection] = useState<string | null>(null);
 
   const toggleSection = (sectionKey: string) => {
-    setOpenSection(prev => (prev === sectionKey ? null : sectionKey));
+    const newOpenSection = openSection === sectionKey ? null : sectionKey;
+    setOpenSection(newOpenSection);
   };
 
   const handleDelete = async () => {
@@ -111,13 +113,6 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
 
   const profitLossColor = grossProfitLoss > 0 ? 'text-momentum-green' : grossProfitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
   const netProfitLossColor = netProfitLoss > 0 ? 'text-momentum-green' : netProfitLoss < 0 ? 'text-risk-high' : 'text-risk-medium';
-
-  const formatTime = (dateString?: string | null) => {
-    if (!dateString) return '–';
-    return new Date(dateString).toLocaleTimeString(undefined, {
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-  }
   
   const formatDateTime = (dateString?: string | null) => {
     if (!dateString) return '–';
@@ -181,12 +176,12 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                     <DetailItem label="LOT SIZE">{trade.lotSize ?? '–'}</DetailItem>
                     
                     <DetailItem label="GROSS P/L"><span className={profitLossColor}>${grossProfitLoss.toFixed(2)}</span></DetailItem>
-                    <DetailItem label="R:R">{trade.rr?.toFixed(2) ?? '–'}</DetailItem>
+                    <DetailItem label="R:R">{trade.rr ? (typeof trade.rr === 'number' ? trade.rr.toFixed(2) : trade.rr) : '–'}</DetailItem>
                     <DetailItem label="COMMISSION">{trade.commission ? `-$${commission.toFixed(2)}` : '–'}</DetailItem>
                     <DetailItem label="SWAP">{trade.swap ? `-$${swap.toFixed(2)}` : '–'}</DetailItem>
                     <DetailItem label="NET P/L"><span className={`${netProfitLossColor} font-semibold`}>${netProfitLoss.toFixed(2)}</span></DetailItem>
                 </div>
-                
+
                 <div className="border-t border-photonic-blue/10">
                    <SectionHeader title="Screenshots" sectionKey="screenshots" isOpen={openSection === 'screenshots'} onClick={toggleSection} />
                    {openSection === 'screenshots' && (
