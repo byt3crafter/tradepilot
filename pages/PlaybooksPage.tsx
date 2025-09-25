@@ -11,7 +11,6 @@ import { DropdownMenu, DropdownMenuItem } from '../components/ui/DropdownMenu';
 import { EyeIcon } from '../components/icons/EyeIcon';
 import { PencilIcon } from '../components/icons/PencilIcon';
 import { TrashIcon } from '../components/icons/TrashIcon';
-import CommunityPlaybookCard from '../components/playbooks/CommunityPlaybookCard';
 import CommunityPlaybookDetailModal from '../components/playbooks/CommunityPlaybookDetailModal';
 
 const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -153,15 +152,45 @@ const PlaybooksPage: React.FC = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-        {communityPlaybooks.map(playbook => (
-          <CommunityPlaybookCard 
-            key={playbook.id} 
-            playbook={playbook}
-            onViewDetails={() => setViewingCommunityPlaybook(playbook)}
-          />
-        ))}
-      </div>
+       <div className="overflow-x-auto table-scrollbar">
+          <table className="w-full text-sm">
+            <thead className="border-b border-photonic-blue/30">
+              <tr>
+                <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Name</th>
+                <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Author</th>
+                <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Core Idea</th>
+                <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Tags</th>
+                <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {communityPlaybooks.map(playbook => (
+                <tr key={playbook.id} className="border-b border-future-panel/50 hover:bg-photonic-blue/5">
+                  <td className="p-3">
+                    <button onClick={() => setViewingCommunityPlaybook(playbook)} className="font-semibold text-future-light hover:text-photonic-blue hover:underline text-left">
+                      {playbook.name}
+                    </button>
+                  </td>
+                  <td className="p-3 text-sm text-future-gray">{playbook.authorName}</td>
+                  <td className="p-3 text-sm text-future-gray max-w-xs truncate">{playbook.coreIdea || '—'}</td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap">
+                      {[...playbook.tradingStyles, ...playbook.instruments, ...playbook.timeframes].slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <DropdownMenu>
+                      <DropdownMenuItem onSelect={() => setViewingCommunityPlaybook(playbook)}>
+                        <EyeIcon className="w-4 h-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
     );
   };
 
