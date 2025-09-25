@@ -69,9 +69,12 @@ async function bootstrap() {
   // Global Interceptors
   app.useGlobalInterceptors(new ResponseInterceptor());
 
+  // Set a global prefix for all API routes
+  app.setGlobalPrefix('api');
+
   await app.listen(port);
   Logger.log(
-    `🚀 Application is running on: http://localhost:${port} in ${nodeEnv} mode`,
+    `🚀 Application is running on: http://localhost:${port}/api in ${nodeEnv} mode`,
     'Bootstrap',
   );
 }
