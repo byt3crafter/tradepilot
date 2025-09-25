@@ -126,20 +126,47 @@ export class BrokerAccountsService {
 
     const trades = await this.prisma.trade.findMany({
       where: { brokerAccountId: id, result: { not: null } },
-      orderBy: { entryDate: 'asc' },
+      orderBy: { exitDate: 'asc' }, // Order by exit date to calculate equity curve correctly
     });
     
     const results = [];
     const { profitTarget, minTradingDays, maxLoss, maxDailyLoss } = account.objectives;
 
-    // --- Calculations ---
-    const totalNetPL = trades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0), 0);
-    const uniqueTradingDays = new Set(trades.map((t: Trade) => new Date(t.entryDate).toDateString())).size;
+    // --- Calculations in one pass for efficiency ---
+    const initialBalance = account.initialBalance;
+    let highWaterMark = initialBalance;
+    let cumulativePL = 0;
+    const uniqueTradingDaysSet = new Set<string>();
+    
+    const todayStr = new Date().toDateString();
+    let dailyNetPL = 0;
 
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const dailyTrades = trades.filter((t: Trade) => new Date(t.entryDate) >= today);
-    const dailyNetPL = dailyTrades.reduce((sum: number, trade: Trade) => sum + (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0), 0);
+    for (const trade of trades) {
+        // P/L and Drawdown: Use net profitLoss directly
+        const tradeNetPL = trade.profitLoss ?? 0;
+        cumulativePL += tradeNetPL;
+        const currentEquity = initialBalance + cumulativePL;
+        if (currentEquity > highWaterMark) {
+            highWaterMark = currentEquity;
+        }
+
+        // Trading Days: A day with a trade entry counts
+        if (trade.entryDate) {
+            uniqueTradingDaysSet.add(new Date(trade.entryDate).toDateString());
+        }
+
+        // Daily Loss: Sum P/L for trades closed today
+        if (trade.exitDate && new Date(trade.exitDate).toDateString() === todayStr) {
+            dailyNetPL += tradeNetPL;
+        }
+    }
+
+    const totalNetPL = cumulativePL;
+    const currentBalance = initialBalance + totalNetPL;
+    const currentDrawdown = Math.max(0, highWaterMark - currentBalance);
+    const uniqueTradingDays = uniqueTradingDaysSet.size;
+    const currentDailyLoss = dailyNetPL < 0 ? Math.abs(dailyNetPL) : 0;
+
 
     // --- Objective 1: Profit Target ---
     if (profitTarget) {
@@ -167,29 +194,28 @@ export class BrokerAccountsService {
       });
     }
 
-    // --- Objective 3: Max Loss ---
+    // --- Objective 3: Max Loss (Trailing Drawdown) ---
     if (maxLoss) {
-      const currentLoss = totalNetPL < 0 ? Math.abs(totalNetPL) : 0;
       results.push({
         key: 'maxLoss',
         title: `Max Loss $${maxLoss.toLocaleString()}`,
-        currentValue: currentLoss,
+        currentValue: currentDrawdown,
         targetValue: maxLoss,
-        status: currentLoss > maxLoss ? 'Failed' : 'In Progress',
+        status: currentDrawdown >= maxLoss ? 'Failed' : 'In Progress',
         type: 'simple'
       });
     }
 
     // --- Objective 4: Max Daily Loss ---
     if (maxDailyLoss) {
-      const currentDailyLoss = dailyNetPL < 0 ? Math.abs(dailyNetPL) : 0;
+      const remaining = maxDailyLoss - currentDailyLoss;
       results.push({
         key: 'maxDailyLoss',
         title: `Max Daily Loss $${maxDailyLoss.toLocaleString()}`,
         currentValue: currentDailyLoss,
         targetValue: maxDailyLoss,
-        remaining: maxDailyLoss - currentDailyLoss,
-        status: currentDailyLoss > maxDailyLoss ? 'Failed' : 'In Progress',
+        remaining: remaining > 0 ? remaining : 0,
+        status: currentDailyLoss >= maxDailyLoss ? 'Failed' : 'In Progress',
         type: 'progress'
       });
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ObjectiveProgress } from '../../types';
+import Card from '../Card';
 
 interface ObjectiveItemProps {
   objective: ObjectiveProgress;
@@ -12,7 +13,7 @@ const StatusPill: React.FC<{ status: ObjectiveProgress['status'] }> = ({ status 
     'Failed': 'bg-risk-high/10 text-risk-high border-risk-high/20',
   };
   return (
-    <div className={`px-3 py-1 text-xs font-semibold rounded-full border ${styles[status]}`}>
+    <div className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${styles[status]}`}>
       {status}
     </div>
   );
@@ -41,55 +42,59 @@ const CountdownTimer: React.FC = () => {
 
     return (
         <span className="text-xs text-risk-high/80 font-tech-mono">
-           Timer Reset In: {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+           {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
         </span>
     );
 };
 
 
 const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
-  const { title, status, currentValue, targetValue, remaining, type } = objective;
+  const { title, status, currentValue, targetValue, type } = objective;
 
   const progressPercentage = targetValue > 0 ? (currentValue / targetValue) * 100 : 0;
   
   const isLossRule = objective.key.includes('Loss');
-  const barColor = isLossRule ? 'bg-yellow-400' : 'bg-photonic-blue';
+  const isFailed = status === 'Failed';
+  const isSuccess = status === 'Success';
+  
+  let barColor = 'bg-photonic-blue';
+  if (isFailed) barColor = 'bg-risk-high';
+  else if (isSuccess) barColor = 'bg-momentum-green';
+  else if (isLossRule) barColor = 'bg-risk-medium';
+
 
   return (
-    <div className="bg-future-dark/50 p-3 rounded-lg border border-future-panel">
-      {/* Top Row */}
-      <div className="flex justify-between items-center mb-2">
-        <h4 className="font-semibold text-future-light">{title}</h4>
-        <StatusPill status={status} />
+    <Card className={`p-3 flex flex-col h-full ${isFailed ? 'border-risk-high/30' : ''} ${isSuccess ? 'border-momentum-green/30' : ''}`}>
+      <div className="flex justify-between items-start">
+        <h4 className="text-xs text-future-gray uppercase tracking-wider font-semibold">{title}</h4>
+        {status === 'Failed' && objective.key === 'maxDailyLoss' ? (
+          <CountdownTimer />
+        ) : (
+          <StatusPill status={status} />
+        )}
       </div>
 
-      {/* Bottom Row / Progress Bar */}
-      {type === 'progress' ? (
-        <div>
-          <div className="w-full bg-future-panel rounded-full h-1.5 mb-1">
-            <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${Math.min(100, progressPercentage)}%` }}></div>
-          </div>
-          <div className="flex justify-between items-center text-xs text-future-gray">
-            <span>
-              {isLossRule ? 'Remaining: $' : 'Remaining: $'}
-              {remaining?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? 'N/A'}
-            </span>
-             {status === 'Failed' && objective.key === 'maxDailyLoss' ? (
-                <CountdownTimer />
-             ) : (
-                <span>
-                    {isLossRule ? 'Max: $' : 'Max: $'}
-                    {targetValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-             )}
-          </div>
+      <div className="flex-grow flex flex-col justify-end mt-2">
+        <div className="text-xl font-orbitron text-future-light">
+          {isLossRule
+            ? `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : type === 'progress'
+              ? `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : `${currentValue}`}
+          <span className="text-sm font-tech-mono text-future-gray">
+            {` / ${isLossRule || type === 'progress' ? '$' : ''}${targetValue.toLocaleString()}`}
+          </span>
         </div>
-      ) : (
-        <p className="text-sm text-future-gray">
-          Results: {currentValue}
-        </p>
-      )}
-    </div>
+
+        {type === 'progress' && (
+          <div className="mt-2">
+            <div className="w-full bg-future-panel rounded-full h-1.5">
+              <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${Math.min(100, progressPercentage)}%` }}></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 };
 

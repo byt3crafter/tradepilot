@@ -1,5 +1,4 @@
 import React from 'react';
-import Card from '../Card';
 import { ObjectiveProgress } from '../../types';
 import ObjectiveItem from './ObjectiveItem';
 
@@ -13,14 +12,11 @@ const TradingObjectivesCard: React.FC<TradingObjectivesCardProps> = ({ objective
   }
 
   return (
-    <Card>
-        <h2 className="text-xl font-orbitron text-photonic-blue mb-4">Trading Objective</h2>
-        <div className="space-y-4">
-            {objectives.map(obj => (
-                <ObjectiveItem key={obj.key} objective={obj} />
-            ))}
-        </div>
-    </Card>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {objectives.map((obj) => (
+        <ObjectiveItem key={obj.key} objective={obj} />
+      ))}
+    </div>
   );
 };
 

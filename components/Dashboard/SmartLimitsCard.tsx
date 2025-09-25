@@ -1,40 +1,26 @@
 import React from 'react';
 import { SmartLimit, SmartLimitProgress } from '../../types';
-import Card from '../Card';
-
-interface LimitProgressItemProps {
-    label: string;
-    current: number;
-    max: number;
-}
-
-const LimitProgressItem: React.FC<LimitProgressItemProps> = ({ label, current, max }) => {
-    const percentage = max > 0 ? (current / max) * 100 : 0;
-    const isExceeded = current >= max;
-
-    return (
-        <div className="flex-1">
-            <div className="flex justify-between items-baseline mb-1">
-                <span className="text-sm text-future-gray">{label}</span>
-                <span className={`font-tech-mono font-semibold ${isExceeded ? 'text-risk-high' : 'text-future-light'}`}>
-                    {current} / {max}
-                </span>
-            </div>
-            <div className="w-full bg-future-panel rounded-full h-1.5">
-                <div 
-                    className={`h-1.5 rounded-full transition-all duration-300 ${isExceeded ? 'bg-risk-high' : 'bg-photonic-blue'}`}
-                    style={{ width: `${Math.min(100, percentage)}%` }}
-                ></div>
-            </div>
-        </div>
-    );
-};
-
+import Tooltip from '../ui/Tooltip';
+import { InfoIcon } from '../icons/InfoIcon';
 
 interface SmartLimitsCardProps {
   progress: SmartLimitProgress;
   limits: SmartLimit;
 }
+
+const LimitStatItem: React.FC<{ label: string; currentValue: number; maxValue: number; tooltip: string }> = ({ label, currentValue, maxValue, tooltip }) => (
+    <div className="text-right">
+        <Tooltip text={tooltip}>
+            <div className="flex items-center justify-end gap-1.5">
+                <span className="text-xs text-future-gray">{label}</span>
+                <InfoIcon className="w-3.5 h-3.5 text-future-gray/50" />
+            </div>
+        </Tooltip>
+        <p className={`font-tech-mono text-future-light text-base mt-1 ${currentValue >= maxValue ? 'text-risk-high' : ''}`}>
+            {currentValue} / {maxValue}
+        </p>
+    </div>
+);
 
 const SmartLimitsCard: React.FC<SmartLimitsCardProps> = ({ progress, limits }) => {
   if (!progress || !limits) {
@@ -43,19 +29,33 @@ const SmartLimitsCard: React.FC<SmartLimitsCardProps> = ({ progress, limits }) =
 
   const { tradesToday, lossesToday } = progress;
   const { maxTradesPerDay, maxLossesPerDay } = limits;
+  
+  const hasLimits = maxTradesPerDay || maxLossesPerDay;
+
+  if (!hasLimits) {
+    return null;
+  }
 
   return (
-    <Card>
-        <h2 className="text-xl font-orbitron text-photonic-blue mb-4">Daily Discipline Report</h2>
-        <div className="flex flex-col md:flex-row gap-6">
-            {maxTradesPerDay && (
-                <LimitProgressItem label="Trades Today" current={tradesToday} max={maxTradesPerDay} />
-            )}
-            {maxLossesPerDay && (
-                <LimitProgressItem label="Losses Today" current={lossesToday} max={maxLossesPerDay} />
-            )}
-        </div>
-    </Card>
+    <div className="bg-future-panel/50 border border-photonic-blue/10 rounded-lg p-3 flex items-center justify-end gap-4">
+        {maxTradesPerDay && (
+            <LimitStatItem 
+                label="Trades Today"
+                currentValue={tradesToday}
+                maxValue={maxTradesPerDay}
+                tooltip="Your daily limit on the number of trades executed."
+            />
+        )}
+        {maxTradesPerDay && maxLossesPerDay && <div className="h-10 w-px bg-photonic-blue/20 self-center"></div>}
+        {maxLossesPerDay && (
+            <LimitStatItem 
+                label="Losses Today"
+                currentValue={lossesToday}
+                maxValue={maxLossesPerDay}
+                tooltip="Your daily limit on the number of losing trades."
+            />
+        )}
+    </div>
   );
 };
 
