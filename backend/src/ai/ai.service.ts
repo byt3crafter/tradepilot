@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 // FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+import { Playbook, Trade } from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -29,7 +29,7 @@ export class AiService {
         this.genAI = new GoogleGenAI({ apiKey });
     }
 
-    async getTradeAnalysis(trade: client.Trade, playbook: client.Playbook, pastMistakes: string) {
+    async getTradeAnalysis(trade: Trade, playbook: Playbook, pastMistakes: string) {
         if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
             throw new Error("Screenshots are missing for AI analysis.");
         }
@@ -109,12 +109,11 @@ export class AiService {
               },
             });
             
-            const text = response.text;
-            if (!text) {
+            if (!response.text) {
                 this.logger.error('AI analysis returned an empty response from Gemini API.');
                 throw new InternalServerErrorException('AI analysis returned an empty response.');
             }
-            const jsonText = text.trim();
+            const jsonText = response.text.trim();
             
             return JSON.parse(jsonText);
 
@@ -122,5 +121,89 @@ export class AiService {
             this.logger.error('Error getting trade analysis from Gemini', error.stack);
             throw new InternalServerErrorException('Failed to analyze trade with AI.');
         }
+    }
+
+    async getPreTradeCheck(playbook: any, screenshotBase64: string, asset: string) {
+        try {
+            const imagePart = base64ToGenaiPart(screenshotBase64);
+            const entryCriteria = playbook.setups
+                .flatMap((setup: any) => setup.checklistItems)
+                .filter((item: any) => item.type === 'ENTRY_CRITERIA')
+                .map((item: any) => `- ${item.text}`)
+                .join('\n');
+
+            if (!entryCriteria) {
+                return []; // No rules to check
+            }
+
+            const textPart = {
+                text: `
+                **Task:** You are a trading co-pilot. Analyze the provided chart screenshot for asset ${asset}.
+                Check if the setup meets the following entry criteria from the trader's playbook.
+                Your response must be in JSON format. For each rule, state if it is met ('Yes', 'No', or 'Indeterminate') and provide brief reasoning.
+
+                **Entry Criteria:**
+                ${entryCriteria}
+                `
+            };
+            
+            const response = await this.genAI.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: { parts: [textPart, imagePart] },
+              config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            rule: { type: Type.STRING },
+                            met: { type: Type.STRING, enum: ['Yes', 'No', 'Indeterminate'] },
+                            reasoning: { type: Type.STRING },
+                        }
+                    }
+                  }
+              }
+            });
+
+            if (!response.text) {
+                this.logger.error('AI pre-trade check returned empty response');
+                throw new InternalServerErrorException('AI pre-trade check returned empty response.');
+            }
+            const jsonText = response.text.trim();
+            return JSON.parse(jsonText);
+
+        } catch (error) {
+            this.logger.error('Error getting pre-trade check from Gemini', error.stack);
+            throw new InternalServerErrorException('Failed to get AI sanity check.');
+        }
+    }
+    
+    private async generateDebrief(context: string, systemInstruction: string, errorContext: string) {
+        try {
+            const response = await this.genAI.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: context,
+                config: { systemInstruction },
+            });
+            if (!response.text) {
+                this.logger.error(`AI ${errorContext} returned an empty response.`);
+                throw new InternalServerErrorException(`AI ${errorContext} returned an empty response.`);
+            }
+            return response.text;
+        } catch (error) {
+            this.logger.error(`Error getting ${errorContext} from Gemini`, error.stack);
+            throw new InternalServerErrorException(`Failed to generate ${errorContext}.`);
+        }
+    }
+
+    async getWeeklyDebrief(context: string) {
+        const systemInstruction = "You are a professional trading coach named tradePilot AI. Analyze the following weekly performance summary for a trader. Provide a concise, insightful, and encouraging debrief. Identify the single biggest strength and the single most critical area for improvement. Conclude with one piece of actionable advice for the upcoming week. Speak directly to the trader. Keep the entire response to 3-4 paragraphs.";
+        return this.generateDebrief(context, systemInstruction, 'weekly debrief');
+    }
+
+    async getDailyDebrief(context: string) {
+        const systemInstruction = "You are a professional trading coach named tradePilot AI. Analyze the following summary of the trader's performance for today. Provide a concise, insightful debrief. Identify the single biggest strength and the single most critical area for improvement from today's session. Conclude with one piece of actionable advice for tomorrow's session. Speak directly to the trader. Keep the entire response to 2-3 paragraphs.";
+        return this.generateDebrief(context, systemInstruction, 'daily debrief');
     }
 }

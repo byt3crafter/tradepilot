@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -27,6 +27,8 @@ interface ApiService {
   deleteAccount(id: string, token: string): Promise<{ message: string }>;
   getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]>;
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress>;
+  getWeeklyDebrief(accountId: string, token: string): Promise<{ debrief: string }>;
+  getDailyDebrief(accountId: string, token: string): Promise<{ debrief: string }>;
 
   // Playbooks
   getPlaybooks(token: string): Promise<Playbook[]>;
@@ -48,6 +50,7 @@ interface ApiService {
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade>;
   deleteTrade(id: string, token: string): Promise<{ message: string }>;
   analyzeTrade(id: string, token: string): Promise<Trade>;
+  preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult>;
   
   // Trade Journals
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
@@ -262,6 +265,14 @@ const api: ApiService = {
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress> {
     return this.get<SmartLimitProgress>(`/api/broker-accounts/${id}/smart-limits-progress`, token);
   },
+  
+  getWeeklyDebrief(accountId: string, token: string): Promise<{ debrief: string }> {
+    return this.post<{ debrief: string }>(`/api/broker-accounts/${accountId}/weekly-debrief`, {}, token);
+  },
+
+  getDailyDebrief(accountId: string, token: string): Promise<{ debrief: string }> {
+    return this.post<{ debrief: string }>(`/api/broker-accounts/${accountId}/daily-debrief`, {}, token);
+  },
 
   // Playbook Methods
   getPlaybooks(token: string): Promise<Playbook[]> {
@@ -312,6 +323,9 @@ const api: ApiService = {
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
     return this.post<Trade>(`/api/trades/${id}/analyze`, {}, token);
+  },
+  preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult> {
+    return this.post<PreTradeCheckResult>('/api/trades/pre-trade-check', data, token);
   },
 
   // Trade Journal Methods

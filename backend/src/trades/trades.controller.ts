@@ -4,6 +4,7 @@ import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
+import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -48,5 +49,12 @@ export class TradesController {
   analyze(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.tradesService.analyze(id, userId);
+  }
+
+  @Post('pre-trade-check')
+  @HttpCode(HttpStatus.OK)
+  preTradeCheck(@Body() preTradeCheckDto: PreTradeCheckDto, @Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return this.tradesService.preTradeCheck(userId, preTradeCheckDto);
   }
 }

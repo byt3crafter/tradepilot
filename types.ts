@@ -239,3 +239,11 @@ export interface AssetSpecification {
   lotSize?: number | null;
   valuePerPoint?: number | null;
 }
+
+// --- NEW: AI Pre-Trade Check ---
+export interface PreTradeCheckItem {
+  rule: string;
+  met: 'Yes' | 'No' | 'Indeterminate';
+  reasoning: string;
+}
+export type PreTradeCheckResult = PreTradeCheckItem[];

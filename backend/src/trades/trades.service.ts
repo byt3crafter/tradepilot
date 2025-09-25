@@ -5,6 +5,7 @@ import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
 import { AiAnalysis, TradeResult } from '@prisma/client';
+import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 
 @Injectable()
 export class TradesService {
@@ -182,5 +183,26 @@ export class TradesService {
     });
 
     return updatedTrade;
+  }
+
+  async preTradeCheck(userId: string, preTradeCheckDto: PreTradeCheckDto) {
+    const { playbookId, screenshotBeforeUrl, asset } = preTradeCheckDto;
+
+    const playbook = await this.prisma.playbook.findFirst({
+      where: { id: playbookId, userId },
+      include: {
+        setups: {
+          include: {
+            checklistItems: true,
+          },
+        },
+      },
+    });
+
+    if (!playbook) {
+      throw new ForbiddenException('Playbook not found or does not belong to the user.');
+    }
+
+    return this.aiService.getPreTradeCheck(playbook, screenshotBeforeUrl, asset);
   }
 }

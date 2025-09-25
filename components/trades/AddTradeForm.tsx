@@ -4,11 +4,17 @@ import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import { usePlaybook } from '../../context/PlaybookContext';
-import { Trade, TradeResult } from '../../types';
+import { Trade, TradeResult, PreTradeCheckResult } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import { useAssets } from '../../context/AssetContext';
 import ImageUploader from './ImageUploader';
 import Checkbox from '../ui/Checkbox';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { SparklesIcon } from '../icons/SparklesIcon';
+import { CheckCircleIcon } from '../icons/CheckCircleIcon';
+import { XCircleIcon } from '../icons/XCircleIcon';
+import { QuestionMarkCircleIcon } from '../icons/QuestionMarkCircleIcon';
 
 interface TradeFormProps {
   tradeToEdit?: Trade | null;
@@ -39,11 +45,36 @@ const toDateTimeLocal = (dateString?: string | null) => {
   return localDate.toISOString().slice(0, 19);
 };
 
+const SanityCheckResult: React.FC<{ result: PreTradeCheckResult }> = ({ result }) => {
+    const iconMap = {
+        'Yes': <CheckCircleIcon className="w-5 h-5 text-momentum-green" />,
+        'No': <XCircleIcon className="w-5 h-5 text-risk-high" />,
+        'Indeterminate': <QuestionMarkCircleIcon className="w-5 h-5 text-future-gray" />,
+    };
+
+    return (
+        <div className="mt-4 p-3 bg-future-dark/50 rounded-lg border border-photonic-blue/20 animate-fade-in-up">
+            <h4 className="text-sm font-semibold text-photonic-blue mb-2">AI Sanity Check Results</h4>
+            <ul className="space-y-2">
+                {result.map((item, index) => (
+                    <li key={index} className="flex items-start gap-2 text-sm">
+                        <div className="flex-shrink-0 mt-0.5">{iconMap[item.met]}</div>
+                        <div>
+                            <p className="text-future-light">{item.rule}</p>
+                            <p className="text-xs text-future-gray">{item.reasoning}</p>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
 
 const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   const { playbooks } = usePlaybook();
   const { createTrade, updateTrade } = useTrade();
   const { specs } = useAssets();
+  const { accessToken } = useAuth();
   
   const isEditMode = !!tradeToEdit;
   const [isPendingOrder, setIsPendingOrder] = useState(tradeToEdit?.isPendingOrder ?? false);
@@ -63,6 +94,11 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // AI Sanity Check State
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<PreTradeCheckResult | null>(null);
+  const [analysisError, setAnalysisError] = useState('');
 
   // Populate form on initial load or when editing
   useEffect(() => {
@@ -101,6 +137,31 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   const canSubmit = useMemo(() => {
     return formState.playbookId && formState.asset && formState.entryPrice;
   }, [formState.playbookId, formState.asset, formState.entryPrice]);
+
+  const canAnalyze = useMemo(() => {
+    return formState.playbookId && formState.asset && formState.screenshotBeforeUrl;
+  }, [formState.playbookId, formState.asset, formState.screenshotBeforeUrl]);
+
+  const handleSanityCheck = async () => {
+    if (!canAnalyze || !accessToken) return;
+    setIsAnalyzing(true);
+    setAnalysisError('');
+    setAnalysisResult(null);
+
+    try {
+        const result = await api.preTradeCheck({
+            playbookId: formState.playbookId,
+            asset: formState.asset,
+            screenshotBeforeUrl: formState.screenshotBeforeUrl!,
+        }, accessToken);
+        setAnalysisResult(result);
+    } catch (err: any) {
+        setAnalysisError(err.message || "Failed to run analysis.");
+    } finally {
+        setIsAnalyzing(false);
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,7 +245,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
         </div>
         
         <ImageUploader 
-            label="Before Entry Screenshot (Optional)"
+            label="Before Entry Screenshot (Required for AI Sanity Check)"
             onImageUpload={(data) => handleImageUpload('screenshotBeforeUrl', data)}
             currentImage={formState.screenshotBeforeUrl}
         />
@@ -202,11 +263,20 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
             disabled={isEditMode && !tradeToEdit.isPendingOrder} // Can't make a live trade pending
         />
 
+        {analysisResult && <SanityCheckResult result={analysisResult} />}
+        {analysisError && <p className="text-risk-high text-sm text-center my-2">{analysisError}</p>}
+
         <div className="mt-6 pt-6 border-t border-photonic-blue/10">
             {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-            <Button type="submit" disabled={isLoading || !canSubmit} className="w-full">
-                {isLoading ? <Spinner /> : (isEditMode ? 'Save Changes' : 'Log Trade')}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+                <Button type="button" onClick={handleSanityCheck} disabled={!canAnalyze || isAnalyzing} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-future-panel border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue">
+                   {isAnalyzing ? <Spinner /> : <SparklesIcon className="w-5 h-5" />}
+                   AI Sanity Check
+                </Button>
+                <Button type="submit" disabled={isLoading || !canSubmit} className="w-full">
+                    {isLoading ? <Spinner /> : (isEditMode ? 'Save Changes' : 'Log Trade')}
+                </Button>
+            </div>
         </div>
     </form>
   );
