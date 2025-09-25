@@ -83,49 +83,63 @@ const buildHeaders = (token?: string): HeadersInit => {
 
 // --- Token Refresh Logic ---
 let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
 
-const refreshToken = async (): Promise<string | null> => {
-    if (isRefreshing) {
-        // Avoid race conditions if multiple requests fail at once
-        return null;
-    }
-    isRefreshing = true;
+const refreshToken = (): Promise<string | null> => {
+  if (isRefreshing && refreshPromise) {
+    // A refresh is already in progress, return the existing promise to avoid a race condition.
+    console.log('[API] Attaching to an in-progress token refresh.');
+    return refreshPromise;
+  }
 
+  isRefreshing = true;
+  
+  refreshPromise = new Promise(async (resolve) => {
     try {
-        const apiUrl = getApiUrl();
-        const refreshEndpoint = '/api/auth/refresh';
-        const fullUrl = `${apiUrl}${refreshEndpoint}`;
+      console.log('[API] Initiating new token refresh...');
+      const apiUrl = getApiUrl();
+      const refreshEndpoint = '/api/auth/refresh';
+      const fullUrl = `${apiUrl}${refreshEndpoint}`;
 
-        const response = await fetch(fullUrl, {
-            method: 'POST',
-            credentials: 'include', // Crucial for sending the httpOnly cookie
-        });
-        
-        if (!response.ok) throw new Error("Refresh token is invalid or expired.");
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        credentials: 'include', // This is crucial for sending the httpOnly cookie.
+      });
 
-        const result: ApiResponse<{ accessToken: string }> = await response.json();
-        if (!result.success || !result.data.accessToken) {
-            throw new Error("Invalid response from refresh endpoint.");
-        }
-        
-        const newAccessToken = result.data.accessToken;
-        localStorage.setItem('accessToken', newAccessToken);
+      if (!response.ok) {
+        throw new Error('Refresh token is invalid or expired.');
+      }
 
-        // Notify the app (e.g., AuthContext) that the token has been updated
-        window.dispatchEvent(new CustomEvent('tokenRefreshed', { detail: newAccessToken }));
-        
-        console.log('[API] Token refresh successful.');
-        return newAccessToken;
+      const result: ApiResponse<{ accessToken: string }> = await response.json();
+      if (!result.success || !result.data.accessToken) {
+        throw new Error('Invalid response from the refresh endpoint.');
+      }
+
+      const newAccessToken = result.data.accessToken;
+      localStorage.setItem('accessToken', newAccessToken);
+
+      // Notify the application that the token has been updated.
+      window.dispatchEvent(new CustomEvent('tokenRefreshed', { detail: newAccessToken }));
+      
+      console.log('[API] Token refresh successful.');
+      resolve(newAccessToken);
+
     } catch (error) {
-        console.error("[API] Token refresh failed:", error);
-        localStorage.removeItem('accessToken');
-        // Notify the app to log out the user
-        window.dispatchEvent(new Event('logout'));
-        return null;
+      console.error('[API] Token refresh failed:', error);
+      localStorage.removeItem('accessToken');
+      // Notify the application to log out the user.
+      window.dispatchEvent(new Event('logout'));
+      resolve(null); // Resolve with null on failure to signal that logout should occur.
     } finally {
-        isRefreshing = false;
+      // Reset state for the next time a token expires.
+      isRefreshing = false;
+      refreshPromise = null;
     }
+  });
+
+  return refreshPromise;
 };
+
 
 async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
   const apiUrl = getApiUrl();
