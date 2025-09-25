@@ -17,8 +17,12 @@ async function bootstrap() {
   const frontendUrls = configService.get<string>('FRONTEND_URL');
   const nodeEnv = configService.get<string>('NODE_ENV');
 
-  // Set a global prefix for all routes to '/api'
-  app.setGlobalPrefix('api');
+  // Conditionally set the global prefix. In production, Nginx handles
+  // the '/api' path and strips it, so the app should not have a prefix.
+  // In development, we need the prefix for direct API calls.
+  if (nodeEnv !== 'production') {
+    app.setGlobalPrefix('api');
+  }
 
   // Increase payload size limit for JSON and URL-encoded requests
   app.use(express.json({ limit: '10mb' }));
