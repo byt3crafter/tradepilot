@@ -220,7 +220,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         </td>
       </tr>
       {isExpanded && (
-        <tr className="bg-future-panel/30">
+        <tr className="bg-black/20">
             <td></td>
             <td colSpan={9} className="p-4">
               <div className="relative">

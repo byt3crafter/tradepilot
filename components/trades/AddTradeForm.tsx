@@ -21,6 +21,7 @@ interface FormInputState {
   direction: 'Buy' | 'Sell';
   entryDate: string;
   entryPrice: string;
+  lotSize: string;
   stopLoss: string;
   takeProfit: string;
   playbookId: string;
@@ -54,6 +55,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     entryPrice: '',
     stopLoss: '',
     takeProfit: '',
+    lotSize: '',
     riskPercentage: '1',
     playbookId: '',
     screenshotBeforeUrl: null,
@@ -72,6 +74,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
         entryPrice: tradeToEdit.entryPrice?.toString() ?? '',
         stopLoss: tradeToEdit.stopLoss?.toString() ?? '',
         takeProfit: tradeToEdit.takeProfit?.toString() ?? '',
+        lotSize: tradeToEdit.lotSize?.toString() ?? '',
         riskPercentage: tradeToEdit.riskPercentage?.toString() ?? '1',
         playbookId: tradeToEdit.playbookId || '',
         screenshotBeforeUrl: tradeToEdit.screenshotBeforeUrl || null,
@@ -119,6 +122,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
       entryDate: formState.entryDate ? new Date(formState.entryDate).toISOString() : new Date().toISOString(),
       stopLoss: formState.stopLoss ? Number(formState.stopLoss) : null,
       takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
+      lotSize: formState.lotSize ? Number(formState.lotSize) : null,
       screenshotBeforeUrl: formState.screenshotBeforeUrl,
     };
     
@@ -173,7 +177,8 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
             <AuthInput label="Entry Price" id="entryPrice" name="entryPrice" type="number" step="any" value={formState.entryPrice} onChange={handleInputChange} required />
             <AuthInput label="Risk (%)" id="riskPercentage" name="riskPercentage" type="number" step="any" value={formState.riskPercentage} onChange={handleInputChange} required />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <AuthInput label="Lot Size (Optional)" id="lotSize" name="lotSize" type="number" step="any" value={formState.lotSize} onChange={handleInputChange} />
             <AuthInput label="Stop Loss (Optional)" id="stopLoss" name="stopLoss" type="number" step="any" value={formState.stopLoss} onChange={handleInputChange} />
             <AuthInput label="Take Profit (Optional)" id="takeProfit" name="takeProfit" type="number" step="any" value={formState.takeProfit} onChange={handleInputChange} />
         </div>

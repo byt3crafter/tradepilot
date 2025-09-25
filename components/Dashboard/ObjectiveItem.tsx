@@ -49,11 +49,11 @@ const CountdownTimer: React.FC = () => {
 
 
 const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
-  const { title, status, currentValue, targetValue, type } = objective;
+  const { title, status, currentValue, targetValue, type, key, remaining } = objective;
 
   const progressPercentage = targetValue > 0 ? (currentValue / targetValue) * 100 : 0;
   
-  const isLossRule = objective.key.includes('Loss');
+  const isLossRule = key.includes('Loss');
   const isFailed = status === 'Failed';
   const isSuccess = status === 'Success';
   
@@ -62,12 +62,26 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
   else if (isSuccess) barColor = 'bg-momentum-green';
   else if (isLossRule) barColor = 'bg-risk-medium';
 
+  let valueColor = 'text-future-light';
+  if (key === 'profitTarget') {
+    if (currentValue < 0) {
+      valueColor = 'text-risk-high';
+    } else if (currentValue > 0) {
+      valueColor = 'text-momentum-green';
+    }
+  }
+
+  const formatCurrency = (val?: number) => {
+    if (val === undefined || val === null) return '$-.--';
+    const prefix = val < 0 ? '-$' : '$';
+    return `${prefix}${Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   return (
     <Card className={`p-3 flex flex-col h-full ${isFailed ? 'border-risk-high/30' : ''} ${isSuccess ? 'border-momentum-green/30' : ''}`}>
       <div className="flex justify-between items-start">
         <h4 className="text-xs text-future-gray uppercase tracking-wider font-semibold">{title}</h4>
-        {status === 'Failed' && objective.key === 'maxDailyLoss' ? (
+        {status === 'Failed' && key === 'maxDailyLoss' ? (
           <CountdownTimer />
         ) : (
           <StatusPill status={status} />
@@ -75,18 +89,22 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
       </div>
 
       <div className="flex-grow flex flex-col justify-end mt-2">
-        <div className="text-xl font-orbitron text-future-light">
-          {isLossRule
-            ? `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-            : type === 'progress'
-              ? `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : `${currentValue}`}
-          <span className="text-sm font-tech-mono text-future-gray">
-            {` / ${isLossRule || type === 'progress' ? '$' : ''}${targetValue.toLocaleString()}`}
+        <div className={`text-xl font-orbitron ${valueColor}`}>
+           {isLossRule 
+            ? formatCurrency(remaining) 
+            : (type === 'progress' 
+                ? formatCurrency(currentValue) 
+                : currentValue)
+          }
+          <span className="text-sm font-tech-mono text-future-gray ml-1">
+            {isLossRule 
+              ? 'Remaining' 
+              : `/ ${type === 'progress' ? '$' : ''}${targetValue.toLocaleString()}`
+            }
           </span>
         </div>
 
-        {type === 'progress' && (
+        {(type === 'progress' || key === 'maxLoss') && (
           <div className="mt-2">
             <div className="w-full bg-future-panel rounded-full h-1.5">
               <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${Math.min(100, progressPercentage)}%` }}></div>

@@ -6,7 +6,7 @@ import Modal from '../ui/Modal';
 import AccountForm from './AccountForm';
 import { BrokerAccount } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
-import AccountCard from './AccountCard';
+import AccountRow from './AccountRow';
 
 const AccountManager: React.FC = () => {
   const { accounts, isLoading } = useAccount();
@@ -50,14 +50,27 @@ const AccountManager: React.FC = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map(account => (
-                <AccountCard 
-                    key={account.id} 
-                    account={account} 
-                    onEdit={() => openEditModal(account)} 
-                />
-            ))}
+          <div className="overflow-x-auto table-scrollbar">
+            <table className="w-full text-sm">
+              <thead className="border-b border-photonic-blue/30">
+                <tr>
+                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Account Name</th>
+                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Type</th>
+                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Initial Balance</th>
+                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Current Balance</th>
+                  <th className="p-3 text-right font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map(account => (
+                    <AccountRow 
+                        key={account.id} 
+                        account={account} 
+                        onEdit={() => openEditModal(account)} 
+                    />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

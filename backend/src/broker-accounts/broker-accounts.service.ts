@@ -138,8 +138,13 @@ export class BrokerAccountsService {
     let cumulativePL = 0;
     const uniqueTradingDaysSet = new Set<string>();
     
-    const todayStr = new Date().toDateString();
-    let dailyNetPL = 0;
+    // Define today's range in UTC to avoid timezone issues
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setUTCDate(today.getUTCDate() + 1);
+
+    let dailyLossSum = 0;
 
     for (const trade of trades) {
         // P/L and Drawdown: Use net profitLoss directly
@@ -155,9 +160,14 @@ export class BrokerAccountsService {
             uniqueTradingDaysSet.add(new Date(trade.entryDate).toDateString());
         }
 
-        // Daily Loss: Sum P/L for trades closed today
-        if (trade.exitDate && new Date(trade.exitDate).toDateString() === todayStr) {
-            dailyNetPL += tradeNetPL;
+        // Daily Loss: Sum P/L for trades closed today (UTC)
+        if (trade.exitDate) {
+            const exitDate = new Date(trade.exitDate);
+            if (exitDate >= today && exitDate < tomorrow) {
+                if(tradeNetPL < 0) {
+                    dailyLossSum += tradeNetPL;
+                }
+            }
         }
     }
 
@@ -165,7 +175,7 @@ export class BrokerAccountsService {
     const currentBalance = initialBalance + totalNetPL;
     const currentDrawdown = Math.max(0, highWaterMark - currentBalance);
     const uniqueTradingDays = uniqueTradingDaysSet.size;
-    const currentDailyLoss = dailyNetPL < 0 ? Math.abs(dailyNetPL) : 0;
+    const currentDailyLoss = Math.abs(dailyLossSum);
 
 
     // --- Objective 1: Profit Target ---
@@ -196,11 +206,13 @@ export class BrokerAccountsService {
 
     // --- Objective 3: Max Loss (Trailing Drawdown) ---
     if (maxLoss) {
+      const remaining = maxLoss - currentDrawdown;
       results.push({
         key: 'maxLoss',
         title: `Max Loss $${maxLoss.toLocaleString()}`,
         currentValue: currentDrawdown,
         targetValue: maxLoss,
+        remaining: remaining > 0 ? remaining : 0,
         status: currentDrawdown >= maxLoss ? 'Failed' : 'In Progress',
         type: 'simple'
       });

@@ -12,13 +12,33 @@ interface AccountFormProps {
   onSuccess: () => void;
 }
 
+// Helper function to parse leverage input like "1:100" or "100" into a number
+const parseLeverage = (value: string): number | null => {
+  if (!value || typeof value !== 'string') return null;
+  const strValue = value.trim();
+  
+  // Handle "1:100" format
+  if (strValue.includes(':')) {
+    const parts = strValue.split(':');
+    if (parts.length === 2) {
+      const num = parseInt(parts[1], 10);
+      return isNaN(num) ? null : num;
+    }
+  }
+  
+  // Handle "100" format
+  const num = parseInt(strValue, 10);
+  return isNaN(num) ? null : num;
+};
+
+
 const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const { createAccount, updateAccount } = useAccount();
   const [name, setName] = useState(account?.name || '');
   const [type, setType] = useState<BrokerAccountType>(account?.type || BrokerAccountType.LIVE);
   const [initialBalance, setInitialBalance] = useState(account?.initialBalance || '');
   const [currency, setCurrency] = useState(account?.currency || 'USD');
-  const [leverage, setLeverage] = useState(account?.leverage || '');
+  const [leverage, setLeverage] = useState(account?.leverage ? `1:${account.leverage}` : '');
   
   const [objectivesEnabled, setObjectivesEnabled] = useState(account?.objectives?.isEnabled || false);
   const [profitTarget, setProfitTarget] = useState(account?.objectives?.profitTarget ?? '');
@@ -64,7 +84,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       type,
       initialBalance: balance,
       currency,
-      leverage: leverage ? parseInt(leverage as string, 10) : null,
+      leverage: parseLeverage(leverage as string),
     };
 
     try {
@@ -135,10 +155,10 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
           ]}
         />
          <AuthInput
-          label="Leverage (e.g., 100 for 1:100)"
+          label="Leverage"
           id="leverage"
-          type="number"
-          placeholder="100"
+          type="text"
+          placeholder="e.g., 1:100"
           value={leverage}
           onChange={(e) => setLeverage(e.target.value)}
         />
