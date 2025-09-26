@@ -1,8 +1,10 @@
+
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 // FIX: Standardized to named imports to resolve type errors.
-import { Playbook, Trade } from '@prisma/client';
+// Changed to namespace import to resolve module export errors.
+import * as Prisma from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -29,7 +31,7 @@ export class AiService {
         this.genAI = new GoogleGenAI({ apiKey });
     }
 
-    async getTradeAnalysis(trade: Trade, playbook: Playbook, pastMistakes: string) {
+    async getTradeAnalysis(trade: Prisma.Trade, playbook: Prisma.Playbook, pastMistakes: string) {
         if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
             throw new Error("Screenshots are missing for AI analysis.");
         }
@@ -134,18 +136,39 @@ export class AiService {
 
             const textPart = {
                 text: `
-                **Task:** You are an expert trading chart analyst. Your task is to extract structured data from a trading chart image, specifically from a TradingView 'Long Position' or 'Short Position' tool overlay.
+                **Task:** You are an expert trading data extractor. Your task is to extract structured data from a single trading-related screenshot. The image could be a chart with a visual position tool OR a text-based list/row of position details.
 
-                **Instructions:**
-                Analyze the provided image and extract the following information. If a piece of information is not clearly visible, return null for that field.
-                1.  **asset**: ${assetInstruction}
-                2.  **direction**: 'Buy' or 'Sell'. Determined by the position tool: green box on top is 'Buy', red box on top is 'Sell'.
-                3.  **entryPrice**: The price at the boundary between the red and green boxes of the position tool.
-                4.  **stopLoss**: The price at the outer edge of the red box of the position tool.
-                5.  **takeProfit**: The price at the outer edge of the green box of the position tool.
-                6.  **entryDate**: The full date and time from the top of the chart (e.g., "Sep 26, 2025 10:29 UTC+2"). Return this as a string that can be parsed into a JavaScript Date object.
+                **Priority 1: Text-Based Details Extraction**
+                First, scan the image for text labels like "Symbol", "Quantity", "Volume", "Direction", "Entry", "TP", "SL", "Closing Time", "Closing Price", "Net USD", "Net P/L", "Commissions", and "Swap". If you find them, extract the data from here.
+                - **asset**: The ticker symbol (e.g., 'USTEC', 'EURUSD').
+                - **lotSize**: From the "Quantity" or "Volume" label, extract the numeric value only (e.g., from "3 Lots" or "3 Indices", extract 3).
+                - **direction**: 'Buy' or 'Sell'.
+                - **entryPrice**: The value next to "Entry".
+                - **stopLoss**: The value next to "SL".
+                - **takeProfit**: The value next to "TP".
+                - **entryDate**: From the "Created (UTC...)" label, extract the full date and time.
+                - **exitDate**: From the "Closing Time (UTC...)" label, extract the full date and time.
+                - **exitPrice**: From "Closing Price".
+                - **profitLoss**: From "Net USD" or "Net P/L", extract the numeric value.
+                - **commission**: From "Commissions".
+                - **swap**: From "Swap".
 
-                Your response must be in the specified JSON format.
+                **Priority 2: Chart-Based Visual Tool Extraction**
+                If text-based details are NOT present, analyze the visual 'Long Position' or 'Short Position' tool on the chart.
+                - **Step 1: Determine Trade Direction**
+                  - If the green area is ABOVE the entry price, the direction is 'Buy'.
+                  - If the red area is ABOVE the entry price, the direction is 'Sell'.
+                - **Step 2: Extract Price Levels**
+                  - **entryPrice**: The price where the red and green areas meet.
+                  - **stopLoss**: For a 'Buy', it's the BOTTOM of the RED area. For a 'Sell', it's the TOP of the RED area.
+                  - **takeProfit**: For a 'Buy', it's the TOP of the GREEN area. For a 'Sell', it's the BOTTOM of the GREEN area.
+                - **Step 3: Extract Asset Symbol**
+                  - ${assetInstruction}
+                - **Step 4: Extract Date & Time**
+                  - Find the date and time from the top of the chart. Map this to 'entryDate'.
+
+                **Final Output:**
+                Your response must be in the specified JSON format. If a piece of information is not visible, return null for that field. Prioritize text-based extraction over visual extraction if both seem present.
                 `
             };
 
@@ -162,9 +185,14 @@ export class AiService {
                         entryPrice: { type: Type.NUMBER },
                         stopLoss: { type: Type.NUMBER },
                         takeProfit: { type: Type.NUMBER },
-                        entryDate: { type: Type.STRING, description: 'Full date and time string from the chart, e.g., "Sep 26, 2025 10:29 UTC+2".' }
+                        entryDate: { type: Type.STRING, description: 'Full entry date and time string.' },
+                        lotSize: { type: Type.NUMBER },
+                        exitPrice: { type: Type.NUMBER },
+                        exitDate: { type: Type.STRING, description: 'Full exit date and time string.' },
+                        profitLoss: { type: Type.NUMBER },
+                        commission: { type: Type.NUMBER },
+                        swap: { type: Type.NUMBER },
                     },
-                    required: ["asset", "direction", "entryPrice", "stopLoss", "takeProfit", "entryDate"]
                 }
               }
             });

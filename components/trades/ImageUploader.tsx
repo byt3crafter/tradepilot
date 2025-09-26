@@ -16,8 +16,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
     setImagePreview(currentImage || null);
   }, [currentImage]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const processFile = (file: File) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -28,6 +27,28 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
       reader.readAsDataURL(file);
     }
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                processFile(file);
+                break; // Stop after the first image
+            }
+        }
+    }
+  };
+
 
   const handleRemoveImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -47,6 +68,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
       <label className="block text-sm font-medium text-future-gray mb-2">{label}</label>
       <div 
         onClick={handleSelectImage}
+        onPaste={handlePaste}
         className="w-full h-40 bg-future-dark border-2 border-dashed border-photonic-blue/30 rounded-lg flex items-center justify-center cursor-pointer hover:border-photonic-blue transition-colors relative"
       >
         <input
@@ -71,7 +93,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
         ) : (
           <div className="text-center text-future-gray">
             <UploadIcon className="w-8 h-8 mx-auto" />
-            <p className="mt-1 text-xs">Click to upload</p>
+            <p className="mt-1 text-xs">Click to upload or paste image</p>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
-import { Trade, TradeResult } from '../../types';
+import { Trade } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import AuthInput from '../auth/AuthInput';
 import ImageUploader from './ImageUploader';
@@ -8,6 +9,9 @@ import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import Textarea from '../ui/Textarea';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import { SparklesIcon } from '../icons/SparklesIcon';
 
 interface CloseTradeModalProps {
   tradeToClose: Trade;
@@ -17,6 +21,15 @@ interface CloseTradeModalProps {
 const toDateTimeLocal = (dateString?: string | null) => {
   if (!dateString) return '';
   const date = new Date(dateString);
+  // It might be a simple date string from AI, handle that.
+  if (isNaN(date.getTime())) {
+      try {
+          // Attempt to parse strings like "26 Sep 2025 10:45:44"
+          const parsed = new Date(dateString.replace(/(\d+ \w+ \d+)/, '$1 UTC'));
+          if (!isNaN(parsed.getTime())) return toDateTimeLocal(parsed.toISOString());
+      } catch (e) { /* ignore */ }
+      return '';
+  }
   const timezoneOffset = date.getTimezoneOffset() * 60000;
   const localDate = new Date(date.getTime() - timezoneOffset);
   return localDate.toISOString().slice(0, 19);
@@ -24,6 +37,12 @@ const toDateTimeLocal = (dateString?: string | null) => {
 
 const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose }) => {
   const { updateTrade, createOrUpdateJournal } = useTrade();
+  const { accessToken } = useAuth();
+
+  const [detailsScreenshot, setDetailsScreenshot] = useState<string | null>(null);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillError, setAutoFillError] = useState('');
+  const [isAutofilled, setIsAutofilled] = useState(false);
 
   const [formState, setFormState] = useState({
     exitDate: toDateTimeLocal(new Date().toISOString()),
@@ -34,7 +53,6 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
     swap: '',
     screenshotBeforeUrl: tradeToClose.screenshotBeforeUrl || null,
     screenshotAfterUrl: tradeToClose.screenshotAfterUrl || null,
-    // Journal Fields
     mindsetBefore: tradeToClose.tradeJournal?.mindsetBefore || '',
     exitReasoning: tradeToClose.tradeJournal?.exitReasoning || '',
     lessonsLearned: tradeToClose.tradeJournal?.lessonsLearned || '',
@@ -45,7 +63,6 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
   const [isExecutionDetailsOpen, setIsExecutionDetailsOpen] = useState(false);
 
   useEffect(() => {
-    // If trade already had commission/swap from edit, pre-fill it
     if(tradeToClose.commission || tradeToClose.swap) {
         setIsExecutionDetailsOpen(true);
         setFormState(prev => ({
@@ -61,8 +78,39 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
     setFormState(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleImageUpload = (field: 'screenshotBeforeUrl' | 'screenshotAfterUrl', dataUrl: string | null) => {
-    setFormState(prev => ({ ...prev, [field]: dataUrl }));
+  const handleImageUpload = (field: 'screenshotBeforeUrl' | 'screenshotAfterUrl' | 'detailsScreenshot', dataUrl: string | null) => {
+    if (field === 'detailsScreenshot') {
+      setDetailsScreenshot(dataUrl);
+    } else {
+      setFormState(prev => ({ ...prev, [field]: dataUrl }));
+    }
+  };
+  
+  const handleAutofill = async () => {
+    if (!detailsScreenshot || !accessToken) return;
+    setIsAutoFilling(true);
+    setAutoFillError('');
+    try {
+      const result = await api.analyzeChart(detailsScreenshot, [], accessToken);
+      const updates: Partial<typeof formState> = {};
+
+      if (result.exitDate) updates.exitDate = toDateTimeLocal(result.exitDate);
+      if (result.exitPrice) updates.exitPrice = String(result.exitPrice);
+      if (result.profitLoss) updates.profitLoss = String(result.profitLoss);
+      if (result.commission) updates.commission = String(result.commission);
+      if (result.swap) updates.swap = String(result.swap);
+      
+      if (updates.commission || updates.swap) {
+          setIsExecutionDetailsOpen(true);
+      }
+
+      setFormState(prev => ({ ...prev, ...updates }));
+      setIsAutofilled(true); // Hide the uploader on success
+    } catch (err: any) {
+      setAutoFillError(err.message || "Failed to analyze details.");
+    } finally {
+      setIsAutoFilling(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,6 +155,21 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
           {/* --- LEFT COLUMN (Data Entry) --- */}
           <div className="space-y-4">
+            {!isAutofilled && (
+              <div className="space-y-3 p-3 bg-future-dark/50 rounded-lg border border-photonic-blue/10">
+                <ImageUploader
+                  label="Closed Position Details (for Autofill)"
+                  onImageUpload={(data) => handleImageUpload('detailsScreenshot', data)}
+                  currentImage={detailsScreenshot}
+                />
+                 <Button type="button" variant="secondary" onClick={handleAutofill} disabled={!detailsScreenshot || isAutoFilling} className="w-full sm:w-auto flex items-center justify-center gap-2">
+                  {isAutoFilling ? <Spinner /> : <SparklesIcon className="w-5 h-5" />}
+                  Autofill from Exit Details
+                </Button>
+                {autoFillError && <p className="text-risk-high text-sm text-center">{autoFillError}</p>}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AuthInput
                     label="Exit Date & Time"
