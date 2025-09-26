@@ -1,9 +1,9 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+// FIX: Standardized to named import for PrismaClient to resolve type errors.
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends client.PrismaClient implements OnModuleInit {
+export class PrismaService extends PrismaClient implements OnModuleInit {
   async onModuleInit() {
     await this.$connect();
   }

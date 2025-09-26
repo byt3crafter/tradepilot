@@ -1,21 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+// FIX: Standardized to named imports to resolve type errors.
+import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: client.Prisma.UserCreateInput): Promise<client.User> {
+  async create(data: Prisma.UserCreateInput): Promise<User> {
     return this.prisma.user.create({ data });
   }
 
-  async findByEmail(email: string): Promise<client.User | null> {
+  async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findById(id: string): Promise<client.User> {
+  async findById(id: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found.`);
@@ -23,7 +23,7 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, data: client.Prisma.UserUpdateInput): Promise<client.User> {
+  async update(id: string, data: Prisma.UserUpdateInput): Promise<User> {
     return this.prisma.user.update({
       where: { id },
       data,

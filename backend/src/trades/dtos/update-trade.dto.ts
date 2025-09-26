@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsObject, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+// FIX: Standardized to named imports to resolve type errors.
+import { Direction, TradeResult } from '@prisma/client';
 
 export class UpdateTradeDto {
   @IsDate()
@@ -21,7 +21,7 @@ export class UpdateTradeDto {
 
   @IsEnum(['Buy', 'Sell'])
   @IsOptional()
-  direction?: client.Direction;
+  direction?: Direction;
 
   @IsNumber()
   @IsOptional()
@@ -44,9 +44,9 @@ export class UpdateTradeDto {
   @IsOptional()
   profitLoss?: number | null;
   
-  @IsEnum(client.TradeResult)
+  @IsEnum(TradeResult)
   @IsOptional()
-  result?: client.TradeResult | null;
+  result?: TradeResult | null;
   
   @IsString()
   @IsOptional()

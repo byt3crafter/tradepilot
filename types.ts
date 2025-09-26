@@ -247,3 +247,13 @@ export interface PreTradeCheckItem {
   reasoning: string;
 }
 export type PreTradeCheckResult = PreTradeCheckItem[];
+
+// --- NEW: AI Chart Analysis ---
+export interface AnalyzeChartResult {
+  asset: string | null;
+  direction: 'Buy' | 'Sell' | null;
+  entryPrice: number | null;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  entryDate: string | null;
+}

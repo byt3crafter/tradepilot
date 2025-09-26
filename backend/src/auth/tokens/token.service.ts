@@ -3,8 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+// FIX: Standardized to named imports to resolve type errors.
+import { VerificationTokenType } from '@prisma/client';
 
 @Injectable()
 export class TokenService {
@@ -91,7 +91,7 @@ export class TokenService {
 
   // --- One-Time Tokens (Verification, Password Reset) ---
 
-  private async createOneTimeToken(userId: string, type: client.VerificationTokenType, ttl: string, payload?: any) {
+  private async createOneTimeToken(userId: string, type: VerificationTokenType, ttl: string, payload?: any) {
     const token = this.generateSecureToken();
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + this.parseTtl(ttl));
@@ -110,11 +110,11 @@ export class TokenService {
   }
   
   async createEmailVerificationToken(userId: string) {
-    return this.createOneTimeToken(userId, client.VerificationTokenType.EMAIL_VERIFY, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!);
+    return this.createOneTimeToken(userId, VerificationTokenType.EMAIL_VERIFY, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!);
   }
 
   async createEmailChangeToken(userId: string, newEmail: string) {
-      return this.createOneTimeToken(userId, client.VerificationTokenType.EMAIL_CHANGE, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!, { newEmail });
+      return this.createOneTimeToken(userId, VerificationTokenType.EMAIL_CHANGE, this.configService.get<string>('EMAIL_VERIFY_TOKEN_TTL')!, { newEmail });
   }
 
   async createPasswordResetToken(userId: string) {
@@ -129,7 +129,7 @@ export class TokenService {
     return { token };
   }
 
-  async consumeVerificationToken(token: string, type: client.VerificationTokenType) {
+  async consumeVerificationToken(token: string, type: VerificationTokenType) {
     const tokenHash = this.hashToken(token);
     const verification = await this.prisma.verificationToken.findFirst({
         where: { tokenHash, type }

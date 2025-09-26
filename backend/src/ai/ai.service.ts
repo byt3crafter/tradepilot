@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
-// FIX: Changed import to wildcard to resolve module member issues.
+// FIX: Standardized to named imports to resolve type errors.
 import { Playbook, Trade } from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
@@ -122,6 +122,66 @@ export class AiService {
             throw new InternalServerErrorException('Failed to analyze trade with AI.');
         }
     }
+    
+    async getChartAnalysis(screenshotBase64: string, availableAssets?: string[]) {
+        try {
+            const imagePart = base64ToGenaiPart(screenshotBase64);
+            
+            const assetInstruction = availableAssets && availableAssets.length > 0
+                ? `From the chart, identify the trading instrument. Then, select the BEST matching symbol from this list of available assets: [${availableAssets.join(', ')}]. For example, if the chart shows 'US 100 Cash CFD' and the list includes 'USTEC' or 'NAS100', you must choose one from the list. The goal is to return a symbol that exists in the provided list.`
+                : `Find the trading instrument symbol at the top left of the chart. Extract the common ticker symbol. For example, if you see 'US 100 Cash CFD', extract 'NAS100' or 'US100'. If you see 'EURUSD', extract 'EURUSD'. Your goal is to identify the most common, short ticker symbol for the instrument shown.`;
+
+
+            const textPart = {
+                text: `
+                **Task:** You are an expert trading chart analyst. Your task is to extract structured data from a trading chart image, specifically from a TradingView 'Long Position' or 'Short Position' tool overlay.
+
+                **Instructions:**
+                Analyze the provided image and extract the following information. If a piece of information is not clearly visible, return null for that field.
+                1.  **asset**: ${assetInstruction}
+                2.  **direction**: 'Buy' or 'Sell'. Determined by the position tool: green box on top is 'Buy', red box on top is 'Sell'.
+                3.  **entryPrice**: The price at the boundary between the red and green boxes of the position tool.
+                4.  **stopLoss**: The price at the outer edge of the red box of the position tool.
+                5.  **takeProfit**: The price at the outer edge of the green box of the position tool.
+                6.  **entryDate**: The full date and time from the top of the chart (e.g., "Sep 26, 2025 10:29 UTC+2"). Return this as a string that can be parsed into a JavaScript Date object.
+
+                Your response must be in the specified JSON format.
+                `
+            };
+
+            const response = await this.genAI.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: { parts: [textPart, imagePart] },
+              config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        asset: { type: Type.STRING },
+                        direction: { type: Type.STRING, enum: ["Buy", "Sell"] },
+                        entryPrice: { type: Type.NUMBER },
+                        stopLoss: { type: Type.NUMBER },
+                        takeProfit: { type: Type.NUMBER },
+                        entryDate: { type: Type.STRING, description: 'Full date and time string from the chart, e.g., "Sep 26, 2025 10:29 UTC+2".' }
+                    },
+                    required: ["asset", "direction", "entryPrice", "stopLoss", "takeProfit", "entryDate"]
+                }
+              }
+            });
+
+            if (!response.text) {
+                this.logger.error('AI chart analysis returned empty response');
+                throw new InternalServerErrorException('AI chart analysis returned empty response.');
+            }
+            const jsonText = response.text.trim();
+            return JSON.parse(jsonText);
+
+        } catch (error) {
+            this.logger.error('Error getting chart analysis from Gemini', error.stack);
+            throw new InternalServerErrorException('Failed to get AI chart analysis.');
+        }
+    }
+
 
     async getPreTradeCheck(playbook: any, screenshotBase64: string, asset: string) {
         try {

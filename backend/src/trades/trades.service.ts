@@ -4,7 +4,7 @@ import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
-import { AiAnalysis, TradeResult } from '@prisma/client';
+import { TradeResult, Prisma } from '@prisma/client';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 
 @Injectable()
@@ -151,12 +151,22 @@ export class TradesService {
         userId,
         aiAnalysis: { isNot: null },
       },
-      select: { aiAnalysis: true },
+      select: { 
+        aiAnalysis: {
+          select: {
+            mistakes: true,
+          }
+        }
+      },
     });
     
     const pastMistakes = pastTrades
-        .filter((t: { aiAnalysis: AiAnalysis | null }) => t.aiAnalysis && (t.aiAnalysis.mistakes as any[]).length > 0)
-        .flatMap((t: { aiAnalysis: AiAnalysis | null }) => (t.aiAnalysis!.mistakes as any[]).map(m => m.mistake))
+        .filter(t => 
+            t.aiAnalysis && 
+            Array.isArray(t.aiAnalysis.mistakes) && 
+            t.aiAnalysis.mistakes.length > 0
+        )
+        .flatMap(t => (t.aiAnalysis!.mistakes as any[]).map(m => m.mistake))
         .join(', ');
 
     const analysisResult = await this.aiService.getTradeAnalysis(trade, playbook, pastMistakes);
@@ -204,5 +214,12 @@ export class TradesService {
     }
 
     return this.aiService.getPreTradeCheck(playbook, screenshotBeforeUrl, asset);
+  }
+
+  async analyzeChart(userId: string, screenshotUrl: string, availableAssets?: string[]) {
+    // This method could contain more business logic in the future,
+    // e.g., checking if the user has analysis credits.
+    // For now, it directly calls the AI service.
+    return this.aiService.getChartAnalysis(screenshotUrl, availableAssets);
   }
 }

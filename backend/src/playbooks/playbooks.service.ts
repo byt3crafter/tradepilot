@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlaybookDto } from './dtos/create-playbook.dto';
 import { UpdatePlaybookDto } from './dtos/update-playbook.dto';
-// FIX: Changed import to wildcard to resolve module member issues.
+// FIX: Standardized to named imports to resolve type errors.
 import { ChecklistItemType, Trade } from '@prisma/client';
 
 @Injectable()

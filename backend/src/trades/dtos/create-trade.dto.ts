@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+// FIX: Standardized to named import to resolve type errors.
+import { Direction } from '@prisma/client';
 
 export class CreateTradeDto {
   @IsDate()
@@ -15,7 +15,7 @@ export class CreateTradeDto {
 
   @IsEnum(['Buy', 'Sell'])
   @IsNotEmpty()
-  direction: client.Direction;
+  direction: Direction;
 
   @IsNumber()
   entryPrice: number;

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
-import { AiAnalysis, Trade, TradeResult } from '@prisma/client';
+import { Trade, TradeResult } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
 
 interface Mistake { mistake: string; reasoning: string; }
@@ -326,7 +326,7 @@ export class BrokerAccountsService {
       if (trade.result === TradeResult.Loss) losses++;
       
       if (trade.aiAnalysis) {
-        const analysis = trade.aiAnalysis;
+        const analysis = trade.aiAnalysis as any;
         
         if (Array.isArray(analysis.mistakes)) {
           (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));
@@ -393,7 +393,7 @@ export class BrokerAccountsService {
       if (trade.result === TradeResult.Win) wins++;
       if (trade.result === TradeResult.Loss) losses++;
       if (trade.aiAnalysis) {
-        const analysis = trade.aiAnalysis;
+        const analysis = trade.aiAnalysis as any;
         if (Array.isArray(analysis.mistakes)) (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));
         if (Array.isArray(analysis.goodPoints)) (analysis.goodPoints as unknown as GoodPoint[]).forEach(p => goodPoints.push(p.point));
       }

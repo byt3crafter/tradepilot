@@ -5,8 +5,8 @@ import { LoginDto } from './dtos/login.dto';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './tokens/token.service';
 import { MailService } from '../mail/mail.service';
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+// FIX: Standardized to named imports to resolve type errors.
+import { User, VerificationTokenType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dtos/change-password.dto';
 import { AssetsService } from '../assets/assets.service';
@@ -104,14 +104,14 @@ export class AuthService {
       }
   }
 
-  private async generateAndSaveTokens(user: client.User, ip: string, userAgent: string) {
+  private async generateAndSaveTokens(user: User, ip: string, userAgent: string) {
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, role: user.role });
     const { token: refreshToken } = await this.tokenService.createRefreshSession(user.id, { ip, userAgent });
     return { accessToken, refreshToken };
   }
 
   async verifyEmail(token: string) {
-    const verification = await this.tokenService.consumeVerificationToken(token, client.VerificationTokenType.EMAIL_VERIFY);
+    const verification = await this.tokenService.consumeVerificationToken(token, VerificationTokenType.EMAIL_VERIFY);
     await this.usersService.update(verification.userId, { isEmailVerified: true });
   }
 
@@ -161,7 +161,7 @@ export class AuthService {
   }
   
   async verifyEmailChange(token: string) {
-      const { userId, payload } = await this.tokenService.consumeVerificationToken(token, client.VerificationTokenType.EMAIL_CHANGE);
+      const { userId, payload } = await this.tokenService.consumeVerificationToken(token, VerificationTokenType.EMAIL_CHANGE);
       const newEmail = (payload as any)?.newEmail;
       
       if (!newEmail) {

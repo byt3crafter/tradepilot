@@ -1,8 +1,7 @@
-// FIX: Changed import to wildcard to resolve module member issues.
-import * as client from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new client.PrismaClient();
+const prisma = new PrismaClient();
 
 const assetSpecifications = [
     // Forex Majors

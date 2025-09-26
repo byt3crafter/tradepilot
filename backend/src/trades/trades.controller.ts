@@ -5,6 +5,7 @@ import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
+import { AnalyzeChartDto } from './dtos/analyze-chart.dto';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -56,5 +57,12 @@ export class TradesController {
   preTradeCheck(@Body() preTradeCheckDto: PreTradeCheckDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.tradesService.preTradeCheck(userId, preTradeCheckDto);
+  }
+
+  @Post('analyze-chart')
+  @HttpCode(HttpStatus.OK)
+  analyzeChart(@Body() analyzeChartDto: AnalyzeChartDto, @Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return this.tradesService.analyzeChart(userId, analyzeChartDto.screenshotUrl, analyzeChartDto.availableAssets);
   }
 }
