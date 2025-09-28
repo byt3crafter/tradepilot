@@ -137,21 +137,24 @@ export class AiService {
 
             const textPart = {
                 text: `
-                **Task:** You are an expert trading analyst. Your task is to extract structured data from a trading confirmation image (like a deal ticket or a chart with a position tool). Follow these instructions precisely.
+                **Task:** You are an expert trading analyst. Your task is to extract structured data from a trading confirmation image (like a deal ticket or a chart with a position tool). This could be an entry or an exit confirmation.
 
                 **Data Extraction Rules:**
                 - **asset**: Identify the trading instrument/symbol (e.g., 'USTEC', 'EURUSD'). ${assetInstruction}
-                - **direction**: Determine the trade direction. From a deal ticket, use 'Opening direction'. From a chart, if the green area is above entry, it's 'Buy'; if red is above, it's 'Sell'.
-                - **entryPrice**: Extract the entry price.
+                - **direction**: Determine the trade direction. From a deal ticket, use 'Opening direction' or 'Direction'.
+                - **entryPrice**: Extract the entry price (e.g., from 'Entry price' or 'Opening price').
                 - **entryDate**: Extract the opening date and time.
-                - **lotSize**: Extract the trade size or quantity (e.g., from 'Requested quantity').
+                - **exitPrice**: Extract the closing price.
+                - **exitDate**: Extract the closing time.
+                - **lotSize**: Extract the trade size or quantity (e.g., from 'Requested quantity', 'Closing Quantity', or 'Lots').
                 - **stopLoss**: Extract the Stop Loss price, if present.
                 - **takeProfit**: Extract the Take Profit price, if present.
+                - **profitLoss**: Extract the 'Realised net P&L USD' or similar net profit/loss value.
                 - **commission**: Extract the realised commission, if present.
                 - **swap**: Extract the realised swap, if present.
 
                 **CRITICAL INSTRUCTION:**
-                Your response must be in the specified JSON format. For any field where the information is NOT clearly visible in the image (especially for optional fields like stopLoss, takeProfit, lotSize, commission, swap), you MUST return 'null' for that field. DO NOT invent, guess, or return placeholder data like -999999.
+                Your response must be in the specified JSON format. For any field where the information is NOT clearly visible in the image, you MUST return 'null' for that field. DO NOT invent, guess, or return placeholder data like -999999.
                 `
             };
 
@@ -172,8 +175,11 @@ export class AiService {
                         lotSize: { type: Type.NUMBER },
                         commission: { type: Type.NUMBER },
                         swap: { type: Type.NUMBER },
+                        exitPrice: { type: Type.NUMBER },
+                        exitDate: { type: Type.STRING },
+                        profitLoss: { type: Type.NUMBER },
                     },
-                    required: ["asset", "direction", "entryPrice"]
+                    required: ["asset", "direction"]
                 }
               }
             });

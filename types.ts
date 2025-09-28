@@ -259,4 +259,7 @@ export interface AnalyzeChartResult {
   lotSize: number | null;
   commission: number | null;
   swap: number | null;
+  exitPrice: number | null;
+  exitDate: string | null;
+  profitLoss: number | null;
 }

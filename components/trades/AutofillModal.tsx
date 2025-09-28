@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Modal from '../ui/Modal';
 import ImageUploader from './ImageUploader';
@@ -7,7 +8,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useAssets } from '../../context/AssetContext';
 import api from '../../services/api';
 import { AnalyzeChartResult } from '../../types';
-import { toDateTimeLocal } from './AddTradeForm';
 
 interface AutofillModalProps {
   onClose: () => void;
@@ -87,8 +87,11 @@ const AutofillModal: React.FC<AutofillModalProps> = ({ onClose, onApply }) => {
             <div className="p-4 bg-future-dark/50 rounded-lg space-y-2 border border-photonic-blue/20">
               <ReviewItem label="Asset" value={extractedData.asset} />
               <ReviewItem label="Direction" value={extractedData.direction} />
-              <ReviewItem label="Entry Date" value={extractedData.entryDate ? new Date(extractedData.entryDate).toLocaleString() : 'N/A'} />
-              <ReviewItem label="Entry Price" value={extractedData.entryPrice} />
+              {extractedData.entryDate && <ReviewItem label="Entry Date" value={new Date(extractedData.entryDate).toLocaleString()} />}
+              {extractedData.entryPrice && <ReviewItem label="Entry Price" value={extractedData.entryPrice} />}
+              {extractedData.exitDate && <ReviewItem label="Exit Date" value={new Date(extractedData.exitDate).toLocaleString()} />}
+              {extractedData.exitPrice && <ReviewItem label="Exit Price" value={extractedData.exitPrice} />}
+              {extractedData.profitLoss && <ReviewItem label="Net P/L" value={`$${extractedData.profitLoss.toFixed(2)}`} />}
               <ReviewItem label="Lot Size" value={extractedData.lotSize} />
               <ReviewItem label="Stop Loss" value={extractedData.stopLoss} />
               <ReviewItem label="Take Profit" value={extractedData.takeProfit} />
@@ -104,7 +107,8 @@ const AutofillModal: React.FC<AutofillModalProps> = ({ onClose, onApply }) => {
           <Button 
             type="button" 
             onClick={handleReset} 
-            className="w-full sm:w-auto bg-future-panel border border-future-gray text-future-gray hover:bg-future-dark"
+            variant="secondary"
+            className="w-full sm:w-auto"
             disabled={isLoading}
           >
             {extractedData ? 'Clear & Restart' : 'Clear'}

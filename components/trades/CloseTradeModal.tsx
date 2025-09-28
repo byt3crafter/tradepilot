@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import Modal from '../ui/Modal';
-import { Trade } from '../../types';
+import { AnalyzeChartResult, Trade } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import AuthInput from '../auth/AuthInput';
 import ImageUploader from './ImageUploader';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
+import { SparklesIcon } from '../icons/SparklesIcon';
+import AutofillModal from './AutofillModal';
 
 interface CloseTradeModalProps {
   tradeToClose: Trade;
@@ -32,6 +34,7 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isAutofillModalOpen, setIsAutofillModalOpen] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -40,6 +43,18 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
   
   const handleImageUpload = (dataUrl: string | null) => {
     setFormState(prev => ({ ...prev, screenshotAfterUrl: dataUrl }));
+  };
+
+  const handleApplyAutofill = (data: AnalyzeChartResult) => {
+    const updates: Partial<typeof formState> = {};
+    if (data.exitDate) updates.exitDate = toDateTimeLocal(data.exitDate);
+    if (data.exitPrice ?? null !== null) updates.exitPrice = String(data.exitPrice);
+    if (data.profitLoss ?? null !== null) updates.profitLoss = String(data.profitLoss);
+    // Commission and Swap are ignored here to keep this modal simple,
+    // they can be added later via the "Edit Trade" form.
+    
+    setFormState(prev => ({...prev, ...updates}));
+    setIsAutofillModalOpen(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,42 +80,60 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
   };
 
   return (
-    <Modal title={`Close Trade: ${tradeToClose.asset}`} onClose={onClose} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <AuthInput
-                label="Exit Date & Time"
-                id="exitDate" name="exitDate" type="datetime-local"
-                value={formState.exitDate} onChange={handleInputChange} required step="1"
-            />
-            <AuthInput
-                label="Exit Price"
-                id="exitPrice" name="exitPrice" type="number" step="any"
-                value={formState.exitPrice} onChange={handleInputChange} required
-            />
-        </div>
-        
-        <AuthInput
-            label="Net P/L ($)"
-            id="profitLoss" name="profitLoss" type="number" step="any"
-            value={formState.profitLoss} onChange={handleInputChange} required
-        />
+    <>
+      <Modal title={`Close Trade: ${tradeToClose.asset}`} onClose={onClose} size="lg">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-end">
+              <Button 
+                  type="button" 
+                  onClick={() => setIsAutofillModalOpen(true)} 
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue py-1.5 px-3 text-xs"
+              >
+                  <SparklesIcon className="w-4 h-4" />
+                  Autofill with AI
+              </Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <AuthInput
+                  label="Exit Date & Time"
+                  id="exitDate" name="exitDate" type="datetime-local"
+                  value={formState.exitDate} onChange={handleInputChange} required step="1"
+              />
+              <AuthInput
+                  label="Exit Price"
+                  id="exitPrice" name="exitPrice" type="number" step="any"
+                  value={formState.exitPrice} onChange={handleInputChange} required
+              />
+          </div>
+          
+          <AuthInput
+              label="Net P/L ($)"
+              id="profitLoss" name="profitLoss" type="number" step="any"
+              value={formState.profitLoss} onChange={handleInputChange} required
+          />
 
-        <ImageUploader 
-            label="After Exit Screenshot (Optional)"
-            onImageUpload={handleImageUpload}
-            currentImage={formState.screenshotAfterUrl}
-        />
+          <ImageUploader 
+              label="After Exit Screenshot (Optional)"
+              onImageUpload={handleImageUpload}
+              currentImage={formState.screenshotAfterUrl}
+          />
 
-        {/* --- FOOTER --- */}
-        <div className="mt-6 pt-6 border-t border-photonic-blue/10">
-          {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading ? <Spinner /> : 'Close Trade'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+          {/* --- FOOTER --- */}
+          <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+            {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading ? <Spinner /> : 'Close Trade'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+      {isAutofillModalOpen && (
+        <AutofillModal 
+            onClose={() => setIsAutofillModalOpen(false)}
+            onApply={handleApplyAutofill}
+        />
+      )}
+    </>
   );
 };
 

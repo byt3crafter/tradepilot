@@ -12,7 +12,7 @@ const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', classNam
 
   const variantClasses = {
     primary: "w-full bg-photonic-blue text-future-dark py-2 px-4 shadow-glow-blue hover:bg-opacity-90 hover:shadow-lg hover:shadow-photonic-blue/50 transform hover:-translate-y-0.5",
-    secondary: "bg-transparent border border-photonic-blue/50 text-photonic-blue py-2 px-4 hover:bg-photonic-blue/10 hover:shadow-glow-blue",
+    secondary: "bg-future-panel border border-future-gray text-future-gray py-2 px-4 hover:bg-future-dark hover:border-future-light",
     link: "text-photonic-blue hover:underline focus:ring-photonic-blue",
   };
   
