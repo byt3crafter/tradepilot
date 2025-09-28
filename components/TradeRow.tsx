@@ -104,9 +104,11 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   
   const pipsMoved = useMemo(() => {
     const { entryPrice, exitPrice, direction } = trade;
-    const pipSize = assetSpec?.pipSize;
+    // FIX: The pip size from asset specs MUST be prioritized for accurate calculations.
+    // Default to 1 ONLY if no specification is found.
+    const pipSize = assetSpec?.pipSize ?? 1;
 
-    if (typeof pipSize !== 'number' || pipSize <= 0 || typeof exitPrice !== 'number') {
+    if (pipSize <= 0 || typeof exitPrice !== 'number') {
       return null;
     }
 

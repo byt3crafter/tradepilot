@@ -103,12 +103,12 @@ const AutofillModal: React.FC<AutofillModalProps> = ({ onClose, onApply }) => {
 
         {error && <p className="text-risk-high text-sm text-center my-2">{error}</p>}
         
-        <div className="mt-6 pt-6 border-t border-photonic-blue/10 flex flex-col sm:flex-row gap-3">
+        <div className="mt-6 pt-6 border-t border-photonic-blue/10 flex justify-end gap-3">
           <Button 
             type="button" 
             onClick={handleReset} 
             variant="secondary"
-            className="w-full sm:w-auto"
+            className="w-auto"
             disabled={isLoading}
           >
             {extractedData ? 'Clear & Restart' : 'Clear'}
@@ -116,7 +116,7 @@ const AutofillModal: React.FC<AutofillModalProps> = ({ onClose, onApply }) => {
           <Button 
             type="button" 
             onClick={handleApply} 
-            className="w-full" 
+            className="w-auto" 
             disabled={!extractedData || isLoading}
           >
             Apply to Form
