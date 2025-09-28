@@ -7,7 +7,7 @@ import { PencilIcon } from '../icons/PencilIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { useTrade } from '../../context/TradeContext';
 import Button from '../ui/Button';
-import { useAssets } from '../../context/AssetContext';
+import { usePriceFormatter } from '../../hooks/usePriceFormatter';
 
 interface LiveTradeRowProps {
   trade: Trade;
@@ -28,26 +28,9 @@ const DirectionIndicator: React.FC<{ direction: Direction }> = ({ direction }) =
     );
 };
 
-const getDecimalPlaces = (pipSize?: number | null) => {
-  if (pipSize === undefined || pipSize === null) {
-    return 2; // Default for un-configured assets
-  }
-  if (pipSize >= 1) { // This handles indices like US30 (pipSize=1)
-    return 2;
-  }
-  if (pipSize <= 0) {
-    return 2; // Default
-  }
-  const places = Math.max(0, Math.ceil(-Math.log10(pipSize)));
-  return isFinite(places) ? places : 5; // Fallback for forex
-};
-
 const LiveTradeRow: React.FC<LiveTradeRowProps> = ({ trade, onEdit, onClose }) => {
   const { deleteTrade } = useTrade();
-  const { findSpec } = useAssets();
-
-  const assetSpec = findSpec(trade.asset);
-  const priceDecimals = getDecimalPlaces(assetSpec?.pipSize);
+  const { formatPrice } = usePriceFormatter(trade.asset);
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this live trade entry?')) {
@@ -61,11 +44,11 @@ const LiveTradeRow: React.FC<LiveTradeRowProps> = ({ trade, onEdit, onClose }) =
         <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.entryDate).toLocaleDateString()}</td>
         <td className="p-3 font-tech-mono font-semibold text-future-light">{trade.asset}</td>
         <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
-        <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(priceDecimals)}</td>
+        <td className="p-3 font-tech-mono text-future-light">{formatPrice(trade.entryPrice)}</td>
         <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
         <td className="p-3 font-tech-mono text-future-gray text-xs">
-           SL: {trade.stopLoss?.toFixed(priceDecimals) ?? '–'} <br />
-           TP: {trade.takeProfit?.toFixed(priceDecimals) ?? '–'}
+           SL: {formatPrice(trade.stopLoss)} <br />
+           TP: {formatPrice(trade.takeProfit)}
         </td>
         <td className="p-3">
             <div className="flex items-center gap-2">

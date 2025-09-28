@@ -65,10 +65,24 @@ const AssetForm: React.FC<AssetFormProps> = ({ spec, onSuccess }) => {
 
       <div className="mt-4 pt-4 border-t border-photonic-blue/10">
         <p className="text-sm text-future-gray mb-3">
-          These values are crucial for accurate P&L and Risk calculations. Leave blank to use defaults (suited for standard Forex pairs).
+          These values are crucial for accurate Pip calculations. Check your broker's contract specifications for these values.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <AuthInput label="Pip / Point Size" id="pipSize" name="pipSize" type="number" step="any" value={formState.pipSize} onChange={handleChange} placeholder="e.g., 1 for US30" />
+            <div>
+                <AuthInput 
+                    label="Pip / Point Size" 
+                    id="pipSize" 
+                    name="pipSize" 
+                    type="number" 
+                    step="any" 
+                    value={formState.pipSize} 
+                    onChange={handleChange} 
+                    placeholder="e.g., 0.1 for USTEC" 
+                />
+                <p className="text-xs text-future-gray mt-1 -translate-y-2">
+                    Correctly sets pip calculations. For indices, it's often <code className="bg-future-dark px-1 rounded">1</code> or <code className="bg-future-dark px-1 rounded">0.1</code>. For Forex, it's usually <code className="bg-future-dark px-1 rounded">0.0001</code> or <code className="bg-future-dark px-1 rounded">0.01</code> (JPY pairs).
+                </p>
+            </div>
           <AuthInput label="Lot Size (Units)" id="lotSize" name="lotSize" type="number" step="any" value={formState.lotSize} onChange={handleChange} placeholder="e.g., 100000" />
           <AuthInput label="Value per Point ($)" id="valuePerPoint" name="valuePerPoint" type="number" step="any" value={formState.valuePerPoint} onChange={handleChange} placeholder="e.g., 1" />
         </div>

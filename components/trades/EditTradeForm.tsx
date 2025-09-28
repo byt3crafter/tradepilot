@@ -7,6 +7,7 @@ import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import ImageUploader from './ImageUploader';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
+import Textarea from '../ui/Textarea';
 
 interface EditTradeFormProps {
   tradeToEdit: Trade;
@@ -39,7 +40,7 @@ const parseRRRatio = (input: string): number | null => {
 
 
 const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess }) => {
-  const { updateTrade } = useTrade();
+  const { updateTrade, createOrUpdateJournal } = useTrade();
   
   const [formState, setFormState] = useState({
     // Entry
@@ -66,6 +67,12 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
     screenshotAfterUrl: tradeToEdit.screenshotAfterUrl || null,
   });
 
+  const [journalState, setJournalState] = useState({
+    mindsetBefore: tradeToEdit.tradeJournal?.mindsetBefore || '',
+    exitReasoning: tradeToEdit.tradeJournal?.exitReasoning || '',
+    lessonsLearned: tradeToEdit.tradeJournal?.lessonsLearned || '',
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [openSection, setOpenSection] = useState<string | null>('performance');
@@ -81,9 +88,13 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
     return net + comm + sw;
   }, [formState.profitLoss, formState.commission, formState.swap]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormState(prev => ({ ...prev, [name]: value }));
+    if (['mindsetBefore', 'exitReasoning', 'lessonsLearned'].includes(name)) {
+        setJournalState(prev => ({...prev, [name]: value}));
+    } else {
+        setFormState(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleImageUpload = (field: 'screenshotBeforeUrl' | 'screenshotAfterUrl', dataUrl: string | null) => {
@@ -116,6 +127,11 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
     
     try {
       await updateTrade(tradeToEdit.id, payload);
+
+      if (journalState.mindsetBefore || journalState.exitReasoning || journalState.lessonsLearned) {
+        await createOrUpdateJournal(tradeToEdit.id, journalState);
+      }
+
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
@@ -164,6 +180,33 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
                <SelectInput label="Result" id="result" name="result" value={formState.result} onChange={handleInputChange} options={[{ value: 'Win', label: 'Win' }, { value: 'Loss', label: 'Loss' }, { value: 'Breakeven', label: 'Breakeven' }]}/>
             </div>
           </section>
+
+          {/* My Journal */}
+          <section className="border-t border-photonic-blue/10 mt-4">
+            <SectionHeader title="My Journal" sectionKey="journal" />
+            {openSection === 'journal' && (
+              <div className="animate-fade-in-up space-y-3 pt-2">
+                <Textarea
+                    label="What did you see and how did you feel before entry?"
+                    id="mindsetBefore" name="mindsetBefore"
+                    value={journalState.mindsetBefore} onChange={handleInputChange}
+                    placeholder="Describe your analysis, the setup, and your emotional state..."
+                />
+                <Textarea
+                    label="Why did you exit where you did?"
+                    id="exitReasoning" name="exitReasoning"
+                    value={journalState.exitReasoning} onChange={handleInputChange}
+                    placeholder="Did you hit your take profit, stop loss, or exit manually? Explain why."
+                />
+                <Textarea
+                    label="What are the key lessons learned from this trade?"
+                    id="lessonsLearned" name="lessonsLearned"
+                    value={journalState.lessonsLearned} onChange={handleInputChange}
+                    placeholder="What went well? What could be improved next time?"
+                />
+              </div>
+            )}
+          </section>
         </div>
 
         {/* Right Column */}
@@ -191,7 +234,7 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
              {openSection === 'performance' && (
               <div className="animate-fade-in-up space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                   <AuthInput label="Gross P/L ($)" id="grossPL" name="grossPL" type="number" step="any" value={grossPL.toFixed(2)} disabled />
+                   <AuthInput label="Net P/L ($)" id="profitLoss" name="profitLoss" type="number" step="any" value={formState.profitLoss} onChange={handleInputChange} required />
                    <AuthInput label="R:R Ratio" id="rr" name="rr" type="text" placeholder="e.g., 2 or 1:2" value={formState.rr} onChange={handleInputChange} />
                 </div>
                  <div className="grid grid-cols-2 gap-4">

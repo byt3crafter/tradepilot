@@ -17,15 +17,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
   }, [currentImage]);
 
   const processFile = (file: File) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setImagePreview(base64String);
-        onImageUpload(base64String);
-      };
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setImagePreview(base64String);
+      onImageUpload(base64String);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,21 +32,20 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
       processFile(file);
     }
   };
-
+  
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-            const file = items[i].getAsFile();
-            if (file) {
-                processFile(file);
-                break; // Stop after the first image
-            }
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          processFile(file);
         }
+        e.preventDefault();
+        break;
+      }
     }
   };
-
 
   const handleRemoveImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,7 +90,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, onImageUpload, cur
         ) : (
           <div className="text-center text-future-gray">
             <UploadIcon className="w-8 h-8 mx-auto" />
-            <p className="mt-1 text-xs">Click to upload or paste image</p>
+            <p className="mt-1 text-xs">Click to browse, or paste image</p>
           </div>
         )}
       </div>

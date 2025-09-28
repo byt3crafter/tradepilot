@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import AuthInput from '../auth/AuthInput';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import { usePlaybook } from '../../context/PlaybookContext';
-import { Trade, PreTradeCheckResult } from '../../types';
+import { Trade, PreTradeCheckResult, AnalyzeChartResult } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import { useAssets } from '../../context/AssetContext';
 import ImageUploader from './ImageUploader';
@@ -15,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import { ChecklistIcon } from '../icons/ChecklistIcon';
 import SanityCheckModal from './SanityCheckModal';
+import AutofillModal from './AutofillModal';
 
 interface TradeFormProps {
   tradeToEdit?: Trade | null;
@@ -32,10 +32,11 @@ interface FormInputState {
   takeProfit: string;
   playbookId: string;
   riskPercentage: string;
-  // screenshotBeforeUrl is handled by chartScreenshot state
+  screenshotBeforeUrl: string | null;
+  // Closed trade fields are handled in CloseTradeModal or by editing the row
 }
 
-const toDateTimeLocal = (dateString?: string | null) => {
+export const toDateTimeLocal = (dateString?: string | null) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   // Adjust for timezone offset to display correctly in datetime-local input
@@ -53,11 +54,6 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   const isEditMode = !!tradeToEdit;
   const [isPendingOrder, setIsPendingOrder] = useState(tradeToEdit?.isPendingOrder ?? false);
 
-  // NEW: Separate states for the two screenshots
-  const [detailsScreenshot, setDetailsScreenshot] = useState<string | null>(null);
-  const [chartScreenshot, setChartScreenshot] = useState<string | null>(tradeToEdit?.screenshotBeforeUrl || null);
-
-
   const [formState, setFormState] = useState<FormInputState>({
     asset: '',
     direction: 'Buy',
@@ -68,19 +64,18 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     lotSize: '',
     riskPercentage: '1',
     playbookId: '',
+    screenshotBeforeUrl: null,
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // AI Autofill State
-  const [isAutoFilling, setIsAutoFilling] = useState(false);
-  const [autoFillError, setAutoFillError] = useState('');
-
-  // AI Sanity Check State
+  // AI State
+  const [isAutofillModalOpen, setIsAutofillModalOpen] = useState(false);
   const [isCheckingSanity, setIsCheckingSanity] = useState(false);
   const [sanityCheckResult, setSanityCheckResult] = useState<PreTradeCheckResult | null>(null);
   const [showSanityCheckModal, setShowSanityCheckModal] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   // Populate form on initial load or when editing
   useEffect(() => {
@@ -95,8 +90,8 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
         lotSize: tradeToEdit.lotSize?.toString() ?? '',
         riskPercentage: tradeToEdit.riskPercentage?.toString() ?? '1',
         playbookId: tradeToEdit.playbookId || '',
+        screenshotBeforeUrl: tradeToEdit.screenshotBeforeUrl || null,
       });
-      setChartScreenshot(tradeToEdit.screenshotBeforeUrl || null);
     } else {
         // For new trades, ensure a default playbook is selected if available
         setFormState(prev => ({ 
@@ -112,67 +107,46 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     setFormState(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleDetailsImageUpload = (dataUrl: string | null) => {
-    setDetailsScreenshot(dataUrl);
-  };
-  const handleChartImageUpload = (dataUrl: string | null) => {
-    setChartScreenshot(dataUrl);
+  const handleImageUpload = (field: 'screenshotBeforeUrl', dataUrl: string | null) => {
+    setFormState(prev => ({ ...prev, [field]: dataUrl }));
   };
 
   const canSubmit = useMemo(() => {
     return formState.playbookId && formState.asset && formState.entryPrice;
   }, [formState.playbookId, formState.asset, formState.entryPrice]);
   
-  const handleAutofill = async () => {
-    if (!detailsScreenshot || !accessToken) return;
-    setIsAutoFilling(true);
-    setAutoFillError('');
-
-    try {
-        const availableAssets = specs.map(s => s.symbol);
-        const result = await api.analyzeChart(detailsScreenshot, availableAssets, accessToken);
-        
-        const updates: Partial<FormInputState> = {};
-        
-        if (result.asset) {
-           updates.asset = result.asset;
-        }
-
-        if (result.direction) updates.direction = result.direction;
-        if (result.entryPrice) updates.entryPrice = String(result.entryPrice);
-        if (result.stopLoss) updates.stopLoss = String(result.stopLoss);
-        if (result.takeProfit) updates.takeProfit = String(result.takeProfit);
-        if (result.entryDate) updates.entryDate = toDateTimeLocal(result.entryDate);
-        if (result.lotSize) updates.lotSize = String(result.lotSize);
-
-        setFormState(prev => ({ ...prev, ...updates }));
-
-    } catch (err: any) {
-        setAutoFillError(err.message || "Failed to analyze details.");
-    } finally {
-        setIsAutoFilling(false);
-    }
+  const handleApplyAutofill = (data: AnalyzeChartResult) => {
+    const updates: Partial<FormInputState> = {};
+    if (data.asset) updates.asset = data.asset;
+    if (data.direction) updates.direction = data.direction;
+    if (data.entryPrice) updates.entryPrice = String(data.entryPrice);
+    if (data.stopLoss) updates.stopLoss = String(data.stopLoss);
+    if (data.takeProfit) updates.takeProfit = String(data.takeProfit);
+    if (data.entryDate) updates.entryDate = toDateTimeLocal(data.entryDate);
+    setFormState(prev => ({...prev, ...updates}));
+    setIsAutofillModalOpen(false);
   };
 
+
   const handleSanityCheck = async () => {
-    if (!chartScreenshot || !formState.playbookId || !formState.asset || !accessToken) {
-        setAutoFillError("Please upload a chart screenshot and select an asset & playbook first.");
+    if (!formState.screenshotBeforeUrl || !formState.playbookId || !formState.asset || !accessToken) {
+        setAiError("Please upload a screenshot and select an asset & playbook first.");
         return;
     }
     setIsCheckingSanity(true);
     setSanityCheckResult(null);
-    setAutoFillError('');
+    setAiError('');
 
     try {
         const result = await api.preTradeCheck({
             playbookId: formState.playbookId,
-            screenshotBeforeUrl: chartScreenshot,
+            screenshotBeforeUrl: formState.screenshotBeforeUrl,
             asset: formState.asset
         }, accessToken);
         setSanityCheckResult(result);
         setShowSanityCheckModal(true);
     } catch (err: any) {
-        setAutoFillError(err.message || "Failed to run sanity check.");
+        setAiError(err.message || "Failed to run sanity check.");
     } finally {
         setIsCheckingSanity(false);
     }
@@ -200,7 +174,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
       stopLoss: formState.stopLoss ? Number(formState.stopLoss) : null,
       takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
       lotSize: formState.lotSize ? Number(formState.lotSize) : null,
-      screenshotBeforeUrl: chartScreenshot,
+      screenshotBeforeUrl: formState.screenshotBeforeUrl,
     };
     
     // When editing, preserve fields that aren't on this form
@@ -233,27 +207,32 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   return (
     <>
     <form onSubmit={handleSubmit} className="space-y-4">
-        
-        <p className="text-sm text-future-gray">
-            <span className="font-bold text-photonic-blue">Step 1:</span> Upload your position details to autofill the form.
-        </p>
         <ImageUploader 
-            label="Position Details Screenshot (for Autofill)"
-            onImageUpload={handleDetailsImageUpload}
-            currentImage={detailsScreenshot}
+            label="Before Entry Screenshot (for Journaling)"
+            onImageUpload={(data) => handleImageUpload('screenshotBeforeUrl', data)}
+            currentImage={formState.screenshotBeforeUrl}
         />
-        <div className="pt-2">
-             <Button type="button" variant="secondary" onClick={handleAutofill} disabled={!detailsScreenshot || isAutoFilling} className="w-full sm:w-auto flex items-center justify-center gap-2">
-                {isAutoFilling ? <Spinner /> : <SparklesIcon className="w-5 h-5" />}
-                Autofill from Details
+        
+        <div className="pt-2 flex flex-col sm:flex-row gap-2">
+            <Button 
+                type="button" 
+                onClick={() => setIsAutofillModalOpen(true)} 
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue py-1.5 px-3 text-xs"
+            >
+                <SparklesIcon className="w-4 h-4" />
+                Autofill with AI
+            </Button>
+            <Button 
+                type="button" 
+                onClick={handleSanityCheck} 
+                disabled={isCheckingSanity || !formState.playbookId || !formState.asset || !formState.screenshotBeforeUrl} 
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue py-1.5 px-3 text-xs"
+            >
+                {isCheckingSanity ? <Spinner /> : <ChecklistIcon className="w-4 h-4" />}
+                AI Sanity Check
             </Button>
         </div>
-
-        {autoFillError && <p className="text-risk-high text-sm text-center my-2">{autoFillError}</p>}
-        
-        <p className="text-sm text-future-gray pt-4 border-t border-photonic-blue/20">
-             <span className="font-bold text-photonic-blue">Step 2:</span> Fill in any missing details and optionally add your chart.
-        </p>
+        {aiError && <p className="text-risk-high text-sm text-center my-2">{aiError}</p>}
 
 
         <AuthInput
@@ -288,19 +267,6 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
             disabled={playbooks.length === 0}
             options={playbooks.length > 0 ? playbooks.map(s => ({ value: s.id, label: s.name })) : [{ value: '', label: 'Create a playbook first' }]}
           />
-        
-        <ImageUploader 
-            label="Chart Screenshot (Optional, for AI Analysis)"
-            onImageUpload={handleChartImageUpload}
-            currentImage={chartScreenshot}
-        />
-        <div className="pt-2">
-            <Button type="button" variant="secondary" onClick={handleSanityCheck} disabled={!chartScreenshot || isCheckingSanity || !formState.playbookId || !formState.asset} className="w-full sm:w-auto flex items-center justify-center gap-2">
-                {isCheckingSanity ? <Spinner /> : <ChecklistIcon className="w-5 h-5" />}
-                AI Sanity Check
-            </Button>
-        </div>
-
 
         <Checkbox 
             label="This is a Pending Order"
@@ -317,6 +283,14 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
             </Button>
         </div>
     </form>
+    
+    {isAutofillModalOpen && (
+        <AutofillModal 
+            onClose={() => setIsAutofillModalOpen(false)}
+            onApply={handleApplyAutofill}
+        />
+    )}
+
     {showSanityCheckModal && sanityCheckResult && (
         <SanityCheckModal 
             result={sanityCheckResult} 

@@ -16,6 +16,7 @@ import Modal from './ui/Modal';
 import JournalForm from './journal/JournalForm';
 import { PlusIcon } from './icons/PlusIcon';
 import { useAssets } from '../context/AssetContext';
+import { usePriceFormatter } from '../hooks/usePriceFormatter';
 
 interface TradeRowProps {
   trade: Trade;
@@ -65,20 +66,6 @@ const SectionHeader: React.FC<{ title: string; sectionKey: string; isOpen: boole
     </button>
 );
 
-const getDecimalPlaces = (pipSize?: number | null) => {
-  if (pipSize === undefined || pipSize === null) {
-    return 2; // Default for un-configured assets
-  }
-  if (pipSize >= 1) { // This handles indices like US30 (pipSize=1)
-    return 2;
-  }
-  if (pipSize <= 0) {
-    return 2; // Default
-  }
-  const places = Math.max(0, Math.ceil(-Math.log10(pipSize)));
-  return isFinite(places) ? places : 5; // Fallback for forex
-};
-
 const calculateDuration = (start?: string | null, end?: string | null): string => {
     if (!start || !end) return '–';
     const startDate = new Date(start);
@@ -106,13 +93,14 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, analyzeTrade } = useTrade();
   const { playbooks } = usePlaybook();
   const { findSpec } = useAssets();
+  const { formatPrice } = usePriceFormatter(trade.asset);
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<string | null>('ai');
 
   const assetSpec = findSpec(trade.asset);
-  const priceDecimals = getDecimalPlaces(assetSpec?.pipSize);
   
   const pipsMoved = useMemo(() => {
     const { entryPrice, exitPrice, direction } = trade;
@@ -189,7 +177,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         <td className="p-3 font-tech-mono text-future-gray">{new Date(trade.entryDate).toLocaleDateString()}</td>
         <td className="p-3 font-tech-mono font-semibold text-future-light">{trade.asset}</td>
         <td className="p-3 font-tech-mono"><DirectionIndicator direction={trade.direction} /></td>
-        <td className="p-3 font-tech-mono text-future-light">{trade.entryPrice.toFixed(priceDecimals)}</td>
+        <td className="p-3 font-tech-mono text-future-light">{formatPrice(trade.entryPrice)}</td>
         <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
         <td className="p-3 font-tech-mono"><ResultBadge result={trade.result} /></td>
         <td className="p-3 font-tech-mono">
@@ -237,11 +225,11 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                     <DetailItem label="ENTRY TIME">{formatDateTime(trade.entryDate)}</DetailItem>
                     <DetailItem label="EXIT TIME">{formatDateTime(trade.exitDate)}</DetailItem>
                     <DetailItem label="DURATION">{calculateDuration(trade.entryDate, trade.exitDate)}</DetailItem>
-                    <DetailItem label="ENTRY PRICE">{trade.entryPrice.toFixed(priceDecimals)}</DetailItem>
-                    <DetailItem label="EXIT PRICE">{trade.exitPrice?.toFixed(priceDecimals) ?? '–'}</DetailItem>
+                    <DetailItem label="ENTRY PRICE">{formatPrice(trade.entryPrice)}</DetailItem>
+                    <DetailItem label="EXIT PRICE">{formatPrice(trade.exitPrice)}</DetailItem>
                     
-                    <DetailItem label="STOP LOSS">{trade.stopLoss?.toFixed(priceDecimals) ?? '–'}</DetailItem>
-                    <DetailItem label="TAKE PROFIT">{trade.takeProfit?.toFixed(priceDecimals) ?? '–'}</DetailItem>
+                    <DetailItem label="STOP LOSS">{formatPrice(trade.stopLoss)}</DetailItem>
+                    <DetailItem label="TAKE PROFIT">{formatPrice(trade.takeProfit)}</DetailItem>
                     <DetailItem label="LOT SIZE">{trade.lotSize ?? '–'}</DetailItem>
                     <DetailItem label="R:R">{trade.rr ? (typeof trade.rr === 'number' ? trade.rr.toFixed(2) : trade.rr) : '–'}</DetailItem>
                     <DetailItem label="PIPS">

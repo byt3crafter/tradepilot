@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Card from './Card';
 import { useAccount } from '../context/AccountContext';
 import Button from './ui/Button';
@@ -19,6 +19,7 @@ import LiveTradeRow from './trades/LiveTradeRow.tsx';
 import CloseTradeModal from './trades/CloseTradeModal';
 import EditTradeForm from './trades/EditTradeForm';
 import SelectInput from './ui/SelectInput';
+import { useUI } from '../context/UIContext';
 
 type TradeView = 'live' | 'pending' | 'history';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
@@ -31,6 +32,7 @@ const TradeJournal: React.FC = () => {
   const { rules } = useChecklist();
   const { isTrialExpired } = useAuth();
   const { showUpgradeModal } = useSubscription();
+  const { isAddTradeModalOpenRequest, clearAddTradeModalRequest } = useUI();
 
   const [addTradeStep, setAddTradeStep] = useState<AddTradeStep>('closed');
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
@@ -103,7 +105,7 @@ const TradeJournal: React.FC = () => {
   }, [closedTrades, dateFilter, customStartDate, customEndDate]);
 
 
-  const handleOpenAddTrade = () => {
+  const handleOpenAddTrade = useCallback(() => {
     if (isTrialExpired) {
       showUpgradeModal();
       return;
@@ -116,7 +118,14 @@ const TradeJournal: React.FC = () => {
     } else {
       setAddTradeStep('form');
     }
-  };
+  }, [isTrialExpired, showUpgradeModal, isObjectiveBlocked, isSmartLimitBlocked, enforceChecklist, rules.length]);
+
+  useEffect(() => {
+      if (isAddTradeModalOpenRequest) {
+        handleOpenAddTrade();
+        clearAddTradeModalRequest();
+      }
+  }, [isAddTradeModalOpenRequest, clearAddTradeModalRequest, handleOpenAddTrade]);
   
   const handleOpenEditTrade = (trade: Trade) => {
     setEditingTrade(trade);
