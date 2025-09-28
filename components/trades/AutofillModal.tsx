@@ -89,8 +89,11 @@ const AutofillModal: React.FC<AutofillModalProps> = ({ onClose, onApply }) => {
               <ReviewItem label="Direction" value={extractedData.direction} />
               <ReviewItem label="Entry Date" value={extractedData.entryDate ? new Date(extractedData.entryDate).toLocaleString() : 'N/A'} />
               <ReviewItem label="Entry Price" value={extractedData.entryPrice} />
+              <ReviewItem label="Lot Size" value={extractedData.lotSize} />
               <ReviewItem label="Stop Loss" value={extractedData.stopLoss} />
               <ReviewItem label="Take Profit" value={extractedData.takeProfit} />
+              <ReviewItem label="Commission" value={extractedData.commission} />
+              <ReviewItem label="Swap" value={extractedData.swap} />
             </div>
           </div>
         )}

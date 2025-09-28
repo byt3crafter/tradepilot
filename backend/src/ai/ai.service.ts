@@ -1,4 +1,5 @@
 
+
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -130,45 +131,27 @@ export class AiService {
             const imagePart = base64ToGenaiPart(screenshotBase64);
             
             const assetInstruction = availableAssets && availableAssets.length > 0
-                ? `From the chart, identify the trading instrument. Then, select the BEST matching symbol from this list of available assets: [${availableAssets.join(', ')}]. For example, if the chart shows 'US 100 Cash CFD' and the list includes 'USTEC' or 'NAS100', you must choose one from the list. The goal is to return a symbol that exists in the provided list.`
-                : `Find the trading instrument symbol at the top left of the chart. Extract the common ticker symbol. For example, if you see 'US 100 Cash CFD', extract 'NAS100' or 'US100'. If you see 'EURUSD', extract 'EURUSD'. Your goal is to identify the most common, short ticker symbol for the instrument shown.`;
+                ? `From the image, identify the trading instrument. Then, select the BEST matching symbol from this list of available assets: [${availableAssets.join(', ')}]. For example, if the chart shows 'US 100 Cash CFD' and the list includes 'USTEC' or 'NAS100', you must choose one from the list. The goal is to return a symbol that exists in the provided list.`
+                : `Find the trading instrument symbol from the image. Extract the common ticker symbol. For example, if you see 'US 100 Cash CFD', extract 'NAS100' or 'US100'. If you see 'EURUSD', extract 'EURUSD'. Your goal is to identify the most common, short ticker symbol for the instrument shown.`;
 
 
             const textPart = {
                 text: `
-                **Task:** You are an expert trading data extractor. Your task is to extract structured data from a single trading-related screenshot. The image could be a chart with a visual position tool OR a text-based list/row of position details.
+                **Task:** You are an expert trading analyst. Your task is to extract structured data from a trading confirmation image (like a deal ticket or a chart with a position tool). Follow these instructions precisely.
 
-                **Priority 1: Text-Based Details Extraction**
-                First, scan the image for text labels like "Symbol", "Quantity", "Volume", "Direction", "Entry", "TP", "SL", "Closing Time", "Closing Price", "Net USD", "Net P/L", "Commissions", and "Swap". If you find them, extract the data from here.
-                - **asset**: The ticker symbol (e.g., 'USTEC', 'EURUSD').
-                - **lotSize**: From the "Quantity" or "Volume" label, extract the numeric value only (e.g., from "3 Lots" or "3 Indices", extract 3).
-                - **direction**: 'Buy' or 'Sell'.
-                - **entryPrice**: The value next to "Entry".
-                - **stopLoss**: The value next to "SL".
-                - **takeProfit**: The value next to "TP".
-                - **entryDate**: From the "Created (UTC...)" label, extract the full date and time.
-                - **exitDate**: From the "Closing Time (UTC...)" label, extract the full date and time.
-                - **exitPrice**: From "Closing Price".
-                - **profitLoss**: From "Net USD" or "Net P/L", extract the numeric value.
-                - **commission**: From "Commissions".
-                - **swap**: From "Swap".
+                **Data Extraction Rules:**
+                - **asset**: Identify the trading instrument/symbol (e.g., 'USTEC', 'EURUSD'). ${assetInstruction}
+                - **direction**: Determine the trade direction. From a deal ticket, use 'Opening direction'. From a chart, if the green area is above entry, it's 'Buy'; if red is above, it's 'Sell'.
+                - **entryPrice**: Extract the entry price.
+                - **entryDate**: Extract the opening date and time.
+                - **lotSize**: Extract the trade size or quantity (e.g., from 'Requested quantity').
+                - **stopLoss**: Extract the Stop Loss price, if present.
+                - **takeProfit**: Extract the Take Profit price, if present.
+                - **commission**: Extract the realised commission, if present.
+                - **swap**: Extract the realised swap, if present.
 
-                **Priority 2: Chart-Based Visual Tool Extraction**
-                If text-based details are NOT present, analyze the visual 'Long Position' or 'Short Position' tool on the chart.
-                - **Step 1: Determine Trade Direction**
-                  - If the green area is ABOVE the entry price, the direction is 'Buy'.
-                  - If the red area is ABOVE the entry price, the direction is 'Sell'.
-                - **Step 2: Extract Price Levels**
-                  - **entryPrice**: The price where the red and green areas meet.
-                  - **stopLoss**: For a 'Buy', it's the BOTTOM of the RED area. For a 'Sell', it's the TOP of the RED area.
-                  - **takeProfit**: For a 'Buy', it's the TOP of the GREEN area. For a 'Sell', it's the BOTTOM of the GREEN area.
-                - **Step 3: Extract Asset Symbol**
-                  - ${assetInstruction}
-                - **Step 4: Extract Date & Time**
-                  - Find the date and time from the top of the chart. Map this to 'entryDate'.
-
-                **Final Output:**
-                Your response must be in the specified JSON format. If a piece of information is not visible, return null for that field. Prioritize text-based extraction over visual extraction if both seem present.
+                **CRITICAL INSTRUCTION:**
+                Your response must be in the specified JSON format. For any field where the information is NOT clearly visible in the image (especially for optional fields like stopLoss, takeProfit, lotSize, commission, swap), you MUST return 'null' for that field. DO NOT invent, guess, or return placeholder data like -999999.
                 `
             };
 
@@ -185,14 +168,12 @@ export class AiService {
                         entryPrice: { type: Type.NUMBER },
                         stopLoss: { type: Type.NUMBER },
                         takeProfit: { type: Type.NUMBER },
-                        entryDate: { type: Type.STRING, description: 'Full entry date and time string.' },
+                        entryDate: { type: Type.STRING, description: 'Full date and time string from the chart, e.g., "Sep 26, 2025 10:29 UTC+2".' },
                         lotSize: { type: Type.NUMBER },
-                        exitPrice: { type: Type.NUMBER },
-                        exitDate: { type: Type.STRING, description: 'Full exit date and time string.' },
-                        profitLoss: { type: Type.NUMBER },
                         commission: { type: Type.NUMBER },
                         swap: { type: Type.NUMBER },
                     },
+                    required: ["asset", "direction", "entryPrice"]
                 }
               }
             });

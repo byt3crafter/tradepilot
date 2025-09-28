@@ -119,10 +119,12 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     const updates: Partial<FormInputState> = {};
     if (data.asset) updates.asset = data.asset;
     if (data.direction) updates.direction = data.direction;
-    if (data.entryPrice) updates.entryPrice = String(data.entryPrice);
-    if (data.stopLoss) updates.stopLoss = String(data.stopLoss);
-    if (data.takeProfit) updates.takeProfit = String(data.takeProfit);
+    if (data.entryPrice ?? null !== null) updates.entryPrice = String(data.entryPrice);
+    if (data.stopLoss ?? null !== null) updates.stopLoss = String(data.stopLoss);
+    if (data.takeProfit ?? null !== null) updates.takeProfit = String(data.takeProfit);
     if (data.entryDate) updates.entryDate = toDateTimeLocal(data.entryDate);
+    if (data.lotSize ?? null !== null) updates.lotSize = String(data.lotSize);
+    
     setFormState(prev => ({...prev, ...updates}));
     setIsAutofillModalOpen(false);
   };
