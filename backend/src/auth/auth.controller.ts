@@ -12,6 +12,7 @@ import { ChangeEmailDto } from './dtos/change-email.dto';
 import { ResendVerificationDto } from './dtos/resend-verification.dto';
 import { Throttle } from '@nestjs/throttler';
 import { VerifyEmailDto } from './dtos/verify-email.dto';
+import { ConfigService } from '@nestjs/config';
 
 // Define a type for Express request objects augmented by Passport
 interface AuthenticatedRequest extends Request {
@@ -24,7 +25,19 @@ interface AuthenticatedRequest extends Request {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly cookiePath: string;
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    // In dev, the global prefix is 'api', so the cookie must be set for that path.
+    // In prod, there is no prefix. The refresh endpoint is always '/auth/refresh'.
+    // The cookie path must be specific enough to be sent only to the refresh endpoint.
+    const prefix = nodeEnv !== 'production' ? '/api' : '';
+    this.cookiePath = `${prefix}/auth/refresh`;
+  }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
@@ -65,7 +78,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        path: '/auth/refresh',
+        path: this.cookiePath,
     });
 
     return { accessToken, user };
@@ -89,7 +102,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        path: '/auth/refresh',
+        path: this.cookiePath,
     });
     
     return { accessToken: newAccessToken };
@@ -104,7 +117,7 @@ export class AuthController {
         await this.authService.logout(refreshToken);
       }
       // FIX: Cast res to any to access clearCookie method
-      (res as any).clearCookie('refresh_token', { path: '/auth/refresh' });
+      (res as any).clearCookie('refresh_token', { path: this.cookiePath });
       return { message: 'Logged out successfully.' };
   }
 
