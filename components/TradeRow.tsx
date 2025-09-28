@@ -92,7 +92,7 @@ const calculateDuration = (start?: string | null, end?: string | null): string =
 const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const { deleteTrade, analyzeTrade } = useTrade();
   const { playbooks } = usePlaybook();
-  const { findSpec } = useAssets();
+  const { findSpec, isLoading: isAssetsLoading } = useAssets();
   const { formatPrice } = usePriceFormatter(trade.asset);
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -103,12 +103,15 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const assetSpec = findSpec(trade.asset);
   
   const pipsMoved = useMemo(() => {
+    // FIX: Defer calculation until asset specifications are loaded to prevent race conditions.
+    if (isAssetsLoading) {
+      return null;
+    }
+    
     const { entryPrice, exitPrice, direction } = trade;
-    // FIX: The pip size from asset specs MUST be prioritized for accurate calculations.
-    // Default to 1 ONLY if no specification is found.
     const pipSize = assetSpec?.pipSize ?? 1;
 
-    if (pipSize <= 0 || typeof exitPrice !== 'number') {
+    if (pipSize <= 0 || typeof exitPrice !== 'number' || typeof entryPrice !== 'number') {
       return null;
     }
 
@@ -117,7 +120,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
     } else {
       return (entryPrice - exitPrice) / pipSize;
     }
-  }, [trade, assetSpec]);
+  }, [trade, assetSpec, isAssetsLoading]);
 
   const pipsColor = pipsMoved === null ? 'text-future-gray' : pipsMoved > 0 ? 'text-momentum-green' : pipsMoved < 0 ? 'text-risk-high' : 'text-risk-medium';
 
@@ -166,6 +169,20 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
   }
+  
+  const renderPipsCell = () => {
+    if (isAssetsLoading) {
+        return <span className="text-xs text-future-gray">...</span>;
+    }
+    if (pipsMoved !== null) {
+        return (
+            <span className={`${pipsColor} font-semibold`}>
+                {pipsMoved.toFixed(1)}
+            </span>
+        );
+    }
+    return '–';
+  };
 
   return (
     <>
@@ -182,15 +199,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
         <td className="p-3 font-tech-mono text-future-light">{formatPrice(trade.entryPrice)}</td>
         <td className="p-3 font-tech-mono text-future-gray">{trade.riskPercentage.toFixed(2)}%</td>
         <td className="p-3 font-tech-mono"><ResultBadge result={trade.result} /></td>
-        <td className="p-3 font-tech-mono">
-          {pipsMoved !== null ? (
-            <span className={`${pipsColor} font-semibold`}>
-              {pipsMoved.toFixed(1)}
-            </span>
-          ) : (
-            '–'
-          )}
-        </td>
+        <td className="p-3 font-tech-mono">{renderPipsCell()}</td>
         <td className="p-3 font-tech-mono">
           <span className={`${netProfitLossColor} font-semibold`}>
             ${netProfitLoss.toFixed(2)}
@@ -235,11 +244,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
                     <DetailItem label="LOT SIZE">{trade.lotSize ?? '–'}</DetailItem>
                     <DetailItem label="R:R">{trade.rr ? (typeof trade.rr === 'number' ? trade.rr.toFixed(2) : trade.rr) : '–'}</DetailItem>
                     <DetailItem label="PIPS">
-                      {pipsMoved !== null ? (
-                        <span className={pipsColor}>{pipsMoved.toFixed(1)}</span>
-                      ) : (
-                        '–'
-                      )}
+                        {renderPipsCell()}
                     </DetailItem>
                     <DetailItem label="GROSS P/L"><span className={profitLossColor}>${grossProfitLoss.toFixed(2)}</span></DetailItem>
                     
