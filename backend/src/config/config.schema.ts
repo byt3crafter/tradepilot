@@ -16,7 +16,7 @@ export const JoiValidationSchema = Joi.object({
   JWT_ACCESS_SECRET: Joi.string().required(),
   JWT_REFRESH_SECRET: Joi.string().required(),
   ACCESS_TOKEN_TTL: Joi.string().default('15m'),
-  REFRESH_TOKEN_TTL: Joi.string().default('90d'),
+  REFRESH_TOKEN_TTL: Joi.string().default('3650d'), // 10 years for persistent sessions
   EMAIL_VERIFY_TOKEN_TTL: Joi.string().default('24h'),
   PASSWORD_RESET_TOKEN_TTL: Joi.string().default('1h'),
   
