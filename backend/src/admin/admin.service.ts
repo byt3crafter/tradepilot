@@ -1,3 +1,4 @@
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
@@ -5,8 +6,8 @@ import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
 import { UsersService } from 'src/users/users.service';
-// FIX: Standardized to named imports to resolve type errors.
-import { Prisma, User } from '@prisma/client';
+// FIX: Use namespace import for Prisma types to resolve module export errors.
+import * as pc from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -39,7 +40,7 @@ export class AdminService {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((user: User) => plainToInstance(AdminUserDto, user, {
+    return users.map((user: pc.User) => plainToInstance(AdminUserDto, user, {
       excludeExtraneousValues: true,
     }));
   }
@@ -50,7 +51,7 @@ export class AdminService {
         throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
-    const dataToUpdate: Prisma.UserUpdateInput = {
+    const dataToUpdate: pc.Prisma.UserUpdateInput = {
         proAccessExpiresAt: grantProDto.expiresAt,
         proAccessReason: grantProDto.reason,
     };

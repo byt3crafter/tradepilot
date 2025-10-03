@@ -6,6 +6,7 @@ import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 import { AnalyzeChartDto } from './dtos/analyze-chart.dto';
+import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -22,6 +23,13 @@ export class TradesController {
   create(@Body() createTradeDto: CreateTradeDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.tradesService.create(userId, createTradeDto);
+  }
+
+  @Post('bulk-import')
+  @HttpCode(HttpStatus.OK)
+  bulkImport(@Body() bulkImportDto: BulkImportTradesDto, @Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return this.tradesService.bulkImport(userId, bulkImportDto);
   }
 
   @Get()

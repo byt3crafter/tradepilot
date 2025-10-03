@@ -7,11 +7,15 @@ import AccountForm from './AccountForm';
 import { BrokerAccount } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import AccountRow from './AccountRow';
+import ImportTradesModal from './ImportTradesModal';
 
 const AccountManager: React.FC = () => {
   const { accounts, isLoading } = useAccount();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BrokerAccount | null>(null);
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importingAccount, setImportingAccount] = useState<BrokerAccount | null>(null);
 
   const openAddModal = () => {
     setEditingAccount(null);
@@ -21,6 +25,11 @@ const AccountManager: React.FC = () => {
   const openEditModal = (account: BrokerAccount) => {
     setEditingAccount(account);
     setIsModalOpen(true);
+  };
+
+  const openImportModal = (account: BrokerAccount) => {
+    setImportingAccount(account);
+    setIsImportModalOpen(true);
   };
   
   return (
@@ -66,7 +75,8 @@ const AccountManager: React.FC = () => {
                     <AccountRow 
                         key={account.id} 
                         account={account} 
-                        onEdit={() => openEditModal(account)} 
+                        onEdit={() => openEditModal(account)}
+                        onImport={() => openImportModal(account)} 
                     />
                 ))}
               </tbody>
@@ -86,6 +96,13 @@ const AccountManager: React.FC = () => {
                 onSuccess={() => setIsModalOpen(false)} 
             />
         </Modal>
+      )}
+
+      {isImportModalOpen && importingAccount && (
+        <ImportTradesModal
+          account={importingAccount}
+          onClose={() => setIsImportModalOpen(false)}
+        />
       )}
     </>
   );

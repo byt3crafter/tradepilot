@@ -4,10 +4,12 @@ import { useAccount } from '../../context/AccountContext';
 import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
 import { PencilIcon } from '../icons/PencilIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { ImportIcon } from '../icons/ImportIcon';
 
 interface AccountRowProps {
   account: BrokerAccount;
   onEdit: () => void;
+  onImport: () => void;
 }
 
 const typeStyles: Record<BrokerAccountType, string> = {
@@ -16,7 +18,7 @@ const typeStyles: Record<BrokerAccountType, string> = {
   [BrokerAccountType.PROP_FIRM]: 'bg-photonic-blue/10 text-photonic-blue border-photonic-blue/20',
 };
 
-const AccountRow: React.FC<AccountRowProps> = ({ account, onEdit }) => {
+const AccountRow: React.FC<AccountRowProps> = ({ account, onEdit, onImport }) => {
   const { deleteAccount } = useAccount();
 
   const handleDelete = async () => {
@@ -47,6 +49,10 @@ const AccountRow: React.FC<AccountRowProps> = ({ account, onEdit }) => {
             <DropdownMenuItem onSelect={onEdit}>
                 <PencilIcon className="w-4 h-4 mr-2" />
                 Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onImport}>
+                <ImportIcon className="w-4 h-4 mr-2" />
+                Import Trades
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={handleDelete} className="text-risk-high hover:bg-risk-high/10">
                 <TrashIcon className="w-4 h-4 mr-2" />

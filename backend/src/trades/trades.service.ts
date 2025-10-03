@@ -1,11 +1,14 @@
+
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
-import { TradeResult, Prisma } from '@prisma/client';
+// FIX: Use namespace import for Prisma types to resolve module export errors.
+import * as pc from '@prisma/client';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
+import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';
 
 @Injectable()
 export class TradesService {
@@ -55,6 +58,69 @@ export class TradesService {
     });
   }
 
+  async bulkImport(userId: string, bulkImportDto: BulkImportTradesDto) {
+    const { brokerAccountId, playbookId, trades } = bulkImportDto;
+    const logger = new Logger(TradesService.name);
+
+    // Authorization checks
+    await this.accountsService.findOne(brokerAccountId, userId);
+    const playbook = await this.prisma.playbook.findFirst({ where: { id: playbookId, userId } });
+    if (!playbook) {
+      throw new ForbiddenException('Playbook not found or does not belong to user.');
+    }
+    
+    let importedCount = 0;
+    let skippedCount = 0;
+
+    // We use a transaction to ensure all trades are imported or none are.
+    await this.prisma.$transaction(async (tx) => {
+      for (const trade of trades) {
+        // Check for duplicates within this transaction scope
+        const existingTrade = await tx.trade.findFirst({
+          where: {
+            brokerAccountId,
+            userId,
+            asset: trade.asset,
+            entryDate: trade.entryDate,
+            entryPrice: trade.entryPrice,
+          },
+        });
+
+        if (existingTrade) {
+          skippedCount++;
+          continue;
+        }
+
+        let result: pc.TradeResult;
+        const pl = trade.profitLoss ?? 0;
+        if (Math.abs(pl) < 0.01) result = pc.TradeResult.Breakeven;
+        else if (pl > 0) result = pc.TradeResult.Win;
+        else result = pc.TradeResult.Loss;
+        
+        await tx.trade.create({
+          data: {
+            ...trade,
+            userId,
+            brokerAccountId,
+            playbookId,
+            result,
+            // These are required fields, but not in the import data, so we need defaults.
+            riskPercentage: 0, // Defaulting to 0 as it's not in the CSV
+            isPendingOrder: false,
+          },
+        });
+        importedCount++;
+      }
+    });
+
+    logger.log(`Bulk import for user ${userId} on account ${brokerAccountId}: ${importedCount} imported, ${skippedCount} skipped.`);
+
+    // Recalculate account balance after successful transaction
+    await this.accountsService.recalculateBalance(brokerAccountId, userId);
+
+    return { imported: importedCount, skipped: skippedCount };
+  }
+
   async findAllByAccount(userId: string, brokerAccountId: string) {
     return this.prisma.trade.findMany({
       where: { 
@@ -96,13 +162,13 @@ export class TradesService {
 
     // If P/L is provided, determine the trade result automatically
     if (updateTradeDto.profitLoss !== undefined && updateTradeDto.profitLoss !== null) {
-      let result: TradeResult;
+      let result: pc.TradeResult;
       if (Math.abs(updateTradeDto.profitLoss) < 0.01) {
-          result = TradeResult.Breakeven;
+          result = pc.TradeResult.Breakeven;
       } else if (updateTradeDto.profitLoss > 0) {
-          result = TradeResult.Win;
+          result = pc.TradeResult.Win;
       } else {
-          result = TradeResult.Loss;
+          result = pc.TradeResult.Loss;
       }
       dataToUpdate.result = result;
     }

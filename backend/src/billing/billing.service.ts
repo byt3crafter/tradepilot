@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   Logger,
@@ -7,7 +8,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Paddle, Environment, PaddleOptions } from '@paddle/paddle-node-sdk';
-import * as client from '@prisma/client';
+// FIX: Use namespace import for Prisma types to resolve module export errors.
+import * as pc from '@prisma/client';
 
 @Injectable()
 export class BillingService {
@@ -157,7 +159,7 @@ export class BillingService {
       case 'subscription.canceled':
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { subscriptionStatus: client.SubscriptionStatus.CANCELED },
+          data: { subscriptionStatus: pc.SubscriptionStatus.CANCELED },
         });
         this.logger.log(`Canceled subscription for user ${user.id}`);
         break;
@@ -167,20 +169,20 @@ export class BillingService {
     }
   }
 
-  private mapPaddleStatus(paddleStatus: string): client.SubscriptionStatus {
+  private mapPaddleStatus(paddleStatus: string): pc.SubscriptionStatus {
     switch (paddleStatus) {
       case 'active':
-        return client.SubscriptionStatus.ACTIVE;
+        return pc.SubscriptionStatus.ACTIVE;
       case 'trialing':
-        return client.SubscriptionStatus.TRIALING;
+        return pc.SubscriptionStatus.TRIALING;
       case 'past_due':
-        return client.SubscriptionStatus.PAST_DUE;
+        return pc.SubscriptionStatus.PAST_DUE;
       case 'paused':
       case 'canceled':
-        return client.SubscriptionStatus.CANCELED;
+        return pc.SubscriptionStatus.CANCELED;
       default:
         this.logger.warn(`Unknown Paddle status encountered: ${paddleStatus}`);
-        return client.SubscriptionStatus.TRIALING;
+        return pc.SubscriptionStatus.TRIALING;
     }
   }
 }

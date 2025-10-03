@@ -18,6 +18,7 @@ interface TradeContextType {
   analyzeTrade: (tradeId: string) => Promise<void>;
   createOrUpdateJournal: (tradeId: string, journalData: Omit<TradeJournal, 'id' | 'tradeId'>) => Promise<void>;
   refreshTrades: () => Promise<void>;
+  bulkImportTrades: (data: { brokerAccountId: string; playbookId: string; trades: any[] }) => Promise<{ imported: number; skipped: number }>;
 }
 
 const TradeContext = createContext<TradeContextType | undefined>(undefined);
@@ -120,6 +121,14 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshTrades();
   }
 
+  const bulkImportTrades = async (data: { brokerAccountId: string; playbookId: string; trades: any[] }) => {
+    if (!accessToken) throw new Error("Not authenticated");
+    const result = await api.bulkImportTrades(data, accessToken);
+    await refreshTrades();
+    await refreshAllProgress();
+    return result;
+  };
+
   const value = {
     trades: allTrades,
     liveTrades,
@@ -133,6 +142,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     analyzeTrade,
     createOrUpdateJournal,
     refreshTrades,
+    bulkImportTrades,
   };
 
   return <TradeContext.Provider value={value}>{children}</TradeContext.Provider>;

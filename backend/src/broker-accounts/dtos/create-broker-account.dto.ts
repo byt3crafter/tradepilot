@@ -1,7 +1,8 @@
+
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: Standardized to named import to resolve type errors.
-import { BrokerAccountType } from '@prisma/client';
+// FIX: Use namespace import for Prisma types to resolve module export errors.
+import * as pc from '@prisma/client';
 
 class TradingObjectiveDto {
   @IsNumber()
@@ -45,9 +46,9 @@ export class CreateBrokerAccountDto {
   @IsNotEmpty()
   name: string;
 
-  @IsEnum(BrokerAccountType)
+  @IsEnum(pc.BrokerAccountType)
   @IsNotEmpty()
-  type: BrokerAccountType;
+  type: pc.BrokerAccountType;
 
   @IsNumber()
   @Min(0)

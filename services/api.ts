@@ -52,6 +52,7 @@ interface ApiService {
   analyzeTrade(id: string, token: string): Promise<Trade>;
   preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult>;
   analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult>;
+  bulkImportTrades(data: { brokerAccountId: string; playbookId: string; trades: any[] }, token: string): Promise<{ imported: number; skipped: number }>;
   
   // Trade Journals
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
@@ -354,6 +355,9 @@ const api: ApiService = {
   },
   analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult> {
     return this.post('/api/trades/analyze-chart', { screenshotUrl, availableAssets }, token);
+  },
+  bulkImportTrades(data: { brokerAccountId: string; playbookId: string; trades: any[] }, token: string): Promise<{ imported: number; skipped: number }> {
+    return this.post('/api/trades/bulk-import', data, token);
   },
 
   // Trade Journal Methods

@@ -3,7 +3,7 @@ import md5 from 'md5';
 import { useAuth } from '../context/AuthContext';
 import { DashboardView, SettingsSubView } from '../pages/DashboardPage';
 import AuthLogo from './auth/AuthLogo';
-import AuthMark from './auth/AuthMark'; // ← NEW
+import AuthMark from './auth/AuthMark';
 import { JournalIcon } from './icons/JournalIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
 import { LogoutIcon } from './icons/LogoutIcon';

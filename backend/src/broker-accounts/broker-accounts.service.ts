@@ -1,8 +1,10 @@
+
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
-import { Trade, TradeResult } from '@prisma/client';
+// FIX: Use namespace import for Prisma types to resolve module export errors.
+import * as pc from '@prisma/client';
 import { AiService } from '../ai/ai.service';
 
 interface Mistake { mistake: string; reasoning: string; }
@@ -267,7 +269,7 @@ export class BrokerAccountsService {
     });
     
     const tradesToday = dailyTrades.length;
-    const lossesToday = dailyTrades.filter((t: Trade) => t.result === 'Loss').length;
+    const lossesToday = dailyTrades.filter((t: pc.Trade) => t.result === 'Loss').length;
     
     let isTradeCreationBlocked = false;
     let blockReason: string | null = null;
@@ -322,8 +324,8 @@ export class BrokerAccountsService {
 
     weeklyTrades.forEach(trade => {
       netPL += trade.profitLoss ?? 0;
-      if (trade.result === TradeResult.Win) wins++;
-      if (trade.result === TradeResult.Loss) losses++;
+      if (trade.result === pc.TradeResult.Win) wins++;
+      if (trade.result === pc.TradeResult.Loss) losses++;
       
       if (trade.aiAnalysis) {
         const analysis = trade.aiAnalysis as any;
@@ -390,8 +392,8 @@ export class BrokerAccountsService {
 
     dailyTrades.forEach(trade => {
       netPL += trade.profitLoss ?? 0;
-      if (trade.result === TradeResult.Win) wins++;
-      if (trade.result === TradeResult.Loss) losses++;
+      if (trade.result === pc.TradeResult.Win) wins++;
+      if (trade.result === pc.TradeResult.Loss) losses++;
       if (trade.aiAnalysis) {
         const analysis = trade.aiAnalysis as any;
         if (Array.isArray(analysis.mistakes)) (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));

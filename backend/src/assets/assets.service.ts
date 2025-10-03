@@ -1,15 +1,16 @@
+
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAssetSpecDto } from './dtos/create-asset-spec.dto';
 import { UpdateAssetSpecDto } from './dtos/update-asset-spec.dto';
-// FIX: Standardized to named import to resolve type errors.
-import { AssetSpecification } from '@prisma/client';
+// FIX: Use namespace import for Prisma types to resolve module export errors.
+import * as pc from '@prisma/client';
 
 @Injectable()
 export class AssetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, createDto: CreateAssetSpecDto): Promise<AssetSpecification> {
+  async create(userId: string, createDto: CreateAssetSpecDto): Promise<pc.AssetSpecification> {
     return this.prisma.assetSpecification.create({
       data: {
         symbol: createDto.symbol,
@@ -22,14 +23,14 @@ export class AssetsService {
     });
   }
 
-  async findAll(userId: string): Promise<AssetSpecification[]> {
+  async findAll(userId: string): Promise<pc.AssetSpecification[]> {
     return this.prisma.assetSpecification.findMany({
       where: { userId },
       orderBy: { symbol: 'asc' },
     });
   }
   
-  async findOne(id: string, userId: string): Promise<AssetSpecification> {
+  async findOne(id: string, userId: string): Promise<pc.AssetSpecification> {
     const assetSpec = await this.prisma.assetSpecification.findUnique({
       where: { id },
     });
@@ -43,7 +44,7 @@ export class AssetsService {
     return assetSpec;
   }
   
-  async update(id: string, userId: string, updateDto: UpdateAssetSpecDto): Promise<AssetSpecification> {
+  async update(id: string, userId: string, updateDto: UpdateAssetSpecDto): Promise<pc.AssetSpecification> {
     await this.findOne(id, userId); // Authorization check
     return this.prisma.assetSpecification.update({
       where: { id },
@@ -87,7 +88,7 @@ export class AssetsService {
     });
   }
 
-  async findSpecBySymbol(symbol: string, userId: string): Promise<AssetSpecification | null> {
+  async findSpecBySymbol(symbol: string, userId: string): Promise<pc.AssetSpecification | null> {
     if (!symbol || !userId) return null;
     const found = await this.prisma.assetSpecification.findUnique({
         where: { userId_symbol: { userId, symbol } },
