@@ -49,7 +49,7 @@ const CountdownTimer: React.FC = () => {
 
 
 const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
-  const { title, status, currentValue, targetValue, type, key, remaining } = objective;
+  const { title, status, currentValue, targetValue, type, key } = objective;
 
   const progressPercentage = targetValue > 0 ? (currentValue / targetValue) * 100 : 0;
   
@@ -57,10 +57,10 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
   const isFailed = status === 'Failed';
   const isSuccess = status === 'Success';
   
-  let barColor = 'bg-photonic-blue';
+  let barColor = 'bg-photonic-blue'; // Default for profit target
   if (isFailed) barColor = 'bg-risk-high';
   else if (isSuccess) barColor = 'bg-momentum-green';
-  else if (isLossRule) barColor = 'bg-risk-medium';
+  else if (isLossRule) barColor = 'bg-risk-high'; // Loss rules should have a red bar
 
   let valueColor = 'text-future-light';
   if (key === 'profitTarget') {
@@ -69,6 +69,8 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
     } else if (currentValue > 0) {
       valueColor = 'text-momentum-green';
     }
+  } else if (isLossRule && currentValue > 0) {
+    valueColor = 'text-risk-high';
   }
 
   const formatCurrency = (val?: number) => {
@@ -90,15 +92,10 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
 
       <div className="flex-grow flex flex-col justify-end mt-2">
         <div className={`text-xl font-orbitron ${valueColor}`}>
-           {isLossRule 
-            ? formatCurrency(remaining) 
-            : (type === 'progress' 
-                ? formatCurrency(currentValue) 
-                : currentValue)
-          }
+          {formatCurrency(currentValue)}
           <span className="text-sm font-tech-mono text-future-gray ml-1">
             {isLossRule 
-              ? 'Remaining' 
+              ? `of ${formatCurrency(targetValue)}` 
               : `/ ${type === 'progress' ? '$' : ''}${targetValue.toLocaleString()}`
             }
           </span>

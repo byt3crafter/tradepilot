@@ -3,8 +3,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
-// FIX: Use namespace import for Prisma types to resolve module export errors.
-import * as pc from '@prisma/client';
+import { Trade, TradeResult } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
 
 interface Mistake { mistake: string; reasoning: string; }
@@ -140,51 +139,56 @@ export class BrokerAccountsService {
     
     const results = [];
     const { profitTarget, minTradingDays, maxLoss, maxDailyLoss } = account.objectives;
-
-    // --- Calculations in one pass for efficiency ---
     const initialBalance = account.initialBalance;
+
+    // --- Calculations for Overall Metrics (in one pass) ---
     let highWaterMark = initialBalance;
     let cumulativePL = 0;
     const uniqueTradingDaysSet = new Set<string>();
-    
-    // Define today's range in UTC to avoid timezone issues
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(today.getUTCDate() + 1);
-
-    let dailyLossSum = 0;
 
     for (const trade of trades) {
-        // P/L and Drawdown: Use net profitLoss directly
         const tradeNetPL = trade.profitLoss ?? 0;
         cumulativePL += tradeNetPL;
         const currentEquity = initialBalance + cumulativePL;
+
         if (currentEquity > highWaterMark) {
             highWaterMark = currentEquity;
         }
-
-        // Trading Days: A day with a trade entry counts
+        
         if (trade.entryDate) {
             uniqueTradingDaysSet.add(new Date(trade.entryDate).toDateString());
         }
-
-        // Daily Loss: Sum P/L for trades closed today (UTC)
-        if (trade.exitDate) {
-            const exitDate = new Date(trade.exitDate);
-            if (exitDate >= today && exitDate < tomorrow) {
-                if(tradeNetPL < 0) {
-                    dailyLossSum += tradeNetPL;
-                }
-            }
-        }
     }
+    
+    // FIX: Max loss is now calculated as High-Water Mark - Current Balance
+    const maxDrawdownSoFar = Math.max(0, highWaterMark - account.currentBalance);
 
     const totalNetPL = cumulativePL;
-    const currentBalance = initialBalance + totalNetPL;
-    const currentDrawdown = Math.max(0, highWaterMark - currentBalance);
     const uniqueTradingDays = uniqueTradingDaysSet.size;
-    const currentDailyLoss = Math.abs(dailyLossSum);
+
+    // --- Calculation for Daily Loss (specific to last trading day) ---
+    let currentDailyLoss = 0;
+    if (maxDailyLoss && trades.length > 0) {
+      const lastTradeExitDate = new Date(trades[trades.length - 1].exitDate!);
+      const startOfLastDay = new Date(lastTradeExitDate);
+      startOfLastDay.setUTCHours(0, 0, 0, 0);
+      const endOfLastDay = new Date(startOfLastDay);
+      endOfLastDay.setUTCHours(23, 59, 59, 999);
+
+      const tradesOnLastDay = trades.filter(t => {
+        const exitDate = new Date(t.exitDate!);
+        return exitDate >= startOfLastDay && exitDate <= endOfLastDay;
+      });
+
+      const netPLOnLastDay = tradesOnLastDay.reduce((sum, trade) => sum + (trade.profitLoss ?? 0), 0);
+
+      // FIX: Daily loss is $0 if the day was profitable, otherwise it's the net loss.
+      if (netPLOnLastDay < 0) {
+        currentDailyLoss = Math.abs(netPLOnLastDay);
+      } else {
+        currentDailyLoss = 0;
+      }
+    }
 
 
     // --- Objective 1: Profit Target ---
@@ -215,14 +219,14 @@ export class BrokerAccountsService {
 
     // --- Objective 3: Max Loss (Trailing Drawdown) ---
     if (maxLoss) {
-      const remaining = maxLoss - currentDrawdown;
+      const remaining = maxLoss - maxDrawdownSoFar;
       results.push({
         key: 'maxLoss',
         title: `Max Loss $${maxLoss.toLocaleString()}`,
-        currentValue: currentDrawdown,
+        currentValue: maxDrawdownSoFar,
         targetValue: maxLoss,
         remaining: remaining > 0 ? remaining : 0,
-        status: currentDrawdown >= maxLoss ? 'Failed' : 'In Progress',
+        status: maxDrawdownSoFar >= maxLoss ? 'Failed' : 'In Progress',
         type: 'simple'
       });
     }
@@ -269,7 +273,7 @@ export class BrokerAccountsService {
     });
     
     const tradesToday = dailyTrades.length;
-    const lossesToday = dailyTrades.filter((t: pc.Trade) => t.result === 'Loss').length;
+    const lossesToday = dailyTrades.filter((t: Trade) => t.result === 'Loss').length;
     
     let isTradeCreationBlocked = false;
     let blockReason: string | null = null;
@@ -324,8 +328,8 @@ export class BrokerAccountsService {
 
     weeklyTrades.forEach(trade => {
       netPL += trade.profitLoss ?? 0;
-      if (trade.result === pc.TradeResult.Win) wins++;
-      if (trade.result === pc.TradeResult.Loss) losses++;
+      if (trade.result === TradeResult.Win) wins++;
+      if (trade.result === TradeResult.Loss) losses++;
       
       if (trade.aiAnalysis) {
         const analysis = trade.aiAnalysis as any;
@@ -392,8 +396,8 @@ export class BrokerAccountsService {
 
     dailyTrades.forEach(trade => {
       netPL += trade.profitLoss ?? 0;
-      if (trade.result === pc.TradeResult.Win) wins++;
-      if (trade.result === pc.TradeResult.Loss) losses++;
+      if (trade.result === TradeResult.Win) wins++;
+      if (trade.result === TradeResult.Loss) losses++;
       if (trade.aiAnalysis) {
         const analysis = trade.aiAnalysis as any;
         if (Array.isArray(analysis.mistakes)) (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));
