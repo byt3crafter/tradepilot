@@ -17,10 +17,13 @@ import JournalForm from './journal/JournalForm';
 import { PlusIcon } from './icons/PlusIcon';
 import { useAssets } from '../context/AssetContext';
 import { usePriceFormatter } from '../hooks/usePriceFormatter';
+import Checkbox from './ui/Checkbox';
 
 interface TradeRowProps {
   trade: Trade;
   onEdit: () => void;
+  isSelected: boolean;
+  onSelect: (tradeId: string) => void;
 }
 
 const ResultBadge: React.FC<{ result?: TradeResult | null }> = ({ result }) => {
@@ -89,7 +92,7 @@ const calculateDuration = (start?: string | null, end?: string | null): string =
 };
 
 
-const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
+const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit, isSelected, onSelect }) => {
   const { deleteTrade, analyzeTrade } = useTrade();
   const { playbooks } = usePlaybook();
   const { findSpec, isLoading: isAssetsLoading } = useAssets();
@@ -103,7 +106,6 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const assetSpec = findSpec(trade.asset);
   
   const pipsMoved = useMemo(() => {
-    // FIX: Defer calculation until asset specifications are loaded to prevent race conditions.
     if (isAssetsLoading) {
       return null;
     }
@@ -127,6 +129,15 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   const toggleSection = (sectionKey: string) => {
     const newOpenSection = openSection === sectionKey ? null : sectionKey;
     setOpenSection(newOpenSection);
+  };
+
+  const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
+    const target = e.target as HTMLElement;
+    // Do not expand if the click was on the checkbox cell or the action menu dropdown
+    if (target.closest('.checkbox-cell') || target.closest('[data-dropdown-menu]')) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
   };
 
   const handleDelete = async () => {
@@ -187,9 +198,16 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
   return (
     <>
       <tr 
-        className="border-b border-future-panel/50 hover:bg-photonic-blue/5 transition-colors duration-200 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
+        className={`border-b border-future-panel/50 transition-colors duration-200 cursor-pointer ${isSelected ? 'bg-photonic-blue/10' : 'hover:bg-photonic-blue/5'}`}
+        onClick={handleRowClick}
       >
+        <td className="p-3 checkbox-cell" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            id={`select-trade-${trade.id}`}
+            checked={isSelected}
+            onChange={() => onSelect(trade.id)}
+          />
+        </td>
         <td className="p-3 text-center">
             <ChevronDownIcon className={`w-5 h-5 text-future-gray transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
         </td>
@@ -205,7 +223,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
             ${netProfitLoss.toFixed(2)}
           </span>
         </td>
-        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+        <td className="p-3" data-dropdown-menu>
           <DropdownMenu>
               <DropdownMenuItem onSelect={onEdit}>
                   <PencilIcon className="w-4 h-4 mr-2" />
@@ -221,7 +239,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit }) => {
       {isExpanded && (
         <tr className="bg-black/20">
             <td></td>
-            <td colSpan={9} className="p-4">
+            <td colSpan={10} className="p-4">
               <div className="relative">
                 <Button
                     onClick={onEdit}

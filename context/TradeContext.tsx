@@ -14,6 +14,7 @@ interface TradeContextType {
   createTrade: (data: Partial<Trade>) => Promise<void>;
   updateTrade: (id: string, data: Partial<Trade>) => Promise<void>;
   deleteTrade: (id: string) => Promise<void>;
+  bulkDeleteTrades: (tradeIds: string[]) => Promise<void>;
   activatePendingOrder: (id: string) => Promise<void>;
   analyzeTrade: (tradeId: string) => Promise<void>;
   createOrUpdateJournal: (tradeId: string, journalData: Omit<TradeJournal, 'id' | 'tradeId'>) => Promise<void>;
@@ -98,6 +99,13 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshAllProgress();
   };
 
+  const bulkDeleteTrades = async (tradeIds: string[]) => {
+    if (!accessToken) throw new Error("Not authenticated");
+    await api.bulkDeleteTrades(tradeIds, accessToken);
+    await refreshTrades();
+    await refreshAllProgress();
+  };
+
   const analyzeTrade = async (tradeId: string) => {
     if (!accessToken) throw new Error("Not authenticated");
     
@@ -138,6 +146,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     createTrade,
     updateTrade,
     deleteTrade,
+    bulkDeleteTrades,
     activatePendingOrder,
     analyzeTrade,
     createOrUpdateJournal,

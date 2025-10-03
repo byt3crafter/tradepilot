@@ -6,8 +6,8 @@ import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
 import { UsersService } from 'src/users/users.service';
-// FIX: Use namespace import for Prisma types to resolve module export errors.
-import * as pc from '@prisma/client';
+// FIX: Use named imports for Prisma types to resolve module export errors.
+import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -40,7 +40,7 @@ export class AdminService {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((user: pc.User) => plainToInstance(AdminUserDto, user, {
+    return users.map((user: User) => plainToInstance(AdminUserDto, user, {
       excludeExtraneousValues: true,
     }));
   }
@@ -51,7 +51,7 @@ export class AdminService {
         throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
-    const dataToUpdate: pc.Prisma.UserUpdateInput = {
+    const dataToUpdate: Prisma.UserUpdateInput = {
         proAccessExpiresAt: grantProDto.expiresAt,
         proAccessReason: grantProDto.reason,
     };

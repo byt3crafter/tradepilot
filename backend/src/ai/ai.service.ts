@@ -1,11 +1,9 @@
 
-
-
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
-// FIX: Use namespace import for Prisma types to resolve module export errors, using a non-colliding alias 'pc'.
-import * as pc from '@prisma/client';
+// FIX: Use named imports for Prisma types to resolve module export errors.
+import { Trade, Playbook } from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -32,7 +30,7 @@ export class AiService {
         this.genAI = new GoogleGenAI({ apiKey });
     }
 
-    async getTradeAnalysis(trade: pc.Trade, playbook: pc.Playbook, pastMistakes: string) {
+    async getTradeAnalysis(trade: Trade, playbook: Playbook, pastMistakes: string) {
         if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
             throw new Error("Screenshots are missing for AI analysis.");
         }

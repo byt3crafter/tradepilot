@@ -1,8 +1,8 @@
 
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsObject, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: Use namespace import for Prisma types to resolve module export errors.
-import * as pc from '@prisma/client';
+// FIX: Use named imports for Prisma types to resolve module export errors.
+import { Direction, TradeResult } from '@prisma/client';
 
 export class UpdateTradeDto {
   @IsDate()
@@ -20,9 +20,9 @@ export class UpdateTradeDto {
   @IsOptional()
   asset?: string;
 
-  @IsEnum(pc.Direction)
+  @IsEnum(Direction)
   @IsOptional()
-  direction?: pc.Direction;
+  direction?: Direction;
 
   @IsNumber()
   @IsOptional()
@@ -45,9 +45,9 @@ export class UpdateTradeDto {
   @IsOptional()
   profitLoss?: number | null;
   
-  @IsEnum(pc.TradeResult)
+  @IsEnum(TradeResult)
   @IsOptional()
-  result?: pc.TradeResult | null;
+  result?: TradeResult | null;
   
   @IsString()
   @IsOptional()

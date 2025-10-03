@@ -20,6 +20,8 @@ import CloseTradeModal from './trades/CloseTradeModal';
 import EditTradeForm from './trades/EditTradeForm';
 import SelectInput from './ui/SelectInput';
 import { useUI } from '../context/UIContext';
+import Checkbox from './ui/Checkbox';
+import { TrashIcon } from './icons/TrashIcon';
 
 type TradeView = 'live' | 'pending' | 'history';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
@@ -27,7 +29,7 @@ type DateFilter = 'all-time' | 'today' | 'yesterday' | 'this-week' | 'this-month
 
 const TradeJournal: React.FC = () => {
   const { activeAccount, objectivesProgress, smartLimitsProgress, isLoading: isAccountLoading } = useAccount();
-  const { liveTrades, pendingTrades, closedTrades, isLoading: isTradeLoading } = useTrade();
+  const { liveTrades, pendingTrades, closedTrades, isLoading: isTradeLoading, bulkDeleteTrades } = useTrade();
   const { enforceChecklist } = useSettings();
   const { rules } = useChecklist();
   const { isTrialExpired } = useAuth();
@@ -38,13 +40,17 @@ const TradeJournal: React.FC = () => {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [closingTrade, setClosingTrade] = useState<Trade | null>(null);
   const [currentView, setCurrentView] = useState<TradeView>('history');
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all-time');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [customStartDate, setCustomStartDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [customEndDate, setCustomEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
+  // State for bulk actions
+  const [selectedTradeIds, setSelectedTradeIds] = useState<string[]>([]);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
   const headers = {
     live: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'SL / TP', 'Actions'],
-    history: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Pips', 'Net P/L', 'Actions'],
+    history: ['', '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Pips', 'Net P/L', 'Actions'],
     pending: ['', 'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Playbook', 'Actions'],
   };
 
@@ -64,7 +70,6 @@ const TradeJournal: React.FC = () => {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     
-    // Assuming Sunday is the start of the week (day 0)
     const startOfWeek = new Date(today);
     startOfWeek.setDate(startOfWeek.getDate() - now.getDay()); 
     
@@ -81,21 +86,13 @@ const TradeJournal: React.FC = () => {
         case 'yesterday':
           return exitDateDayOnly.getTime() === yesterday.getTime();
         case 'this-week':
-          // Must be on or after the start of the week and before or on today
           return exitDate >= startOfWeek && exitDate <= now;
         case 'this-month':
           return exitDate.getFullYear() === startOfMonth.getFullYear() && exitDate.getMonth() === startOfMonth.getMonth();
         case 'custom-range': {
           if (!customStartDate || !customEndDate) return true;
-          
-          const startParts = customStartDate.split('-').map(Number);
-          const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-          startDate.setHours(0, 0, 0, 0);
-
-          const endParts = customEndDate.split('-').map(Number);
-          const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
-          endDate.setHours(23, 59, 59, 999);
-          
+          const startDate = new Date(`${customStartDate}T00:00:00.000Z`);
+          const endDate = new Date(`${customEndDate}T23:59:59.999Z`);
           return exitDate >= startDate && exitDate <= endDate;
         }
         default:
@@ -103,6 +100,15 @@ const TradeJournal: React.FC = () => {
       }
     });
   }, [closedTrades, dateFilter, customStartDate, customEndDate]);
+
+  const totalPnl = useMemo(() => {
+    return filteredClosedTrades.reduce((acc, trade) => acc + (trade.profitLoss ?? 0), 0);
+  }, [filteredClosedTrades]);
+
+  // Clear selection when view or filter changes
+  useEffect(() => {
+    setSelectedTradeIds([]);
+  }, [currentView, dateFilter, customStartDate, customEndDate, activeAccount]);
 
 
   const handleOpenAddTrade = useCallback(() => {
@@ -144,7 +150,36 @@ const TradeJournal: React.FC = () => {
     setAddTradeStep('closed');
     setEditingTrade(null);
     setClosingTrade(null);
+    setIsDeleteConfirmOpen(false);
   };
+
+  // --- Bulk Action Handlers ---
+  const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedTradeIds(filteredClosedTrades.map(t => t.id));
+    } else {
+      setSelectedTradeIds([]);
+    }
+  };
+
+  const handleToggleSelect = (tradeId: string) => {
+    setSelectedTradeIds(prev =>
+      prev.includes(tradeId) ? prev.filter(id => id !== tradeId) : [...prev, tradeId]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedTradeIds.length === 0) return;
+    try {
+      await bulkDeleteTrades(selectedTradeIds);
+      setSelectedTradeIds([]);
+      setIsDeleteConfirmOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to delete trades: ${err.message}`);
+    }
+  };
+
 
   const renderContent = () => {
     if (isAccountLoading || isTradeLoading) {
@@ -183,7 +218,15 @@ const TradeJournal: React.FC = () => {
       case 'pending':
         return pendingTrades.map(trade => <PendingOrderRow key={trade.id} trade={trade} onEdit={() => handleOpenEditTrade(trade)} />);
       case 'history':
-        return filteredClosedTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => handleOpenEditTrade(trade)} />);
+        return filteredClosedTrades.map(trade => (
+          <TradeRow
+            key={trade.id}
+            trade={trade}
+            onEdit={() => handleOpenEditTrade(trade)}
+            isSelected={selectedTradeIds.includes(trade.id)}
+            onSelect={handleToggleSelect}
+          />
+        ));
       default:
         return null;
     }
@@ -193,7 +236,6 @@ const TradeJournal: React.FC = () => {
     if (addTradeStep !== 'form') return null;
 
     if (editingTrade) {
-      // If the trade is closed (has a result), show the comprehensive edit form.
       if (editingTrade.result) {
         return (
           <Modal title={`Edit Closed Trade: ${editingTrade.asset}`} onClose={closeModals} size="4xl">
@@ -201,7 +243,6 @@ const TradeJournal: React.FC = () => {
           </Modal>
         );
       }
-      // Otherwise (live or pending), show the simpler entry form.
       const title = editingTrade.isPendingOrder ? "Edit Pending Order" : `Edit Live Trade: ${editingTrade.asset}`;
       return (
         <Modal title={title} onClose={closeModals} size="lg">
@@ -210,13 +251,15 @@ const TradeJournal: React.FC = () => {
       );
     }
 
-    // This is for creating a new trade.
     return (
       <Modal title="Log Trade" onClose={closeModals} size="lg">
         <AddTradeForm onSuccess={closeModals} />
       </Modal>
     );
   };
+  
+  const isAllSelected = filteredClosedTrades.length > 0 && selectedTradeIds.length === filteredClosedTrades.length;
+  const isPartiallySelected = selectedTradeIds.length > 0 && !isAllSelected;
 
 
   return (
@@ -236,11 +279,11 @@ const TradeJournal: React.FC = () => {
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value as DateFilter)}
                   options={[
-                    { value: 'all-time', label: 'All Time' },
                     { value: 'today', label: 'Today' },
                     { value: 'yesterday', label: 'Yesterday' },
                     { value: 'this-week', label: 'This Week' },
                     { value: 'this-month', label: 'This Month' },
+                    { value: 'all-time', label: 'All Time' },
                     { value: 'custom-range', label: 'Custom Range' },
                   ]}
                   containerClassName="w-40"
@@ -288,7 +331,7 @@ const TradeJournal: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-b border-photonic-blue/20 mb-4">
+        <div className="border-b border-photonic-blue/20 mb-4 flex justify-between items-end">
           <nav className="flex space-x-4">
             <button
               onClick={() => setCurrentView('live')}
@@ -309,13 +352,45 @@ const TradeJournal: React.FC = () => {
               Trading History ({filteredClosedTrades.length})
             </button>
           </nav>
+          {currentView === 'history' && filteredClosedTrades.length > 0 && (
+            <div className="pb-2 text-sm">
+              <span className="text-future-gray">Total P/L: </span>
+              <span className={`font-tech-mono font-bold ${totalPnl >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
+                {totalPnl >= 0 ? '+' : '-'}${Math.abs(totalPnl).toFixed(2)}
+              </span>
+            </div>
+          )}
         </div>
+
+        {selectedTradeIds.length > 0 && currentView === 'history' && (
+          <div className="bg-photonic-blue/10 border border-photonic-blue/20 rounded-lg px-4 py-2 mb-4 flex justify-between items-center animate-fade-in-up">
+            <span className="text-sm font-semibold text-future-light">{selectedTradeIds.length} trades selected</span>
+            <Button
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              className="w-auto flex items-center gap-2 px-3 py-1.5 text-sm bg-risk-high text-white hover:bg-risk-high/90 shadow-glow-red"
+            >
+              <TrashIcon className="w-4 h-4" />
+              Delete Selected
+            </Button>
+          </div>
+        )}
 
         <div className="overflow-x-auto table-scrollbar">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-photonic-blue/30">
-                {headers[currentView].map((header, index) => (
+                {currentView === 'history' && (
+                  <th className="p-3 w-12">
+                    <Checkbox
+                      id="select-all"
+                      onChange={handleToggleSelectAll}
+                      checked={isAllSelected}
+                      indeterminate={isPartiallySelected}
+                      disabled={filteredClosedTrades.length === 0}
+                    />
+                  </th>
+                )}
+                {headers[currentView].slice(currentView === 'history' ? 1 : 0).map((header, index) => (
                   <th 
                     key={header} 
                     className={`p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs ${index === 0 ? 'w-12' : ''}`}
@@ -346,6 +421,21 @@ const TradeJournal: React.FC = () => {
           tradeToClose={closingTrade}
           onClose={closeModals}
         />
+      )}
+      
+      {isDeleteConfirmOpen && (
+        <Modal title="Confirm Deletion" onClose={closeModals} size="md">
+            <div className="text-center">
+                <p className="text-future-gray">Are you sure you want to permanently delete these {selectedTradeIds.length} trades?</p>
+                <p className="text-sm text-risk-medium mt-2">This action cannot be undone.</p>
+                <div className="mt-6 flex justify-center gap-4">
+                    <Button onClick={closeModals} variant="secondary" className="w-auto">Cancel</Button>
+                    <Button onClick={handleDeleteSelected} className="w-auto bg-risk-high text-white hover:bg-risk-high/90 shadow-glow-red">
+                        Delete
+                    </Button>
+                </div>
+            </div>
+        </Modal>
       )}
     </>
   );

@@ -49,6 +49,7 @@ interface ApiService {
   createTrade(data: Partial<Trade>, token: string): Promise<Trade>;
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade>;
   deleteTrade(id: string, token: string): Promise<{ message: string }>;
+  bulkDeleteTrades(tradeIds: string[], token: string): Promise<{ message: string }>;
   analyzeTrade(id: string, token: string): Promise<Trade>;
   preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult>;
   analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult>;
@@ -344,6 +345,9 @@ const api: ApiService = {
   deleteTrade(id: string, token: string): Promise<{ message: string }> {
     // FIX: Removed explicit generic type argument.
     return this.delete(`/api/trades/${id}`, token);
+  },
+  bulkDeleteTrades(tradeIds: string[], token: string): Promise<{ message: string }> {
+    return this.post('/api/trades/bulk-delete', { tradeIds }, token);
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
     // FIX: Removed explicit generic type argument.

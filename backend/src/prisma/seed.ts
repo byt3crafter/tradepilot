@@ -1,8 +1,8 @@
 
-import * as pc from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new pc.PrismaClient();
+const prisma = new PrismaClient();
 
 const assetSpecifications = [
     // Forex Majors

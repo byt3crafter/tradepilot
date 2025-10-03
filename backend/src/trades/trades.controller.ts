@@ -7,6 +7,7 @@ import { Request } from 'express';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 import { AnalyzeChartDto } from './dtos/analyze-chart.dto';
 import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';
+import { BulkDeleteTradesDto } from './dtos/bulk-delete-trades.dto';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -30,6 +31,13 @@ export class TradesController {
   bulkImport(@Body() bulkImportDto: BulkImportTradesDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.tradesService.bulkImport(userId, bulkImportDto);
+  }
+
+  @Post('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  bulkRemove(@Body() bulkDeleteDto: BulkDeleteTradesDto, @Req() req: AuthenticatedRequest) {
+      const userId = req.user.sub;
+      return this.tradesService.bulkRemove(userId, bulkDeleteDto.tradeIds);
   }
 
   @Get()

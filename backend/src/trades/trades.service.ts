@@ -5,8 +5,8 @@ import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
-// FIX: Use namespace import for Prisma types to resolve module export errors.
-import * as pc from '@prisma/client';
+// FIX: Use named imports for Prisma types to resolve module export errors.
+import { TradeResult } from '@prisma/client';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';
 
@@ -91,11 +91,11 @@ export class TradesService {
           continue;
         }
 
-        let result: pc.TradeResult;
+        let result: TradeResult;
         const pl = trade.profitLoss ?? 0;
-        if (Math.abs(pl) < 0.01) result = pc.TradeResult.Breakeven;
-        else if (pl > 0) result = pc.TradeResult.Win;
-        else result = pc.TradeResult.Loss;
+        if (Math.abs(pl) < 0.01) result = TradeResult.Breakeven;
+        else if (pl > 0) result = TradeResult.Win;
+        else result = TradeResult.Loss;
         
         await tx.trade.create({
           data: {
@@ -162,13 +162,13 @@ export class TradesService {
 
     // If P/L is provided, determine the trade result automatically
     if (updateTradeDto.profitLoss !== undefined && updateTradeDto.profitLoss !== null) {
-      let result: pc.TradeResult;
+      let result: TradeResult;
       if (Math.abs(updateTradeDto.profitLoss) < 0.01) {
-          result = pc.TradeResult.Breakeven;
+          result = TradeResult.Breakeven;
       } else if (updateTradeDto.profitLoss > 0) {
-          result = pc.TradeResult.Win;
+          result = TradeResult.Win;
       } else {
-          result = pc.TradeResult.Loss;
+          result = TradeResult.Loss;
       }
       dataToUpdate.result = result;
     }
@@ -197,6 +197,47 @@ export class TradesService {
     await this.accountsService.recalculateBalance(tradeToDelete.brokerAccountId, userId);
 
     return { message: 'Trade deleted successfully.' };
+  }
+
+  async bulkRemove(userId: string, tradeIds: string[]) {
+    if (!tradeIds || tradeIds.length === 0) {
+        return { message: 'No trades to delete.' };
+    }
+
+    // Find the first trade to identify the broker account
+    const firstTrade = await this.prisma.trade.findFirst({
+        where: { id: tradeIds[0], userId },
+    });
+
+    if (!firstTrade) {
+        // This case handles if the first ID is invalid or doesn't belong to the user.
+        throw new ForbiddenException('You do not have permission to delete these trades.');
+    }
+    const brokerAccountId = firstTrade.brokerAccountId;
+
+    // Verify all trades belong to the user in a single query for efficiency
+    const tradesCount = await this.prisma.trade.count({
+        where: {
+            id: { in: tradeIds },
+            userId,
+        },
+    });
+
+    if (tradesCount !== tradeIds.length) {
+        throw new ForbiddenException('Some trades do not belong to you or do not exist.');
+    }
+
+    // Delete all specified trades in a single transaction
+    await this.prisma.trade.deleteMany({
+        where: {
+            id: { in: tradeIds },
+        },
+    });
+
+    // Recalculate balance for the affected account after deletion
+    await this.accountsService.recalculateBalance(brokerAccountId, userId);
+
+    return { message: `${tradeIds.length} trades deleted successfully.` };
   }
 
   async analyze(tradeId: string, userId: string) {

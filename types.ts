@@ -263,3 +263,15 @@ export interface AnalyzeChartResult {
   exitDate: string | null;
   profitLoss: number | null;
 }
+
+// --- NEW: Bulk Importer Types ---
+export interface ParsedTradeData {
+  asset: string;
+  direction: Direction;
+  entryDate: string; // ISO string
+  exitDate: string; // ISO string
+  entryPrice: number;
+  exitPrice: number;
+  lotSize: number | null;
+  profitLoss: number | null;
+}

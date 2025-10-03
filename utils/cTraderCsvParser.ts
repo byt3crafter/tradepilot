@@ -1,15 +1,4 @@
-import { Direction } from "../types";
-
-export interface ParsedTradeData {
-  asset: string;
-  direction: Direction;
-  entryDate: string; // ISO string
-  exitDate: string; // ISO string
-  entryPrice: number;
-  exitPrice: number;
-  lotSize: number | null;
-  profitLoss: number | null;
-}
+import { Direction, ParsedTradeData } from "../types";
 
 const cleanNumber = (value: string): number | null => {
     if (!value) return null;
@@ -41,7 +30,7 @@ const parseCustomDate = (dateString: string): string => {
 };
 
 
-export const parseBrokerReport = (fileContent: string): ParsedTradeData[] => {
+export const parseCTraderCsvReport = (fileContent: string): ParsedTradeData[] => {
     const lines = fileContent.split('\n').map(l => l.trim()).filter(Boolean);
     const deals: ParsedTradeData[] = [];
 

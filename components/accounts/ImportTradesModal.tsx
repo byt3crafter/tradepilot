@@ -1,31 +1,62 @@
+
 import React, { useState } from 'react';
 import Modal from '../ui/Modal';
-import { BrokerAccount } from '../../types';
+import { BrokerAccount, ParsedTradeData } from '../../types';
 import SelectInput from '../ui/SelectInput';
 import { usePlaybook } from '../../context/PlaybookContext';
 import FileDropzone from '../ui/FileDropzone';
-import { parseBrokerReport, ParsedTradeData } from '../../utils/csvParser';
+import { parseCTraderCsvReport } from '../../utils/cTraderCsvParser';
+import { parseCTraderHtmlReport } from '../../utils/cTraderHtmlParser';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import { useTrade } from '../../context/TradeContext';
 import { CheckCircleIcon } from '../icons/CheckCircleIcon';
+import { CTraderIcon } from '../icons/CTraderIcon';
+import { MetaTraderIcon } from '../icons/MetaTraderIcon';
 
-type Stage = 'upload' | 'review' | 'loading' | 'success' | 'error';
+type Stage = 'platform' | 'upload' | 'review' | 'loading' | 'success' | 'error';
+type Platform = 'cTrader' | 'metaTrader';
+type FileFormat = 'csv' | 'html' | 'xls';
 
 interface ImportTradesModalProps {
   account: BrokerAccount;
   onClose: () => void;
 }
 
+const PlatformCard: React.FC<{ icon: React.ReactNode; label: string; description: string; onClick: () => void; disabled?: boolean }> = ({ icon, label, description, onClick, disabled }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`w-full p-4 rounded-lg border-2 text-center transition-all duration-200 h-full flex flex-col items-center justify-center ${
+      disabled 
+        ? 'bg-future-dark/30 border-future-panel/50 cursor-not-allowed opacity-50' 
+        : 'bg-future-dark/50 border-future-panel hover:border-photonic-blue/50 hover:bg-photonic-blue/10'
+    }`}
+  >
+    {icon}
+    <div className="font-semibold text-future-light mt-3">{label}</div>
+    <div className="text-xs text-future-gray mt-1">{description}</div>
+  </button>
+);
+
+
 const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose }) => {
   const { playbooks } = usePlaybook();
   const { bulkImportTrades } = useTrade();
 
-  const [stage, setStage] = useState<Stage>('upload');
+  const [stage, setStage] = useState<Stage>('platform');
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
+  const [selectedFormat, setSelectedFormat] = useState<FileFormat>('csv');
+
   const [selectedPlaybookId, setSelectedPlaybookId] = useState(playbooks[0]?.id || '');
   const [parsedTrades, setParsedTrades] = useState<ParsedTradeData[]>([]);
   const [error, setError] = useState('');
   const [successResult, setSuccessResult] = useState({ imported: 0, skipped: 0 });
+
+  const handlePlatformSelect = (platform: Platform) => {
+    setSelectedPlatform(platform);
+    setStage('upload');
+  };
 
   const handleFileAccepted = (file: File) => {
     setError('');
@@ -33,9 +64,22 @@ const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose 
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
-        const trades = parseBrokerReport(text);
+        let trades: ParsedTradeData[];
+
+        if (selectedPlatform === 'cTrader') {
+          if (selectedFormat === 'csv') {
+            trades = parseCTraderCsvReport(text);
+          } else if (selectedFormat === 'html') {
+            trades = parseCTraderHtmlReport(text);
+          } else {
+            throw new Error("Unsupported file format for cTrader.");
+          }
+        } else {
+            throw new Error("Selected platform is not yet supported.");
+        }
+
         if (trades.length === 0) {
-            throw new Error("No valid trades found in the 'Deals' section of the report.");
+            throw new Error("No valid trades found in the report file.");
         }
         setParsedTrades(trades);
         setStage('review');
@@ -63,28 +107,77 @@ const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose 
         setStage('error');
     }
   };
+  
+  const resetAndGoTo = (targetStage: Stage) => {
+      setError('');
+      setParsedTrades([]);
+      if (targetStage === 'platform') {
+          setSelectedPlatform(null);
+      }
+      setStage(targetStage);
+  }
 
-  const renderUploadStage = () => (
+  const renderPlatformStage = () => (
     <div className="space-y-4">
-      <p className="text-sm text-future-gray">
-        Upload your broker's CSV report. The system will automatically detect and import your closed trades.
-      </p>
-      <SelectInput
-        label="Assign all imported trades to this playbook:"
-        id="playbookId"
-        value={selectedPlaybookId}
-        onChange={(e) => setSelectedPlaybookId(e.target.value)}
-        options={playbooks.map(p => ({ value: p.id, label: p.name }))}
-        disabled={playbooks.length === 0}
-      />
-      {playbooks.length === 0 && <p className="text-sm text-risk-medium -mt-2">Please create a playbook before importing trades.</p>}
-      <FileDropzone
-        onFileAccepted={handleFileAccepted}
-        accept=".csv,.txt"
-        label="Drag & drop report here, or click to select"
-      />
+        <h3 className="text-lg text-center font-semibold text-future-light">Which platform is this report from?</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+            <PlatformCard
+                icon={<CTraderIcon className="w-12 h-12" />}
+                label="cTrader"
+                description="Supports CSV & HTML reports"
+                onClick={() => handlePlatformSelect('cTrader')}
+            />
+            <PlatformCard
+                icon={<MetaTraderIcon className="w-12 h-12" />}
+                label="MetaTrader 4/5"
+                description="Coming Soon"
+                onClick={() => {}}
+                disabled
+            />
+        </div>
     </div>
   );
+
+  const renderUploadStage = () => {
+    const formatConfig = {
+        csv: { accept: '.csv,.txt', label: `Drag & drop cTrader .csv report here, or click to select` },
+        html: { accept: '.html,.htm', label: `Drag & drop cTrader .html report here, or click to select` },
+        xls: { accept: '.xls,.xlsx', label: 'XLS format is coming soon' },
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-future-light">Upload Report</h3>
+                <Button variant="link" onClick={() => resetAndGoTo('platform')} className="text-sm">Change Platform</Button>
+            </div>
+            
+            <SelectInput
+                label="1. Assign all imported trades to this playbook:"
+                id="playbookId"
+                value={selectedPlaybookId}
+                onChange={(e) => setSelectedPlaybookId(e.target.value)}
+                options={playbooks.map(p => ({ value: p.id, label: p.name }))}
+                disabled={playbooks.length === 0}
+            />
+            {playbooks.length === 0 && <p className="text-sm text-risk-medium -mt-2">Please create a playbook before importing trades.</p>}
+            
+            <div>
+                <label className="block text-sm font-medium text-future-gray mb-2">2. Select the report format:</label>
+                <div className="flex items-center gap-2 rounded-lg bg-future-dark p-1 w-min">
+                    <Button variant={selectedFormat === 'csv' ? 'primary' : 'secondary'} onClick={() => setSelectedFormat('csv')} className="w-auto px-4 py-1 text-sm !shadow-none">CSV</Button>
+                    <Button variant={selectedFormat === 'html' ? 'primary' : 'secondary'} onClick={() => setSelectedFormat('html')} className="w-auto px-4 py-1 text-sm !shadow-none">HTML</Button>
+                </div>
+            </div>
+
+            <FileDropzone
+                onFileAccepted={handleFileAccepted}
+                accept={formatConfig[selectedFormat].accept}
+                label={formatConfig[selectedFormat].label}
+            />
+        </div>
+    );
+  };
 
   const renderReviewStage = () => (
     <div className="space-y-4">
@@ -118,7 +211,7 @@ const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose 
             {parsedTrades.length > 50 && <p className="p-2 text-center text-xs text-future-gray">And {parsedTrades.length - 50} more trades...</p>}
         </div>
         <div className="flex justify-end gap-4 pt-4 border-t border-photonic-blue/10">
-            <Button variant="secondary" onClick={() => setStage('upload')} className="w-auto">Back</Button>
+            <Button variant="secondary" onClick={() => resetAndGoTo('upload')} className="w-auto">Back</Button>
             <Button onClick={handleConfirmImport} className="w-auto" disabled={!selectedPlaybookId}>Confirm & Import</Button>
         </div>
     </div>
@@ -147,18 +240,19 @@ const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose 
        <div className="space-y-4 text-center">
             <h3 className="text-lg font-semibold text-risk-high">Import Failed</h3>
             <p className="text-future-gray bg-future-dark/50 p-3 rounded-md">{error}</p>
-            <Button onClick={() => setStage('upload')} className="w-auto">Try Again</Button>
+            <Button onClick={() => resetAndGoTo('upload')} className="w-auto">Try Again</Button>
        </div>
   );
 
   const renderContent = () => {
     switch(stage) {
+        case 'platform': return renderPlatformStage();
+        case 'upload': return renderUploadStage();
         case 'review': return renderReviewStage();
         case 'loading': return renderLoadingStage();
         case 'success': return renderSuccessStage();
         case 'error': return renderErrorStage();
-        case 'upload':
-        default: return renderUploadStage();
+        default: return renderPlatformStage();
     }
   }
 
