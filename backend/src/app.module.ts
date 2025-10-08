@@ -1,6 +1,6 @@
 
 import { Module } from '@nestjs/common';
-import { ConfigModule as NestConfigModule } from '@nestjs/config';
+import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -8,7 +8,6 @@ import { MailModule } from './mail/mail.module';
 import { ConfigModule } from './config/config.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { JoiValidationSchema } from './config/config.schema';
 import { BrokerAccountsModule } from './broker-accounts/broker-accounts.module';
 import { PlaybooksModule } from './playbooks/playbooks.module';
 import { ChecklistRulesModule } from './checklist-rules/checklist-rules.module';
@@ -27,16 +26,21 @@ import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
-    NestConfigModule.forRoot({
-      isGlobal: true,
-      validationSchema: JoiValidationSchema,
-    }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 60,
-    }]),
-    ScheduleModule.forRoot(),
+    // This custom module correctly sets up the global NestConfigModule.
+    // It should be one of the first modules imported.
     ConfigModule,
+    
+    // Configure ThrottlerModule asynchronously to use the ConfigService
+    ThrottlerModule.forRootAsync({
+      imports: [NestConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ([{
+        ttl: config.get<number>('THROTTLE_TTL'),
+        limit: config.get<number>('THROTTLE_LIMIT'),
+      }]),
+    }),
+
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     PrismaModule,
