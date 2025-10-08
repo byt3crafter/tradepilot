@@ -452,7 +452,7 @@ model Analysis {
   instrumentSubtype InstrumentSubtype?
   contract        Json?
   leverage        Int?
-  
+
   // Context
   symbol          String
   assetName       String?
@@ -467,7 +467,7 @@ model Analysis {
   structureNotes  String?
   levels          Json?
   triggers        Json?
-  
+
   // Invalidation & Validity
   invalidation    Json?
   validityStartsAt DateTime?
@@ -479,7 +479,7 @@ model Analysis {
   reviewCycle     ReviewCycle
   nextReviewAt    DateTime
   status          AnalysisStatus @default(WATCHING)
-  
+
   // Meta & Threading
   attachments     Json?
   tags            String[]
@@ -510,10 +510,10 @@ model Notification {
   message    String
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
-  
+
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   analysisId String?  @unique
   analysis   Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
