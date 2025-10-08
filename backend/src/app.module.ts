@@ -1,11 +1,10 @@
 
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { MailModule } from './mail/mail.module';
-import { ConfigModule } from './config/config.module';
 import { ThrottlerGuard, ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { BrokerAccountsModule } from './broker-accounts/broker-accounts.module';
@@ -22,17 +21,21 @@ import { AnalysisModule } from './analysis/analysis.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
+import { JoiValidationSchema } from './config/config.schema';
 
 
 @Module({
   imports: [
-    // This custom module correctly sets up the global NestConfigModule.
-    // It should be one of the first modules imported.
-    ConfigModule,
+    // Configure the official ConfigModule directly. This replaces the custom wrapper.
+    NestConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: JoiValidationSchema,
+      envFilePath: '.env',
+    }),
     
     // Configure ThrottlerModule asynchronously to use the ConfigService
     ThrottlerModule.forRootAsync({
-      imports: [ConfigModule], // Explicitly import ConfigModule here
+      imports: [NestConfigModule], // Explicitly import the official ConfigModule to ensure dependency order.
       inject: [ConfigService],
       useFactory: (config: ConfigService): ThrottlerModuleOptions => ({
         throttlers: [{
