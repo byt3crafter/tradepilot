@@ -30,4 +30,9 @@ export class UserDto {
   
   @Expose()
   proAccessExpiresAt: Date;
+
+  @Expose()
+  featureFlags: {
+    analysisTrackerEnabled: boolean;
+  };
 }

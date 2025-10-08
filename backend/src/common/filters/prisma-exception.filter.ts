@@ -1,18 +1,19 @@
 
+
 import { ArgumentsHost, Catch, HttpStatus } from '@nestjs/common';
 import { AbstractHttpAdapter, BaseExceptionFilter } from '@nestjs/core';
 // FIX: Use named import for Prisma to correctly access namespaced types.
-import { Prisma } from '@prisma/client';
+import * as PrismaAll from '@prisma/client';
 import { Response } from 'express';
 
 
-@Catch(Prisma.PrismaClientKnownRequestError)
+@Catch(PrismaAll.Prisma.PrismaClientKnownRequestError)
 export class PrismaExceptionFilter extends BaseExceptionFilter {
   constructor(applicationRef?: AbstractHttpAdapter) {
     super(applicationRef);
   }
 
-  catch(exception: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
+  catch(exception: PrismaAll.Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 

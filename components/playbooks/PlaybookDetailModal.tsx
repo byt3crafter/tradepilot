@@ -33,8 +33,8 @@ const ChecklistDisplay: React.FC<{ title: string, items: { text: string }[] }> =
 );
 
 const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
-  const { trades, isLoading: tradesLoading } = useTrade();
-  const relevantTrades = trades.filter(trade => trade.playbookId === playbook.id);
+  const { closedTrades, isLoading: tradesLoading } = useTrade();
+  const relevantTrades = closedTrades.filter(trade => trade.playbookId === playbook.id);
 
   return (
     <div className="space-y-6">
@@ -100,7 +100,7 @@ const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-photonic-blue/30">
-                  {['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Net P/L', 'Actions'].map((header, index) => (
+                  {['', '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Net P/L', 'Actions'].map((header, index) => (
                     <th key={header} className={`p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs ${index === 0 ? 'w-12' : ''}`}>
                       {header}
                     </th>
@@ -108,7 +108,8 @@ const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
                 </tr>
               </thead>
               <tbody>
-                {relevantTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => {}} />)}
+                {/* FIX: Add missing isSelected and onSelect props */}
+                {relevantTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => {}} isSelected={false} onSelect={() => {}} />)}
               </tbody>
             </table>
           </div>

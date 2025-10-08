@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import { usePlaybook } from '../../context/PlaybookContext';
-import { Trade, PreTradeCheckResult, AnalyzeChartResult } from '../../types';
+import { Trade, PreTradeCheckResult, AnalyzeChartResult, Direction } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import { useAssets } from '../../context/AssetContext';
 import ImageUploader from './ImageUploader';
@@ -24,7 +24,7 @@ interface TradeFormProps {
 // State for user-editable fields
 interface FormInputState {
   asset: string;
-  direction: 'Buy' | 'Sell';
+  direction: Direction;
   entryDate: string;
   entryPrice: string;
   lotSize: string;
@@ -56,7 +56,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
 
   const [formState, setFormState] = useState<FormInputState>({
     asset: '',
-    direction: 'Buy',
+    direction: Direction.Buy,
     entryDate: toDateTimeLocal(new Date().toISOString()),
     entryPrice: '',
     stopLoss: '',
@@ -82,7 +82,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
     if (isEditMode && tradeToEdit) {
       setFormState({
         asset: tradeToEdit.asset || '',
-        direction: tradeToEdit.direction || 'Buy',
+        direction: tradeToEdit.direction || Direction.Buy,
         entryDate: toDateTimeLocal(tradeToEdit.entryDate),
         entryPrice: tradeToEdit.entryPrice?.toString() ?? '',
         stopLoss: tradeToEdit.stopLoss?.toString() ?? '',
@@ -118,7 +118,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   const handleApplyAutofill = (data: AnalyzeChartResult) => {
     const updates: Partial<FormInputState> = {};
     if (data.asset) updates.asset = data.asset;
-    if (data.direction) updates.direction = data.direction;
+    if (data.direction) updates.direction = data.direction as Direction;
     if (data.entryPrice ?? null !== null) updates.entryPrice = String(data.entryPrice);
     if (data.stopLoss ?? null !== null) updates.stopLoss = String(data.stopLoss);
     if (data.takeProfit ?? null !== null) updates.takeProfit = String(data.takeProfit);

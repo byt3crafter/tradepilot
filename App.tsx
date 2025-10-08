@@ -19,6 +19,8 @@ import { TradeProvider } from './context/TradeContext';
 import AdminPage from './pages/AdminPage';
 import { UIProvider } from './context/UIContext';
 import { AssetProvider } from './context/AssetContext';
+import { AnalysisProvider } from './context/AnalysisContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 export type AuthPage = 'landing' | 'login' | 'signup' | 'forgot-password';
 
@@ -55,7 +57,11 @@ const AuthenticatedApp: React.FC = () => {
                   <ChecklistProvider>
                     <SettingsProvider>
                       <TradeProvider>
-                        <DashboardPage />
+                        <AnalysisProvider>
+                          <NotificationProvider>
+                            <DashboardPage />
+                          </NotificationProvider>
+                        </AnalysisProvider>
                       </TradeProvider>
                     </SettingsProvider>
                   </ChecklistProvider>

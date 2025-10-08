@@ -1,4 +1,5 @@
 
+
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -251,7 +252,56 @@ export class AiService {
             throw new InternalServerErrorException('Failed to get AI sanity check.');
         }
     }
-    
+
+    async generateTradeIdea(asset: string, strategyType: string, screenshotUrl?: string): Promise<string> {
+        const systemInstruction = `You are a professional trading coach. Your goal is to provide educational, textbook examples of trading setups. You must not give financial advice or suggest live trades.`;
+        
+        let prompt;
+        const contents: any = {};
+
+        if (screenshotUrl) {
+            const imagePart = base64ToGenaiPart(screenshotUrl);
+            const textPart = {
+                text: `
+                A trader has provided this chart for **${asset}** and is interested in a **${strategyType}** setup.
+                Analyze the provided chart and describe a potential textbook setup based on what you see.
+                
+                If a clear setup is visible, describe it using these headings: Market Context, The Pattern, Entry Trigger, Stop Loss Placement, Take Profit Target.
+                If no clear setup is visible, state that and then describe what a textbook **${strategyType}** setup *would* look like on this chart.
+                `
+            };
+            contents.parts = [textPart, imagePart];
+        } else {
+            prompt = `
+                Please provide a textbook example of a high-probability **${strategyType}** setup for the instrument **${asset}**.
+                
+                Structure your response with the following clear headings:
+                - **Market Context:** What broader market conditions should be present? (e.g., "The asset should be in a clear uptrend on the daily chart.")
+                - **The Pattern:** Describe the specific chart pattern to look for. (e.g., "Look for a classic Bullish Flag pattern on the 4-hour chart...")
+                - **Entry Trigger:** What is a clear, objective signal to enter the trade? (e.g., "Enter on a decisive candle close above the flag's upper trendline.")
+                - **Stop Loss Placement:** Where would a logical stop loss be placed? (e.g., "Place the stop loss just below the low of the flag's consolidation.")
+                - **Take Profit Target:** How could a take profit target be determined? (e.g., "A common target is measured by projecting the height of the flagpole from the breakout point.")
+            `;
+            contents.parts = [{ text: prompt }];
+        }
+        
+        try {
+            const response = await this.genAI.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: contents,
+                config: { systemInstruction },
+            });
+            if (!response.text) {
+                this.logger.error('AI trade idea generation returned an empty response.');
+                throw new InternalServerErrorException('AI failed to generate an idea.');
+            }
+            return response.text.trim();
+        } catch (error) {
+            this.logger.error('Error getting trade idea from Gemini', error.stack);
+            throw new InternalServerErrorException('Failed to generate trade idea.');
+        }
+    }
+
     private async generateDebrief(context: string, systemInstruction: string, errorContext: string) {
         try {
             const response = await this.genAI.models.generateContent({

@@ -9,6 +9,9 @@ export interface User {
   subscriptionStatus: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
   trialEndsAt: string | null;
   proAccessExpiresAt?: string | null;
+  featureFlags?: {
+    analysisTrackerEnabled?: boolean;
+  };
 }
 
 export enum BrokerAccountType {
@@ -55,7 +58,10 @@ export enum TradeResult {
   Breakeven = 'Breakeven',
 }
 
-export type Direction = 'Buy' | 'Sell';
+export enum Direction {
+  Buy = 'Buy',
+  Sell = 'Sell',
+}
 
 export interface AiAnalysis {
   summary: string;
@@ -301,4 +307,121 @@ export interface AccountAnalytics {
   performanceByAsset: PerformanceByAsset[];
   performanceByDayOfWeek: PerformanceByTime[];
   performanceByHourOfDay: PerformanceByTime[];
+}
+
+// --- NEW: ANALYSIS TRACKER ---
+
+export enum IncomeCategory {
+  ACTIVE_INCOME = 'ACTIVE_INCOME',
+  DAILY_INCOME = 'DAILY_INCOME',
+  WEEKLY_INCOME = 'WEEKLY_INCOME',
+  MONTHLY_INCOME = 'MONTHLY_INCOME',
+  LONG_TERM_INCOME = 'LONG_TERM_INCOME',
+}
+
+export enum AssetClass {
+  FOREX = 'FOREX',
+  INDEX = 'INDEX',
+  METAL = 'METAL',
+  CRYPTO = 'CRYPTO',
+  EQUITY = 'EQUITY',
+  ENERGY = 'ENERGY',
+}
+
+export enum MarketVenue {
+  SPOT = 'SPOT',
+  CFD = 'CFD',
+  FUTURES = 'FUTURES',
+  PERP = 'PERP',
+  OPTIONS = 'OPTIONS',
+}
+
+export enum InstrumentSubtype {
+  FOREX_PAIR = 'FOREX_PAIR',
+  INDEX_CFD = 'INDEX_CFD',
+  METAL_CFD = 'METAL_CFD',
+  METAL_FUT = 'METAL_FUT',
+  CRYPTO_SPOT = 'CRYPTO_SPOT',
+  CRYPTO_PERP = 'CRYPTO_PERP',
+  INDEX_FUT = 'INDEX_FUT',
+  EQUITY_CFD = 'EQUITY_CFD',
+  EQUITY_SPOT = 'EQUITY_SPOT',
+}
+
+export enum ReviewCycle {
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+  MONTHLY = 'MONTHLY',
+  QUARTERLY = 'QUARTERLY',
+}
+
+export enum AnalysisStatus {
+  WATCHING = 'WATCHING',
+  ALERTED = 'ALERTED',
+  TRIGGERED = 'TRIGGERED',
+  EXECUTED = 'EXECUTED',
+  MISSED = 'MISSED',
+  EXPIRED = 'EXPIRED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export interface Analysis {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  screenshotUrls: string[];
+
+  // Classification
+  category: IncomeCategory;
+  assetClass: AssetClass;
+  marketVenue: MarketVenue;
+  instrumentSubtype?: InstrumentSubtype | null;
+  contract?: any | null; // JSON
+  leverage?: number | null;
+
+  // Context
+  symbol: string;
+  assetName?: string | null;
+  exchange?: string | null;
+  quote?: any | null; // JSON
+  brokerId: string;
+
+  // Platforms
+  platforms?: any | null; // JSON
+
+  // Analysis Details
+  htf?: string | null; // Higher Time Frame
+  ltf: string[]; // Lower Time Frames
+  directionalBias: Direction;
+  structureNotes?: string | null; // Markdown
+  levels?: any | null; // JSON
+  triggers?: any | null; // JSON
+
+  // Invalidation & Validity
+  invalidation?: any | null; // JSON
+  validityStartsAt?: string | null;
+  validityExpiresAt?: string | null;
+
+  // Review & Status
+  reviewCycle: ReviewCycle;
+  nextReviewAt: string;
+  status: AnalysisStatus;
+
+  // Meta & Threading
+  tags: string[];
+  revision: number;
+  parentAnalysisId?: string | null;
+  
+  // Relations
+  userId: string;
+  sessionId?: string | null;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  userId: string;
+  analysisId?: string | null;
 }

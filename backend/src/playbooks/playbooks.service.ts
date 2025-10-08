@@ -1,4 +1,5 @@
 
+
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlaybookDto } from './dtos/create-playbook.dto';
@@ -121,7 +122,7 @@ export class PlaybooksService {
     if (!playbook) {
       throw new NotFoundException(`Playbook with ID ${id} not found.`);
     }
-    if (playbook.userId !== userId) {
+    if (playbook.userId !== userId && !playbook.isPublic) {
       throw new ForbiddenException('You are not authorized to access this playbook.');
     }
     return transform ? this.transformPlaybook(playbook) : playbook;
@@ -233,7 +234,7 @@ export class PlaybooksService {
 
     let cumulativePL = 0;
     const equityCurve = closedTrades.map((trade: Trade) => {
-        const tradeNetPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
+        const tradeNetPL = (trade.profitLoss ?? 0);
         cumulativePL += tradeNetPL;
         return {
             date: trade.exitDate!.toISOString().split('T')[0],

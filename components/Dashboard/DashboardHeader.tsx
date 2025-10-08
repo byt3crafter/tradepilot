@@ -9,6 +9,7 @@ import Tooltip from '../ui/Tooltip';
 import { PlusIcon } from '../icons/PlusIcon';
 import { useUI } from '../../context/UIContext';
 import { useView } from '../../context/ViewContext';
+import NotificationBell from '../notifications/NotificationBell';
 
 const DashboardHeader: React.FC = () => {
     const { user } = useAuth();
@@ -68,6 +69,10 @@ const DashboardHeader: React.FC = () => {
                         <PlusIcon className="w-6 h-6" />
                     </button>
                 </Tooltip>
+                
+                {user?.featureFlags?.analysisTrackerEnabled && (
+                    <NotificationBell />
+                )}
             </div>
         </div>
     );

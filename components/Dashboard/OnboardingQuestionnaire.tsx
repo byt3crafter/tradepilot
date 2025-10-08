@@ -54,7 +54,7 @@ const OnboardingQuestionnaire: React.FC<OnboardingQuestionnaireProps> = ({ onCom
     <Card className="max-w-3xl mx-auto">
       <form onSubmit={handleSubmit}>
         <div className="text-center mb-8">
-            <h2 className="text-2xl font-orbitron text-photonic-blue">Welcome to tradePilot</h2>
+            <h2 className="text-2xl font-orbitron text-photonic-blue">Welcome to JTradePilot</h2>
             <p className="text-future-gray mt-2">Let's personalize your experience. Tell us a bit about your trading journey.</p>
         </div>
         

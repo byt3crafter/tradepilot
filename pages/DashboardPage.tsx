@@ -13,13 +13,14 @@ import SubscriptionPage from './SubscriptionPage';
 import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 import AnalyticsPage from './AnalyticsPage';
+import AnalysisPage from './AnalysisPage';
 
-export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription';
+export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker';
 export type SettingsSubView = 'accounts' | 'checklist' | 'security' | 'assets';
 
 const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isTrialing } = useAuth();
+  const { user, isTrialing } = useAuth();
   const { currentView } = useView();
   const { isSidebarCollapsed } = useUI();
 
@@ -37,6 +38,8 @@ const DashboardPage: React.FC = () => {
         return <SettingsPage />;
       case 'subscription':
         return <SubscriptionPage />;
+      case 'analysis-tracker':
+        return user?.featureFlags?.analysisTrackerEnabled ? <AnalysisPage /> : <Dashboard />;
       case 'dashboard':
       default:
         return <Dashboard />;
@@ -49,16 +52,19 @@ const DashboardPage: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <div className={`transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-56'}`}>
+      <div className={`relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-56'}`}>
         {isTrialing && <TrialBanner />}
-        <main className="p-4 sm:p-6 lg:p-8">
-           <button 
+
+        <header className="p-4 md:hidden">
+          <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="md:hidden p-1 mb-4 rounded-md text-future-gray hover:bg-future-panel"
+            className="p-1 rounded-md text-future-gray hover:bg-future-panel"
             aria-label="Open sidebar"
           >
             <MenuIcon className="w-6 h-6" />
           </button>
+        </header>
+        <main className="p-4 sm:p-6 lg:p-8">
           {renderView()}
         </main>
       </div>

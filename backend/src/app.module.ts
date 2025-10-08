@@ -1,3 +1,4 @@
+
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +19,10 @@ import { AdminModule } from './admin/admin.module';
 import { TradeJournalsModule } from './trade-journals/trade-journals.module';
 import { AssetsModule } from './assets/assets.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { AnalysisModule } from './analysis/analysis.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TasksModule } from './tasks/tasks.module';
 
 
 @Module({
@@ -30,6 +35,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
       ttl: 60000,
       limit: 60,
     }]),
+    ScheduleModule.forRoot(),
     ConfigModule,
     AuthModule,
     UsersModule,
@@ -45,6 +51,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
     TradeJournalsModule,
     AssetsModule,
     AnalyticsModule,
+    AnalysisModule,
+    NotificationsModule,
+    TasksModule,
   ],
   controllers: [],
   providers: [

@@ -123,7 +123,7 @@ const SubscriptionPage: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
         <div className="mb-8">
           <h1 className="text-3xl font-orbitron text-future-light">Subscription</h1>
-          <p className="text-future-gray">You have full access to all tradePilot features.</p>
+          <p className="text-future-gray">You have full access to all JTradePilot features.</p>
         </div>
         <Card>
           <div className="text-center p-8">
@@ -144,12 +144,12 @@ const SubscriptionPage: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
         <div className="mb-8">
           <h1 className="text-3xl font-orbitron text-future-light">Subscription</h1>
-          <p className="text-future-gray">You have full access to all tradePilot features.</p>
+          <p className="text-future-gray">You have full access to all JTradePilot features.</p>
         </div>
         <Card>
           <div className="text-center p-8">
             <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green" />
-            <h3 className="text-xl font-semibold text-momentum-green mt-4">Welcome to tradePilot Pro!</h3>
+            <h3 className="text-xl font-semibold text-momentum-green mt-4">Welcome to JTradePilot Pro!</h3>
             <p className="text-future-gray mt-2">Your subscription is active. Manage or cancel anytime.</p>
           </div>
         </Card>
@@ -161,7 +161,7 @@ const SubscriptionPage: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
       <div className="mb-8">
         <h1 className="text-3xl font-orbitron text-future-light">Subscription</h1>
-        <p className="text-future-gray">Manage your tradePilot subscription plan.</p>
+        <p className="text-future-gray">Manage your JTradePilot subscription plan.</p>
       </div>
 
       <Card>
@@ -180,7 +180,7 @@ const SubscriptionPage: React.FC = () => {
         </div>
 
         <div className="mt-6 text-center">
-          <h3 className="text-lg font-semibold text-future-light">Upgrade to tradePilot Pro</h3>
+          <h3 className="text-lg font-semibold text-future-light">Upgrade to JTradePilot Pro</h3>
           <p className="text-future-gray mt-2 mb-4">Unlock unlimited trade logging, AI insights, and all future updates.</p>
 
           {/* Button content changes by stage */}

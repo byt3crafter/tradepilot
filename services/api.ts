@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics, Analysis, Notification } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -59,6 +59,20 @@ interface ApiService {
   // Trade Journals
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal>;
+
+  // Analysis Tracker
+  getAnalyses(brokerAccountId: string, token: string): Promise<Analysis[]>;
+  createAnalysis(data: Partial<Analysis>, token: string): Promise<Analysis>;
+  updateAnalysis(id: string, data: Partial<Analysis>, token: string): Promise<Analysis>;
+  deleteAnalysis(id: string, token: string): Promise<{ message: string }>;
+  
+  // Notifications
+  getNotifications(token: string): Promise<Notification[]>;
+  markNotificationAsRead(id: string, token: string): Promise<Notification>;
+
+
+  // AI
+  generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }>;
 
   // Billing
   getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
@@ -356,7 +370,34 @@ const api: ApiService = {
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal> {
     return this.patch(`/api/trade-journals/${journalId}`, data, token);
   },
+
+  // Analysis Tracker Methods
+  getAnalyses(brokerAccountId: string, token: string): Promise<Analysis[]> {
+    return this.get(`/api/analysis?brokerAccountId=${brokerAccountId}`, token);
+  },
+  createAnalysis(data: Partial<Analysis>, token: string): Promise<Analysis> {
+    return this.post('/api/analysis', data, token);
+  },
+  updateAnalysis(id: string, data: Partial<Analysis>, token: string): Promise<Analysis> {
+    return this.patch(`/api/analysis/${id}`, data, token);
+  },
+  deleteAnalysis(id: string, token: string): Promise<{ message: string }> {
+    return this.delete(`/api/analysis/${id}`, token);
+  },
   
+  // Notification Methods
+  getNotifications(token: string): Promise<Notification[]> {
+    return this.get('/api/notifications', token);
+  },
+  markNotificationAsRead(id: string, token: string): Promise<Notification> {
+    return this.patch(`/api/notifications/${id}/read`, {}, token);
+  },
+  
+  // AI Methods
+  generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }> {
+    return this.post('/api/ai/generate-idea', data, token);
+  },
+
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> {
     return this.get('/api/billing/config', token);

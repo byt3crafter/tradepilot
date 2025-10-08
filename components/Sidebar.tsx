@@ -22,6 +22,7 @@ import Tooltip from './ui/Tooltip';
 import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import { AnalyticsIcon } from './icons/AnalyticsIcon';
+import { TrackerIcon } from './icons/TrackerIcon';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -267,7 +268,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             className={`${
               isSidebarCollapsed ? 'w-12 h-12 mx-auto grid place-items-center' : 'w-full'
             } rounded-lg focus:outline-none focus:ring-1 focus:ring-photonic-blue/40`}
-            aria-label="TradePilot Home"
+            aria-label="JTradePilot Home"
           >
             {isSidebarCollapsed ? (
               <AuthMark size={22} />
@@ -289,6 +290,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onClick={() => handleSetView('dashboard')}
             isCollapsed={isSidebarCollapsed}
           />
+          {user.featureFlags?.analysisTrackerEnabled && (
+            <NavItem
+              icon={<TrackerIcon className="w-6 h-6" />}
+              label="Tracker"
+              isActive={currentView === 'analysis-tracker'}
+              onClick={() => handleSetView('analysis-tracker')}
+              isCollapsed={isSidebarCollapsed}
+            />
+          )}
           <NavItem
             icon={<JournalIcon className="w-6 h-6" />}
             label="Trade Journal"

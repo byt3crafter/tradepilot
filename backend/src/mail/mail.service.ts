@@ -38,9 +38,9 @@ export class MailService {
   async sendVerificationEmail(email: string, token: string) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const verificationLink = `${frontendUrl}/verify-email?token=${token}`;
-    const subject = 'Welcome to tradePilot! Please Verify Your Email';
+    const subject = 'Welcome to JTradePilot! Please Verify Your Email';
     const html = this.generateStyledEmail(
-        'Welcome to tradePilot!',
+        'Welcome to JTradePilot!',
         'Thank you for registering. Please click the button below to verify your email address and activate your account.',
         verificationLink,
         'Verify Email Address'
@@ -51,10 +51,10 @@ export class MailService {
   async sendPasswordResetEmail(email: string, token: string) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
-    const subject = 'tradePilot: Password Reset Request';
+    const subject = 'JTradePilot: Password Reset Request';
      const html = this.generateStyledEmail(
         'Password Reset Request',
-        'You recently requested to reset your password for your tradePilot account. Click the button below to reset it. If you did not request a password reset, please ignore this email.',
+        'You recently requested to reset your password for your JTradePilot account. Click the button below to reset it. If you did not request a password reset, please ignore this email.',
         resetLink,
         'Reset Your Password'
     );
@@ -64,7 +64,7 @@ export class MailService {
   async sendChangeEmailVerification(newEmail: string, token: string) {
     const appUrl = this.configService.get<string>('APP_URL');
     const verificationLink = `${appUrl}/auth/verify-email-change?token=${token}`;
-    const subject = 'tradePilot: Confirm Your New Email Address';
+    const subject = 'JTradePilot: Confirm Your New Email Address';
     const html = this.generateStyledEmail(
         'Confirm Your New Email',
         'Please click the button below to confirm your new email address.',
@@ -96,7 +96,7 @@ export class MailService {
       <body>
           <div class="container">
               <div class="header">
-                  <h1>tradePilot</h1>
+                  <h1>JTradePilot</h1>
               </div>
               <div class="content">
                   <h2>${title}</h2>
@@ -108,7 +108,7 @@ export class MailService {
                   <p style="font-size: 12px; word-break: break-all;">${link}</p>
               </div>
               <div class="footer">
-                  &copy; ${new Date().getFullYear()} tradePilot. All rights reserved.
+                  &copy; ${new Date().getFullYear()} JTradePilot. All rights reserved.
               </div>
           </div>
       </body>

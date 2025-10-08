@@ -1,7 +1,7 @@
 {
-  "name": "tradepilot-backend",
+  "name": "jtradepilot-backend",
   "version": "0.0.1",
-  "description": "Backend for tradePilot application",
+  "description": "Backend for JTradePilot application",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -32,6 +32,7 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.3.8",
+    "@nestjs/schedule": "^4.0.2",
     "@nestjs/throttler": "^5.1.2",
     "@paddle/paddle-node-sdk": "^1.1.0",
     "@prisma/client": "^5.15.0",

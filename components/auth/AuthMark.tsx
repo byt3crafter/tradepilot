@@ -10,9 +10,9 @@ const AuthMark: React.FC<AuthMarkProps> = ({ className = '', size = 20 }) => {
     <span
       className={`font-orbitron font-bold text-photonic-blue drop-shadow-[0_0_6px_rgba(0,191,255,0.65)] ${className}`}
       style={{ fontSize: size }}
-      aria-label="TradePilot"
+      aria-label="JTradePilot"
     >
-      TP
+      JTP
     </span>
   );
 };

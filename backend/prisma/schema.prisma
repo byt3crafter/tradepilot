@@ -53,6 +53,60 @@ enum ChecklistItemType {
   RISK_MANAGEMENT
 }
 
+// --- NEW: ANALYSIS TRACKER ENUMS ---
+enum IncomeCategory {
+  ACTIVE_INCOME
+  DAILY_INCOME
+  WEEKLY_INCOME
+  MONTHLY_INCOME
+  LONG_TERM_INCOME
+}
+
+enum AssetClass {
+  FOREX
+  INDEX
+  METAL
+  CRYPTO
+  EQUITY
+  ENERGY
+}
+
+enum MarketVenue {
+  SPOT
+  CFD
+  FUTURES
+  PERP
+  OPTIONS
+}
+
+enum InstrumentSubtype {
+  FOREX_PAIR
+  INDEX_CFD
+  METAL_CFD
+  METAL_FUT
+  CRYPTO_SPOT
+  CRYPTO_PERP
+  INDEX_FUT
+  EQUITY_CFD
+  EQUITY_SPOT
+}
+
+enum ReviewCycle {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum AnalysisStatus {
+  WATCHING
+  ALERTED
+  TRIGGERED
+  EXECUTED
+  MISSED
+  EXPIRED
+  ARCHIVED
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Models
@@ -87,6 +141,11 @@ model User {
   checklistRules      ChecklistRule[]
   trades              Trade[]
   assetSpecifications AssetSpecification[]
+
+  // Analysis Tracker
+  analysisSessions AnalysisSession[]
+  analyses         Analysis[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -161,6 +220,10 @@ model BrokerAccount {
   trades         Trade[]
   objectives     TradingObjective?
   smartLimits    SmartLimit?
+
+  // Analysis Tracker
+  analyses Analysis[]
+
   @@index([userId])
   @@map("broker_accounts")
 }
@@ -193,8 +256,8 @@ model Playbook {
 }
 
 model PlaybookSetup {
-  id        String   @id @default(cuid())
-  name      String
+  id                  String   @id @default(cuid())
+  name                String
   screenshotBeforeUrl String?
   screenshotAfterUrl  String?
 
@@ -238,24 +301,23 @@ model ChecklistRule {
 // ───────────────────────────────────────────────────────────────────────────────
 
 model Trade {
-  id             String       @id @default(cuid())
-  asset          String
-  entryDate      DateTime     @default(now())
-  exitDate       DateTime?
-  direction      Direction
-  entryPrice     Float
-  exitPrice      Float?
-  riskPercentage Float
-  rr             Float?
-  profitLoss     Float?
-  result         TradeResult?
-  isPendingOrder Boolean      @default(false)
-  lotSize        Float?
-  stopLoss       Float?
-  takeProfit     Float?
-  commission     Float?
-  swap           Float?
-
+  id                  String       @id @default(cuid())
+  asset               String
+  entryDate           DateTime     @default(now())
+  exitDate            DateTime?
+  direction           Direction
+  entryPrice          Float
+  exitPrice           Float?
+  riskPercentage      Float
+  rr                  Float?
+  profitLoss          Float?
+  result              TradeResult?
+  isPendingOrder      Boolean      @default(false)
+  lotSize             Float?
+  stopLoss            Float?
+  takeProfit          Float?
+  commission          Float?
+  swap                Float?
   screenshotBeforeUrl String?
   screenshotAfterUrl  String?
 
@@ -263,10 +325,10 @@ model Trade {
   tradeJournal TradeJournal?
 
   // Relations
-  userId        String
-  user          User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   brokerAccountId String
-  brokerAccount BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
   playbookId String
   playbook   Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
@@ -336,17 +398,125 @@ model SmartLimit {
 // ───────────────────────────────────────────────────────────────────────────────
 
 model AssetSpecification {
-  id            String @id @default(cuid())
+  id            String  @id @default(cuid())
   symbol        String
   name          String
-  valuePerPoint Float
-  pipSize       Float
-  lotSize       Float
-  quoteCurrency String @default("USD")
+  valuePerPoint Float?
+  pipSize       Float?
+  lotSize       Float?
+  quoteCurrency String  @default("USD")
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, symbol]) // Ensure a user can only have one spec per symbol
   @@map("asset_specifications")
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Analysis Tracker
+// ───────────────────────────────────────────────────────────────────────────────
+
+model AnalysisSession {
+  id          String   @id @default(cuid())
+  name        String // e.g., "Week 42 Prep", "Ad-hoc FX Review"
+  description String?
+  isArchived  Boolean  @default(false)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analyses Analysis[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("analysis_sessions")
+}
+
+model Analysis {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId       String?
+  session         AnalysisSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  brokerId        String
+  brokerAccount   BrokerAccount @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  screenshotUrls  String[]
+
+  // Classification
+  category        IncomeCategory
+  assetClass      AssetClass
+  marketVenue     MarketVenue
+  instrumentSubtype InstrumentSubtype?
+  contract        Json?
+  leverage        Int?
+  
+  // Context
+  symbol          String
+  assetName       String?
+  exchange        String?
+  quote           Json?
+  platforms       Json?
+
+  // Analysis Details
+  htf             String?
+  ltf             String[]
+  directionalBias Direction
+  structureNotes  String?
+  levels          Json?
+  triggers        Json?
+  
+  // Invalidation & Validity
+  invalidation    Json?
+  validityStartsAt DateTime?
+  validityExpiresAt DateTime?
+  invalidatedAt   DateTime?
+  invalidReason   String?
+
+  // Review & Status
+  reviewCycle     ReviewCycle
+  nextReviewAt    DateTime
+  status          AnalysisStatus @default(WATCHING)
+  
+  // Meta & Threading
+  attachments     Json?
+  tags            String[]
+  activityLog     Json?
+  revision        Int      @default(1)
+
+  parentAnalysisId String?
+  parentAnalysis   Analysis? @relation("AnalysisRevisions", fields: [parentAnalysisId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  revisions        Analysis[] @relation("AnalysisRevisions")
+
+  notification Notification?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([brokerId])
+  @@index([parentAnalysisId])
+  @@map("analyses")
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Notifications
+// ───────────────────────────────────────────────────────────────────────────────
+model Notification {
+  id         String   @id @default(cuid())
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  analysisId String?  @unique
+  analysis   Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notifications")
 }

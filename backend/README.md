@@ -1,6 +1,6 @@
-# tradePilot Backend
+# JTradePilot Backend
 
-This is the NestJS backend for the tradePilot application, providing a complete authentication and user management system.
+This is the NestJS backend for the JTradePilot application, providing a complete authentication and user management system.
 
 ## Features
 
@@ -65,8 +65,8 @@ EMAIL_VERIFY_TOKEN_TTL=24h
 PASSWORD_RESET_TOKEN_TTL=1h
 
 # Email Configuration
-EMAIL_FROM_NAME="tradePilot"
-EMAIL_FROM=noreply@tradepilot.com
+EMAIL_FROM_NAME="JTradePilot"
+EMAIL_FROM=noreply@jtradepilot.com
 SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_USER=
@@ -78,4 +78,5 @@ THROTTLE_TTL=60000
 THROTTLE_LIMIT=10
 
 # Google Gemini AI
-GEM
+API_KEY=your_gemini_api_key
+```

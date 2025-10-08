@@ -72,8 +72,8 @@ export class AnalyticsService {
         }
     });
 
-    const averagePips = totalPips / trades.length;
-    const averageTradeDurationMinutes = (totalHoldTimeMs / trades.length) / 60000;
+    const averagePips = trades.length > 0 ? totalPips / trades.length : 0;
+    const averageTradeDurationMinutes = trades.length > 0 ? (totalHoldTimeMs / trades.length) / 60000 : 0;
 
     // --- Performance by Asset ---
     const assetPerformanceMap = new Map<string, { totalTrades: number, netPL: number, wins: number, totalPips: number }>();

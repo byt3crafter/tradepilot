@@ -16,7 +16,7 @@ interface LiveTradeRowProps {
 }
 
 const DirectionIndicator: React.FC<{ direction: Direction }> = ({ direction }) => {
-    const isBuy = direction === 'Buy';
+    const isBuy = direction === Direction.Buy;
     const colorClass = isBuy ? 'text-momentum-green' : 'text-risk-high';
     const Icon = isBuy ? ArrowUpIcon : ArrowDownIcon;
 

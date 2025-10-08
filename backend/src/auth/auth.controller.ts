@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query, Req, Res, UseGuards, Patch, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, UseGuards, Patch, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
@@ -12,6 +12,7 @@ import { ChangeEmailDto } from './dtos/change-email.dto';
 import { ResendVerificationDto } from './dtos/resend-verification.dto';
 import { Throttle } from '@nestjs/throttler';
 import { VerifyEmailDto } from './dtos/verify-email.dto';
+import { ConfigService } from '@nestjs/config';
 
 // Define a type for Express request objects augmented by Passport
 interface AuthenticatedRequest extends Request {
@@ -24,7 +25,21 @@ interface AuthenticatedRequest extends Request {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+      private readonly authService: AuthService,
+      private readonly configService: ConfigService,
+  ) {}
+
+  private getCookieOptions() {
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const path = isProduction ? '/auth/refresh' : '/api/auth/refresh';
+    return {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax' | 'strict' | undefined,
+      path,
+    };
+  }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
@@ -61,12 +76,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } = await this.authService.login(loginDto, ip, userAgent);
 
     // FIX: Cast res to any to access cookie method
-    (res as any).cookie('refresh_token', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        path: '/auth/refresh',
-    });
+    (res as any).cookie('refresh_token', refreshToken, this.getCookieOptions());
 
     return { accessToken, user };
   }
@@ -85,12 +95,7 @@ export class AuthController {
     const { newAccessToken, newRefreshToken } = await this.authService.rotateRefreshToken(userId, oldRefreshToken);
 
     // FIX: Cast res to any to access cookie method
-    (res as any).cookie('refresh_token', newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        path: '/auth/refresh',
-    });
+    (res as any).cookie('refresh_token', newRefreshToken, this.getCookieOptions());
     
     return { accessToken: newAccessToken };
   }
@@ -104,7 +109,7 @@ export class AuthController {
         await this.authService.logout(refreshToken);
       }
       // FIX: Cast res to any to access clearCookie method
-      (res as any).clearCookie('refresh_token', { path: '/auth/refresh' });
+      (res as any).clearCookie('refresh_token', { path: this.getCookieOptions().path });
       return { message: 'Logged out successfully.' };
   }
 

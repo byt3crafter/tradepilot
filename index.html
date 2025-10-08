@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>tradePilot</title>
+  <title>JTradePilot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -173,7 +173,7 @@
   
   - For local development (e.g., http://localhost:5173), it defaults
     to 'http://localhost:8080'.
-  - In a production environment (e.g., https://tradepilot.micinthe.com),
+  - In a production environment (e.g., https://jtradepilot.micinthe.com),
     it uses the current domain as the API base URL.
   ==================================================================
   -->
@@ -184,7 +184,7 @@
         ? 'http://localhost:8080' 
         : window.location.origin;
 
-      console.log('[tradePilot] API URL configured for:', apiUrl);
+      console.log('[JTradePilot] API URL configured for:', apiUrl);
 
       return {
         API_URL: apiUrl

@@ -42,4 +42,7 @@ export const JoiValidationSchema = Joi.object({
   PADDLE_WEBHOOK_SECRET: Joi.string().required(),
   PADDLE_PRICE_ID: Joi.string().required(),
   PADDLE_ENV: Joi.string().valid('sandbox', 'production').default('sandbox'),
+
+  // Feature Flags
+  ANALYSIS_TRACKER_ENABLED: Joi.boolean().default(false),
 });
