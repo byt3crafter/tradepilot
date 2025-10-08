@@ -93,6 +93,7 @@ export interface Trade {
   takeProfit?: number | null;
   commission?: number | null;
   swap?: number | null;
+  pips?: number | null;
 
   screenshotBeforeUrl?: string | null;
   screenshotAfterUrl?: string | null;
@@ -219,6 +220,7 @@ export interface ObjectiveProgress {
   remaining?: number;
   status: 'Success' | 'In Progress' | 'Failed';
   type: 'progress' | 'simple';
+  format?: 'currency' | 'days';
 }
 
 // Smart Limits Progress Type
@@ -274,4 +276,29 @@ export interface ParsedTradeData {
   exitPrice: number;
   lotSize: number | null;
   profitLoss: number | null;
+}
+
+// --- NEW: Advanced Analytics Types ---
+export interface PerformanceByAsset {
+  symbol: string;
+  totalTrades: number;
+  netPL: number;
+  winRate: number;
+  totalPips: number;
+}
+export interface PerformanceByTime {
+  key: string; // e.g., 'Monday' or '09' (for 9 AM)
+  netPL: number;
+  totalTrades: number;
+}
+
+export interface AccountAnalytics {
+  largestWinningTrade: number;
+  largestLosingTrade: number;
+  totalPips: number;
+  averagePips: number;
+  averageTradeDurationMinutes: number;
+  performanceByAsset: PerformanceByAsset[];
+  performanceByDayOfWeek: PerformanceByTime[];
+  performanceByHourOfDay: PerformanceByTime[];
 }

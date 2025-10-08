@@ -1,4 +1,4 @@
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics } from "../types";
 
 // The API_URL is configured in a <script> tag within index.html
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
@@ -29,6 +29,7 @@ interface ApiService {
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress>;
   getWeeklyDebrief(accountId: string, token: string): Promise<{ debrief: string }>;
   getDailyDebrief(accountId: string, token: string): Promise<{ debrief: string }>;
+  getAnalytics(accountId: string, token: string, params?: { startDate?: string; endDate?: string }): Promise<AccountAnalytics>;
 
   // Playbooks
   getPlaybooks(token: string): Promise<Playbook[]>;
@@ -246,115 +247,99 @@ const api: ApiService = {
 
   // Broker Account Methods
   getAccounts(token: string): Promise<BrokerAccount[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/broker-accounts', token);
   },
 
   createAccount(data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/broker-accounts', data, token);
   },
   
   updateAccount(id: string, data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/broker-accounts/${id}`, data, token);
   },
 
   deleteAccount(id: string, token: string): Promise<{ message: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/broker-accounts/${id}`, token);
   },
   
   getObjectivesProgress(id: string, token: string): Promise<ObjectiveProgress[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get(`/api/broker-accounts/${id}/objectives`, token);
   },
 
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress> {
-    // FIX: Removed explicit generic type argument.
     return this.get(`/api/broker-accounts/${id}/smart-limits-progress`, token);
   },
   
   getWeeklyDebrief(accountId: string, token: string): Promise<{ debrief: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.post(`/api/broker-accounts/${accountId}/weekly-debrief`, {}, token);
   },
 
   getDailyDebrief(accountId: string, token: string): Promise<{ debrief: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.post(`/api/broker-accounts/${accountId}/daily-debrief`, {}, token);
+  },
+
+  getAnalytics(accountId: string, token: string, params?: { startDate?: string; endDate?: string }): Promise<AccountAnalytics> {
+    const query = new URLSearchParams();
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
+    const queryString = query.toString();
+    return this.get(`/api/analytics/${accountId}${queryString ? `?${queryString}` : ''}`, token);
   },
 
   // Playbook Methods
   getPlaybooks(token: string): Promise<Playbook[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/playbooks', token);
   },
   getCommunityPlaybooks(token: string): Promise<CommunityPlaybook[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/playbooks/community', token);
   },
   createPlaybook(data: Partial<Playbook>, token: string): Promise<Playbook> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/playbooks', data, token);
   },
   updatePlaybook(id: string, data: Partial<Playbook>, token: string): Promise<Playbook> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/playbooks/${id}`, data, token);
   },
   deletePlaybook(id: string, token: string): Promise<{ message: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/playbooks/${id}`, token);
   },
   getPlaybookStats(id: string, token: string): Promise<PlaybookStats> {
-    // FIX: Removed explicit generic type argument.
     return this.get(`/api/playbooks/${id}/stats`, token);
   },
 
   // Checklist Rule Methods
   getChecklistRules(token: string): Promise<ChecklistRule[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/checklist-rules', token);
   },
   createChecklistRule(data: { rule: string }, token: string): Promise<ChecklistRule> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/checklist-rules', data, token);
   },
   updateChecklistRule(id: string, data: { rule: string }, token: string): Promise<ChecklistRule> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/checklist-rules/${id}`, data, token);
   },
   deleteChecklistRule(id: string, token: string): Promise<{ message: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/checklist-rules/${id}`, token);
   },
 
   // Trade Methods
   getTrades(brokerAccountId: string, token: string): Promise<Trade[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get(`/api/trades?brokerAccountId=${brokerAccountId}`, token);
   },
   createTrade(data: Partial<Trade>, token: string): Promise<Trade> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/trades', data, token);
   },
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/trades/${id}`, data, token);
   },
   deleteTrade(id: string, token: string): Promise<{ message: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/trades/${id}`, token);
   },
   bulkDeleteTrades(tradeIds: string[], token: string): Promise<{ message: string }> {
     return this.post('/api/trades/bulk-delete', { tradeIds }, token);
   },
   analyzeTrade(id: string, token: string): Promise<Trade> {
-    // FIX: Removed explicit generic type argument.
     return this.post(`/api/trades/${id}/analyze`, {}, token);
   },
   preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/trades/pre-trade-check', data, token);
   },
   analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult> {
@@ -366,61 +351,48 @@ const api: ApiService = {
 
   // Trade Journal Methods
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal> {
-    // FIX: Removed explicit generic type argument.
     return this.post(`/api/trades/${tradeId}/journal`, data, token);
   },
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/trade-journals/${journalId}`, data, token);
   },
   
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/billing/config', token);
   },
   createCheckoutTransaction(token: string): Promise<{ transactionId: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/billing/checkout', {}, token);
   },
   
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/admin/stats', token);
   },
   getAdminUsers(token: string): Promise<AdminUser[]> {
-    // FIX: Removed explicit generic type argument.
     return this.get('/api/admin/users', token);
   },
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/admin/users/${userId}/grant-pro`, data, token);
   },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/admin/users/${userId}/grant-pro`, token);
   },
   deleteUser(userId: string, token: string): Promise<{ message: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/admin/users/${userId}`, token);
   },
 
   // Asset Methods
   getAssetSpecs(token: string): Promise<AssetSpecification[]> {
-      // FIX: Removed explicit generic type argument.
       return this.get('/api/assets/specs', token);
   },
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
-    // FIX: Removed explicit generic type argument.
     return this.post('/api/assets', data, token);
   },
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> {
-    // FIX: Removed explicit generic type argument.
     return this.patch(`/api/assets/${id}`, data, token);
   },
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }> {
-    // FIX: Removed explicit generic type argument.
     return this.delete(`/api/assets/${id}`, token);
   }
 };

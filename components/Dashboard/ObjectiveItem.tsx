@@ -49,7 +49,7 @@ const CountdownTimer: React.FC = () => {
 
 
 const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
-  const { title, status, currentValue, targetValue, type, key } = objective;
+  const { title, status, currentValue, targetValue, type, key, format = 'currency' } = objective;
 
   const progressPercentage = targetValue > 0 ? (currentValue / targetValue) * 100 : 0;
   
@@ -60,24 +60,27 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
   let barColor = 'bg-photonic-blue'; // Default for profit target
   if (isFailed) barColor = 'bg-risk-high';
   else if (isSuccess) barColor = 'bg-momentum-green';
-  else if (isLossRule) barColor = 'bg-risk-high'; // Loss rules should have a red bar
+  else if (isLossRule) barColor = 'bg-risk-high';
 
   let valueColor = 'text-future-light';
-  if (key === 'profitTarget') {
-    if (currentValue < 0) {
+  if (format === 'currency') {
+    if (key === 'profitTarget') {
+      if (currentValue < 0) valueColor = 'text-risk-high';
+      else if (currentValue > 0) valueColor = 'text-momentum-green';
+    } else if (isLossRule && currentValue > 0) {
       valueColor = 'text-risk-high';
-    } else if (currentValue > 0) {
-      valueColor = 'text-momentum-green';
     }
-  } else if (isLossRule && currentValue > 0) {
-    valueColor = 'text-risk-high';
   }
-
-  const formatCurrency = (val?: number) => {
-    if (val === undefined || val === null) return '$-.--';
-    const prefix = val < 0 ? '-$' : '$';
-    return `${prefix}${Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  
+  const formatValue = (val?: number) => {
+    if (val === undefined || val === null) return format === 'currency' ? '$-.--' : '-';
+    if (format === 'currency') {
+        const prefix = val < 0 ? '-$' : '$';
+        return `${prefix}${Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return val.toLocaleString();
   };
+
 
   return (
     <Card className={`p-3 flex flex-col h-full ${isFailed ? 'border-risk-high/30' : ''} ${isSuccess ? 'border-momentum-green/30' : ''}`}>
@@ -92,12 +95,9 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
 
       <div className="flex-grow flex flex-col justify-end mt-2">
         <div className={`text-xl font-orbitron ${valueColor}`}>
-          {formatCurrency(currentValue)}
+          {formatValue(currentValue)}
           <span className="text-sm font-tech-mono text-future-gray ml-1">
-            {isLossRule 
-              ? `of ${formatCurrency(targetValue)}` 
-              : `/ ${type === 'progress' ? '$' : ''}${targetValue.toLocaleString()}`
-            }
+            / {formatValue(targetValue)}
           </span>
         </div>
 

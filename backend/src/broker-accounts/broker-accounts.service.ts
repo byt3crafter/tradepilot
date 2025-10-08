@@ -196,12 +196,13 @@ export class BrokerAccountsService {
       const remaining = profitTarget - totalNetPL;
       results.push({
         key: 'profitTarget',
-        title: `Profit Target $${profitTarget.toLocaleString()}`,
+        title: `Profit Target`,
         currentValue: totalNetPL,
         targetValue: profitTarget,
         remaining: remaining > 0 ? remaining : 0,
         status: totalNetPL >= profitTarget ? 'Success' : 'In Progress',
-        type: 'progress'
+        type: 'progress',
+        format: 'currency',
       });
     }
 
@@ -209,39 +210,38 @@ export class BrokerAccountsService {
     if (minTradingDays) {
       results.push({
         key: 'minTradingDays',
-        title: `Minimum days - ${minTradingDays}`,
+        title: `Minimum days`,
         currentValue: uniqueTradingDays,
         targetValue: minTradingDays,
         status: uniqueTradingDays >= minTradingDays ? 'Success' : 'In Progress',
-        type: 'simple'
+        type: 'simple',
+        format: 'days',
       });
     }
 
     // --- Objective 3: Max Loss (Trailing Drawdown) ---
     if (maxLoss) {
-      const remaining = maxLoss - maxDrawdownSoFar;
       results.push({
         key: 'maxLoss',
-        title: `Max Loss $${maxLoss.toLocaleString()}`,
+        title: `Max Loss`,
         currentValue: maxDrawdownSoFar,
         targetValue: maxLoss,
-        remaining: remaining > 0 ? remaining : 0,
         status: maxDrawdownSoFar >= maxLoss ? 'Failed' : 'In Progress',
-        type: 'simple'
+        type: 'simple',
+        format: 'currency',
       });
     }
 
     // --- Objective 4: Max Daily Loss ---
     if (maxDailyLoss) {
-      const remaining = maxDailyLoss - currentDailyLoss;
       results.push({
         key: 'maxDailyLoss',
-        title: `Max Daily Loss $${maxDailyLoss.toLocaleString()}`,
+        title: `Max Daily Loss`,
         currentValue: currentDailyLoss,
         targetValue: maxDailyLoss,
-        remaining: remaining > 0 ? remaining : 0,
         status: currentDailyLoss >= maxDailyLoss ? 'Failed' : 'In Progress',
-        type: 'progress'
+        type: 'progress',
+        format: 'currency',
       });
     }
 

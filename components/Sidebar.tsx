@@ -21,6 +21,7 @@ import { useUI } from '../context/UIContext';
 import Tooltip from './ui/Tooltip';
 import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
 import { PlusIcon } from './icons/PlusIcon';
+import { AnalyticsIcon } from './icons/AnalyticsIcon';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -300,6 +301,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             label="Playbooks"
             isActive={currentView === 'playbooks'}
             onClick={() => handleSetView('playbooks')}
+            isCollapsed={isSidebarCollapsed}
+          />
+           <NavItem
+            icon={<AnalyticsIcon className="w-6 h-6" />}
+            label="Analytics"
+            isActive={currentView === 'analytics'}
+            onClick={() => handleSetView('analytics')}
             isCollapsed={isSidebarCollapsed}
           />
           <NavItem

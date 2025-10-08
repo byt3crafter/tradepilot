@@ -12,8 +12,9 @@ import { useView } from '../context/ViewContext';
 import SubscriptionPage from './SubscriptionPage';
 import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
+import AnalyticsPage from './AnalyticsPage';
 
-export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'personalisation' | 'settings' | 'subscription';
+export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription';
 export type SettingsSubView = 'accounts' | 'checklist' | 'security' | 'assets';
 
 const DashboardPage: React.FC = () => {
@@ -28,6 +29,8 @@ const DashboardPage: React.FC = () => {
         return <TradeJournal />;
       case 'playbooks':
         return <PlaybooksPage />;
+      case 'analytics':
+        return <AnalyticsPage />;
       case 'personalisation':
         return <PersonalisationPage />;
       case 'settings':

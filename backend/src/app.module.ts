@@ -17,6 +17,7 @@ import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
 import { TradeJournalsModule } from './trade-journals/trade-journals.module';
 import { AssetsModule } from './assets/assets.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 
 @Module({
@@ -43,6 +44,7 @@ import { AssetsModule } from './assets/assets.module';
     AdminModule,
     TradeJournalsModule,
     AssetsModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [
