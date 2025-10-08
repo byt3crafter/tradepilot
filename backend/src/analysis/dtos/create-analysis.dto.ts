@@ -2,7 +2,7 @@ import {
   IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, IsInt, IsDate
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IncomeCategory, AssetClass, MarketVenue, InstrumentSubtype, Direction, ReviewCycle } from '@prisma/client';
+import { IncomeCategory, AssetClass, MarketVenue, InstrumentSubtype, Direction, ReviewCycle, AnalysisStatus } from '@prisma/client';
 
 export class CreateAnalysisDto {
   @IsString()

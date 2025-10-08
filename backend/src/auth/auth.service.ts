@@ -7,7 +7,6 @@ import { LoginDto } from './dtos/login.dto';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './tokens/token.service';
 import { MailService } from '../mail/mail.service';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { User, VerificationTokenType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dtos/change-password.dto';

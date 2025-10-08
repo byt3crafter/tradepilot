@@ -2,7 +2,6 @@
 
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { Direction } from '@prisma/client';
 
 export class CreateTradeDto {

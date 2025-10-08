@@ -1,12 +1,12 @@
 
 import { Module } from '@nestjs/common';
-import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { MailModule } from './mail/mail.module';
 import { ConfigModule } from './config/config.module';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { BrokerAccountsModule } from './broker-accounts/broker-accounts.module';
 import { PlaybooksModule } from './playbooks/playbooks.module';
@@ -32,12 +32,13 @@ import { TasksModule } from './tasks/tasks.module';
     
     // Configure ThrottlerModule asynchronously to use the ConfigService
     ThrottlerModule.forRootAsync({
-      imports: [NestConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ([{
-        ttl: config.get<number>('THROTTLE_TTL'),
-        limit: config.get<number>('THROTTLE_LIMIT'),
-      }]),
+      useFactory: (config: ConfigService): ThrottlerModuleOptions => ({
+        throttlers: [{
+          ttl: config.getOrThrow<number>('THROTTLE_TTL'),
+          limit: config.getOrThrow<number>('THROTTLE_LIMIT'),
+        }],
+      }),
     }),
 
     ScheduleModule.forRoot(),

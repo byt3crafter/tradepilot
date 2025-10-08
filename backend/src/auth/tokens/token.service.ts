@@ -5,7 +5,6 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { VerificationTokenType } from '@prisma/client';
 
 @Injectable()

@@ -2,7 +2,6 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { Prisma, User } from '@prisma/client';
 
 @Injectable()

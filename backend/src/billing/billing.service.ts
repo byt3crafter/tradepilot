@@ -9,7 +9,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Paddle, Environment, PaddleOptions } from '@paddle/paddle-node-sdk';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { SubscriptionStatus } from '@prisma/client';
 
 @Injectable()

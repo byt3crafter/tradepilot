@@ -6,7 +6,6 @@ import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { TradeResult } from '@prisma/client';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';

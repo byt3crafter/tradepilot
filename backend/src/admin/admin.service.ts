@@ -7,7 +7,6 @@ import { AdminStatsDto } from './dtos/admin-stats.dto';
 import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
 import { UsersService } from 'src/users/users.service';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { Prisma, User } from '@prisma/client';
 
 @Injectable()

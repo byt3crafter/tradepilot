@@ -1,7 +1,6 @@
 
 
 import { Injectable, OnModuleInit } from '@nestjs/common';
-// FIX: Use named import for PrismaClient to ensure the class is correctly extended.
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()

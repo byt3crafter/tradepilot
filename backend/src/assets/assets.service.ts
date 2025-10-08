@@ -4,7 +4,6 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAssetSpecDto } from './dtos/create-asset-spec.dto';
 import { UpdateAssetSpecDto } from './dtos/update-asset-spec.dto';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { AssetSpecification } from '@prisma/client';
 
 @Injectable()

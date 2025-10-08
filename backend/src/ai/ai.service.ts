@@ -3,7 +3,6 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
-// FIX: Use named imports for Prisma types to resolve module export errors.
 import { Trade, Playbook } from '@prisma/client';
 
 const base64ToGenaiPart = (base64Data: string) => {
