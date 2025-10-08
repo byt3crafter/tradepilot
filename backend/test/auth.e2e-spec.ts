@@ -4,7 +4,7 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { execSync } from 'child_process';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
 describe('AuthController (e2e)', () => {

@@ -4,7 +4,7 @@ import { Injectable, UnauthorizedException, ForbiddenException, BadRequestExcept
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { TokenService } from './tokens/token.service';
 import { MailService } from '../mail/mail.service';
 import { User, VerificationTokenType } from '@prisma/client';
