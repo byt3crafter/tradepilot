@@ -25,7 +25,7 @@ const SecuritySettings: React.FC = () => {
         setPasswordError('');
         setPasswordSuccess('');
         try {
-            await api.patch('/auth/change-password', { currentPassword, newPassword }, accessToken!);
+            await api.patch('/api/auth/change-password', { currentPassword, newPassword }, accessToken!);
             setPasswordSuccess('Password changed successfully!');
             setCurrentPassword('');
             setNewPassword('');
