@@ -45,7 +45,6 @@ export class AuthController {
   @Post('register')
   async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
     const ip = (req as any).ip ?? '';
-    // FIX: Cast req to any to access headers
     const userAgent = (req as any).headers['user-agent'] || '';
     await this.authService.register(registerDto, ip, userAgent);
     return { message: 'Registration successful. Please check your email to verify your account.' };
@@ -71,12 +70,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const ip = (req as any).ip ?? '';
-    // FIX: Cast req to any to access headers
     const userAgent = (req as any).headers['user-agent'] || '';
     const { accessToken, refreshToken, user } = await this.authService.login(loginDto, ip, userAgent);
 
-    // FIX: Cast res to any to access cookie method
-    (res as any).cookie('refresh_token', refreshToken, this.getCookieOptions());
+    res.cookie('refresh_token', refreshToken, this.getCookieOptions());
 
     return { accessToken, user };
   }
@@ -94,8 +91,7 @@ export class AuthController {
     
     const { newAccessToken, newRefreshToken } = await this.authService.rotateRefreshToken(userId, oldRefreshToken);
 
-    // FIX: Cast res to any to access cookie method
-    (res as any).cookie('refresh_token', newRefreshToken, this.getCookieOptions());
+    res.cookie('refresh_token', newRefreshToken, this.getCookieOptions());
     
     return { accessToken: newAccessToken };
   }
@@ -108,8 +104,7 @@ export class AuthController {
       if (refreshToken) {
         await this.authService.logout(refreshToken);
       }
-      // FIX: Cast res to any to access clearCookie method
-      (res as any).clearCookie('refresh_token', { path: this.getCookieOptions().path });
+      res.clearCookie('refresh_token', { path: this.getCookieOptions().path });
       return { message: 'Logged out successfully.' };
   }
 

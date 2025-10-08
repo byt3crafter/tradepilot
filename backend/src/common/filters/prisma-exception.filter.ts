@@ -2,7 +2,6 @@
 
 import { ArgumentsHost, Catch, HttpStatus } from '@nestjs/common';
 import { AbstractHttpAdapter, BaseExceptionFilter } from '@nestjs/core';
-// FIX: Use named import for Prisma to correctly access namespaced types.
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 
@@ -40,8 +39,7 @@ export class PrismaExceptionFilter extends BaseExceptionFilter {
         return;
     }
 
-    // FIX: Cast response to any to resolve issue with status method typing.
-    (response as any).status(status).json({
+    response.status(status).json({
       success: false,
       error: {
         code: `PRISMA_${exception.code}`,
