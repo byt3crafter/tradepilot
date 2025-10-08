@@ -3,6 +3,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import { useAuth } from './context/AuthContext';
 import Spinner from './components/Spinner';
@@ -114,6 +115,14 @@ const App: React.FC = () => {
     return (
        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
         <VerifyEmailPage />
+      </div>
+    );
+  }
+
+  if (path === '/reset-password') {
+    return (
+       <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+        <ResetPasswordPage />
       </div>
     );
   }

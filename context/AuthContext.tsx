@@ -17,6 +17,7 @@ interface AuthContextType {
   resendVerification: (email: string) => Promise<void>;
   refreshUser: () => Promise<User | undefined>;
   forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -107,6 +108,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const forgotPassword = async (email: string) => {
     await api.post('/api/auth/forgot-password', { email });
   };
+  
+  const resetPassword = async (token: string, newPassword: string) => {
+    await api.post('/api/auth/reset-password', { token, newPassword });
+  };
 
   const subscriptionState = useMemo(() => {
     const hasGiftedAccess = user?.proAccessExpiresAt === null || (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date());
@@ -133,6 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     resendVerification,
     refreshUser,
     forgotPassword,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
