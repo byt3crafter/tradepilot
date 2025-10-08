@@ -32,6 +32,7 @@ import { TasksModule } from './tasks/tasks.module';
     
     // Configure ThrottlerModule asynchronously to use the ConfigService
     ThrottlerModule.forRootAsync({
+      imports: [ConfigModule], // Explicitly import ConfigModule here
       inject: [ConfigService],
       useFactory: (config: ConfigService): ThrottlerModuleOptions => ({
         throttlers: [{
