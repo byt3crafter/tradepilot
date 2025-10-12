@@ -1,1 +1,434 @@
-ÿταΘ¬Κ‹«>Έ¬™
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------
+// Enums
+// ----------------------------------------
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum BrokerAccountType {
+  DEMO
+  LIVE
+  PROP_FIRM
+}
+
+enum TradeResult {
+  Win
+  Loss
+  Breakeven
+}
+
+enum Direction {
+  Buy
+  Sell
+}
+
+enum VerificationTokenType {
+  EMAIL_VERIFY
+  EMAIL_CHANGE
+}
+
+enum ChecklistItemType {
+  ENTRY_CRITERIA
+  RISK_MANAGEMENT
+}
+
+enum IncomeCategory {
+  ACTIVE_INCOME
+  DAILY_INCOME
+  WEEKLY_INCOME
+  MONTHLY_INCOME
+  LONG_TERM_INCOME
+}
+
+enum AssetClass {
+  FOREX
+  INDEX
+  METAL
+  CRYPTO
+  EQUITY
+  ENERGY
+}
+
+enum MarketVenue {
+  SPOT
+  CFD
+  FUTURES
+  PERP
+  OPTIONS
+}
+
+enum InstrumentSubtype {
+  FOREX_PAIR
+  INDEX_CFD
+  METAL_CFD
+  METAL_FUT
+  CRYPTO_SPOT
+  CRYPTO_PERP
+  INDEX_FUT
+  EQUITY_CFD
+  EQUITY_SPOT
+}
+
+enum ReviewCycle {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum AnalysisStatus {
+  WATCHING
+  ALERTED
+  TRIGGERED
+  EXECUTED
+  MISSED
+  EXPIRED
+  ARCHIVED
+}
+
+
+// ----------------------------------------
+// Models
+// ----------------------------------------
+
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  passwordHash        String
+  fullName            String
+  isEmailVerified     Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  lastLoginAt         DateTime?
+  role                UserRole @default(USER)
+  subscriptionStatus  SubscriptionStatus @default(TRIALING)
+  trialEndsAt         DateTime?
+  proAccessExpiresAt  DateTime?
+  proAccessReason     String?
+
+  // Paddle Billing
+  paddleCustomerId      String? @unique
+  paddleSubscriptionId  String? @unique
+  
+  // Relations
+  brokerAccounts      BrokerAccount[]
+  trades              Trade[]
+  playbooks           Playbook[]
+  checklistRules      ChecklistRule[]
+  assetSpecifications AssetSpecification[]
+  analyses            Analysis[]
+  notifications       Notification[]
+  refreshSessions     RefreshSession[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  authAudits          AuthAudit[]
+}
+
+model BrokerAccount {
+  id              String             @id @default(cuid())
+  name            String
+  type            BrokerAccountType
+  initialBalance  Float
+  currentBalance  Float
+  currency        String             @default("USD")
+  leverage        Int?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  objectives      TradingObjective?
+  smartLimits     SmartLimit?
+  trades          Trade[]
+  analyses        Analysis[]
+}
+
+model TradingObjective {
+  id              String        @id @default(cuid())
+  profitTarget    Float?
+  minTradingDays  Int?
+  maxLoss         Float?
+  maxDailyLoss    Float?
+  isEnabled       Boolean       @default(false)
+  
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+model SmartLimit {
+  id                String  @id @default(cuid())
+  isEnabled         Boolean @default(false)
+  maxRiskPerTrade   Float?
+  maxTradesPerDay   Int?
+  maxLossesPerDay   Int?
+  
+  brokerAccountId   String        @unique
+  brokerAccount     BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+model Trade {
+  id                  String       @id @default(cuid())
+  entryDate           DateTime     @default(now())
+  exitDate            DateTime?
+  asset               String
+  direction           Direction
+  entryPrice          Float
+  exitPrice           Float?
+  riskPercentage      Float
+  rr                  Float?
+  profitLoss          Float?
+  result              TradeResult?
+  isPendingOrder      Boolean      @default(false)
+  
+  // Execution details
+  lotSize             Float?
+  stopLoss            Float?
+  takeProfit          Float?
+  commission          Float?
+  swap                Float?
+
+  screenshotBeforeUrl String?
+  screenshotAfterUrl  String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  brokerAccountId     String
+  brokerAccount       BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+  
+  playbookId          String
+  playbook            Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  // Relations
+  aiAnalysis          AiAnalysis?
+  tradeJournal        TradeJournal?
+}
+
+model AiAnalysis {
+  id         String @id @default(cuid())
+  summary    String
+  mistakes   Json
+  goodPoints Json
+  
+  tradeId    String @unique
+  trade      Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model TradeJournal {
+  id              String   @id @default(cuid())
+  mindsetBefore   String
+  exitReasoning   String
+  lessonsLearned  String
+  
+  tradeId         String   @unique
+  trade           Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model Playbook {
+  id            String   @id @default(cuid())
+  name          String
+  coreIdea      String?
+  isPublic      Boolean  @default(false)
+  tradingStyles String[]
+  instruments   String[]
+  timeframes    String[]
+  pros          String[]
+  cons          String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  setups        PlaybookSetup[]
+  trades        Trade[]
+}
+
+model PlaybookSetup {
+  id                  String @id @default(cuid())
+  name                String
+  screenshotBeforeUrl String?
+  screenshotAfterUrl  String?
+  
+  playbookId          String
+  playbook            Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  checklistItems      ChecklistItem[]
+}
+
+model ChecklistItem {
+  id              String            @id @default(cuid())
+  text            String
+  type            ChecklistItemType
+  
+  playbookSetupId String
+  playbookSetup   PlaybookSetup     @relation(fields: [playbookSetupId], references: [id], onDelete: Cascade)
+}
+
+model ChecklistRule {
+  id        String   @id @default(cuid())
+  rule      String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AssetSpecification {
+  id            String  @id @default(cuid())
+  symbol        String
+  name          String
+  pipSize       Float?
+  lotSize       Float?
+  valuePerPoint Float?
+  
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+}
+
+model Analysis {
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  screenshotUrls    String[]
+
+  // Classification
+  category          IncomeCategory
+  assetClass        AssetClass
+  marketVenue       MarketVenue
+  instrumentSubtype InstrumentSubtype?
+  contract          Json?
+  leverage          Int?
+
+  // Context
+  symbol            String
+  
+  // Platforms
+  platforms         Json?
+
+  // Analysis Details
+  htf               String?
+  ltf               String[]
+  directionalBias   Direction
+  structureNotes    String?
+  levels            Json?
+  triggers          Json?
+  invalidation      Json?
+
+  // Validity
+  validityStartsAt  DateTime?
+  validityExpiresAt DateTime?
+
+  // Review & Status
+  reviewCycle       ReviewCycle
+  nextReviewAt      DateTime
+  status            AnalysisStatus   @default(WATCHING)
+
+  // Meta
+  tags              String[]
+  revision          Int              @default(1)
+  parentAnalysisId  String?
+  
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  brokerId          String
+  brokerAccount     BrokerAccount    @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  
+  sessionId         String?
+
+  // Relations
+  notifications     Notification[]
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  analysisId  String?
+  analysis    Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------
+// Authentication & Security Models
+// ----------------------------------------
+
+model RefreshSession {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  revokedAt   DateTime?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id          String                @id @default(cuid())
+  tokenHash   String                @unique
+  type        VerificationTokenType
+  expiresAt   DateTime
+  usedAt      DateTime?
+  payload     Json?
+
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthAudit {
+  id          String   @id @default(cuid())
+  event       String
+  ip          String?
+  userAgent   String?
+  emailTried  String?
+  createdAt   DateTime @default(now())
+
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
