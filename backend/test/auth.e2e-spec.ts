@@ -57,6 +57,7 @@ describe('AuthController (e2e)', () => {
         data: {
           email: 'taken@example.com',
           passwordHash: 'somehash',
+          fullName: 'Taken User',
         },
       });
 

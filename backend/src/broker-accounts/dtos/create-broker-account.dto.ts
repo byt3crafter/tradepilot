@@ -1,5 +1,3 @@
-
-
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BrokerAccountType } from '@prisma/client';

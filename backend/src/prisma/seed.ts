@@ -1,7 +1,5 @@
-
-
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import * as bcryptjs from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -32,7 +30,7 @@ const assetSpecifications = [
 async function main() {
   console.log('Start seeding...');
 
-  const passwordHash = await bcrypt.hash('Password123!', 10);
+  const passwordHash = await bcryptjs.hash('Password123!', 10);
 
   const user1 = await prisma.user.upsert({
     where: { email: 'verified.user@example.com' },
@@ -80,7 +78,8 @@ async function main() {
 main()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
+    // FIX: Cast process to any to fix type error with process.exit
+    (process as any).exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();

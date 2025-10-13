@@ -1,5 +1,3 @@
-
-
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsObject, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Direction, TradeResult } from '@prisma/client';
