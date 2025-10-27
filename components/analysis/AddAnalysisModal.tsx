@@ -39,7 +39,7 @@ const AddAnalysisModal: React.FC<AddAnalysisModalProps> = ({ analysisToEdit, onC
     ltf: analysisToEdit?.ltf?.join(', ') || '',
     reviewCycle: analysisToEdit?.reviewCycle || ReviewCycle.DAILY,
     // FIX: Convert Date object to string before passing to toInputDate
-    nextReviewAt: toInputDate(analysisToEdit?.nextReviewAt || new Date().toISOString()),
+    nextReviewAt: toInputDate(analysisToEdit?.nextReviewAt?.toString() || new Date().toISOString()),
     structureNotes: analysisToEdit?.structureNotes || '',
   });
   
