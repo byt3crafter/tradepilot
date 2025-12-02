@@ -35,7 +35,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
   }
 
   async validate(payload: any) {
-    this.logger.debug(`Validating JWT payload: ${JSON.stringify({ sub: payload?.sub, email: payload?.email, iss: payload?.iss })}`);
+    this.logger.log(`🔍 JWT PAYLOAD RECEIVED: ${JSON.stringify(payload)}`);
 
     if (!payload || !payload.sub) {
         this.logger.warn('Invalid JWT payload received: missing sub claim');
@@ -44,9 +44,12 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
 
     try {
       // "sub" in Clerk token is the User ID
+      this.logger.log(`📞 Calling validateClerkUser with public_metadata: ${JSON.stringify(payload.public_metadata)}`);
+
       const user = await this.authService.validateClerkUser({
           sub: payload.sub,
-          email: payload.email // Email may be undefined if not in JWT template
+          email: payload.email, // Email may be undefined if not in JWT template
+          public_metadata: payload.public_metadata // Pass Clerk's public_metadata (contains role)
       });
 
       if (!user) {
@@ -54,8 +57,10 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
         throw new UnauthorizedException('User could not be validated');
       }
 
-      this.logger.debug(`User ${user.id} authenticated successfully`);
-      return { sub: user.id, email: user.email, role: user.role };
+      const result = { sub: user.id, email: user.email, role: user.role };
+      this.logger.log(`✅ JWT VALIDATION SUCCESS - Returning user object: ${JSON.stringify(result)}`);
+
+      return result;
     } catch (error) {
       this.logger.error(`JWT validation error: ${error.message}`, error.stack);
       throw new UnauthorizedException('Authentication failed');

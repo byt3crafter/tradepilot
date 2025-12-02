@@ -148,7 +148,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
             isCollapsed ? 'left-full ml-2' : 'top-full mt-2 w-full left-0'
           }`}
         >
-          <div className="max-h-60 overflow-y-auto sidebar-scrollbar">
+          <div className="max-h-60 overflow-y-auto custom-scrollbar">
             {accounts.map((account) => (
                 <button
                 key={account.id}
@@ -226,7 +226,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <AccountSwitcher isCollapsed={isSidebarCollapsed} />
         </div>
 
-        <div className="flex-1 flex flex-col py-4 overflow-y-auto sidebar-scrollbar gap-1">
+        <div className={`flex-1 flex flex-col py-4 gap-1 ${!isSidebarCollapsed ? 'overflow-y-auto' : 'overflow-hidden'}`}>
           <NavItem
             icon={<DashboardIcon className="w-4 h-4" />}
             label="Dashboard"
