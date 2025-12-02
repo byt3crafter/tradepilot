@@ -1,1 +1,362 @@
-ÿ
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 String    @id // Clerk User ID
+  email              String    @unique
+  fullName           String
+  isEmailVerified    Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  lastLoginAt        DateTime?
+  
+  // Subscription / Billing
+  subscriptionStatus String    @default("TRIALING")
+  trialEndsAt        DateTime?
+  paddleCustomerId   String?   @unique
+  paddleSubscriptionId String?
+  proAccessExpiresAt DateTime?
+  proAccessReason    String?
+
+  // Relations
+  brokerAccounts     BrokerAccount[]
+  checklistRules     ChecklistRule[]
+  trades             Trade[]
+  playbooks          Playbook[]
+  assetSpecs         AssetSpecification[]
+  analyses           Analysis[]
+  notifications      Notification[]
+}
+
+model BrokerAccount {
+  id             String            @id @default(uuid())
+  name           String
+  type           BrokerAccountType
+  initialBalance Float
+  currentBalance Float
+  currency       String            @default("USD")
+  leverage       Int?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  objectives     TradingObjective?
+  smartLimits    SmartLimit?
+  trades         Trade[]
+  analyses       Analysis[]
+}
+
+enum BrokerAccountType {
+  DEMO
+  LIVE
+  PROP_FIRM
+}
+
+model TradingObjective {
+  id              String        @id @default(uuid())
+  isEnabled       Boolean       @default(false)
+  profitTarget    Float?
+  minTradingDays  Int?
+  maxLoss         Float?
+  maxDailyLoss    Float?
+  
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+model SmartLimit {
+  id              String        @id @default(uuid())
+  isEnabled       Boolean       @default(false)
+  maxRiskPerTrade Float?
+  maxTradesPerDay Int?
+  maxLossesPerDay Int?
+
+  brokerAccountId String        @unique
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+model Playbook {
+  id            String   @id @default(uuid())
+  name          String
+  coreIdea      String?
+  isPublic      Boolean  @default(false)
+  
+  // Tags
+  tradingStyles String[]
+  instruments   String[]
+  timeframes    String[]
+  
+  // Details
+  pros          String[]
+  cons          String[]
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  setups        PlaybookSetup[]
+  trades        Trade[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PlaybookSetup {
+  id                  String   @id @default(uuid())
+  name                String
+  screenshotBeforeUrl String?
+  screenshotAfterUrl  String?
+  
+  playbookId          String
+  playbook            Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  
+  checklistItems      ChecklistItem[]
+}
+
+model ChecklistItem {
+  id              String            @id @default(uuid())
+  text            String
+  type            ChecklistItemType
+  
+  playbookSetupId String
+  playbookSetup   PlaybookSetup     @relation(fields: [playbookSetupId], references: [id], onDelete: Cascade)
+}
+
+enum ChecklistItemType {
+  ENTRY_CRITERIA
+  RISK_MANAGEMENT
+}
+
+model Trade {
+  id                  String        @id @default(uuid())
+  
+  // Entry
+  entryDate           DateTime
+  asset               String
+  direction           Direction
+  entryPrice          Float
+  lotSize             Float?
+  isPendingOrder      Boolean       @default(false)
+  
+  // Exit
+  exitDate            DateTime?
+  exitPrice           Float?
+  
+  // Risk/Reward
+  riskPercentage      Float
+  stopLoss            Float?
+  takeProfit          Float?
+  rr                  Float?
+  
+  // Outcome
+  profitLoss          Float?
+  commission          Float?
+  swap                Float?
+  result              TradeResult?
+  pips                Float?
+  
+  // Media
+  screenshotBeforeUrl String?
+  screenshotAfterUrl  String?
+  
+  // Relations
+  userId              String
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  brokerAccountId     String
+  brokerAccount       BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+  
+  playbookId          String
+  playbook            Playbook      @relation(fields: [playbookId], references: [id])
+  
+  tradeJournal        TradeJournal?
+  aiAnalysis          AiAnalysis?
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+enum Direction {
+  Buy
+  Sell
+}
+
+enum TradeResult {
+  Win
+  Loss
+  Breakeven
+}
+
+model TradeJournal {
+  id             String @id @default(uuid())
+  mindsetBefore  String
+  exitReasoning  String
+  lessonsLearned String
+  
+  tradeId        String @unique
+  trade          Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model AiAnalysis {
+  id         String @id @default(uuid())
+  summary    String
+  mistakes   Json
+  goodPoints Json
+  
+  tradeId    String @unique
+  trade      Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model ChecklistRule {
+  id        String   @id @default(uuid())
+  rule      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model AssetSpecification {
+  id            String @id @default(uuid())
+  symbol        String
+  name          String
+  pipSize       Float  @default(0.0001)
+  lotSize       Float  @default(100000)
+  valuePerPoint Float  @default(10)
+  
+  userId        String
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+}
+
+enum IncomeCategory {
+  ACTIVE_INCOME
+  DAILY_INCOME
+  WEEKLY_INCOME
+  MONTHLY_INCOME
+  LONG_TERM_INCOME
+}
+
+enum AssetClass {
+  FOREX
+  INDEX
+  METAL
+  CRYPTO
+  EQUITY
+  ENERGY
+}
+
+enum MarketVenue {
+  SPOT
+  CFD
+  FUTURES
+  PERP
+  OPTIONS
+}
+
+enum InstrumentSubtype {
+  FOREX_PAIR
+  INDEX_CFD
+  METAL_CFD
+  METAL_FUT
+  CRYPTO_SPOT
+  CRYPTO_PERP
+  INDEX_FUT
+  EQUITY_CFD
+  EQUITY_SPOT
+}
+
+enum ReviewCycle {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum AnalysisStatus {
+  WATCHING
+  ALERTED
+  TRIGGERED
+  EXECUTED
+  MISSED
+  EXPIRED
+  ARCHIVED
+}
+
+model Analysis {
+  id                String            @id @default(uuid())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  screenshotUrls    String[]
+  
+  // Classification
+  category          IncomeCategory
+  assetClass        AssetClass
+  marketVenue       MarketVenue
+  instrumentSubtype InstrumentSubtype?
+  contract          Json?
+  leverage          Int?
+
+  // Context
+  symbol            String
+  assetName         String?
+  exchange          String?
+  quote             Json?
+  
+  brokerId          String
+  brokerAccount     BrokerAccount     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+
+  // Platforms
+  platforms         Json?
+
+  // Analysis Details
+  htf               String?
+  ltf               String[]
+  directionalBias   Direction
+  structureNotes    String?
+  levels            Json?
+  triggers          Json?
+
+  // Invalidation & Validity
+  invalidation      Json?
+  validityStartsAt  DateTime?
+  validityExpiresAt DateTime?
+
+  // Review & Status
+  reviewCycle       ReviewCycle
+  nextReviewAt      DateTime
+  status            AnalysisStatus    @default(WATCHING)
+
+  // Meta & Threading
+  tags              String[]
+  revision          Int               @default(1)
+  parentAnalysisId  String?
+  parentAnalysis    Analysis?         @relation("AnalysisHistory", fields: [parentAnalysisId], references: [id])
+  childAnalyses     Analysis[]        @relation("AnalysisHistory")
+  
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  notifications     Notification[]
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  analysisId String?
+  analysis   Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+}
