@@ -17,7 +17,9 @@ export class TradesService {
   ) {}
 
   async create(userId: string, createTradeDto: CreateTradeDto) {
-    const { brokerAccountId, playbookId, riskPercentage } = createTradeDto;
+    // Explicitly destructure entryDate to prevent it from being included in ...rest with an optional type,
+    // which confuses TypeScript when we try to assign a definite Date value later.
+    const { brokerAccountId, playbookId, riskPercentage, entryDate, ...rest } = createTradeDto;
     
     const brokerAccount = await this.prisma.brokerAccount.findFirst({
         where: { id: brokerAccountId, userId },
@@ -50,8 +52,12 @@ export class TradesService {
 
     return this.prisma.trade.create({
       data: {
-        ...createTradeDto,
-        userId,
+        ...rest,
+        entryDate: entryDate ?? new Date(),
+        riskPercentage,
+        user: { connect: { id: userId } },
+        brokerAccount: { connect: { id: brokerAccountId } },
+        playbook: { connect: { id: playbookId } },
       },
     });
   }
@@ -98,13 +104,14 @@ export class TradesService {
         await tx.trade.create({
           data: {
             ...trade,
-            userId,
-            brokerAccountId,
-            playbookId,
             result,
             // These are required fields, but not in the import data, so we need defaults.
             riskPercentage: 0, // Defaulting to 0 as it's not in the CSV
             isPendingOrder: false,
+            // Use relations for safety
+            user: { connect: { id: userId } },
+            brokerAccount: { connect: { id: brokerAccountId } },
+            playbook: { connect: { id: playbookId } },
           },
         });
         importedCount++;

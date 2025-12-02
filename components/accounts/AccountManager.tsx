@@ -8,9 +8,10 @@ import { BrokerAccount } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import AccountRow from './AccountRow';
 import ImportTradesModal from './ImportTradesModal';
+import { XCircleIcon } from '../icons/XCircleIcon';
 
 const AccountManager: React.FC = () => {
-  const { accounts, isLoading } = useAccount();
+  const { accounts, isLoading, isServerOffline } = useAccount();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BrokerAccount | null>(null);
 
@@ -39,10 +40,12 @@ const AccountManager: React.FC = () => {
           <h2 className="text-xl font-orbitron text-photonic-blue">Manage Accounts</h2>
           <p className="text-future-gray text-sm mt-1">Your central hub for all broker and prop firm accounts.</p>
         </div>
-        <Button onClick={openAddModal} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
-          <PlusIcon className="w-5 h-5" />
-          <span>Add New Account</span>
-        </Button>
+        {!isServerOffline && (
+            <Button onClick={openAddModal} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
+            <PlusIcon className="w-5 h-5" />
+            <span>Add New Account</span>
+            </Button>
+        )}
       </div>
 
       <div>
@@ -50,10 +53,21 @@ const AccountManager: React.FC = () => {
           <div className="flex justify-center p-8">
             <Spinner />
           </div>
+        ) : isServerOffline ? (
+            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-risk-high/30 rounded-lg h-[60vh] text-center bg-risk-high/5">
+                <XCircleIcon className="w-16 h-16 text-risk-high mb-4" />
+                <h3 className="text-xl font-semibold text-future-light">Server Connection Failed</h3>
+                <p className="text-future-gray mt-2 mb-6 max-w-md">
+                    We cannot reach the backend server. Please ensure it is running on port 8080 and that your database connection string in .env is correct (check for special characters!).
+                </p>
+                <Button onClick={() => window.location.reload()} className="w-auto" variant="secondary">
+                    Retry Connection
+                </Button>
+            </div>
         ) : accounts.length === 0 ? (
-          <div className="text-center p-12 border-2 border-dashed border-photonic-blue/20 rounded-lg">
+          <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-photonic-blue/20 rounded-lg h-[60vh] text-center">
             <h3 className="text-lg font-semibold text-future-light">No Accounts Found</h3>
-            <p className="text-future-gray mt-2 mb-4">Click "Add New Account" to get started.</p>
+            <p className="text-future-gray mt-2 mb-6">Click "Add New Account" to get started.</p>
             <Button onClick={openAddModal} className="w-auto">
               Create Your First Account
             </Button>

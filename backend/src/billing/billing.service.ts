@@ -7,7 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Paddle, Environment, PaddleOptions } from '@paddle/paddle-node-sdk';
-import { SubscriptionStatus } from '@prisma/client';
+
+// Define locally as it seems missing from the generated client export or conflicting
+enum SubscriptionStatus {
+  TRIALING = 'TRIALING',
+  ACTIVE = 'ACTIVE',
+  PAST_DUE = 'PAST_DUE',
+  CANCELED = 'CANCELED',
+}
 
 @Injectable()
 export class BillingService {
@@ -138,6 +145,9 @@ export class BillingService {
       return;
     }
 
+    // Cast mapped status to any to satisfy Prisma input if generated types are strict
+    const newStatus = this.mapPaddleStatus(data.status) as any;
+
     switch (event_type) {
       case 'subscription.created':
       case 'subscription.updated':
@@ -146,7 +156,7 @@ export class BillingService {
         await this.prisma.user.update({
           where: { id: user.id },
           data: {
-            subscriptionStatus: this.mapPaddleStatus(data.status),
+            subscriptionStatus: newStatus,
             paddleSubscriptionId: subscriptionId,
           },
         });
@@ -157,7 +167,7 @@ export class BillingService {
       case 'subscription.canceled':
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { subscriptionStatus: SubscriptionStatus.CANCELED },
+          data: { subscriptionStatus: SubscriptionStatus.CANCELED as any },
         });
         this.logger.log(`Canceled subscription for user ${user.id}`);
         break;

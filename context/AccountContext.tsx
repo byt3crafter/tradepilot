@@ -9,6 +9,7 @@ interface AccountContextType {
   objectivesProgress: ObjectiveProgress[] | null;
   smartLimitsProgress: SmartLimitProgress | null;
   isLoading: boolean;
+  isServerOffline: boolean;
   createAccount: (data: Partial<BrokerAccount>) => Promise<void>;
   updateAccount: (id: string, data: Partial<BrokerAccount>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -21,17 +22,19 @@ interface AccountContextType {
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
 
 export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { accessToken, isAuthenticated } = useAuth();
+  const { isAuthenticated, getToken } = useAuth();
   const [accounts, setAccounts] = useState<BrokerAccount[]>([]);
   const [activeAccount, setActiveAccount] = useState<BrokerAccount | null>(null);
   const [objectivesProgress, setObjectivesProgress] = useState<ObjectiveProgress[] | null>(null);
   const [smartLimitsProgress, setSmartLimitsProgress] = useState<SmartLimitProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isServerOffline, setIsServerOffline] = useState(false);
 
   const refreshObjectives = useCallback(async () => {
-    if (activeAccount && activeAccount.objectives?.isEnabled && accessToken) {
+    const token = await getToken();
+    if (activeAccount && activeAccount.objectives?.isEnabled && token) {
         try {
-            const progress = await api.getObjectivesProgress(activeAccount.id, accessToken);
+            const progress = await api.getObjectivesProgress(activeAccount.id, token);
             setObjectivesProgress(progress);
         } catch (error) {
             console.error("Failed to fetch objectives progress", error);
@@ -40,12 +43,13 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
     } else {
         setObjectivesProgress(null);
     }
-  }, [activeAccount, accessToken]);
+  }, [activeAccount, getToken]);
 
   const refreshSmartLimitsProgress = useCallback(async () => {
-    if (activeAccount && activeAccount.smartLimits?.isEnabled && accessToken) {
+    const token = await getToken();
+    if (activeAccount && activeAccount.smartLimits?.isEnabled && token) {
         try {
-            const progress = await api.getSmartLimitsProgress(activeAccount.id, accessToken);
+            const progress = await api.getSmartLimitsProgress(activeAccount.id, token);
             setSmartLimitsProgress(progress);
         } catch (error) {
             console.error("Failed to fetch smart limits progress", error);
@@ -54,23 +58,36 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
     } else {
         setSmartLimitsProgress(null);
     }
-  }, [activeAccount, accessToken]);
+  }, [activeAccount, getToken]);
 
   const refreshAccounts = useCallback(async () => {
-    if (isAuthenticated && accessToken) {
+    if (isAuthenticated) {
       setIsLoading(true);
+      setIsServerOffline(false);
       try {
-        const fetchedAccounts = await api.getAccounts(accessToken);
+        const token = await getToken();
+        if (!token) {
+            setAccounts([]);
+            setActiveAccount(null);
+            setIsLoading(false);
+            return;
+        }
+        
+        const fetchedAccounts = await api.getAccounts(token);
         setAccounts(fetchedAccounts);
         
         const lastActiveId = localStorage.getItem('activeAccountId');
         const accountToActivate = fetchedAccounts.find(acc => acc.id === lastActiveId) || fetchedAccounts[0] || null;
         setActiveAccount(accountToActivate);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch broker accounts", error);
         setAccounts([]);
         setActiveAccount(null);
+        // Check for network error / connection refused
+        if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('Network request failed'))) {
+            setIsServerOffline(true);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -79,7 +96,7 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
       setActiveAccount(null);
       setIsLoading(false);
     }
-  }, [isAuthenticated, accessToken]);
+  }, [isAuthenticated, getToken]);
 
   useEffect(() => {
     refreshAccounts();
@@ -99,20 +116,23 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
   
   const createAccount = async (data: Partial<BrokerAccount>) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.createAccount(data, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.createAccount(data, token);
     await refreshAccounts();
   };
 
   const updateAccount = async (id: string, data: Partial<BrokerAccount>) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.updateAccount(id, data, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.updateAccount(id, data, token);
     await refreshAccounts();
   };
   
   const deleteAccount = async (id: string) => {
-     if (!accessToken) throw new Error("Not authenticated");
-     await api.deleteAccount(id, accessToken);
+     const token = await getToken();
+     if (!token) throw new Error("Not authenticated");
+     await api.deleteAccount(id, token);
      await refreshAccounts();
   };
 
@@ -122,6 +142,7 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
     objectivesProgress,
     smartLimitsProgress,
     isLoading,
+    isServerOffline,
     createAccount,
     updateAccount,
     deleteAccount,

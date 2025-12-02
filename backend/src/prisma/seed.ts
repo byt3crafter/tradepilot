@@ -36,6 +36,7 @@ async function main() {
     where: { email: 'verified.user@example.com' },
     update: {},
     create: {
+      id: 'user_seed_1', // Provide a fixed ID for the seeded user
       email: 'verified.user@example.com',
       fullName: 'Verified User',
       isEmailVerified: true,

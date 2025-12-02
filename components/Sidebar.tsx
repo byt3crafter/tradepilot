@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { DashboardView, SettingsSubView } from '../pages/DashboardPage';
@@ -7,6 +6,7 @@ import AuthMark from './auth/AuthMark';
 import { JournalIcon } from './icons/JournalIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
 import { UserButton } from '@clerk/clerk-react';
+import { dark } from '@clerk/themes';
 import { useAccount } from '../context/AccountContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { PlaybookIcon } from './icons/PlaybookIcon';
@@ -35,21 +35,22 @@ const NavItem: React.FC<{
 }> = ({ icon, label, isActive, isCollapsed, onClick, href }) => {
   const Element: any = href ? 'a' : 'button';
 
-  const navItemClasses = `relative flex items-center w-full px-3 py-2.5 my-1 rounded-lg transition-all duration-200 group ${
-    isActive ? 'text-white bg-white/5' : 'text-secondary hover:text-white hover:bg-white/5'
-  } ${isCollapsed ? 'justify-center' : ''}`;
+  // Aesthetic: Clean, sharp edges, distinct active state text color
+  const navItemClasses = `relative flex items-center w-full px-4 py-2 my-0.5 transition-all duration-200 group ${
+    isActive 
+      ? 'text-white bg-white/[0.03] border-r-2 border-white' 
+      : 'text-secondary hover:text-white hover:bg-white/[0.02]'
+  } ${isCollapsed ? 'justify-center px-2' : ''}`;
 
   const content = (
     <Element href={href} onClick={onClick} className={navItemClasses}>
-      {isActive && (
-        <span className={`absolute left-0 w-1 h-6 bg-white rounded-r-full transition-all duration-300 ${isCollapsed ? 'left-[-4px]' : 'left-[-8px]'}`} />
-      )}
-
-      <div className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
+      <div className={`flex-shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:opacity-80'}`}>
         {icon}
       </div>
 
-      {!isCollapsed && <span className="ml-4 font-medium text-sm tracking-wide">{label}</span>}
+      {!isCollapsed && (
+        <span className="ml-3 text-xs font-normal uppercase tracking-widest">{label}</span>
+      )}
     </Element>
   );
 
@@ -94,9 +95,9 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
           <Button
             variant="link"
             onClick={() => navigateTo('settings', 'accounts')}
-            className="w-full h-10 flex items-center justify-center text-secondary border border-dashed border-white/20 rounded-lg hover:bg-white/5 hover:text-white"
+            className="w-full h-8 flex items-center justify-center text-secondary border border-dashed border-white/10 rounded hover:bg-white/5 hover:text-white"
           >
-            <PlusIcon className="w-5 h-5" />
+            <PlusIcon className="w-4 h-4" />
           </Button>
         </Tooltip>
       );
@@ -105,7 +106,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
       <Button
         variant="link"
         onClick={() => navigateTo('settings', 'accounts')}
-        className="w-full text-sm text-center text-secondary border border-dashed border-white/20 rounded-lg hover:bg-white/5 hover:text-white p-2"
+        className="w-full text-xs text-center text-secondary border border-dashed border-white/10 rounded hover:bg-white/5 hover:text-white py-2 uppercase tracking-wide"
       >
         + Add Account
       </Button>
@@ -116,25 +117,25 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
     <div className="relative" ref={switcherRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-2 py-2 rounded-lg text-left hover:bg-white/5 transition-colors group"
+        className="w-full flex items-center justify-between px-3 py-2 border border-white/10 rounded bg-white/[0.01] hover:bg-white/[0.03] transition-colors group"
       >
         {isCollapsed ? (
-          <div className="w-8 h-8 rounded-full bg-surface-highlight flex items-center justify-center mx-auto border border-white/10 group-hover:border-white/30 transition-colors">
-            <span className="font-orbitron text-xs text-white">{initials}</span>
+          <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center mx-auto border border-white/10">
+            <span className="font-mono text-[10px] text-white">{initials}</span>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-8 h-8 rounded-full bg-surface-highlight flex items-center justify-center border border-white/10 shrink-0">
-                    <span className="font-orbitron text-xs text-white">{initials}</span>
+                <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center border border-white/10 shrink-0">
+                    <span className="font-mono text-[10px] text-white">{initials}</span>
                 </div>
-                <div className="overflow-hidden">
-                    <p className="font-semibold text-sm text-white truncate">{activeAccount.name}</p>
-                    <p className="text-[10px] text-secondary truncate uppercase tracking-wider">{activeAccount.type.replace('_', ' ')}</p>
+                <div className="overflow-hidden text-left">
+                    <p className="font-medium text-xs text-white truncate">{activeAccount.name}</p>
+                    <p className="text-[9px] text-secondary truncate uppercase tracking-wider">{activeAccount.type.replace('_', ' ')}</p>
                 </div>
             </div>
             <ChevronDownIcon
-              className={`w-4 h-4 text-secondary group-hover:text-white transition-transform flex-shrink-0 ${
+              className={`w-3 h-3 text-secondary group-hover:text-white transition-transform flex-shrink-0 ${
                 isOpen ? 'rotate-180' : ''
               }`}
             />
@@ -143,7 +144,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
       </button>
       {isOpen && (
         <div
-          className={`absolute top-0 mt-0 bg-surface border border-white/10 rounded-lg shadow-xl p-1 z-50 w-56 ${
+          className={`absolute top-0 mt-0 bg-[#08090A] border border-white/10 rounded shadow-2xl p-1 z-50 w-56 ${
             isCollapsed ? 'left-full ml-2' : 'top-full mt-2 w-full left-0'
           }`}
         >
@@ -155,7 +156,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
                     switchAccount(account.id);
                     setIsOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm rounded-md text-secondary hover:bg-white/5 hover:text-white transition-colors"
+                className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors"
                 >
                 {account.name}
                 </button>
@@ -167,7 +168,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
                     navigateTo('settings', 'accounts');
                     setIsOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm rounded-md text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wide"
                 >
                 <PlusIcon className="w-3 h-3" /> Create Account
             </button>
@@ -200,26 +201,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         aria-hidden="true"
       ></div>
       <aside
-        className={`fixed top-0 left-0 h-full bg-void/95 backdrop-blur-md border-r border-white/5 flex-shrink-0 flex flex-col pt-6 pb-4 z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
-          isSidebarCollapsed ? 'w-20 px-2' : 'w-64 px-4'
-        } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 shadow-2xl`}
+        className={`fixed top-0 left-0 h-full bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
+          isSidebarCollapsed ? 'w-16' : 'w-64'
+        } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         {/* BRAND */}
-        <div className={`mb-8 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-2'}`}>
+        <div className={`h-16 flex items-center border-b border-white/10 ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
             {isSidebarCollapsed ? (
-              <AuthMark size={24} />
+              <AuthMark size={18} />
             ) : (
               <AuthLogo />
             )}
+            {!isSidebarCollapsed && (
+               <button
+                onClick={toggleSidebar}
+                className="text-secondary hover:text-white transition-colors"
+              >
+               <ChevronDoubleLeftIcon className="w-4 h-4" />
+              </button>
+            )}
         </div>
 
-        <div className="mb-6">
+        <div className="p-4 border-b border-white/10">
           <AccountSwitcher isCollapsed={isSidebarCollapsed} />
         </div>
 
-        <div className="flex-1 flex flex-col gap-1 overflow-y-auto sidebar-scrollbar">
+        <div className="flex-1 flex flex-col py-4 overflow-y-auto sidebar-scrollbar gap-1">
           <NavItem
-            icon={<DashboardIcon className="w-5 h-5" />}
+            icon={<DashboardIcon className="w-4 h-4" />}
             label="Dashboard"
             isActive={currentView === 'dashboard'}
             onClick={() => handleSetView('dashboard')}
@@ -227,7 +236,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           />
           {user.featureFlags?.analysisTrackerEnabled && (
             <NavItem
-              icon={<TrackerIcon className="w-5 h-5" />}
+              icon={<TrackerIcon className="w-4 h-4" />}
               label="Tracker"
               isActive={currentView === 'analysis-tracker'}
               onClick={() => handleSetView('analysis-tracker')}
@@ -235,61 +244,63 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             />
           )}
           <NavItem
-            icon={<JournalIcon className="w-5 h-5" />}
+            icon={<JournalIcon className="w-4 h-4" />}
             label="Journal"
             isActive={currentView === 'journal'}
             onClick={() => handleSetView('journal')}
             isCollapsed={isSidebarCollapsed}
           />
           <NavItem
-            icon={<PlaybookIcon className="w-5 h-5" />}
+            icon={<PlaybookIcon className="w-4 h-4" />}
             label="Playbooks"
             isActive={currentView === 'playbooks'}
             onClick={() => handleSetView('playbooks')}
             isCollapsed={isSidebarCollapsed}
           />
            <NavItem
-            icon={<AnalyticsIcon className="w-5 h-5" />}
+            icon={<AnalyticsIcon className="w-4 h-4" />}
             label="Analytics"
             isActive={currentView === 'analytics'}
             onClick={() => handleSetView('analytics')}
             isCollapsed={isSidebarCollapsed}
           />
-        </div>
-
-        <div className="mt-auto pt-4 border-t border-white/5">
-            <NavItem
-                icon={<SettingsIcon className="w-5 h-5" />}
+          <NavItem
+                icon={<SettingsIcon className="w-4 h-4" />}
                 label="Settings"
                 isActive={currentView === 'settings'}
                 onClick={() => handleSetView('settings')}
                 isCollapsed={isSidebarCollapsed}
             />
-            
-            <button
-                onClick={toggleSidebar}
-                className="w-full flex items-center justify-center p-2 mt-2 text-secondary hover:text-white transition-colors"
-                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-            <ChevronDoubleLeftIcon
-                className={`w-4 h-4 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
-            />
-            </button>
+        </div>
 
-            <div className={`mt-4 flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : 'px-2'}`}>
+        <div className="mt-auto p-4 border-t border-white/10">
+            {isSidebarCollapsed && (
+                 <button
+                    onClick={toggleSidebar}
+                    className="w-full flex items-center justify-center p-2 mb-4 text-secondary hover:text-white transition-colors"
+                >
+                <ChevronDoubleLeftIcon
+                    className="w-4 h-4 rotate-180"
+                />
+                </button>
+            )}
+
+            <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                 <UserButton 
                     appearance={{
+                        baseTheme: dark,
                         elements: {
                             avatarBox: "w-8 h-8 rounded-full border border-white/10",
-                            userButtonPopoverCard: "bg-surface border border-white/10 shadow-xl",
-                            userButtonPopoverFooter: "hidden"
+                            userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
+                            userButtonPopoverFooter: "hidden",
+                            userButtonTrigger: "focus:shadow-none"
                         }
                     }}
                 />
                 {!isSidebarCollapsed && (
                     <div className="overflow-hidden flex-1">
-                        <p className="text-xs font-semibold text-white truncate">{user.fullName}</p>
-                        <p className="text-[10px] text-secondary truncate">JTradePilot Pro</p>
+                        <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
+                        <p className="text-[9px] text-secondary truncate uppercase tracking-wider">JTradePilot Pro</p>
                     </div>
                 )}
             </div>

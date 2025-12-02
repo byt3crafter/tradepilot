@@ -25,7 +25,7 @@ interface TradeContextType {
 const TradeContext = createContext<TradeContextType | undefined>(undefined);
 
 export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { accessToken } = useAuth();
+  const { getToken } = useAuth();
   const { activeAccount, refreshAccounts, refreshObjectives, refreshSmartLimitsProgress } = useAccount();
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,10 +38,11 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [refreshAccounts, refreshObjectives, refreshSmartLimitsProgress]);
 
   const refreshTrades = useCallback(async () => {
-    if (activeAccount && accessToken) {
+    const token = await getToken();
+    if (activeAccount && token) {
       setIsLoading(true);
       try {
-        const fetchedTrades = await api.getTrades(activeAccount.id, accessToken);
+        const fetchedTrades = await api.getTrades(activeAccount.id, token);
         setAllTrades(fetchedTrades);
       } catch (error) {
         console.error("Failed to fetch trades", error);
@@ -53,7 +54,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setAllTrades([]);
       setIsLoading(false);
     }
-  }, [activeAccount, accessToken]);
+  }, [activeAccount, getToken]);
 
   useEffect(() => {
     // On initial load, just refresh the trades. The AccountContext is already
@@ -72,66 +73,74 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 
   const createTrade = async (data: Partial<Trade>) => {
-    if (!accessToken || !activeAccount) throw new Error("Not authenticated or no active account");
-    await api.createTrade({ ...data, brokerAccountId: activeAccount.id }, accessToken);
+    const token = await getToken();
+    if (!token || !activeAccount) throw new Error("Not authenticated or no active account");
+    await api.createTrade({ ...data, brokerAccountId: activeAccount.id }, token);
     await refreshTrades();
     await refreshAllProgress();
   };
 
   const updateTrade = async (id: string, data: Partial<Trade>) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.updateTrade(id, data, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.updateTrade(id, data, token);
     await refreshTrades();
     await refreshAllProgress();
   };
   
   const activatePendingOrder = async (id: string) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.updateTrade(id, { isPendingOrder: false, entryDate: new Date().toISOString() }, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.updateTrade(id, { isPendingOrder: false, entryDate: new Date().toISOString() }, token);
     await refreshTrades();
     await refreshAllProgress();
   };
 
   const deleteTrade = async (id: string) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.deleteTrade(id, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.deleteTrade(id, token);
     await refreshTrades();
     await refreshAllProgress();
   };
 
   const bulkDeleteTrades = async (tradeIds: string[]) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.bulkDeleteTrades(tradeIds, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.bulkDeleteTrades(tradeIds, token);
     await refreshTrades();
     await refreshAllProgress();
   };
 
   const analyzeTrade = async (tradeId: string) => {
-    if (!accessToken) throw new Error("Not authenticated");
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
     
     // Call the secure backend endpoint to perform the analysis
-    await api.analyzeTrade(tradeId, accessToken);
+    await api.analyzeTrade(tradeId, token);
     
     // Refresh the trades to get the new analysis data
     await refreshTrades();
   };
 
   const createOrUpdateJournal = async (tradeId: string, journalData: Omit<TradeJournal, 'id' | 'tradeId'>) => {
-    if (!accessToken) throw new Error("Not authenticated");
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
     const trade = allTrades.find(t => t.id === tradeId);
     if (!trade) throw new Error("Trade not found");
     
     if (trade.tradeJournal) {
-      await api.updateTradeJournal(trade.tradeJournal.id, journalData, accessToken);
+      await api.updateTradeJournal(trade.tradeJournal.id, journalData, token);
     } else {
-      await api.createTradeJournal(tradeId, journalData, accessToken);
+      await api.createTradeJournal(tradeId, journalData, token);
     }
     await refreshTrades();
   }
 
   const bulkImportTrades = async (data: { brokerAccountId: string; playbookId: string; trades: any[] }) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    const result = await api.bulkImportTrades(data, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    const result = await api.bulkImportTrades(data, token);
     await refreshTrades();
     await refreshAllProgress();
     return result;

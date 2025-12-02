@@ -13,7 +13,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   
   const port = configService.get<number>('PORT', 8080);
-  const frontendUrls = configService.get<string>('FRONTEND_URL');
+  const frontendUrls = configService.get<string>('FRONTEND_URL') || '';
   const nodeEnv = configService.get<string>('NODE_ENV');
 
   // Conditionally set the global prefix. In production, Nginx handles
@@ -40,7 +40,7 @@ async function bootstrap() {
   // ──────────────────────────────────────────────────────────────────
   // CORS Configuration
   // ──────────────────────────────────────────────────────────────────
-  const allowedOrigins = frontendUrls!.split(',').map(url => url.trim()).filter(Boolean);
+  const allowedOrigins = frontendUrls.split(',').map(url => url.trim()).filter(Boolean);
   
   if (allowedOrigins.length > 0) {
     Logger.log(`CORS allowed origins: [${allowedOrigins.join(', ')}]`, 'Bootstrap');
@@ -50,8 +50,16 @@ async function bootstrap() {
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Accept, Authorization',
     });
+  } else if (nodeEnv !== 'production') {
+      Logger.warn('CORS is not configured with specific origins. Enabling ALL origins for development.', 'Bootstrap');
+      app.enableCors({
+        origin: true, // Reflects the request origin
+        credentials: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        allowedHeaders: 'Content-Type, Accept, Authorization',
+      });
   } else {
-      Logger.warn(`CORS is not configured with any origins.`, 'Bootstrap');
+      Logger.warn(`CORS is not configured with any origins and not in dev mode. Requests may be blocked.`, 'Bootstrap');
   }
 
 
