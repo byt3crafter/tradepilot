@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
 import * as express from 'express';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -11,7 +11,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  
+
   const port = configService.get<number>('PORT', 8080);
   const frontendUrls = configService.get<string>('FRONTEND_URL');
   const nodeEnv = configService.get<string>('NODE_ENV');
@@ -41,7 +41,7 @@ async function bootstrap() {
   // CORS Configuration
   // ──────────────────────────────────────────────────────────────────
   const allowedOrigins = frontendUrls!.split(',').map(url => url.trim()).filter(Boolean);
-  
+
   if (allowedOrigins.length > 0) {
     Logger.log(`CORS allowed origins: [${allowedOrigins.join(', ')}]`, 'Bootstrap');
     app.enableCors({
@@ -51,7 +51,7 @@ async function bootstrap() {
       allowedHeaders: 'Content-Type, Accept, Authorization',
     });
   } else {
-      Logger.warn(`CORS is not configured with any origins.`, 'Bootstrap');
+    Logger.warn(`CORS is not configured with any origins.`, 'Bootstrap');
   }
 
 
@@ -70,7 +70,7 @@ async function bootstrap() {
   // Global Filters
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new PrismaExceptionFilter(httpAdapterHost.httpAdapter));
-  
+
   // Global Interceptors
   app.useGlobalInterceptors(new ResponseInterceptor());
 
