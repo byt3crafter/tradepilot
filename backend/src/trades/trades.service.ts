@@ -103,13 +103,14 @@ export class TradesService {
         await tx.trade.create({
           data: {
             ...trade,
-            userId,
-            brokerAccountId,
-            playbookId,
             result,
             // These are required fields, but not in the import data, so we need defaults.
             riskPercentage: 0, // Defaulting to 0 as it's not in the CSV
             isPendingOrder: false,
+            // Use relations for safety
+            user: { connect: { id: userId } },
+            brokerAccount: { connect: { id: brokerAccountId } },
+            playbook: { connect: { id: playbookId } },
           },
         });
         importedCount++;

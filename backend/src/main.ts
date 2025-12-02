@@ -13,7 +13,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const port = configService.get<number>('PORT', 8080);
-  const frontendUrls = configService.get<string>('FRONTEND_URL');
+  const frontendUrls = configService.get<string>('FRONTEND_URL') || '';
   const nodeEnv = configService.get<string>('NODE_ENV');
 
   // Conditionally set the global prefix. In production, Nginx handles
@@ -50,6 +50,14 @@ async function bootstrap() {
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Accept, Authorization',
     });
+  } else if (nodeEnv !== 'production') {
+      Logger.warn('CORS is not configured with specific origins. Enabling ALL origins for development.', 'Bootstrap');
+      app.enableCors({
+        origin: true, // Reflects the request origin
+        credentials: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        allowedHeaders: 'Content-Type, Accept, Authorization',
+      });
   } else {
     Logger.warn(`CORS is not configured with any origins.`, 'Bootstrap');
   }

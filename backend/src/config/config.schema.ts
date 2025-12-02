@@ -25,6 +25,10 @@ export const JoiValidationSchema = Joi.object({
   // AI
   API_KEY: Joi.string().required(),
 
+  // Throttler (Rate Limiting)
+  THROTTLE_TTL: Joi.number().default(60000), // 60 seconds
+  THROTTLE_LIMIT: Joi.number().default(100), // 100 requests per minute
+
   // Paddle Billing
   PADDLE_API_KEY: Joi.string().required(),
   PADDLE_CLIENT_SIDE_TOKEN: Joi.string().required(),

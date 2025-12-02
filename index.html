@@ -6,7 +6,7 @@
   <title>JTradePilot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   
   <!-- Add Charting Libraries -->
@@ -17,48 +17,49 @@
       theme: {
         extend: {
           colors: {
-            'void': '#030303',        // Main Deep Background
-            'surface': '#0A0A0A',     // Card Background
-            'surface-highlight': '#141414', // Hover states
-            'overlay': '#1A1A1A',     // Modals/Dropdowns
+            'void': '#08090A',
+            'surface': 'rgba(255, 255, 255, 0.02)',
+            'surface-highlight': 'rgba(255, 255, 255, 0.05)',
+            'overlay': '#08090A',
             
-            'primary': '#FFFFFF',     // Main Text
-            'secondary': '#888888',   // Subtext
-            'tertiary': '#444444',    // Borders/Dividers
+            'primary': '#f5f5f5',
+            'secondary': '#737373',
+            'tertiary': '#262626',
             
-            // Functional Colors (Muted Luxury)
-            'profit': '#A1E3CB',      // Pale Mint
-            'loss': '#E08E8E',        // Muted Coral
-            'warning': '#F4E086',     // Muted Gold
-            'info': '#A0C4FF',        // Soft Blue
+            'profit': '#10b981',
+            'loss': '#ef4444',
+            'warning': '#f59e0b',
+            'info': '#3b82f6',
             
-            // Brand
-            'brand': '#FFFFFF',       // High Contrast White
+            'brand': '#FFFFFF',       
+            'photonic-blue': '#FFFFFF',
+            'future-dark': '#08090A',
+            'future-panel': '#0C0D0E',
+            'future-gray': '#737373',
+            'future-light': '#f5f5f5',
+            'risk-high': '#ef4444',
+            'risk-medium': '#f59e0b',
+            'momentum-green': '#10b981',
           },
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
-          },
-          borderColor: {
-            DEFAULT: 'rgba(255, 255, 255, 0.08)',
-          },
-          boxShadow: {
-            'glow': '0 0 20px -5px rgba(255, 255, 255, 0.1)',
-            'surface': '0 4px 20px -2px rgba(0, 0, 0, 0.5)',
+            orbitron: ['Inter', 'sans-serif'],
+            'tech-mono': ['"JetBrains Mono"', 'monospace'],
           },
           animation: {
-            'aurora': 'aurora 20s ease infinite alternate',
             'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
             'slide-up': 'slideUp 0.5s ease-out forwards',
           },
           keyframes: {
-            aurora: {
-              '0%': { transform: 'translate(0, 0) scale(1)' },
-              '100%': { transform: 'translate(-5%, -5%) scale(1.1)' },
-            },
             fadeIn: {
               '0%': { opacity: '0' },
               '100%': { opacity: '1' },
+            },
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
             },
             slideUp: {
               '0%': { opacity: '0', transform: 'translateY(10px)' },
@@ -71,74 +72,53 @@
   </script>
   <style>
     body {
-        background-color: #030303;
-        color: #FFFFFF;
         font-family: 'Inter', sans-serif;
+        background-color: #08090A;
+        background-image:
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 60px 60px;
+        background-attachment: fixed;
+        color: #f5f5f5;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
     }
 
-    /* The Aurora Effect */
-    #background-effect {
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        background: #030303;
-        overflow: hidden;
-    }
-
-    #background-effect::before {
-        content: '';
-        position: absolute;
-        width: 150vw;
-        height: 150vh;
-        top: -25%;
-        left: -25%;
-        background: radial-gradient(
-            circle at 50% 50%,
-            rgba(255, 255, 255, 0.03) 0%,
-            rgba(255, 255, 255, 0.01) 25%,
-            transparent 60%
-        );
-        filter: blur(80px);
-        animation: aurora 30s ease-in-out infinite alternate;
-        pointer-events: none;
-    }
-    
-    #background-effect::after {
-        content: '';
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
-        pointer-events: none;
-        opacity: 0.4;
-    }
-
     /* Modern Scrollbars */
     ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
     }
 
     ::-webkit-scrollbar-track {
-        background: transparent;
+        background: #08090A;
     }
 
     ::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 3px;
+        background: #262626;
+        border-radius: 4px;
     }
     
     ::-webkit-scrollbar-thumb:hover {
-        background: #555;
+        background: #404040;
     }
     
-    /* Utility for removing number input arrows */
     input[type=number]::-webkit-inner-spin-button, 
     input[type=number]::-webkit-outer-spin-button { 
         -webkit-appearance: none; 
         margin: 0; 
+    }
+    
+    .glass-panel {
+        background: rgba(8, 9, 10, 0.8);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Force Dark Dropdowns */
+    select, option {
+        background-color: #0C0D0E !important;
+        color: #f5f5f5 !important;
     }
   </style>
 <script type="importmap">
@@ -179,21 +159,23 @@
     "lightweight-charts": "https://aistudiocdn.com/lightweight-charts@^5.0.8",
     "@nestjs/schedule": "https://aistudiocdn.com/@nestjs/schedule@^6.0.1",
     "bcryptjs": "https://aistudiocdn.com/bcryptjs@^3.0.2",
-    "@clerk/clerk-react": "https://esm.sh/@clerk/clerk-react@5.2.0?external=react,react-dom"
+    "@clerk/clerk-react": "https://esm.sh/@clerk/clerk-react@5.2.0?external=react,react-dom",
+    "@clerk/themes": "https://esm.sh/@clerk/themes@2.1.0",
+    "jwks-rsa": "https://aistudiocdn.com/jwks-rsa@^3.2.0"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
-<body class="font-sans text-primary antialiased selection:bg-white selection:text-black">
-  <div id="background-effect"></div>
+<body class="font-sans text-primary antialiased selection:bg-zinc-800 selection:text-white">
+  
+  <!-- Background Vignette Overlay -->
+  <div class="fixed inset-0 z-[-1] pointer-events-none" style="
+    background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
+    opacity: 0.8;
+  "></div>
+
   <div id="root"></div>
 
-  <!-- 
-  ==================================================================
-  APP CONFIGURATION
-  ==================================================================
-  -->
   <script>
     window.APP_CONFIG = (function() {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

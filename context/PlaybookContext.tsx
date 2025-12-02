@@ -17,15 +17,20 @@ interface PlaybookContextType {
 const PlaybookContext = createContext<PlaybookContextType | undefined>(undefined);
 
 export const PlaybookProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { accessToken, isAuthenticated } = useAuth();
+  const { isAuthenticated, getToken } = useAuth();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [communityPlaybooks, setCommunityPlaybooks] = useState<CommunityPlaybook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshPlaybooks = useCallback(async () => {
-    if (isAuthenticated && accessToken) {
+    if (isAuthenticated) {
       try {
-        const fetchedPlaybooks = await api.getPlaybooks(accessToken);
+        const token = await getToken();
+        if (!token) {
+            setPlaybooks([]);
+            return;
+        }
+        const fetchedPlaybooks = await api.getPlaybooks(token);
         setPlaybooks(fetchedPlaybooks);
       } catch (error) {
         console.error("Failed to fetch playbooks", error);
@@ -34,12 +39,17 @@ export const PlaybookProvider: React.FC<{ children: ReactNode }> = ({ children }
     } else {
       setPlaybooks([]);
     }
-  }, [isAuthenticated, accessToken]);
+  }, [isAuthenticated, getToken]);
 
   const refreshCommunityPlaybooks = useCallback(async () => {
-    if (isAuthenticated && accessToken) {
+    if (isAuthenticated) {
       try {
-        const fetched = await api.getCommunityPlaybooks(accessToken);
+        const token = await getToken();
+        if (!token) {
+            setCommunityPlaybooks([]);
+            return;
+        }
+        const fetched = await api.getCommunityPlaybooks(token);
         setCommunityPlaybooks(fetched);
       } catch (error) {
         console.error("Failed to fetch community playbooks", error);
@@ -48,11 +58,11 @@ export const PlaybookProvider: React.FC<{ children: ReactNode }> = ({ children }
     } else {
       setCommunityPlaybooks([]);
     }
-  }, [isAuthenticated, accessToken]);
+  }, [isAuthenticated, getToken]);
 
   useEffect(() => {
     const loadData = async () => {
-      if (isAuthenticated && accessToken) {
+      if (isAuthenticated) {
         setIsLoading(true);
         await Promise.all([refreshPlaybooks(), refreshCommunityPlaybooks()]);
         setIsLoading(false);
@@ -63,23 +73,26 @@ export const PlaybookProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
     };
     loadData();
-  }, [isAuthenticated, accessToken, refreshPlaybooks, refreshCommunityPlaybooks]);
+  }, [isAuthenticated, refreshPlaybooks, refreshCommunityPlaybooks]);
 
   const createPlaybook = async (data: Partial<Playbook>) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.createPlaybook(data, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.createPlaybook(data, token);
     await refreshPlaybooks();
   };
 
   const updatePlaybook = async (id: string, data: Partial<Playbook>) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.updatePlaybook(id, data, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.updatePlaybook(id, data, token);
     await refreshPlaybooks();
   };
   
   const deletePlaybook = async (id: string) => {
-    if (!accessToken) throw new Error("Not authenticated");
-    await api.deletePlaybook(id, accessToken);
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.deletePlaybook(id, token);
     await refreshPlaybooks();
   };
 

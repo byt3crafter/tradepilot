@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, ReactNode, useState, useEffect } from 'react';
 import { User } from '../types';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
@@ -22,6 +21,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useUser();
   const { getToken, signOut } = useClerkAuth();
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  // Keep the access token fresh in the context state
+  useEffect(() => {
+    let intervalId: any;
+
+    const fetchToken = async () => {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          setAccessToken(token);
+        } catch (e) {
+          console.error("Failed to fetch access token", e);
+          setAccessToken(null);
+        }
+      } else {
+        setAccessToken(null);
+      }
+    };
+
+    fetchToken();
+
+    if (isSignedIn) {
+      // Refresh token periodically to ensure it doesn't expire in the state
+      // Clerk handles the actual rotation, we just need to pull the latest valid one
+      intervalId = setInterval(fetchToken, 50 * 1000); 
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isSignedIn, getToken]);
 
   // Adapter to map Clerk user to our app's User type
   const appUser: User | null = useMemo(() => {
@@ -30,7 +61,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       id: clerkUser.id,
       email: clerkUser.primaryEmailAddress?.emailAddress || '',
       fullName: clerkUser.fullName || '',
-      isEmailVerified: true, // Clerk handles this
+      isEmailVerified: true, 
       createdAt: clerkUser.createdAt?.toISOString() || new Date().toISOString(),
       lastLoginAt: clerkUser.lastSignInAt?.toISOString() || new Date().toISOString(),
       role: (clerkUser.publicMetadata?.role as any) || 'USER',
@@ -38,7 +69,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       trialEndsAt: (clerkUser.publicMetadata?.trialEndsAt as string) || null,
       proAccessExpiresAt: (clerkUser.publicMetadata?.proAccessExpiresAt as string) || null,
       featureFlags: {
-          analysisTrackerEnabled: true // Default enabled for now
+          analysisTrackerEnabled: true 
       }
     };
   }, [clerkUser]);
@@ -46,7 +77,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => { signOut(); };
   
   const refreshUser = async () => { 
-      // Clerk handles user sync automatically via sockets, but we can expose this for manual triggers if needed
       await clerkUser?.reload();
       return appUser || undefined; 
   };
@@ -56,7 +86,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isSubscribed = appUser?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
     const isTrialing = appUser?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
     
-    // Default trial logic if metadata missing (fallback)
     const trialDaysRemaining = 14; 
     const isTrialExpired = false;
 
@@ -65,7 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value = {
     user: appUser,
-    accessToken: null, // We use getToken() async now
+    accessToken, 
     isAuthenticated: !!isSignedIn,
     isLoading: !isUserLoaded,
     ...subscriptionState,

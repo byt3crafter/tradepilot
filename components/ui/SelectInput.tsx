@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface SelectInputProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -21,11 +20,16 @@ const SelectInput: React.FC<SelectInputProps> = ({ label, id, options, subLabel,
       <div className="relative">
         <select
           id={id}
-          className="w-full bg-surface border border-white/10 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-secondary/30 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 font-tech-mono appearance-none"
+          className="w-full bg-[#0C0D0E] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-secondary/30 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 font-tech-mono appearance-none"
           {...props}
         >
           {options.map(option => (
-            <option key={option.value} value={option.value} className="bg-surface text-primary py-2">
+            <option 
+                key={option.value} 
+                value={option.value} 
+                className="bg-[#0C0D0E] text-white py-2"
+                style={{ backgroundColor: '#0C0D0E', color: 'white' }}
+            >
               {option.label}
             </option>
           ))}

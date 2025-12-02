@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -23,8 +22,8 @@ import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
 
 export type AuthPage = 'login' | 'signup';
 
-// NOTE: In a real app, this key should come from environment variables.
-const CLERK_PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
+// NOTE: using import.meta.env for Vite. Cast to any to avoid TS error if types are missing.
+const CLERK_PUBLISHABLE_KEY = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
 
 const AuthenticatedApp: React.FC = () => {
   const { isLoading } = useAuth();
@@ -123,13 +122,11 @@ const App: React.FC = () => {
   }
 
   return (
-    <React.StrictMode>
-      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <AuthProvider>
-            <AppContent />
-        </AuthProvider>
-      </ClerkProvider>
-    </React.StrictMode>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <AuthProvider>
+          <AppContent />
+      </AuthProvider>
+    </ClerkProvider>
   );
 };
 
