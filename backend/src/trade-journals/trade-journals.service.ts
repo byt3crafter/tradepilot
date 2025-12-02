@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { TradesService } from 'src/trades/trades.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { TradesService } from '../trades/trades.service';
 import { CreateTradeJournalDto } from './dto/create-trade-journal.dto';
 import { UpdateTradeJournalDto } from './dto/update-trade-journal.dto';
 

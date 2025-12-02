@@ -1,6 +1,5 @@
 // FIX: Use a named import for PrismaClient to resolve module resolution errors.
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
 
 // FIX: Instantiate the imported PrismaClient.
 const prisma = new PrismaClient();
@@ -32,14 +31,14 @@ const assetSpecifications = [
 async function main() {
   console.log('Start seeding...');
 
-  const passwordHash = await bcrypt.hash('Password123!', 10);
-
+  // Note: Using Clerk for auth, so users are created via Clerk, not directly in the database
+  // These are mock Clerk user IDs for seeding purposes
   const user1 = await prisma.user.upsert({
     where: { email: 'verified.user@example.com' },
     update: {},
     create: {
+      id: 'user_seed_verified_123',
       email: 'verified.user@example.com',
-      passwordHash,
       fullName: 'Verified User',
       isEmailVerified: true,
       lastLoginAt: new Date(),
@@ -50,8 +49,8 @@ async function main() {
     where: { email: 'unverified.user@example.com' },
     update: {},
     create: {
+      id: 'user_seed_unverified_456',
       email: 'unverified.user@example.com',
-      passwordHash,
       fullName: 'Unverified User',
       isEmailVerified: false,
     },

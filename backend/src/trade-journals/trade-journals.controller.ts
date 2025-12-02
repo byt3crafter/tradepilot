@@ -2,7 +2,7 @@ import { Controller, Post, Body, Patch, Param, UseGuards, Req } from '@nestjs/co
 import { TradeJournalsService } from './trade-journals.service';
 import { CreateTradeJournalDto } from './dto/create-trade-journal.dto';
 import { UpdateTradeJournalDto } from './dto/update-trade-journal.dto';
-import { JwtAccessGuard } from 'src/auth/guards/jwt-access.guard';
+import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {

@@ -93,7 +93,7 @@ export const PaddleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setIsLoading(false);
       return;
     }
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !accessToken) {
       setPaddle(null);
       setIsLoading(false);
       return;
@@ -105,7 +105,7 @@ export const PaddleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const p = await loadPaddleV2Script();
 
       // 2) Fetch client-side token from your backend
-      const { clientSideToken } = await api.getBillingConfig(accessToken!);
+      const { clientSideToken } = await api.getBillingConfig(accessToken);
 
       // 3) Sandbox must be set BEFORE Initialize
       p.Environment.set("sandbox");
