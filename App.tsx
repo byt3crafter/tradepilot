@@ -1,13 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
-import { useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Spinner from './components/Spinner';
-import VerifyEmailPage from './pages/VerifyEmailPage';
 import { ViewProvider } from './context/ViewContext';
 import { PaddleProvider } from './context/PaddleContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
@@ -21,31 +19,24 @@ import { UIProvider } from './context/UIContext';
 import { AssetProvider } from './context/AssetContext';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
 
-export type AuthPage = 'landing' | 'login' | 'signup' | 'forgot-password';
+export type AuthPage = 'login' | 'signup';
 
-const AuthNavigator: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<AuthPage>('landing');
-
-  const navigate = (page: AuthPage) => {
-    setCurrentPage(page);
-  };
-
-  switch (currentPage) {
-    case 'login':
-      return <LoginPage navigate={navigate} />;
-    case 'signup':
-      return <SignupPage navigate={navigate} />;
-    case 'forgot-password':
-      return <ForgotPasswordPage navigate={navigate} />;
-    case 'landing':
-    default:
-      return <LandingPage navigate={navigate} />;
-  }
-};
+// NOTE: In a real app, this key should come from environment variables.
+const CLERK_PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
 
 const AuthenticatedApp: React.FC = () => {
-  console.log('[App] Rendering AuthenticatedApp with all providers.');
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+      return (
+          <div className="min-h-screen w-full flex items-center justify-center bg-void text-white">
+              <Spinner />
+          </div>
+      );
+  }
+
   return (
     <UIProvider>
       <ViewProvider>
@@ -75,89 +66,71 @@ const AuthenticatedApp: React.FC = () => {
   );
 };
 
-const AdminApp: React.FC = () => {
+const UnauthenticatedApp: React.FC = () => {
+    const path = window.location.pathname;
+
+    if (path === '/login') {
+        return <LoginPage />;
+    }
+    if (path === '/signup') {
+        return <SignupPage />;
+    }
+    
+    // Redirect legacy routes to home or login
+    if (['/forgot-password', '/reset-password', '/verify-email'].includes(path)) {
+        window.location.href = '/login';
+        return null;
+    }
+    
+    return <LandingPage navigate={(page) => window.location.href = `/${page}`} />;
+};
+
+const AppContent: React.FC = () => {
+    const [locationHash, setLocationHash] = useState(window.location.hash);
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            setLocationHash(window.location.hash);
+        };
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
+    // Handle Admin Route specially (though ideally this is protected by Clerk too)
+    if (locationHash.startsWith('#/admin-panel')) {
+        return (
+            <SignedIn>
+                <AdminPage />
+            </SignedIn>
+        );
+    }
+
     return (
-        // Admin page may not need all providers, but AuthProvider is already top-level.
-        // Add other providers here if AdminPage starts using their contexts.
-        <AdminPage />
+        <>
+            <SignedIn>
+                <AuthenticatedApp />
+            </SignedIn>
+            <SignedOut>
+                <UnauthenticatedApp />
+            </SignedOut>
+        </>
     );
 };
 
-
 const App: React.FC = () => {
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const [locationHash, setLocationHash] = useState(window.location.hash);
-
-  useEffect(() => {
-      const handleHashChange = () => {
-          setLocationHash(window.location.hash);
-      };
-      window.addEventListener('hashchange', handleHashChange);
-      return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
+  if (CLERK_PUBLISHABLE_KEY === 'pk_test_PLACEHOLDER_KEY_HERE') {
+      console.warn("Clerk Publishable Key is missing. Please add VITE_CLERK_PUBLISHABLE_KEY to your environment.");
   }
 
-  const path = window.location.pathname;
-  
-  // Redirect legacy /admin-panel path to new hash-based route.
-  // This helps if the user has it bookmarked and works in local dev.
-  if (path.startsWith('/admin-panel')) {
-      window.location.href = '/#/admin-panel';
-      return (
-          <div className="min-h-screen w-full flex items-center justify-center">
-              <Spinner />
-          </div>
-      );
-  }
-  
-  if (path === '/verify-email') {
-    return (
-       <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
-        <VerifyEmailPage />
-      </div>
-    );
-  }
-
-  if (path === '/reset-password') {
-    return (
-       <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
-        <ResetPasswordPage />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
-            <AuthNavigator />
-        </div>
-    );
-  }
-
-  // Authenticated routing using hash
-  if (locationHash.startsWith('#/admin-panel')) {
-      if (user?.role === 'ADMIN') {
-          return <AdminApp />;
-      } else {
-          // If a non-admin tries to access, redirect them to the dashboard.
-          window.location.href = '/';
-          return ( // Render a spinner during the brief moment of redirection
-            <div className="min-h-screen w-full flex items-center justify-center">
-                <Spinner />
-            </div>
-          );
-      }
-  }
-
-  // Default to the main authenticated app
-  return <AuthenticatedApp />;
+  return (
+    <React.StrictMode>
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
+      </ClerkProvider>
+    </React.StrictMode>
+  );
 };
 
 export default App;

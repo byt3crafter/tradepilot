@@ -1,10 +1,10 @@
+
 import React, { useState } from 'react';
 import { AdminUser } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
 import Checkbox from '../ui/Checkbox';
 import Textarea from '../ui/Textarea';
 
@@ -69,7 +69,7 @@ const GrantProAccessModal: React.FC<GrantProAccessModalProps> = ({ user, onSucce
       </div>
       
       {!isLifetime && (
-         <AuthInput
+         <Input
             label="Access Expires At"
             id="expiresAt"
             type="date"
@@ -79,7 +79,7 @@ const GrantProAccessModal: React.FC<GrantProAccessModalProps> = ({ user, onSucce
       )}
       
       <Textarea
-        label="Reason (optional, for internal notes)"
+        label="Reason (optional)"
         id="reason"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -89,8 +89,8 @@ const GrantProAccessModal: React.FC<GrantProAccessModalProps> = ({ user, onSucce
       {error && <p className="text-risk-high text-sm text-center my-2">{error}</p>}
       
       <div className="mt-6">
-        <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? <Spinner /> : 'Update Pro Access'}
+        <Button type="submit" isLoading={isLoading} className="w-full">
+          Update Pro Access
         </Button>
       </div>
     </form>

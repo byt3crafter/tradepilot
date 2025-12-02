@@ -1,11 +1,11 @@
+
 import React, { useState } from 'react';
 import Modal from '../ui/Modal';
 import { AnalyzeChartResult, Trade } from '../../types';
 import { useTrade } from '../../context/TradeContext';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import ImageUploader from './ImageUploader';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import AutofillModal from './AutofillModal';
 
@@ -50,8 +50,6 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
     if (data.exitDate) updates.exitDate = toDateTimeLocal(data.exitDate);
     if (data.exitPrice ?? null !== null) updates.exitPrice = String(data.exitPrice);
     if (data.profitLoss ?? null !== null) updates.profitLoss = String(data.profitLoss);
-    // Commission and Swap are ignored here to keep this modal simple,
-    // they can be added later via the "Edit Trade" form.
     
     setFormState(prev => ({...prev, ...updates}));
     setIsAutofillModalOpen(false);
@@ -87,26 +85,27 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
               <Button 
                   type="button" 
                   onClick={() => setIsAutofillModalOpen(true)} 
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue py-1.5 px-3 text-xs"
+                  variant="secondary"
+                  className="w-full sm:w-auto text-xs py-1.5 px-3 flex items-center justify-center gap-2"
               >
-                  <SparklesIcon className="w-4 h-4" />
+                  <SparklesIcon className="w-4 h-4 text-photonic-blue" />
                   Autofill with AI
               </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <AuthInput
+              <Input
                   label="Exit Date & Time"
                   id="exitDate" name="exitDate" type="datetime-local"
                   value={formState.exitDate} onChange={handleInputChange} required step="1"
               />
-              <AuthInput
+              <Input
                   label="Exit Price"
                   id="exitPrice" name="exitPrice" type="number" step="any"
                   value={formState.exitPrice} onChange={handleInputChange} required
               />
           </div>
           
-          <AuthInput
+          <Input
               label="Net P/L ($)"
               id="profitLoss" name="profitLoss" type="number" step="any"
               value={formState.profitLoss} onChange={handleInputChange} required
@@ -119,10 +118,10 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
           />
 
           {/* --- FOOTER --- */}
-          <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+          <div className="mt-6 pt-6 border-t border-white/10">
             {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-            <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? <Spinner /> : 'Close Trade'}
+            <Button type="submit" isLoading={isLoading} className="w-full">
+              Close Trade
             </Button>
           </div>
         </form>

@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
 import { useChecklist } from '../../context/ChecklistContext';
 import { ChecklistRule } from '../../types';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
 
 interface ChecklistFormProps {
   rule: ChecklistRule | null;
@@ -37,7 +37,7 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({ rule, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <AuthInput
+      <Input
         label="Rule"
         id="ruleText"
         type="text"
@@ -49,8 +49,8 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({ rule, onSuccess }) => {
       
       {error && <p className="text-risk-high text-sm text-center my-4">{error}</p>}
       <div className="mt-6">
-        <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? <Spinner /> : (rule ? 'Save Changes' : 'Add Rule')}
+        <Button type="submit" isLoading={isLoading} className="w-full">
+          {rule ? 'Save Changes' : 'Add Rule'}
         </Button>
       </div>
     </form>

@@ -1,20 +1,16 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import md5 from 'md5';
 import { useAuth } from '../context/AuthContext';
 import { DashboardView, SettingsSubView } from '../pages/DashboardPage';
 import AuthLogo from './auth/AuthLogo';
 import AuthMark from './auth/AuthMark';
 import { JournalIcon } from './icons/JournalIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
-import { LogoutIcon } from './icons/LogoutIcon';
-import { UserIcon } from './icons/UserIcon';
+import { UserButton } from '@clerk/clerk-react';
 import { useAccount } from '../context/AccountContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { PlaybookIcon } from './icons/PlaybookIcon';
-import { CreditCardIcon } from './icons/CreditCardIcon';
-import { AdminIcon } from './icons/AdminIcon';
 import { useView } from '../context/ViewContext';
-import { User } from '../types';
 import { DashboardIcon } from './icons/DashboardIcon';
 import Button from './ui/Button';
 import { useUI } from '../context/UIContext';
@@ -39,19 +35,21 @@ const NavItem: React.FC<{
 }> = ({ icon, label, isActive, isCollapsed, onClick, href }) => {
   const Element: any = href ? 'a' : 'button';
 
-  const navItemClasses = `relative flex items-center w-full px-3 py-2.5 rounded-lg transition-colors duration-200 ${
-    isActive ? 'text-photonic-blue' : 'text-future-gray hover:bg-future-panel hover:text-future-light'
+  const navItemClasses = `relative flex items-center w-full px-3 py-2.5 my-1 rounded-lg transition-all duration-200 group ${
+    isActive ? 'text-white bg-white/5' : 'text-secondary hover:text-white hover:bg-white/5'
   } ${isCollapsed ? 'justify-center' : ''}`;
 
   const content = (
     <Element href={href} onClick={onClick} className={navItemClasses}>
-      {isActive && !isCollapsed && (
-        <span className="absolute left-0 top-0 h-full w-1 bg-photonic-blue rounded-r-sm" />
+      {isActive && (
+        <span className={`absolute left-0 w-1 h-6 bg-white rounded-r-full transition-all duration-300 ${isCollapsed ? 'left-[-4px]' : 'left-[-8px]'}`} />
       )}
 
-      <div className="flex-shrink-0">{icon}</div>
+      <div className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
+        {icon}
+      </div>
 
-      {!isCollapsed && <span className="ml-4 font-medium transition-opacity duration-200">{label}</span>}
+      {!isCollapsed && <span className="ml-4 font-medium text-sm tracking-wide">{label}</span>}
     </Element>
   );
 
@@ -60,62 +58,6 @@ const NavItem: React.FC<{
   }
 
   return content;
-};
-
-const ProfileMenu: React.FC<{
-  user: User;
-  logout: () => void;
-  closeMenu: () => void;
-}> = ({ user, logout, closeMenu }) => {
-  const { navigateTo } = useView();
-
-  const handleNavigation = (view: DashboardView, subView?: SettingsSubView) => {
-    navigateTo(view, subView);
-    closeMenu();
-  };
-
-  return (
-    <div className="absolute bottom-full mb-3 w-56 bg-future-panel border border-photonic-blue/20 rounded-lg shadow-lg p-2 animate-fade-in-up origin-bottom">
-      <button
-        onClick={() => handleNavigation('personalisation')}
-        className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
-      >
-        <UserIcon className="w-5 h-5 mr-3" />
-        <span>Personalisation</span>
-      </button>
-      <button
-        onClick={() => handleNavigation('settings', 'accounts')}
-        className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
-      >
-        <SettingsIcon className="w-5 h-5 mr-3" />
-        <span>Settings</span>
-      </button>
-      <button
-        onClick={() => handleNavigation('subscription')}
-        className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
-      >
-        <CreditCardIcon className="w-5 h-5 mr-3" />
-        <span>Subscription</span>
-      </button>
-      {user.role === 'ADMIN' && (
-        <a
-          href="/#/admin-panel"
-          className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
-        >
-          <AdminIcon className="w-5 h-5 mr-3" />
-          <span>Admin Panel</span>
-        </a>
-      )}
-      <div className="my-1 border-t border-photonic-blue/10"></div>
-      <button
-        onClick={logout}
-        className="flex items-center w-full px-3 py-2 text-sm rounded-md text-future-gray hover:bg-risk-high/10 hover:text-risk-high transition-colors"
-      >
-        <LogoutIcon className="w-5 h-5 mr-3" />
-        <span>Log off</span>
-      </button>
-    </div>
-  );
 };
 
 const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
@@ -152,9 +94,9 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
           <Button
             variant="link"
             onClick={() => navigateTo('settings', 'accounts')}
-            className="w-full h-12 flex items-center justify-center text-future-gray border border-dashed border-photonic-blue/20 rounded-lg hover:bg-photonic-blue/5 hover:text-future-light"
+            className="w-full h-10 flex items-center justify-center text-secondary border border-dashed border-white/20 rounded-lg hover:bg-white/5 hover:text-white"
           >
-            <PlusIcon className="w-6 h-6" />
+            <PlusIcon className="w-5 h-5" />
           </Button>
         </Tooltip>
       );
@@ -163,9 +105,9 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
       <Button
         variant="link"
         onClick={() => navigateTo('settings', 'accounts')}
-        className="w-full text-sm text-center text-future-gray border border-dashed border-photonic-blue/20 rounded-lg hover:bg-photonic-blue/5 hover:text-future-light p-3"
+        className="w-full text-sm text-center text-secondary border border-dashed border-white/20 rounded-lg hover:bg-white/5 hover:text-white p-2"
       >
-        Create an account to begin.
+        + Add Account
       </Button>
     );
   }
@@ -174,20 +116,25 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
     <div className="relative" ref={switcherRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-future-dark/50 border border-photonic-blue/20 rounded-lg text-left hover:bg-future-panel transition-colors h-14"
+        className="w-full flex items-center justify-between px-2 py-2 rounded-lg text-left hover:bg-white/5 transition-colors group"
       >
         {isCollapsed ? (
-          <div className="w-full text-center">
-            <span className="font-orbitron text-photonic-blue">{initials}</span>
+          <div className="w-8 h-8 rounded-full bg-surface-highlight flex items-center justify-center mx-auto border border-white/10 group-hover:border-white/30 transition-colors">
+            <span className="font-orbitron text-xs text-white">{initials}</span>
           </div>
         ) : (
           <>
-            <div className="overflow-hidden">
-              <p className="font-semibold text-sm text-future-light truncate">{activeAccount.name}</p>
-              <p className="text-xs text-future-gray truncate">{activeAccount.type.replace('_', ' ')}</p>
+            <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-surface-highlight flex items-center justify-center border border-white/10 shrink-0">
+                    <span className="font-orbitron text-xs text-white">{initials}</span>
+                </div>
+                <div className="overflow-hidden">
+                    <p className="font-semibold text-sm text-white truncate">{activeAccount.name}</p>
+                    <p className="text-[10px] text-secondary truncate uppercase tracking-wider">{activeAccount.type.replace('_', ' ')}</p>
+                </div>
             </div>
             <ChevronDownIcon
-              className={`w-5 h-5 text-future-gray transition-transform flex-shrink-0 ${
+              className={`w-4 h-4 text-secondary group-hover:text-white transition-transform flex-shrink-0 ${
                 isOpen ? 'rotate-180' : ''
               }`}
             />
@@ -196,22 +143,35 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
       </button>
       {isOpen && (
         <div
-          className={`absolute top-0 mt-0 bg-future-panel border border-photonic-blue/20 rounded-lg shadow-lg p-1 z-10 animate-fade-in-up ${
-            isCollapsed ? 'left-full ml-2 w-56' : 'top-full mt-2 w-full'
+          className={`absolute top-0 mt-0 bg-surface border border-white/10 rounded-lg shadow-xl p-1 z-50 w-56 ${
+            isCollapsed ? 'left-full ml-2' : 'top-full mt-2 w-full left-0'
           }`}
         >
-          {accounts.map((account) => (
-            <button
-              key={account.id}
-              onClick={() => {
-                switchAccount(account.id);
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-3 py-2 text-sm rounded-md text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
-            >
-              {account.name}
+          <div className="max-h-60 overflow-y-auto sidebar-scrollbar">
+            {accounts.map((account) => (
+                <button
+                key={account.id}
+                onClick={() => {
+                    switchAccount(account.id);
+                    setIsOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm rounded-md text-secondary hover:bg-white/5 hover:text-white transition-colors"
+                >
+                {account.name}
+                </button>
+            ))}
+          </div>
+          <div className="border-t border-white/10 mt-1 pt-1">
+             <button
+                onClick={() => {
+                    navigateTo('settings', 'accounts');
+                    setIsOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm rounded-md text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                >
+                <PlusIcon className="w-3 h-3" /> Create Account
             </button>
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -219,24 +179,10 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed, toggleSidebar } = useUI();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
+  
   const handleSetView = (view: DashboardView) => {
     navigateTo(view);
     onClose();
@@ -244,47 +190,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   if (!user) return null;
 
-  const gravatarHash = md5(user.email.trim().toLowerCase());
-  const gravatarUrl = `https://www.gravatar.com/avatar/${gravatarHash}?d=identicon&s=100`;
-
   return (
     <>
       <div
-        className={`fixed inset-0 bg-future-dark/60 z-30 md:hidden transition-opacity ${
+        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
         aria-hidden="true"
       ></div>
       <aside
-        className={`fixed top-0 left-0 h-full bg-future-panel/90 backdrop-blur-md border-r border-photonic-blue/10 flex-shrink-0 flex flex-col p-4 z-40 transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'w-20' : 'w-56'
-        } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`fixed top-0 left-0 h-full bg-void/95 backdrop-blur-md border-r border-white/5 flex-shrink-0 flex flex-col pt-6 pb-4 z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
+          isSidebarCollapsed ? 'w-20 px-2' : 'w-64 px-4'
+        } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 shadow-2xl`}
       >
-        {/* BRAND — always visible, swaps between full logo and mini mark */}
-        <div className={`mb-6 transition-all duration-300 ${isSidebarCollapsed ? 'px-0 text-center' : 'px-2'}`}>
-          <button
-            onClick={() => handleSetView('dashboard')}
-            className={`${
-              isSidebarCollapsed ? 'w-12 h-12 mx-auto grid place-items-center' : 'w-full'
-            } rounded-lg focus:outline-none focus:ring-1 focus:ring-photonic-blue/40`}
-            aria-label="JTradePilot Home"
-          >
+        {/* BRAND */}
+        <div className={`mb-8 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-2'}`}>
             {isSidebarCollapsed ? (
-              <AuthMark size={22} />
+              <AuthMark size={24} />
             ) : (
               <AuthLogo />
             )}
-          </button>
         </div>
 
         <div className="mb-6">
           <AccountSwitcher isCollapsed={isSidebarCollapsed} />
         </div>
 
-        <nav className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col gap-1 overflow-y-auto sidebar-scrollbar">
           <NavItem
-            icon={<DashboardIcon className="w-6 h-6" />}
+            icon={<DashboardIcon className="w-5 h-5" />}
             label="Dashboard"
             isActive={currentView === 'dashboard'}
             onClick={() => handleSetView('dashboard')}
@@ -292,7 +227,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           />
           {user.featureFlags?.analysisTrackerEnabled && (
             <NavItem
-              icon={<TrackerIcon className="w-6 h-6" />}
+              icon={<TrackerIcon className="w-5 h-5" />}
               label="Tracker"
               isActive={currentView === 'analysis-tracker'}
               onClick={() => handleSetView('analysis-tracker')}
@@ -300,76 +235,64 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             />
           )}
           <NavItem
-            icon={<JournalIcon className="w-6 h-6" />}
-            label="Trade Journal"
+            icon={<JournalIcon className="w-5 h-5" />}
+            label="Journal"
             isActive={currentView === 'journal'}
             onClick={() => handleSetView('journal')}
             isCollapsed={isSidebarCollapsed}
           />
           <NavItem
-            icon={<PlaybookIcon className="w-6 h-6" />}
+            icon={<PlaybookIcon className="w-5 h-5" />}
             label="Playbooks"
             isActive={currentView === 'playbooks'}
             onClick={() => handleSetView('playbooks')}
             isCollapsed={isSidebarCollapsed}
           />
            <NavItem
-            icon={<AnalyticsIcon className="w-6 h-6" />}
+            icon={<AnalyticsIcon className="w-5 h-5" />}
             label="Analytics"
             isActive={currentView === 'analytics'}
             onClick={() => handleSetView('analytics')}
             isCollapsed={isSidebarCollapsed}
           />
-          <NavItem
-            icon={<SettingsIcon className="w-6 h-6" />}
-            label="Settings"
-            isActive={currentView === 'settings'}
-            onClick={() => handleSetView('settings')}
-            isCollapsed={isSidebarCollapsed}
-          />
-        </nav>
+        </div>
 
-        <div className="mt-auto" ref={menuRef}>
-          <div className={`border-t border-photonic-blue/10 pt-4 transition-all duration-300`}>
-            <div className="relative">
-              {isMenuOpen && !isSidebarCollapsed && (
-                <ProfileMenu user={user} logout={logout} closeMenu={() => setIsMenuOpen(false)} />
-              )}
-              <button
-                onClick={() => !isSidebarCollapsed && setIsMenuOpen(!isMenuOpen)}
-                className={`flex items-center gap-3 w-full text-left rounded-lg p-2 transition-colors ${
-                  !isSidebarCollapsed ? 'hover:bg-future-panel' : ''
-                } ${isSidebarCollapsed ? 'justify-center' : 'px-2'}`}
-                aria-haspopup="true"
-                aria-expanded={isMenuOpen}
-              >
-                <img
-                  src={gravatarUrl}
-                  alt="User Avatar"
-                  className="w-10 h-10 rounded-full border-2 border-photonic-blue/50 flex-shrink-0"
+        <div className="mt-auto pt-4 border-t border-white/5">
+            <NavItem
+                icon={<SettingsIcon className="w-5 h-5" />}
+                label="Settings"
+                isActive={currentView === 'settings'}
+                onClick={() => handleSetView('settings')}
+                isCollapsed={isSidebarCollapsed}
+            />
+            
+            <button
+                onClick={toggleSidebar}
+                className="w-full flex items-center justify-center p-2 mt-2 text-secondary hover:text-white transition-colors"
+                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+            <ChevronDoubleLeftIcon
+                className={`w-4 h-4 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
+            />
+            </button>
+
+            <div className={`mt-4 flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : 'px-2'}`}>
+                <UserButton 
+                    appearance={{
+                        elements: {
+                            avatarBox: "w-8 h-8 rounded-full border border-white/10",
+                            userButtonPopoverCard: "bg-surface border border-white/10 shadow-xl",
+                            userButtonPopoverFooter: "hidden"
+                        }
+                    }}
                 />
                 {!isSidebarCollapsed && (
-                  <div className="flex-1 overflow-hidden">
-                    <p className="font-semibold text-future-light text-sm truncate">{user.fullName}</p>
-                    <p className="text-future-gray text-xs truncate">{user.email}</p>
-                  </div>
+                    <div className="overflow-hidden flex-1">
+                        <p className="text-xs font-semibold text-white truncate">{user.fullName}</p>
+                        <p className="text-[10px] text-secondary truncate">JTradePilot Pro</p>
+                    </div>
                 )}
-              </button>
             </div>
-          </div>
-          <div className={`mt-2 border-t border-photonic-blue/10 pt-2`}>
-            <Tooltip text={isSidebarCollapsed ? 'Expand' : 'Collapse'}>
-              <button
-                onClick={toggleSidebar}
-                className="w-full flex items-center justify-center p-2 rounded-lg text-future-gray hover:bg-future-panel hover:text-future-light transition-colors"
-                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              >
-                <ChevronDoubleLeftIcon
-                  className={`w-5 h-5 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
-                />
-              </button>
-            </Tooltip>
-          </div>
         </div>
       </aside>
     </>

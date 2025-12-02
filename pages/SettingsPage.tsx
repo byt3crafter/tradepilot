@@ -1,11 +1,11 @@
+
 import React from 'react';
 import AccountManager from '../components/accounts/AccountManager';
 import ChecklistManager from '../components/checklist/ChecklistManager';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/ui/Button';
-import AuthInput from '../components/auth/AuthInput';
-import Spinner from '../components/Spinner';
+import Input from '../components/ui/Input';
 import api from '../services/api';
 import { useView } from '../context/ViewContext';
 import { SettingsSubView } from './DashboardPage';
@@ -41,7 +41,7 @@ const SecuritySettings: React.FC = () => {
             <h2 className="text-xl font-orbitron text-photonic-blue mb-4">Security</h2>
             <form onSubmit={handlePasswordSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <AuthInput
+                    <Input
                         label="Current Password"
                         id="currentPassword"
                         type="password"
@@ -50,7 +50,7 @@ const SecuritySettings: React.FC = () => {
                         disabled={passwordIsLoading}
                         placeholder="••••••••"
                     />
-                    <AuthInput
+                    <Input
                         label="New Password"
                         id="newPassword"
                         type="password"
@@ -63,8 +63,8 @@ const SecuritySettings: React.FC = () => {
                 {passwordError && <p className="text-sm text-risk-high mt-2">{passwordError}</p>}
                 {passwordSuccess && <p className="text-sm text-momentum-green mt-2">{passwordSuccess}</p>}
                 <div className="mt-4">
-                    <Button type="submit" className="w-full sm:w-auto" disabled={passwordIsLoading}>
-                        {passwordIsLoading ? <Spinner /> : 'Update Password'}
+                    <Button type="submit" isLoading={passwordIsLoading}>
+                        Update Password
                     </Button>
                 </div>
             </form>
@@ -86,14 +86,14 @@ const SettingsPage: React.FC = () => {
             case 'security':
                 return <SecuritySettings />;
             default:
-                return <Card><AccountManager /></Card>; // Default to accounts
+                return <Card><AccountManager /></Card>;
         }
     };
 
     const NavButton: React.FC<{ tab: SettingsSubView; label: string }> = ({ tab, label }) => (
         <button
             onClick={() => navigateTo('settings', tab)}
-            className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${currentSubView === tab ? 'bg-photonic-blue/10 text-photonic-blue' : 'text-future-gray hover:bg-future-panel'}`}
+            className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors w-full text-left ${currentSubView === tab ? 'bg-white/10 text-white' : 'text-secondary hover:bg-white/5 hover:text-white'}`}
         >
             {label}
         </button>
@@ -108,7 +108,7 @@ const SettingsPage: React.FC = () => {
 
             <div className="flex flex-col md:flex-row gap-8">
                 <nav className="flex-shrink-0 md:w-48">
-                    <div className="flex flex-row md:flex-col gap-2 p-2 bg-future-panel/50 rounded-lg">
+                    <div className="flex flex-row md:flex-col gap-2 p-2 bg-surface border border-white/5 rounded-lg">
                         <NavButton tab="accounts" label="Accounts" />
                         <NavButton tab="checklist" label="Checklist" />
                         <NavButton tab="assets" label="Assets" />

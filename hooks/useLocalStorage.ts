@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function getValueFromStorage<T>(key: string, initialValue: T): T {
   // Check if running on the server, return initial value

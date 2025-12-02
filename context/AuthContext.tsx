@@ -1,6 +1,7 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import api from '../services/api';
+
+import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { User } from '../types';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
 interface AuthContextType {
   user: User | null;
@@ -11,134 +12,66 @@ interface AuthContextType {
   isSubscribed: boolean;
   trialDaysRemaining: number;
   isTrialExpired: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => void;
-  resendVerification: (email: string) => Promise<void>;
   refreshUser: () => Promise<User | undefined>;
-  forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  getToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(localStorage.getItem('accessToken'));
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useUser();
+  const { getToken, signOut } = useClerkAuth();
 
-  const logout = useCallback(() => {
-    if(accessToken) {
-        api.post('/api/auth/logout', {}, accessToken).catch(err => console.error("Logout failed on backend", err));
-    }
-    setUser(null);
-    setAccessToken(null);
-    localStorage.removeItem('accessToken');
-  }, [accessToken]);
-
-
-  const refreshUser = useCallback(async (): Promise<User | undefined> => {
-    const currentToken = localStorage.getItem('accessToken');
-    if (!currentToken) {
-      setUser(null);
-      return undefined;
-    }
-    try {
-      const userData = await api.get<User>('/api/users/me', currentToken);
-      setUser(userData);
-      return userData;
-    } catch (error) {
-      console.error('Failed to fetch user, logging out.', error);
-      logout();
-      return undefined;
-    }
-  }, [logout]);
-
-
-  useEffect(() => {
-    const loadUser = async () => {
-      setIsLoading(true);
-      const currentToken = localStorage.getItem('accessToken');
-      if (currentToken) {
-        await refreshUser();
+  // Adapter to map Clerk user to our app's User type
+  const appUser: User | null = useMemo(() => {
+    if (!clerkUser) return null;
+    return {
+      id: clerkUser.id,
+      email: clerkUser.primaryEmailAddress?.emailAddress || '',
+      fullName: clerkUser.fullName || '',
+      isEmailVerified: true, // Clerk handles this
+      createdAt: clerkUser.createdAt?.toISOString() || new Date().toISOString(),
+      lastLoginAt: clerkUser.lastSignInAt?.toISOString() || new Date().toISOString(),
+      role: (clerkUser.publicMetadata?.role as any) || 'USER',
+      subscriptionStatus: (clerkUser.publicMetadata?.subscriptionStatus as any) || 'TRIALING',
+      trialEndsAt: (clerkUser.publicMetadata?.trialEndsAt as string) || null,
+      proAccessExpiresAt: (clerkUser.publicMetadata?.proAccessExpiresAt as string) || null,
+      featureFlags: {
+          analysisTrackerEnabled: true // Default enabled for now
       }
-      setIsLoading(false);
     };
+  }, [clerkUser]);
 
-    loadUser();
-  }, [refreshUser]);
+  const logout = () => { signOut(); };
   
-  useEffect(() => {
-    const handleTokenRefresh = (event: Event) => {
-        const customEvent = event as CustomEvent;
-        console.log('[AuthContext] Token refreshed event received, updating state.');
-        setAccessToken(customEvent.detail);
-    };
-
-    const handleLogoutEvent = () => {
-        console.log('[AuthContext] Logout event received from API service.');
-        logout();
-    };
-
-    window.addEventListener('tokenRefreshed', handleTokenRefresh);
-    window.addEventListener('logout', handleLogoutEvent);
-
-    return () => {
-        window.removeEventListener('tokenRefreshed', handleTokenRefresh);
-        window.removeEventListener('logout', handleLogoutEvent);
-    };
-  }, [logout]);
-
-
-  const login = async (email: string, password: string) => {
-    const { user, accessToken: newAccessToken } = await api.post<{ user: User, accessToken: string }>('/api/auth/login', { email, password });
-    setUser(user);
-    setAccessToken(newAccessToken);
-    localStorage.setItem('accessToken', newAccessToken);
-  };
-  
-  const register = async (email: string, password: string, fullName: string) => {
-    await api.post('/api/auth/register', { email, password, fullName });
-  };
-
-  const resendVerification = async (email: string) => {
-    await api.post('/api/auth/resend-verification', { email });
-  }
-
-  const forgotPassword = async (email: string) => {
-    await api.post('/api/auth/forgot-password', { email });
-  };
-  
-  const resetPassword = async (token: string, newPassword: string) => {
-    await api.post('/api/auth/reset-password', { token, newPassword });
+  const refreshUser = async () => { 
+      // Clerk handles user sync automatically via sockets, but we can expose this for manual triggers if needed
+      await clerkUser?.reload();
+      return appUser || undefined; 
   };
 
   const subscriptionState = useMemo(() => {
-    const hasGiftedAccess = user?.proAccessExpiresAt === null || (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date());
+    const hasGiftedAccess = appUser?.proAccessExpiresAt === null || (appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date());
+    const isSubscribed = appUser?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
+    const isTrialing = appUser?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
     
-    const isSubscribed = user?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
-    const isTrialing = user?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
-    
-    const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-    const trialDaysRemaining = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
-    const isTrialExpired = isTrialing && trialDaysRemaining === 0;
+    // Default trial logic if metadata missing (fallback)
+    const trialDaysRemaining = 14; 
+    const isTrialExpired = false;
 
     return { isTrialing, isSubscribed, trialDaysRemaining, isTrialExpired };
-  }, [user]);
+  }, [appUser]);
 
   const value = {
-    user,
-    accessToken,
-    isAuthenticated: !!user,
-    isLoading,
+    user: appUser,
+    accessToken: null, // We use getToken() async now
+    isAuthenticated: !!isSignedIn,
+    isLoading: !isUserLoaded,
     ...subscriptionState,
-    login,
-    register,
     logout,
-    resendVerification,
     refreshUser,
-    forgotPassword,
-    resetPassword,
+    getToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

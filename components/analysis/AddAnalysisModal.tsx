@@ -1,10 +1,10 @@
+
 import React, { useState, useRef } from 'react';
 import Modal from '../ui/Modal';
 import { Analysis, IncomeCategory, AssetClass, MarketVenue, Direction, ReviewCycle } from '../../types';
 import { useAnalysis } from '../../context/AnalysisContext';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import Textarea from '../ui/Textarea';
 import { UploadIcon } from '../icons/UploadIcon';
@@ -38,7 +38,6 @@ const AddAnalysisModal: React.FC<AddAnalysisModalProps> = ({ analysisToEdit, onC
     htf: analysisToEdit?.htf || '',
     ltf: analysisToEdit?.ltf?.join(', ') || '',
     reviewCycle: analysisToEdit?.reviewCycle || ReviewCycle.DAILY,
-    // FIX: Convert Date object to string before passing to toInputDate
     nextReviewAt: toInputDate(analysisToEdit?.nextReviewAt?.toString() || new Date().toISOString()),
     structureNotes: analysisToEdit?.structureNotes || '',
   });
@@ -111,17 +110,17 @@ const AddAnalysisModal: React.FC<AddAnalysisModalProps> = ({ analysisToEdit, onC
     <Modal title={isEditMode ? 'Edit Analysis' : 'Log New Analysis'} onClose={onClose} size="4xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         <section>
-          <label className="block text-sm font-medium text-future-gray mb-2">Analysis Screenshots</label>
+          <label className="block text-xs font-semibold text-future-gray mb-2 font-orbitron uppercase tracking-wider">Analysis Screenshots</label>
           <div className="space-y-2">
             {screenshotUrls.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {screenshotUrls.map((url, index) => (
                   <div key={index} className="relative group">
-                    <img src={url} alt={`Screenshot ${index + 1}`} className="w-full h-24 object-cover rounded-md border border-future-panel" />
+                    <img src={url} alt={`Screenshot ${index + 1}`} className="w-full h-24 object-cover rounded-md border border-white/10" />
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(index)}
-                      className="absolute top-1 right-1 p-1 bg-risk-high/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 p-1 bg-loss/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <TrashIcon className="w-3 h-3" />
                     </button>
@@ -132,7 +131,7 @@ const AddAnalysisModal: React.FC<AddAnalysisModalProps> = ({ analysisToEdit, onC
             <div 
               onClick={() => fileInputRef.current?.click()}
               onPaste={handlePaste}
-              className="w-full h-24 bg-future-dark border-2 border-dashed border-photonic-blue/30 rounded-lg flex items-center justify-center cursor-pointer hover:border-photonic-blue transition-colors"
+              className="w-full h-24 bg-surface border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-white/5 transition-all"
             >
               <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
               <div className="text-center text-future-gray">
@@ -144,26 +143,26 @@ const AddAnalysisModal: React.FC<AddAnalysisModalProps> = ({ analysisToEdit, onC
         </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AuthInput label="Symbol" id="symbol" name="symbol" value={formState.symbol} onChange={handleInputChange} required placeholder="e.g., EURUSD" />
+            <Input label="Symbol" id="symbol" name="symbol" value={formState.symbol} onChange={handleInputChange} required placeholder="e.g., EURUSD" />
             <SelectInput label="Category" id="category" name="category" value={formState.category} onChange={handleInputChange} options={Object.values(IncomeCategory).map(v => ({ value: v, label: v.replace('_', ' ') }))} />
             <SelectInput label="Asset Class" id="assetClass" name="assetClass" value={formState.assetClass} onChange={handleInputChange} options={Object.values(AssetClass).map(v => ({ value: v, label: v }))} />
             <SelectInput label="Market Venue" id="marketVenue" name="marketVenue" value={formState.marketVenue} onChange={handleInputChange} options={Object.values(MarketVenue).map(v => ({ value: v, label: v }))} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AuthInput label="Higher Timeframe (HTF)" id="htf" name="htf" value={formState.htf} onChange={handleInputChange} placeholder="e.g., Daily, 4H" />
-            <AuthInput label="Lower Timeframes (LTF)" id="ltf" name="ltf" value={formState.ltf} onChange={handleInputChange} placeholder="e.g., 15m, 5m, 1m" />
+            <Input label="Higher Timeframe (HTF)" id="htf" name="htf" value={formState.htf} onChange={handleInputChange} placeholder="e.g., Daily, 4H" />
+            <Input label="Lower Timeframes (LTF)" id="ltf" name="ltf" value={formState.ltf} onChange={handleInputChange} placeholder="e.g., 15m, 5m, 1m" />
         </div>
         <SelectInput label="Directional Bias" id="directionalBias" name="directionalBias" value={formState.directionalBias} onChange={handleInputChange} options={[{ value: 'Buy', label: 'Long / Bullish' }, { value: 'Sell', label: 'Short / Bearish' }]}/>
         <Textarea label="Structure Notes (Markdown supported)" id="structureNotes" name="structureNotes" value={formState.structureNotes} onChange={handleInputChange} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SelectInput label="Review Cycle" id="reviewCycle" name="reviewCycle" value={formState.reviewCycle} onChange={handleInputChange} options={Object.values(ReviewCycle).map(v => ({ value: v, label: v }))} />
-            <AuthInput label="Next Review Date" id="nextReviewAt" name="nextReviewAt" type="date" value={formState.nextReviewAt} onChange={handleInputChange} required />
+            <Input label="Next Review Date" id="nextReviewAt" name="nextReviewAt" type="date" value={formState.nextReviewAt} onChange={handleInputChange} required />
         </div>
 
-        <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+        <div className="mt-6 pt-6 border-t border-white/10">
           {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading ? <Spinner /> : (isEditMode ? 'Save Changes' : 'Log Analysis')}
+          <Button type="submit" isLoading={isLoading} className="w-full">
+            {isEditMode ? 'Save Changes' : 'Log Analysis'}
           </Button>
         </div>
       </form>

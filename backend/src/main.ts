@@ -4,7 +4,6 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as compression from 'compression';
-import * as cookieParser from 'cookie-parser';
 import * as express from 'express';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -37,7 +36,6 @@ async function bootstrap() {
     }),
   );
   app.use(compression());
-  app.use(cookieParser());
 
   // ──────────────────────────────────────────────────────────────────
   // CORS Configuration

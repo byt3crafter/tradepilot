@@ -20,7 +20,8 @@
     "types": [
       "jest",
       "node"
-    ]
+    ],
+    "rootDir": "src"
   },
   "exclude": [
     "node_modules",

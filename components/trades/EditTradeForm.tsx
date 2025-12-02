@@ -1,9 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Trade, TradeResult } from '../../types';
 import { useTrade } from '../../context/TradeContext';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import ImageUploader from './ImageUploader';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
@@ -43,26 +43,21 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
   const { updateTrade, createOrUpdateJournal } = useTrade();
   
   const [formState, setFormState] = useState({
-    // Entry
     entryDate: toDateTimeLocal(tradeToEdit.entryDate),
     asset: tradeToEdit.asset,
     direction: tradeToEdit.direction,
     entryPrice: String(tradeToEdit.entryPrice || ''),
-    // Execution
     lotSize: String(tradeToEdit.lotSize || ''),
     riskPercentage: String(tradeToEdit.riskPercentage || ''),
     stopLoss: String(tradeToEdit.stopLoss || ''),
     takeProfit: String(tradeToEdit.takeProfit || ''),
-    // Exit
     exitDate: toDateTimeLocal(tradeToEdit.exitDate),
     exitPrice: String(tradeToEdit.exitPrice || ''),
-    // Performance
     result: tradeToEdit.result || TradeResult.Breakeven,
     profitLoss: String(tradeToEdit.profitLoss || ''),
     rr: String(tradeToEdit.rr || ''),
     commission: String(tradeToEdit.commission || ''),
     swap: String(tradeToEdit.swap || ''),
-    // Images
     screenshotBeforeUrl: tradeToEdit.screenshotBeforeUrl || null,
     screenshotAfterUrl: tradeToEdit.screenshotAfterUrl || null,
   });
@@ -81,13 +76,6 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
     setOpenSection(prev => (prev === sectionKey ? null : sectionKey));
   };
   
-  const grossPL = useMemo(() => {
-    const net = parseFloat(formState.profitLoss) || 0;
-    const comm = parseFloat(formState.commission) || 0;
-    const sw = parseFloat(formState.swap) || 0;
-    return net + comm + sw;
-  }, [formState.profitLoss, formState.commission, formState.swap]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (['mindsetBefore', 'exitReasoning', 'lessonsLearned'].includes(name)) {
@@ -160,12 +148,12 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
           <section>
             <h3 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Entry Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <AuthInput label="Entry Date & Time" id="entryDate" name="entryDate" type="datetime-local" value={formState.entryDate} onChange={handleInputChange} step="1" />
-              <AuthInput label="Asset" id="asset" name="asset" value={formState.asset} disabled />
+              <Input label="Entry Date & Time" id="entryDate" name="entryDate" type="datetime-local" value={formState.entryDate} onChange={handleInputChange} step="1" />
+              <Input label="Asset" id="asset" name="asset" value={formState.asset} disabled />
             </div>
              <div className="grid grid-cols-2 gap-4 mt-4">
                <SelectInput label="Direction" id="direction" name="direction" value={formState.direction} onChange={handleInputChange} options={[{ value: 'Buy', label: 'Buy (Long)' }, { value: 'Sell', label: 'Sell (Short)' }]}/>
-               <AuthInput label="Entry Price" id="entryPrice" name="entryPrice" type="number" step="any" value={formState.entryPrice} onChange={handleInputChange} />
+               <Input label="Entry Price" id="entryPrice" name="entryPrice" type="number" step="any" value={formState.entryPrice} onChange={handleInputChange} />
             </div>
           </section>
 
@@ -173,8 +161,8 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
           <section className="mt-4">
             <h3 className="text-sm font-orbitron text-photonic-blue/80 mb-2">Exit Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <AuthInput label="Exit Date & Time" id="exitDate" name="exitDate" type="datetime-local" value={formState.exitDate} onChange={handleInputChange} step="1" />
-              <AuthInput label="Exit Price" id="exitPrice" name="exitPrice" type="number" step="any" value={formState.exitPrice} onChange={handleInputChange} />
+              <Input label="Exit Date & Time" id="exitDate" name="exitDate" type="datetime-local" value={formState.exitDate} onChange={handleInputChange} step="1" />
+              <Input label="Exit Price" id="exitPrice" name="exitPrice" type="number" step="any" value={formState.exitPrice} onChange={handleInputChange} />
             </div>
              <div className="mt-4">
                <SelectInput label="Result" id="result" name="result" value={formState.result} onChange={handleInputChange} options={[{ value: 'Win', label: 'Win' }, { value: 'Loss', label: 'Loss' }, { value: 'Breakeven', label: 'Breakeven' }]}/>
@@ -182,7 +170,7 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
           </section>
 
           {/* My Journal */}
-          <section className="border-t border-photonic-blue/10 mt-4">
+          <section className="border-t border-white/10 mt-4">
             <SectionHeader title="My Journal" sectionKey="journal" />
             {openSection === 'journal' && (
               <div className="animate-fade-in-up space-y-3 pt-2">
@@ -212,41 +200,41 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
         {/* Right Column */}
         <div className="space-y-2">
           {/* Execution Details */}
-          <section className="border-t border-photonic-blue/10 lg:border-t-0">
+          <section className="border-t border-white/10 lg:border-t-0">
             <SectionHeader title="Execution Details" sectionKey="execution" />
             {openSection === 'execution' && (
               <div className="animate-fade-in-up space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <AuthInput label="Stop Loss" id="stopLoss" name="stopLoss" type="number" step="any" value={formState.stopLoss} onChange={handleInputChange} />
-                  <AuthInput label="Take Profit" id="takeProfit" name="takeProfit" type="number" step="any" value={formState.takeProfit} onChange={handleInputChange} />
+                  <Input label="Stop Loss" id="stopLoss" name="stopLoss" type="number" step="any" value={formState.stopLoss} onChange={handleInputChange} />
+                  <Input label="Take Profit" id="takeProfit" name="takeProfit" type="number" step="any" value={formState.takeProfit} onChange={handleInputChange} />
                 </div>
                  <div className="grid grid-cols-2 gap-4">
-                   <AuthInput label="Lot Size" id="lotSize" name="lotSize" type="number" step="any" value={formState.lotSize} onChange={handleInputChange} />
-                   <AuthInput label="Risk (%)" id="riskPercentage" name="riskPercentage" type="number" step="any" value={formState.riskPercentage} onChange={handleInputChange} />
+                   <Input label="Lot Size" id="lotSize" name="lotSize" type="number" step="any" value={formState.lotSize} onChange={handleInputChange} />
+                   <Input label="Risk (%)" id="riskPercentage" name="riskPercentage" type="number" step="any" value={formState.riskPercentage} onChange={handleInputChange} />
                 </div>
               </div>
             )}
           </section>
           
            {/* Performance */}
-          <section className="border-t border-photonic-blue/10 mt-4">
+          <section className="border-t border-white/10 mt-4">
              <SectionHeader title="Performance" sectionKey="performance" />
              {openSection === 'performance' && (
               <div className="animate-fade-in-up space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                   <AuthInput label="Net P/L ($)" id="profitLoss" name="profitLoss" type="number" step="any" value={formState.profitLoss} onChange={handleInputChange} required />
-                   <AuthInput label="R:R Ratio" id="rr" name="rr" type="text" placeholder="e.g., 2 or 1:2" value={formState.rr} onChange={handleInputChange} />
+                   <Input label="Net P/L ($)" id="profitLoss" name="profitLoss" type="number" step="any" value={formState.profitLoss} onChange={handleInputChange} required />
+                   <Input label="R:R Ratio" id="rr" name="rr" type="text" placeholder="e.g., 2 or 1:2" value={formState.rr} onChange={handleInputChange} />
                 </div>
                  <div className="grid grid-cols-2 gap-4">
-                   <AuthInput label="Commission ($)" id="commission" name="commission" type="number" step="any" value={formState.commission} onChange={handleInputChange} />
-                   <AuthInput label="Swap ($)" id="swap" name="swap" type="number" step="any" value={formState.swap} onChange={handleInputChange} />
+                   <Input label="Commission ($)" id="commission" name="commission" type="number" step="any" value={formState.commission} onChange={handleInputChange} />
+                   <Input label="Swap ($)" id="swap" name="swap" type="number" step="any" value={formState.swap} onChange={handleInputChange} />
                 </div>
               </div>
              )}
           </section>
 
           {/* Trade Images */}
-          <section className="border-t border-photonic-blue/10 mt-4">
+          <section className="border-t border-white/10 mt-4">
             <SectionHeader title="Trade Images" sectionKey="images" />
             {openSection === 'images' && (
               <div className="space-y-4 animate-fade-in-up pt-2">
@@ -259,10 +247,10 @@ const EditTradeForm: React.FC<EditTradeFormProps> = ({ tradeToEdit, onSuccess })
       </div>
       
        {/* Footer */}
-      <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+      <div className="mt-6 pt-6 border-t border-white/10">
         {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-        <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? <Spinner /> : 'Save Changes'}
+        <Button type="submit" isLoading={isLoading} className="w-full">
+          Save Changes
         </Button>
       </div>
     </form>

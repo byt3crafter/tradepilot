@@ -1,25 +1,15 @@
+
 import { useMemo } from 'react';
 import { Trade, TradeResult } from '../types';
 
 export const useAnalytics = (trades: Trade[]) => {
   const stats = useMemo(() => {
-    if (trades.length === 0) {
-      return {
-        totalTrades: 0,
-        netPL: 0,
-        winningTrades: 0,
-        losingTrades: 0,
-        breakevenTrades: 0,
-        winRate: 0,
-        lossRate: 0,
-        avgWin: 0,
-        avgLoss: 0,
-        profitFactor: 0,
-        expectancy: 0,
-      };
-    }
+    // Sort trades by date ascending for curve calculation
+    const sortedTrades = [...trades].sort((a, b) => 
+      new Date(a.exitDate || a.entryDate).getTime() - new Date(b.exitDate || b.entryDate).getTime()
+    );
 
-    const closedTrades = trades.filter(t => t.result);
+    const closedTrades = sortedTrades.filter(t => t.result);
     const totalTrades = closedTrades.length;
 
     const winningTrades = closedTrades.filter(t => t.result === TradeResult.Win);
@@ -41,9 +31,40 @@ export const useAnalytics = (trades: Trade[]) => {
     const avgWin = winningTrades.length > 0 ? grossProfit / winningTrades.length : 0;
     const avgLoss = losingTrades.length > 0 ? grossLoss / losingTrades.length : 0;
     
-    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : Infinity;
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
 
     const expectancy = (winRate * avgWin) - (lossRate * avgLoss);
+
+    // --- Equity Curve Calculation ---
+    let runningBalance = 0;
+    const equityCurve = closedTrades.map(t => {
+        const pl = t.profitLoss ?? 0;
+        runningBalance += pl;
+        return {
+            date: new Date(t.exitDate!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+            fullDate: t.exitDate,
+            value: runningBalance,
+            pl: pl // Store individual P/L for tooltip
+        };
+    });
+
+    // --- Streak Calculation ---
+    let currentStreak = 0;
+    // Iterate backwards from the most recent trade
+    for (let i = closedTrades.length - 1; i >= 0; i--) {
+        const t = closedTrades[i];
+        if (t.result === TradeResult.Win) {
+            if (currentStreak >= 0) currentStreak++;
+            else break; // Streak broken
+        } else if (t.result === TradeResult.Loss) {
+            if (currentStreak <= 0) currentStreak--;
+            else break; // Streak broken
+        }
+        // Ignore breakeven for streak purposes? Or break? Let's break on BE for strictness.
+        else {
+            break;
+        }
+    }
 
     return {
       totalTrades,
@@ -57,6 +78,8 @@ export const useAnalytics = (trades: Trade[]) => {
       avgLoss,
       profitFactor,
       expectancy,
+      equityCurve,
+      currentStreak,
     };
   }, [trades]);
 

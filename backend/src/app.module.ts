@@ -1,11 +1,8 @@
-
-
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { MailModule } from './mail/mail.module';
 import { ThrottlerGuard, ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { BrokerAccountsModule } from './broker-accounts/broker-accounts.module';
@@ -50,7 +47,6 @@ import { JoiValidationSchema } from './config/config.schema';
     AuthModule,
     UsersModule,
     PrismaModule,
-    MailModule,
     BrokerAccountsModule,
     PlaybooksModule,
     ChecklistRulesModule,
