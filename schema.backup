@@ -8,18 +8,25 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
 model User {
-  id                 String    @id // Clerk User ID
-  email              String    @unique
+  id                 String             @id // Clerk User ID
+  email              String             @unique
   fullName           String
-  isEmailVerified    Boolean   @default(false)
-  createdAt          DateTime  @default(now())
+  isEmailVerified    Boolean            @default(false)
+  createdAt          DateTime           @default(now())
   lastLoginAt        DateTime?
   
   // Subscription / Billing
-  subscriptionStatus String    @default("TRIALING")
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
   trialEndsAt        DateTime?
-  paddleCustomerId   String?   @unique
+  paddleCustomerId   String?            @unique
   paddleSubscriptionId String?
   proAccessExpiresAt DateTime?
   proAccessReason    String?
