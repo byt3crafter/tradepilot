@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useAccount } from '../../context/AccountContext';
 import { BrokerAccount, BrokerAccountType } from '../../types';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
@@ -69,12 +70,10 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
 
     try {
       if (account) {
-        // UPDATE: Payload includes isEnabled
         const objectivesPayload = { isEnabled: objectivesEnabled, ...baseObjectivesPayload };
         const smartLimitsPayload = { isEnabled: smartLimitsEnabled, ...baseSmartLimitsPayload };
         await updateAccount(account.id, { ...accountPayload, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
       } else {
-        // CREATE: Payload does NOT include isEnabled. Send undefined if not enabled.
         const objectivesPayload = objectivesEnabled ? baseObjectivesPayload : undefined;
         const smartLimitsPayload = smartLimitsEnabled ? baseSmartLimitsPayload : undefined;
         await createAccount({ ...accountPayload, objectives: objectivesPayload as any, smartLimits: smartLimitsPayload as any });
@@ -89,7 +88,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <AuthInput
+      <Input
         label="Account Name"
         id="accountName"
         type="text"
@@ -109,7 +108,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
           { value: BrokerAccountType.PROP_FIRM, label: 'Prop Firm' },
         ]}
       />
-      <AuthInput
+      <Input
         label="Initial Balance"
         id="initialBalance"
         type="number"
@@ -134,8 +133,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
             { value: 'CHF', label: 'CHF' },
           ]}
         />
-         <AuthInput
-          label="Leverage (e.g., 100 for 1:100)"
+         <Input
+          label="Leverage (e.g., 100)"
           id="leverage"
           type="number"
           placeholder="100"
@@ -144,7 +143,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         />
       </div>
 
-      <div className="my-4 pt-4 border-t border-photonic-blue/20">
+      <div className="my-4 pt-4 border-t border-white/10">
         <ToggleSwitch 
             label="Enable Trading Objectives (for Prop Firms)"
             checked={objectivesEnabled}
@@ -152,15 +151,15 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         />
         {objectivesEnabled && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
-                <AuthInput label="Profit Target ($)" id="profitTarget" type="number" placeholder="e.g., 8000" value={profitTarget} onChange={e => setProfitTarget(e.target.value)} />
-                <AuthInput label="Min Trading Days" id="minTradingDays" type="number" placeholder="e.g., 5" value={minTradingDays} onChange={e => setMinTradingDays(e.target.value)} />
-                <AuthInput label="Max Overall Loss ($)" id="maxLoss" type="number" placeholder="e.g., 5000" value={maxLoss} onChange={e => setMaxLoss(e.target.value)} />
-                <AuthInput label="Max Daily Loss ($)" id="maxDailyLoss" type="number" placeholder="e.g., 2500" value={maxDailyLoss} onChange={e => setMaxDailyLoss(e.target.value)} />
+                <Input label="Profit Target ($)" id="profitTarget" type="number" placeholder="e.g., 8000" value={profitTarget} onChange={e => setProfitTarget(e.target.value)} />
+                <Input label="Min Trading Days" id="minTradingDays" type="number" placeholder="e.g., 5" value={minTradingDays} onChange={e => setMinTradingDays(e.target.value)} />
+                <Input label="Max Overall Loss ($)" id="maxLoss" type="number" placeholder="e.g., 5000" value={maxLoss} onChange={e => setMaxLoss(e.target.value)} />
+                <Input label="Max Daily Loss ($)" id="maxDailyLoss" type="number" placeholder="e.g., 2500" value={maxDailyLoss} onChange={e => setMaxDailyLoss(e.target.value)} />
             </div>
         )}
       </div>
 
-       <div className="my-4 pt-4 border-t border-photonic-blue/20">
+       <div className="my-4 pt-4 border-t border-white/10">
         <ToggleSwitch 
             label="Enable Smart Limits (Personal Rules)"
             checked={smartLimitsEnabled}
@@ -168,9 +167,9 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         />
         {smartLimitsEnabled && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
-                <AuthInput label="Max Risk per Trade (%)" id="maxRiskPerTrade" type="number" step="0.1" placeholder="e.g., 1" value={maxRiskPerTrade} onChange={e => setMaxRiskPerTrade(e.target.value)} />
-                <AuthInput label="Max Trades per Day" id="maxTradesPerDay" type="number" placeholder="e.g., 3" value={maxTradesPerDay} onChange={e => setMaxTradesPerDay(e.target.value)} />
-                <AuthInput label="Max Losses per Day" id="maxLossesPerDay" type="number" placeholder="e.g., 2" value={maxLossesPerDay} onChange={e => setMaxLossesPerDay(e.target.value)} />
+                <Input label="Max Risk per Trade (%)" id="maxRiskPerTrade" type="number" step="0.1" placeholder="e.g., 1" value={maxRiskPerTrade} onChange={e => setMaxRiskPerTrade(e.target.value)} />
+                <Input label="Max Trades per Day" id="maxTradesPerDay" type="number" placeholder="e.g., 3" value={maxTradesPerDay} onChange={e => setMaxTradesPerDay(e.target.value)} />
+                <Input label="Max Losses per Day" id="maxLossesPerDay" type="number" placeholder="e.g., 2" value={maxLossesPerDay} onChange={e => setMaxLossesPerDay(e.target.value)} />
             </div>
         )}
       </div>
@@ -178,8 +177,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
 
       {error && <p className="text-risk-high text-sm text-center my-4">{error}</p>}
       <div className="mt-6">
-        <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? <Spinner /> : (account ? 'Save Changes' : 'Create Account')}
+        <Button type="submit" isLoading={isLoading} className="w-full">
+          {account ? 'Save Changes' : 'Create Account'}
         </Button>
       </div>
     </form>

@@ -1,3 +1,4 @@
+
 import * as Joi from 'joi';
 
 export const JoiValidationSchema = Joi.object({
@@ -6,33 +7,21 @@ export const JoiValidationSchema = Joi.object({
     .valid('development', 'production', 'test')
     .default('development'),
   PORT: Joi.number().default(8080),
-  APP_URL: Joi.string().uri().required(),
-  FRONTEND_URL: Joi.string().required(),
+  APP_URL: Joi.string().allow('').optional(),
+  FRONTEND_URL: Joi.string().allow('').optional(),
   
   // Database
   DATABASE_URL: Joi.string().required(),
   
-  // JWT
-  JWT_ACCESS_SECRET: Joi.string().required(),
-  JWT_REFRESH_SECRET: Joi.string().required(),
-  ACCESS_TOKEN_TTL: Joi.string().default('15m'),
-  REFRESH_TOKEN_TTL: Joi.string().default('3650d'), // 10 years for persistent sessions
-  EMAIL_VERIFY_TOKEN_TTL: Joi.string().default('24h'),
-  PASSWORD_RESET_TOKEN_TTL: Joi.string().default('1h'),
+  // Clerk Authentication
+  CLERK_SECRET_KEY: Joi.string().optional(),
+  CLERK_PUBLISHABLE_KEY: Joi.string().optional(),
+  CLERK_ISSUER_URL: Joi.string().required(),
+
+  // Legacy (Optional now)
+  JWT_ACCESS_SECRET: Joi.string().optional().allow(''),
+  JWT_REFRESH_SECRET: Joi.string().optional().allow(''),
   
-  // Mail
-  EMAIL_FROM_NAME: Joi.string().default('tradePilot'),
-  EMAIL_FROM: Joi.string().email().required(),
-  SMTP_HOST: Joi.string().required(),
-  SMTP_PORT: Joi.number().required(),
-  SMTP_USER: Joi.string().allow(''),
-  SMTP_PASS: Joi.string().allow(''),
-  SMTP_SECURE: Joi.boolean().default(false),
-
-  // Throttler
-  THROTTLE_TTL: Joi.number().default(60000),
-  THROTTLE_LIMIT: Joi.number().default(10),
-
   // AI
   API_KEY: Joi.string().required(),
 
@@ -45,4 +34,4 @@ export const JoiValidationSchema = Joi.object({
 
   // Feature Flags
   ANALYSIS_TRACKER_ENABLED: Joi.boolean().default(false),
-});
+}).unknown(true); // Allow other keys

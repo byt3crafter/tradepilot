@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
@@ -21,7 +22,6 @@ interface TradeFormProps {
   onSuccess: () => void;
 }
 
-// State for user-editable fields
 interface FormInputState {
   asset: string;
   direction: Direction;
@@ -33,13 +33,11 @@ interface FormInputState {
   playbookId: string;
   riskPercentage: string;
   screenshotBeforeUrl: string | null;
-  // Closed trade fields are handled in CloseTradeModal or by editing the row
 }
 
 export const toDateTimeLocal = (dateString?: string | null) => {
   if (!dateString) return '';
   const date = new Date(dateString);
-  // Adjust for timezone offset to display correctly in datetime-local input
   const timezoneOffset = date.getTimezoneOffset() * 60000;
   const localDate = new Date(date.getTime() - timezoneOffset);
   return localDate.toISOString().slice(0, 19);
@@ -77,7 +75,7 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
   const [showSanityCheckModal, setShowSanityCheckModal] = useState(false);
   const [aiError, setAiError] = useState('');
 
-  // Populate form on initial load or when editing
+  // Populate form
   useEffect(() => {
     if (isEditMode && tradeToEdit) {
       setFormState({
@@ -93,7 +91,6 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
         screenshotBeforeUrl: tradeToEdit.screenshotBeforeUrl || null,
       });
     } else {
-        // For new trades, ensure a default playbook is selected if available
         setFormState(prev => ({ 
             ...prev, 
             playbookId: playbooks[0]?.id || '',
@@ -179,7 +176,6 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
       screenshotBeforeUrl: formState.screenshotBeforeUrl,
     };
     
-    // When editing, preserve fields that aren't on this form
     const preservedFields: Partial<Trade> = tradeToEdit ? {
         lotSize: tradeToEdit.lotSize,
         commission: tradeToEdit.commission,
@@ -219,25 +215,27 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
             <Button 
                 type="button" 
                 onClick={() => setIsAutofillModalOpen(true)} 
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue py-1.5 px-3 text-xs"
+                variant="secondary"
+                className="w-full sm:w-auto text-xs py-1.5 px-3 flex items-center justify-center gap-2"
             >
-                <SparklesIcon className="w-4 h-4" />
+                <SparklesIcon className="w-4 h-4 text-photonic-blue" />
                 Autofill with AI
             </Button>
             <Button 
                 type="button" 
                 onClick={handleSanityCheck} 
                 disabled={isCheckingSanity || !formState.playbookId || !formState.asset || !formState.screenshotBeforeUrl} 
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent border border-photonic-blue/50 text-photonic-blue hover:bg-photonic-blue/10 hover:shadow-glow-blue py-1.5 px-3 text-xs"
+                variant="secondary"
+                className="w-full sm:w-auto text-xs py-1.5 px-3 flex items-center justify-center gap-2"
             >
-                {isCheckingSanity ? <Spinner /> : <ChecklistIcon className="w-4 h-4" />}
+                {isCheckingSanity ? <Spinner /> : <ChecklistIcon className="w-4 h-4 text-photonic-blue" />}
                 AI Sanity Check
             </Button>
         </div>
-        {aiError && <p className="text-risk-high text-sm text-center my-2">{aiError}</p>}
+        {aiError && <p className="text-risk-high text-xs text-center my-2">{aiError}</p>}
 
 
-        <AuthInput
+        <Input
             label="Entry Date & Time"
             id="entryDate"
             name="entryDate"
@@ -249,20 +247,20 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {isEditMode ? (
-                <AuthInput label="Asset" id="asset" name="asset" value={formState.asset} disabled />
+                <Input label="Asset" id="asset" name="asset" value={formState.asset} disabled />
             ) : (
                 <SelectInput label="Asset" id="asset" name="asset" value={formState.asset} onChange={handleInputChange} options={assetOptions} required />
             )}
             <SelectInput label="Direction" id="direction" name="direction" value={formState.direction} onChange={handleInputChange} options={[{ value: 'Buy', label: 'Buy (Long)' }, { value: 'Sell', label: 'Sell (Short)' }]}/>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <AuthInput label="Entry Price" id="entryPrice" name="entryPrice" type="number" step="any" value={formState.entryPrice} onChange={handleInputChange} required />
-            <AuthInput label="Risk (%)" id="riskPercentage" name="riskPercentage" type="number" step="any" value={formState.riskPercentage} onChange={handleInputChange} required />
+            <Input label="Entry Price" id="entryPrice" name="entryPrice" type="number" step="any" value={formState.entryPrice} onChange={handleInputChange} required />
+            <Input label="Risk (%)" id="riskPercentage" name="riskPercentage" type="number" step="any" value={formState.riskPercentage} onChange={handleInputChange} required />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <AuthInput label="Lot Size (Optional)" id="lotSize" name="lotSize" type="number" step="any" value={formState.lotSize} onChange={handleInputChange} />
-            <AuthInput label="Stop Loss (Optional)" id="stopLoss" name="stopLoss" type="number" step="any" value={formState.stopLoss} onChange={handleInputChange} />
-            <AuthInput label="Take Profit (Optional)" id="takeProfit" name="takeProfit" type="number" step="any" value={formState.takeProfit} onChange={handleInputChange} />
+            <Input label="Lot Size (Optional)" id="lotSize" name="lotSize" type="number" step="any" value={formState.lotSize} onChange={handleInputChange} />
+            <Input label="Stop Loss (Optional)" id="stopLoss" name="stopLoss" type="number" step="any" value={formState.stopLoss} onChange={handleInputChange} />
+            <Input label="Take Profit (Optional)" id="takeProfit" name="takeProfit" type="number" step="any" value={formState.takeProfit} onChange={handleInputChange} />
         </div>
         
         <SelectInput label="Playbook" id="playbookId" name="playbookId" value={formState.playbookId} onChange={handleInputChange}
@@ -275,13 +273,13 @@ const AddTradeForm: React.FC<TradeFormProps> = ({ tradeToEdit, onSuccess }) => {
             id="isPendingOrderCheckbox"
             checked={isPendingOrder}
             onChange={(e) => setIsPendingOrder(e.target.checked)}
-            disabled={isEditMode && !tradeToEdit.isPendingOrder} // Can't make a live trade pending
+            disabled={isEditMode && !tradeToEdit.isPendingOrder} 
         />
 
-        <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+        <div className="mt-6 pt-6 border-t border-white/10">
             {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-            <Button type="submit" disabled={isLoading || !canSubmit} className="w-full">
-                {isLoading ? <Spinner /> : (isEditMode ? 'Save Changes' : 'Log Trade')}
+            <Button type="submit" disabled={isLoading || !canSubmit} isLoading={isLoading} className="w-full">
+                {isEditMode ? 'Save Changes' : 'Log Trade'}
             </Button>
         </div>
     </form>

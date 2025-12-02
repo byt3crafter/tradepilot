@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcryptjs from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -30,31 +29,20 @@ const assetSpecifications = [
 async function main() {
   console.log('Start seeding...');
 
-  const passwordHash = await bcryptjs.hash('Password123!', 10);
-
+  // Note: For Clerk integration, users are typically created via sign-up.
+  // This seed creates dummy users for local testing if needed, using arbitrary IDs.
+  
   const user1 = await prisma.user.upsert({
     where: { email: 'verified.user@example.com' },
     update: {},
     create: {
       email: 'verified.user@example.com',
-      passwordHash,
       fullName: 'Verified User',
       isEmailVerified: true,
       lastLoginAt: new Date(),
     },
   });
 
-  const user2 = await prisma.user.upsert({
-    where: { email: 'unverified.user@example.com' },
-    update: {},
-    create: {
-      email: 'unverified.user@example.com',
-      passwordHash,
-      fullName: 'Unverified User',
-      isEmailVerified: false,
-    },
-  });
-  
   console.log('Seeding Asset Specifications for user1...');
   for (const asset of assetSpecifications) {
     await prisma.assetSpecification.upsert({
@@ -70,8 +58,7 @@ async function main() {
   }
   console.log('Asset Specifications seeded.');
 
-
-  console.log({ user1, user2 });
+  console.log({ user1 });
   console.log('Seeding finished.');
 }
 

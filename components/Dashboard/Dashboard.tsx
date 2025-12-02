@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useTrade } from '../../context/TradeContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -26,13 +27,16 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="animate-fade-in-up space-y-6">
+    <div className="space-y-8 animate-fade-in-up">
+      {/* Header Section */}
       <DashboardHeader />
       
+      {/* Prop Firm Objectives (if applicable) - Rendered above the main bento grid if enabled */}
       {activeAccount?.objectives?.isEnabled && objectivesProgress && objectivesProgress.length > 0 && (
         <TradingObjectivesCard objectives={objectivesProgress} />
       )}
       
+      {/* Main Content Area (Bento Grid or Onboarding) */}
       {renderMainContent()}
     </div>
   );

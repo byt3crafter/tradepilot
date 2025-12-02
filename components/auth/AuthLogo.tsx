@@ -2,7 +2,8 @@ import React from 'react';
 
 const AuthLogo: React.FC = () => {
   return (
-    <h1 className="font-orbitron text-xl text-center font-bold text-photonic-blue drop-shadow-[0_0_10px_rgba(0,191,255,0.7)]">
+    <h1 className="font-sans text-xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+      <div className="w-2 h-2 bg-white rounded-full"></div>
       JTradePilot
     </h1>
   );

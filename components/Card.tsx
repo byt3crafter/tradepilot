@@ -1,15 +1,16 @@
-
 import React from 'react';
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
-const Card: React.FC<CardProps> = ({ children, className = '' }) => {
+const Card: React.FC<CardProps> = ({ children, className = '', onClick }) => {
   return (
     <div
-      className={`bg-future-panel/70 backdrop-blur-md border border-photonic-blue/20 rounded-lg p-4 md:p-6 shadow-lg ${className}`}
+      onClick={onClick}
+      className={`bg-surface border border-white/10 rounded-xl p-5 shadow-surface backdrop-blur-sm ${className}`}
     >
       {children}
     </div>

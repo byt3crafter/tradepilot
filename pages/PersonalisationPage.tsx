@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import md5 from 'md5';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
-import AuthInput from '../components/auth/AuthInput';
+import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Spinner from '../components/Spinner';
 
@@ -32,7 +33,6 @@ const PersonalisationPage: React.FC = () => {
     setNameError('');
     setNameSuccess('');
     // TODO: This endpoint doesn't exist yet, but this is how you'd call it.
-    // For now, it will just be a placeholder.
     setTimeout(() => {
         setNameSuccess(`Name updated to ${fullName} (simulated).`);
         setNameIsLoading(false);
@@ -46,13 +46,16 @@ const PersonalisationPage: React.FC = () => {
         <p className="text-future-gray">Manage your personal details and preferences.</p>
       </div>
 
-      {/* Profile Details Card */}
       <Card>
-        <h2 className="text-xl font-orbitron text-photonic-blue mb-4">Profile Details</h2>
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-          <img src={gravatarUrl} alt="User Avatar" className="w-24 h-24 rounded-full border-4 border-photonic-blue/30" />
-          <form onSubmit={handleNameSubmit} className="flex-1 w-full">
-            <AuthInput 
+        <h2 className="text-xl font-orbitron text-photonic-blue mb-6">Profile Details</h2>
+        <div className="flex flex-col sm:flex-row items-start gap-8">
+          <div className="flex flex-col items-center gap-2">
+             <img src={gravatarUrl} alt="User Avatar" className="w-24 h-24 rounded-full border-4 border-white/10" />
+             <span className="text-xs text-secondary">Powered by Gravatar</span>
+          </div>
+          
+          <form onSubmit={handleNameSubmit} className="flex-1 w-full max-w-md">
+            <Input 
                 label="Full Name" 
                 id="fullName" 
                 type="text" 
@@ -60,12 +63,14 @@ const PersonalisationPage: React.FC = () => {
                 onChange={e => setFullName(e.target.value)}
                 disabled={nameIsLoading}
             />
-            <AuthInput label="Email Address" id="email" type="email" value={user.email} disabled />
+            <Input label="Email Address" id="email" type="email" value={user.email} disabled />
+            
             {nameError && <p className="text-sm text-risk-high mt-2">{nameError}</p>}
             {nameSuccess && <p className="text-sm text-momentum-green mt-2">{nameSuccess}</p>}
-            <div className="mt-4">
-                <Button type="submit" className="w-full sm:w-auto" disabled={nameIsLoading}>
-                    {nameIsLoading ? <Spinner /> : 'Save Changes'}
+            
+            <div className="mt-6">
+                <Button type="submit" isLoading={nameIsLoading}>
+                    Save Changes
                 </Button>
             </div>
           </form>

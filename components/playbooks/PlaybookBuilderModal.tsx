@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
 import Modal from '../ui/Modal';
 import { Playbook, PlaybookSetup } from '../../types';
-import AuthInput from '../auth/AuthInput';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
 import Textarea from '../ui/Textarea';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -112,8 +112,8 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
         <section>
           <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Core Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AuthInput label="Playbook Name" id="name" name="name" value={playbook.name} onChange={handleInputChange} required />
-            <AuthInput label="Core Idea" id="coreIdea" name="coreIdea" value={playbook.coreIdea || ''} onChange={handleInputChange} placeholder="e.g., Trend continuation on pullbacks" />
+            <Input label="Playbook Name" id="name" name="name" value={playbook.name} onChange={handleInputChange} required />
+            <Input label="Core Idea" id="coreIdea" name="coreIdea" value={playbook.coreIdea || ''} onChange={handleInputChange} placeholder="e.g., Trend continuation on pullbacks" />
           </div>
           <div className="mt-4">
              <ToggleSwitch label="Make this playbook public" checked={!!playbook.isPublic} onChange={val => setPlaybook(p => ({...p, isPublic: val}))} />
@@ -124,9 +124,9 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
         <section>
             <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Tags</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <AuthInput label="Trading Styles" id="tradingStyles" name="tradingStyles" placeholder="Swing, Day, Scalp" value={playbook.tradingStyles?.join(', ')} onChange={e => handleArrayChange('tradingStyles', e.target.value)} />
-                <AuthInput label="Instruments" id="instruments" name="instruments" placeholder="Forex, Crypto, Futures" value={playbook.instruments?.join(', ')} onChange={e => handleArrayChange('instruments', e.target.value)} />
-                <AuthInput label="Timeframes" id="timeframes" name="timeframes" placeholder="4-Hour, 1-Hour" value={playbook.timeframes?.join(', ')} onChange={e => handleArrayChange('timeframes', e.target.value)} />
+                <Input label="Trading Styles" id="tradingStyles" name="tradingStyles" placeholder="Swing, Day, Scalp" value={playbook.tradingStyles?.join(', ')} onChange={e => handleArrayChange('tradingStyles', e.target.value)} />
+                <Input label="Instruments" id="instruments" name="instruments" placeholder="Forex, Crypto, Futures" value={playbook.instruments?.join(', ')} onChange={e => handleArrayChange('instruments', e.target.value)} />
+                <Input label="Timeframes" id="timeframes" name="timeframes" placeholder="4-Hour, 1-Hour" value={playbook.timeframes?.join(', ')} onChange={e => handleArrayChange('timeframes', e.target.value)} />
             </div>
         </section>
 
@@ -149,8 +149,8 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
             </div>
             <div className="space-y-4">
                 {playbook.setups?.map((setup, index) => (
-                    <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg border border-photonic-blue/10">
-                        <AuthInput label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
+                    <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg border border-white/10">
+                        <Input label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
                         
                         <div className="grid grid-cols-2 gap-4 my-4">
                              <ImageUploader label="'Before' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotBeforeUrl', base64)} currentImage={setup.screenshotBeforeUrl} />
@@ -165,10 +165,10 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
         </section>
 
         {/* --- FOOTER --- */}
-        <div className="mt-6 pt-6 border-t border-photonic-blue/10">
+        <div className="mt-6 pt-6 border-t border-white/10">
           {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading ? <Spinner /> : (isEditMode ? 'Save Playbook' : 'Create Playbook')}
+          <Button type="submit" isLoading={isLoading} className="w-full">
+            {isEditMode ? 'Save Playbook' : 'Create Playbook'}
           </Button>
         </div>
       </form>
