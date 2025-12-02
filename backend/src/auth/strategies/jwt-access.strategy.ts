@@ -15,6 +15,10 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
     private readonly authService: AuthService,
   ) {
     const issuer = configService.get<string>('CLERK_ISSUER_URL');
+    const issuerWithSlash = issuer.endsWith('/') ? issuer : `${issuer}/`;
+    const issuerWithoutSlash = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer;
+
+    Logger.log(`Initializing JwtAccessStrategy with issuer: ${issuer}`, 'JwtAccessStrategy');
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -23,14 +27,19 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
         cache: true,
         rateLimit: true,
         jwksRequestsPerMinute: 5,
-        jwksUri: `${issuer}/.well-known/jwks.json`,
+        jwksUri: `${issuerWithoutSlash}/.well-known/jwks.json`,
+        handleSigningKeyError: (err, cb) => {
+          Logger.error(`Signing Key Error: ${err.message}`, err.stack, 'JwtAccessStrategy');
+          cb(err);
+        }
       }),
-      issuer: issuer,
+      issuer: [issuerWithSlash, issuerWithoutSlash], // Allow both formats
       algorithms: ['RS256'],
     });
   }
 
   async validate(payload: any) {
+    this.logger.log(`Validating JWT payload: ${JSON.stringify(payload)}`);
     if (!payload || !payload.sub) {
       this.logger.warn('Invalid JWT payload received');
       throw new UnauthorizedException();
