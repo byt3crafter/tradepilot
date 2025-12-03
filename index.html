@@ -11,40 +11,36 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
 
-  <!-- UnicornStudio Animated Background - Only on Landing Page -->
+  <!-- UnicornStudio Animated Background - Landing Page Only (Loaded by React) -->
   <script type="text/javascript">
-    // Only load UnicornStudio if we're on the landing page
-    function loadUnicornStudioIfNeeded() {
-      const path = window.location.pathname;
-      const isLandingPage = path === '/';
-
-      if (!isLandingPage) {
-        // Not on landing page, don't load UnicornStudio at all
-        window.UnicornStudio = { isInitialized: false, disabled: true };
-        return;
+    // Global function for React to load UnicornStudio when on landing page
+    window.loadUnicornStudio = function() {
+      if (window.UnicornStudio && window.UnicornStudio.isInitialized) {
+        return; // Already loaded
       }
 
-      // Only load on landing page
       if (!window.UnicornStudio) {
         window.UnicornStudio = { isInitialized: false };
-        var i = document.createElement("script");
-        i.src = "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js";
-        i.onload = function () {
-          if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
-            if (window.UnicornStudio.init) window.UnicornStudio.init();
-            window.UnicornStudio.isInitialized = true;
-          }
-        };
-        (document.head || document.body).appendChild(i);
       }
-    }
 
-    // Load immediately on page load
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', loadUnicornStudioIfNeeded);
-    } else {
-      loadUnicornStudioIfNeeded();
-    }
+      var i = document.createElement("script");
+      i.src = "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js";
+      i.onload = function () {
+        if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
+          if (window.UnicornStudio.init) window.UnicornStudio.init();
+          window.UnicornStudio.isInitialized = true;
+        }
+      };
+      (document.head || document.body).appendChild(i);
+    };
+
+    // Stub to prevent errors if React hasn't loaded yet
+    window.showAnimatedBackground = function(show) {
+      const bgContainer = document.getElementById('animated-background-container');
+      if (bgContainer) {
+        bgContainer.style.display = show ? 'block' : 'none';
+      }
+    };
   </script>
 
   <!-- Add Charting Libraries -->

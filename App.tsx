@@ -74,8 +74,17 @@ const AuthenticatedApp: React.FC = () => {
 const UnauthenticatedApp: React.FC = () => {
   const path = window.location.pathname;
 
-  // Animated background is conditionally loaded in index.html
-  // Only landing page shows it, other auth pages keep it hidden
+  // Load animated background only on landing page
+  React.useEffect(() => {
+    if (path === '/') {
+      // Landing page - load UnicornStudio
+      (window as any).loadUnicornStudio?.();
+      (window as any).showAnimatedBackground?.(true);
+    } else {
+      // Other pages - hide background
+      (window as any).showAnimatedBackground?.(false);
+    }
+  }, [path]);
 
   if (path === '/login') {
     return <LoginPage />;
