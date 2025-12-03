@@ -11,22 +11,40 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
 
-  <!-- UnicornStudio Animated Background -->
+  <!-- UnicornStudio Animated Background - Only on Landing Page -->
   <script type="text/javascript">
-    !function () {
+    // Only load UnicornStudio if we're on the landing page
+    function loadUnicornStudioIfNeeded() {
+      const path = window.location.pathname;
+      const isLandingPage = path === '/';
+
+      if (!isLandingPage) {
+        // Not on landing page, don't load UnicornStudio at all
+        window.UnicornStudio = { isInitialized: false, disabled: true };
+        return;
+      }
+
+      // Only load on landing page
       if (!window.UnicornStudio) {
-        window.UnicornStudio = { isInitialized: !1 };
+        window.UnicornStudio = { isInitialized: false };
         var i = document.createElement("script");
         i.src = "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js";
         i.onload = function () {
           if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
             if (window.UnicornStudio.init) window.UnicornStudio.init();
-            window.UnicornStudio.isInitialized = !0;
+            window.UnicornStudio.isInitialized = true;
           }
         };
         (document.head || document.body).appendChild(i);
       }
-    }();
+    }
+
+    // Load immediately on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadUnicornStudioIfNeeded);
+    } else {
+      loadUnicornStudioIfNeeded();
+    }
   </script>
 
   <!-- Add Charting Libraries -->
