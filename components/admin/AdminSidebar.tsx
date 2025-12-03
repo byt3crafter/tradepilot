@@ -37,7 +37,7 @@ const AdminNavItem: React.FC<{
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, isCollapsed }) => {
     return (
         <aside
-            className={`fixed top-0 left-0 h-screen bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'
+            className={`bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 h-screen overflow-y-auto ${isCollapsed ? 'w-16' : 'w-64'
                 }`}
         >
             {/* BRAND */}

@@ -140,7 +140,7 @@ const AdminPage: React.FC = () => {
         </header>
 
         {/* Scrollable content area */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-8 animate-fade-in-up">
+        <main className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 animate-fade-in-up">
           {renderContent()}
         </main>
       </div>
