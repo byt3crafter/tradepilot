@@ -23,7 +23,6 @@ import TermsOfServicePage from './pages/TermsOfServicePage';
 import RiskDisclaimerPage from './pages/RiskDisclaimerPage';
 import AboutPage from './pages/AboutPage';
 import FAQPage from './pages/FAQPage';
-import { AnimatedBackground } from './components/AnimatedBackground';
 
 export type AuthPage = 'login' | 'signup';
 
@@ -140,14 +139,11 @@ const App: React.FC = () => {
   }
 
   return (
-    <>
-      <AnimatedBackground />
-      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </ClerkProvider>
-    </>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ClerkProvider>
   );
 };
 
