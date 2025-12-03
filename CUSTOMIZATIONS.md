@@ -472,8 +472,85 @@ model ApiUsage {
    {
      "public_metadata": "{{user.public_metadata}}"
    }
+```
    ```
 2. Set user role in Clerk Dashboard: `public_metadata.role = "ADMIN"`
 3. User must sign out and sign in again to refresh token
+
+---
+
+---
+
+### Viewport-Based Layout System (Scrollbar Fix)
+
+**Location**: `styles/globals.css`, `index.html`, `pages/DashboardPage.tsx`, `pages/AdminPage.tsx`
+
+**System Design Philosophy**:
+This is a **viewport-based layout system** where the entire application fits within the browser viewport without page-level scrolling. Individual containers manage their own scroll independently.
+
+**Architecture**:
+
+1. **Foundation Layer** (`styles/globals.css`):
+   ```css
+   html {
+     height: 100vh;
+     overflow: hidden;
+   }
+   
+   body {
+     height: 100vh;
+     overflow: hidden;
+   }
+   
+   #root {
+     height: 100vh;
+     overflow: hidden;
+     position: relative;
+   }
+   ```
+
+2. **HTML Layer** (`index.html`):
+   ```html
+   <body class="overflow-hidden h-screen">
+   ```
+
+3. **Application Layer** (DashboardPage, AdminPage):
+   - Use `fixed inset-0` for full viewport coverage
+   - Use `flex` layout for proper space distribution
+   - Fixed elements (sidebar, header, banner) use `flex-shrink-0`
+   - Scrollable content uses `flex-1 overflow-y-auto`
+
+**DashboardPage Structure**:
+```
+fixed inset-0 (viewport container)
+├── Sidebar (fixed position)
+└── flex-1 flex flex-col (main area)
+    ├── TrialBanner (flex-shrink-0, no scroll)
+    ├── Mobile Header (flex-shrink-0, no scroll)
+    └── Main Content (flex-1 overflow-y-auto, scrolls)
+```
+
+**AdminPage Structure**:
+```
+fixed inset-0 (viewport container)
+├── AdminSidebar (fixed position)
+└── flex-1 flex flex-col (main area)
+    ├── Header (flex-shrink-0, no scroll)
+    └── Main Content (flex-1 overflow-y-auto, scrolls)
+```
+
+**Key Principles**:
+1. **No page-level scrolling** - html, body, #root all have `overflow: hidden`
+2. **Viewport-based sizing** - Use `100vh` not `100%` to avoid calculation issues
+3. **Flexbox for layout** - Use `flex-col` with `flex-1` and `flex-shrink-0`
+4. **Explicit scroll containers** - Only scrollable areas have `overflow-y-auto`
+5. **Fixed positioning** - Top-level containers use `fixed inset-0`
+
+**Benefits**:
+- ✅ No unwanted scrollbars
+- ✅ Predictable layout behavior
+- ✅ Better mobile experience
+- ✅ Proper scroll containment
+- ✅ No nested height calculation issues
 
 ---

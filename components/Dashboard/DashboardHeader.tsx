@@ -22,7 +22,7 @@ const DashboardHeader: React.FC = () => {
 
     return (
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-8 animate-slide-up">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
                 <h1 className="text-3xl text-white tracking-tight">
                     Good morning, <span className="font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.fullName.split(' ')[0]}</span>.
                 </h1>

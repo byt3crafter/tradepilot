@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JTradePilot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
 
   <!-- UnicornStudio Animated Background -->
   <script type="text/javascript">
-    !function(){
-      if(!window.UnicornStudio){
-        window.UnicornStudio={isInitialized:!1};
-        var i=document.createElement("script");
-        i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js";
-        i.onload=function(){
-          if(window.UnicornStudio && !window.UnicornStudio.isInitialized){
-            if(window.UnicornStudio.init) window.UnicornStudio.init();
-            window.UnicornStudio.isInitialized=!0;
+    !function () {
+      if (!window.UnicornStudio) {
+        window.UnicornStudio = { isInitialized: !1 };
+        var i = document.createElement("script");
+        i.src = "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js";
+        i.onload = function () {
+          if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
+            if (window.UnicornStudio.init) window.UnicornStudio.init();
+            window.UnicornStudio.isInitialized = !0;
           }
         };
         (document.head || document.body).appendChild(i);
@@ -28,7 +31,7 @@
 
   <!-- Add Charting Libraries -->
   <script src="https://unpkg.com/d3@7.8.5/dist/d3.min.js"></script>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
@@ -73,12 +76,14 @@
 }
 </script>
 </head>
+
 <body class="font-sans text-primary antialiased selection:bg-zinc-800 selection:text-white">
 
   <!-- Animated Background - Only on Landing Page -->
   <div id="animated-background-container" style="display: none;">
     <!-- UnicornStudio Animated Background -->
-    <div class="aura-background-component fixed top-0 w-full h-screen z-0 pointer-events-none" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);">
+    <div class="aura-background-component fixed top-0 w-full h-screen z-0 pointer-events-none" data-alpha-mask="80"
+      style="mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);">
       <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0"></div>
     </div>
 
@@ -103,7 +108,7 @@
   <div id="root"></div>
 
   <script>
-    window.APP_CONFIG = (function() {
+    window.APP_CONFIG = (function () {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
       let apiUrl;
@@ -125,7 +130,7 @@
     })();
 
     // Show/Hide animated background based on route
-    window.showAnimatedBackground = function(show) {
+    window.showAnimatedBackground = function (show) {
       const bgContainer = document.getElementById('animated-background-container');
       if (bgContainer) {
         if (show) {
@@ -154,7 +159,8 @@
       initializeBackgroundForCurrentRoute();
     }
   </script>
-  
+
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

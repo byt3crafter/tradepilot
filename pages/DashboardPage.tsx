@@ -50,38 +50,37 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full text-white bg-transparent">
+    <div className="fixed inset-0 w-full h-full text-white bg-transparent flex">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      {/* 
-        Adjusted padding-left: 
-        Sidebar is 16rem (64) expanded or 4rem (16) collapsed.
-        We add generous padding to the main content to separate it nicely.
-        Main content wrapper has a subtle border to define the workspace.
-      */}
-      <div className={`relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
-        <div className="min-h-screen border-l border-white/5 bg-[#08090A]/40 backdrop-blur-[2px]">
-          {isTrialing && <TrialBanner />}
+      {/* Main content area with proper flex layout */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+        {/* Trial Banner - fixed height, no scroll */}
+        {isTrialing && <TrialBanner />}
 
-          <header className="p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
-            <span className="font-medium text-sm">JTradePilot</span>
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
-              aria-label="Open sidebar"
-            >
-              <MenuIcon className="w-6 h-6" />
-            </button>
-          </header>
+        {/* Mobile header - fixed height, no scroll */}
+        <header className="flex-shrink-0 p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
+          <span className="font-medium text-sm">JTradePilot</span>
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
+            aria-label="Open sidebar"
+          >
+            <MenuIcon className="w-6 h-6" />
+          </button>
+        </header>
 
-          <main className="p-6 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
+        {/* Scrollable content area */}
+        <main className="flex-1 overflow-y-auto border-l border-white/5 bg-[#08090A]/40 backdrop-blur-[2px]">
+          <div className="p-6 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
             {renderView()}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
+
       <UpgradeModal />
     </div>
   );

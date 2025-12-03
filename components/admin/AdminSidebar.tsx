@@ -18,8 +18,8 @@ const AdminNavItem: React.FC<{
     onClick: () => void;
 }> = ({ icon, label, isActive, isCollapsed, onClick }) => {
     const navItemClasses = `relative flex items-center w-full px-4 py-2 my-0.5 transition-all duration-200 group ${isActive
-            ? 'text-white bg-white/[0.03] border-r-2 border-white'
-            : 'text-secondary hover:text-white hover:bg-white/[0.02]'
+        ? 'text-white bg-white/[0.03] border-r-2 border-white'
+        : 'text-secondary hover:text-white hover:bg-white/[0.02]'
         } ${isCollapsed ? 'justify-center px-2' : ''}`;
 
     return (
@@ -37,7 +37,7 @@ const AdminNavItem: React.FC<{
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, isCollapsed }) => {
     return (
         <aside
-            className={`fixed top-0 left-0 h-full bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'
+            className={`fixed top-0 left-0 h-screen bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'
                 }`}
         >
             {/* BRAND */}

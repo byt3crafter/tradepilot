@@ -47,7 +47,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ trades }) => {
             <div className="p-2 mb-2">
                 <h3 className="text-secondary text-xs font-orbitron uppercase tracking-widest">Recent Activity</h3>
             </div>
-            <div className="flex-1 overflow-y-auto pr-1 sidebar-scrollbar space-y-1">
+            <div className="flex-1 overflow-y-auto pr-1 sidebar-scrollbar flex flex-col gap-1">
                 {sortedTrades.length > 0 ? (
                     sortedTrades.map(trade => <ActivityRow key={trade.id} trade={trade} />)
                 ) : (

@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
   // Show loading spinner while fetching data - DON'T show anything else
   if (isLoading) {
     return (
-      <div className="fixed inset-0 flex justify-center items-center bg-void/50 backdrop-blur-sm z-50">
+      <div className="flex justify-center items-center min-h-[400px]">
         <Spinner />
       </div>
     );
@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
+    <div className="flex flex-col gap-8 animate-fade-in-up">
       {/* Only show header and objectives if there's data */}
       {hasTrades && (
         <>
@@ -61,7 +61,9 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      {renderMainContent()}
+      <div className="flex-1 min-h-0">
+        {renderMainContent()}
+      </div>
     </div>
   );
 };

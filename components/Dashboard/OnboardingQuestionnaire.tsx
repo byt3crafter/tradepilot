@@ -58,7 +58,7 @@ const OnboardingQuestionnaire: React.FC<OnboardingQuestionnaireProps> = ({ onCom
             <p className="text-future-gray mt-2">Let's personalize your experience. Tell us a bit about your trading journey.</p>
         </div>
         
-        <div className="space-y-8">
+        <div className="flex flex-col gap-8">
           {/* Experience Level */}
           <div>
             <label className="block text-lg font-semibold text-future-light mb-3">How long have you been trading?</label>

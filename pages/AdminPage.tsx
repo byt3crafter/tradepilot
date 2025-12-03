@@ -117,15 +117,17 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-future-dark text-future-light">
+    <div className="fixed inset-0 w-full h-full bg-future-dark text-future-light flex overflow-hidden">
       <AdminSidebar
         currentView={currentView}
         onNavigate={setCurrentView}
         isCollapsed={false}
       />
 
-      <div className="flex-1 ml-64">
-        <header className="h-16 border-b border-white/10 flex items-center justify-between px-6">
+      {/* Main content area - flex column layout */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Fixed header - no scroll */}
+        <header className="flex-shrink-0 h-16 border-b border-white/10 flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <span className="font-orbitron text-lg text-secondary">
               {currentView === 'dashboard' ? 'Dashboard' : 'Users'}
@@ -137,7 +139,8 @@ const AdminPage: React.FC = () => {
           </div>
         </header>
 
-        <main className="p-6 space-y-8 animate-fade-in-up">
+        {/* Scrollable content area */}
+        <main className="flex-1 overflow-y-auto p-6 space-y-8 animate-fade-in-up">
           {renderContent()}
         </main>
       </div>

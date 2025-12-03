@@ -17,7 +17,7 @@ const KeyMetricsDashboard: React.FC = () => {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fade-in-up">
       {/* --- Main Column (Left) --- */}
-      <div className="xl:col-span-2 space-y-6">
+      <div className="xl:col-span-2 flex flex-col gap-6">
         {/* Row 1: Equity Hero */}
         <EquityHero
           netPL={stats.netPL}
