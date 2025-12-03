@@ -24,7 +24,7 @@ const TradingObjectivesCard: React.FC<TradingObjectivesCardProps> = ({ objective
               Live
             </div>
           </div>
-          <div className="flex-grow flex flex-col justify-end mt-2">
+          <div className="flex-grow flex flex-col justify-center items-start">
             <div className="text-xl font-orbitron text-future-light">
               ${currentEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>

@@ -49,10 +49,10 @@ const NotificationBell: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setIsOpen(false)} />
       )}
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 w-80 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl z-50 animate-fade-in-up origin-top-right" style={{
+        <div className="absolute top-full mt-2 right-0 w-80 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl z-[60] animate-fade-in-up origin-top-right" style={{
           maxWidth: 'calc(100vw - 2rem)',
           maxHeight: 'calc(100vh - 200px)',
           overflow: 'auto'
