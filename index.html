@@ -7,148 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  
+
   <!-- Add Charting Libraries -->
   <script src="https://unpkg.com/d3@7.8.5/dist/d3.min.js"></script>
-  
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'void': '#08090A',
-            'surface': 'rgba(255, 255, 255, 0.02)',
-            'surface-highlight': 'rgba(255, 255, 255, 0.05)',
-            'overlay': '#08090A',
-            
-            'primary': '#f5f5f5',
-            'secondary': '#737373',
-            'tertiary': '#262626',
-            
-            'profit': '#10b981',
-            'loss': '#ef4444',
-            'warning': '#f59e0b',
-            'info': '#3b82f6',
-            
-            'brand': '#FFFFFF',       
-            'photonic-blue': '#FFFFFF',
-            'future-dark': '#08090A',
-            'future-panel': '#0C0D0E',
-            'future-gray': '#737373',
-            'future-light': '#f5f5f5',
-            'risk-high': '#ef4444',
-            'risk-medium': '#f59e0b',
-            'momentum-green': '#10b981',
-          },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-            orbitron: ['Inter', 'sans-serif'],
-            'tech-mono': ['"JetBrains Mono"', 'monospace'],
-          },
-          animation: {
-            'fade-in': 'fadeIn 0.5s ease-out forwards',
-            'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
-            'slide-up': 'slideUp 0.5s ease-out forwards',
-          },
-          keyframes: {
-            fadeIn: {
-              '0%': { opacity: '0' },
-              '100%': { opacity: '1' },
-            },
-            fadeInUp: {
-              '0%': { opacity: '0', transform: 'translateY(10px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            },
-            slideUp: {
-              '0%': { opacity: '0', transform: 'translateY(10px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body {
-        font-family: 'Inter', sans-serif;
-        background-color: #08090A;
-        background-image:
-        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-        background-size: 60px 60px;
-        background-attachment: fixed;
-        color: #f5f5f5;
-        -webkit-font-smoothing: antialiased;
-        overflow-x: hidden;
-    }
-
-    /* Modern Scrollbars */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: #08090A;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: #262626;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #404040;
-    }
-    
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-        -webkit-appearance: none; 
-        margin: 0; 
-    }
-    
-    .glass-panel {
-        background: rgba(8, 9, 10, 0.8);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    /* Force Dark Dropdowns */
-    select, option {
-        background-color: #0C0D0E !important;
-        color: #f5f5f5 !important;
-    }
-
-    /* Dark Theme for DateTime Picker */
-    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        cursor: pointer;
-    }
-
-    input[type="datetime-local"]::-webkit-datetime-edit {
-        color: #f5f5f5;
-    }
-
-    input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
-        background-color: transparent;
-    }
-
-    input[type="datetime-local"]::-webkit-datetime-edit-text {
-        color: #737373;
-    }
-
-    input[type="datetime-local"]::-webkit-datetime-edit-month-field,
-    input[type="datetime-local"]::-webkit-datetime-edit-day-field,
-    input[type="datetime-local"]::-webkit-datetime-edit-year-field,
-    input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
-    input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
-    input[type="datetime-local"]::-webkit-datetime-edit-second-field,
-    input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
-        color: #f5f5f5;
-    }
-  </style>
 <script type="importmap">
 {
   "imports": {
@@ -212,17 +73,7 @@
 
       if (isLocal) {
         // In development (localhost), API is on the same machine but different port
-        // Try common development ports: 8080 (default), 3000, or same origin
         apiUrl = 'http://localhost:8080';
-
-        // Check if we can reach the API on this port, otherwise try same origin
-        // For now, we'll use the environment config or default to 8080
-        try {
-          const apiHost = (import.meta as any).env.VITE_API_URL || apiUrl;
-          apiUrl = apiHost;
-        } catch (e) {
-          // Fallback to default if env var not available
-        }
       } else {
         // In production, API is on the same domain
         apiUrl = window.location.origin;
