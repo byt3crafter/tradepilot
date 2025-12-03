@@ -394,23 +394,43 @@ If you encounter issues related to these customizations:
 
 ## Recent Updates (December 3, 2025)
 
-### Admin Panel Enhancements
+### Admin Panel Enhancements & Layout Fixes
 
 **Location**: `pages/AdminPage.tsx`, `components/admin/`, `backend/src/admin/`
 
 **Customization Details**:
-- **Sidebar Navigation**: Added `AdminSidebar` component matching user dashboard design
-  - Dashboard view: Overview stats
-  - Users view: Detailed user management
+- **Sidebar Navigation**: `AdminSidebar` component with flex layout (not fixed)
+  - Dashboard view: Overview stats with enhanced StatCards
+  - Users view: Detailed user management table
+  - Uses natural flex layout (removed `fixed` positioning)
+  - Properly scales with content
+
 - **Enhanced User Table**: Displays comprehensive user information
   - User role (USER/ADMIN) with visual badges
   - Trial expiration dates with expired status indicators
   - API usage cost and token consumption per user
   - Last login timestamps
-- **Admin Authentication**: 
+
+- **Admin Authentication**:
   - Added `/api/auth/me` debug endpoint to verify JWT claims
   - Requires `public_metadata.role` in Clerk JWT template
   - AdminGuard validates role from database after JWT verification
+
+**Layout Fixes** (Commit 1f77559):
+- **AdminPage.tsx**: Replaced `space-y-8` with `flex flex-col gap-8`
+  - Prevents scrollbar overflow during content animation
+  - Consistent with dashboard viewport layout system
+
+- **AdminSidebar.tsx**: Changed from `fixed` to flex layout
+  - Sidebar now part of natural flex layout
+  - Added `overflow-y-auto` for sidebar content scrolling
+  - Properly contributes to overall layout flow
+
+- **StatCard.tsx**: Enhanced visual hierarchy
+  - Increased padding (p-4 → p-6)
+  - Better typography (text-3xl → text-4xl value, xs label)
+  - Improved color contrast and readability
+  - Flexbox centering for consistent alignment
 
 **Key Features**:
 - Role-based access control (RBAC) with visual indicators
@@ -419,6 +439,7 @@ If you encounter issues related to these customizations:
 - Promote users to admin (via Clerk dashboard)
 - Grant/revoke Pro access
 - Delete users with cascade protection
+- ✅ Clean, responsive layout without fixed positioning
 
 ---
 
