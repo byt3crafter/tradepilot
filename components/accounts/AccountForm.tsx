@@ -47,7 +47,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       setIsLoading(false);
       return;
     }
-    
+
     const baseObjectivesPayload = {
       profitTarget: profitTarget ? parseFloat(profitTarget as string) : null,
       minTradingDays: minTradingDays ? parseInt(minTradingDays as string, 10) : null,
@@ -60,14 +60,14 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       maxTradesPerDay: maxTradesPerDay ? parseInt(maxTradesPerDay as string, 10) : null,
       maxLossesPerDay: maxLossesPerDay ? parseInt(maxLossesPerDay as string, 10) : null,
     };
-    
+
     const accountPayload = {
       name,
       type,
       initialBalance: balance,
       currency,
       leverage: leverage ? parseInt(leverage as string, 10) : null,
-      feeModel,
+      // Note: feeModel is not sent to the API - it's stored locally only
     };
 
     try {
