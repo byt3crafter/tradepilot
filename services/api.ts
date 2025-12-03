@@ -68,6 +68,7 @@ export interface ApiService {
 
   // AI
   generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }>;
+  parseTradeText(text: string, availableAssets: string[], token: string): Promise<Partial<Trade>>;
 
   // Auth
   verifyEmail(token: string): Promise<{ message: string }>;
@@ -217,6 +218,7 @@ const api: ApiService = {
 
   // AI Methods
   generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }> { return this.post('/api/ai/generate-idea', data, token); },
+  parseTradeText(text: string, availableAssets: string[], token: string): Promise<Partial<Trade>> { return this.post('/api/ai/parse-trade-text', { text, availableAssets }, token); },
 
   // Auth Methods
   verifyEmail(token: string): Promise<{ message: string }> { return this.post('/api/auth/verify-email', { token }, null); },

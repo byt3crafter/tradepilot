@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAccount } from '../../context/AccountContext';
-import { BrokerAccount, BrokerAccountType } from '../../types';
+import { BrokerAccount, BrokerAccountType, FeeModel } from '../../types';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
@@ -20,6 +20,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const [initialBalance, setInitialBalance] = useState(account?.initialBalance || '');
   const [currency, setCurrency] = useState(account?.currency || 'USD');
   const [leverage, setLeverage] = useState(account?.leverage || '');
+  const [feeModel, setFeeModel] = useState<FeeModel>(account?.feeModel || FeeModel.SPREAD_ONLY);
   
   const [objectivesEnabled, setObjectivesEnabled] = useState(account?.objectives?.isEnabled || false);
   const [profitTarget, setProfitTarget] = useState(account?.objectives?.profitTarget ?? '');
@@ -66,6 +67,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       initialBalance: balance,
       currency,
       leverage: leverage ? parseInt(leverage as string, 10) : null,
+      feeModel,
     };
 
     try {
@@ -142,6 +144,17 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
           onChange={(e) => setLeverage(e.target.value)}
         />
       </div>
+      <SelectInput
+        label="How does your broker charge fees?"
+        id="feeModel"
+        value={feeModel}
+        onChange={(e) => setFeeModel(e.target.value as FeeModel)}
+        options={[
+          { value: FeeModel.SPREAD_ONLY, label: 'Spread only (no separate commission)' },
+          { value: FeeModel.COMMISSION_ONLY, label: 'Commission only' },
+          { value: FeeModel.COMMISSION_AND_SWAP, label: 'Commission + Swap/Financing' },
+        ]}
+      />
 
       <div className="my-4 pt-4 border-t border-white/10">
         <ToggleSwitch 

@@ -7,7 +7,7 @@ import TradeRow from './TradeRow';
 import Spinner from './Spinner';
 import { PlusIcon } from './icons/PlusIcon';
 import Modal from './ui/Modal';
-import AddTradeForm from './trades/AddTradeForm';
+import TradeFormModal from './trades/TradeFormModal';
 import PendingOrderRow from './trades/PendingOrderRow';
 import { useSettings } from '../context/SettingsContext';
 import { useChecklist } from '../context/ChecklistContext';
@@ -17,7 +17,6 @@ import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import LiveTradeRow from './trades/LiveTradeRow.tsx';
 import CloseTradeModal from './trades/CloseTradeModal';
-import EditTradeForm from './trades/EditTradeForm';
 import SelectInput from './ui/SelectInput';
 import { useUI } from '../context/UIContext';
 import Checkbox from './ui/Checkbox';
@@ -238,26 +237,13 @@ const TradeJournal: React.FC = () => {
   const renderModal = () => {
     if (addTradeStep !== 'form') return null;
 
-    if (editingTrade) {
-      if (editingTrade.result) {
-        return (
-          <Modal title={`Edit Closed Trade: ${editingTrade.asset}`} onClose={closeModals} size="4xl">
-            <EditTradeForm tradeToEdit={editingTrade} onSuccess={closeModals} />
-          </Modal>
-        );
-      }
-      const title = editingTrade.isPendingOrder ? "Edit Pending Order" : `Edit Live Trade: ${editingTrade.asset}`;
-      return (
-        <Modal title={title} onClose={closeModals} size="lg">
-          <AddTradeForm tradeToEdit={editingTrade} onSuccess={closeModals} />
-        </Modal>
-      );
-    }
-
     return (
-      <Modal title="Log Trade" onClose={closeModals} size="lg">
-        <AddTradeForm onSuccess={closeModals} />
-      </Modal>
+      <TradeFormModal
+        isOpen={true}
+        onClose={closeModals}
+        tradeToEdit={editingTrade}
+        onSuccess={closeModals}
+      />
     );
   };
 

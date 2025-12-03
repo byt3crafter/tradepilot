@@ -326,4 +326,68 @@ export class AiService {
         const systemInstruction = "You are a professional trading coach named tradePilot AI. Analyze the following summary of the trader's performance for today. Provide a concise, insightful debrief. Identify the single biggest strength and the single most critical area for improvement from today's session. Conclude with one piece of actionable advice for tomorrow's session. Speak directly to the trader. Keep the entire response to 2-3 paragraphs.";
         return this.generateDebrief(context, systemInstruction, 'daily debrief');
     }
+
+    async parseTradeText(text: string, availableAssets?: string[]) {
+        try {
+            const assetInstruction = availableAssets && availableAssets.length > 0
+                ? `The asset must be selected from this list: [${availableAssets.join(', ')}]. Match the asset name from the input text to the closest symbol in this list.`
+                : 'Extract the asset symbol as mentioned in the text.';
+
+            const textPart = {
+                text: `
+                **Task:** You are a trading data extraction assistant. Parse the following natural language trade description and extract structured data.
+
+                **Input Text:**
+                "${text}"
+
+                **Extraction Rules:**
+                - **asset**: ${assetInstruction}
+                - **direction**: Extract "Buy" or "Sell" from phrases like "Long", "Buy", "Short", "Sell"
+                - **entryPrice**: Extract the entry price. If "market entry now" or similar, return null.
+                - **stopLoss**: Extract the stop loss price if mentioned.
+                - **takeProfit**: Extract the take profit (TP) price if mentioned.
+                - **riskPercentage**: Extract risk as a percentage (e.g., "risk 1%" → 1, "risk 2.5%" → 2.5). If risk is in dollars (e.g., "risk $50"), return null for riskPercentage.
+                - **exitPrice**: Extract exit price if the trade is closed (e.g., "closed at 47481" → 47481).
+                - **entryDate**: If a specific date/time is mentioned, extract it. Otherwise return null.
+
+                **Important:**
+                - For any field not clearly present in the text, return null.
+                - Do not invent or guess values.
+                - Return a valid JSON object matching the schema.
+                `
+            };
+
+            const response = await this.genAI.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: { parts: [textPart] },
+              config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        asset: { type: Type.STRING },
+                        direction: { type: Type.STRING, enum: ["Buy", "Sell"] },
+                        entryPrice: { type: Type.NUMBER },
+                        stopLoss: { type: Type.NUMBER },
+                        takeProfit: { type: Type.NUMBER },
+                        riskPercentage: { type: Type.NUMBER },
+                        exitPrice: { type: Type.NUMBER },
+                        entryDate: { type: Type.STRING },
+                    }
+                }
+              }
+            });
+
+            if (!response.text) {
+                this.logger.error('AI trade text parsing returned empty response');
+                throw new InternalServerErrorException('AI trade text parsing returned empty response.');
+            }
+            const jsonText = response.text.trim();
+            return JSON.parse(jsonText);
+
+        } catch (error) {
+            this.logger.error('Error parsing trade text with Gemini', error.stack);
+            throw new InternalServerErrorException('Failed to parse trade text.');
+        }
+    }
 }

@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "FeeModel" AS ENUM ('SPREAD_ONLY', 'COMMISSION_ONLY', 'COMMISSION_AND_SWAP');
+
+-- AlterTable
+ALTER TABLE "BrokerAccount" ADD COLUMN "feeModel" "FeeModel" NOT NULL DEFAULT 'SPREAD_ONLY';

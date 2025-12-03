@@ -20,6 +20,12 @@ export enum BrokerAccountType {
   PROP_FIRM = 'PROP_FIRM',
 }
 
+export enum FeeModel {
+  SPREAD_ONLY = 'SPREAD_ONLY',
+  COMMISSION_ONLY = 'COMMISSION_ONLY',
+  COMMISSION_AND_SWAP = 'COMMISSION_AND_SWAP',
+}
+
 export interface TradingObjective {
   id: string;
   profitTarget?: number | null;
@@ -45,6 +51,7 @@ export interface BrokerAccount {
   currentBalance: number;
   currency: string;
   leverage?: number | null;
+  feeModel: FeeModel;
   userId: string;
   createdAt: string;
   updatedAt: string;

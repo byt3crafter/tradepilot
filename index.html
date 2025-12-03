@@ -120,6 +120,34 @@
         background-color: #0C0D0E !important;
         color: #f5f5f5 !important;
     }
+
+    /* Dark Theme for DateTime Picker */
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit {
+        color: #f5f5f5;
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+        background-color: transparent;
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit-text {
+        color: #737373;
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-second-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
+        color: #f5f5f5;
+    }
   </style>
 <script type="importmap">
 {

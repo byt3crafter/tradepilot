@@ -43,6 +43,7 @@ model BrokerAccount {
   currentBalance Float
   currency       String            @default("USD")
   leverage       Int?
+  feeModel       FeeModel          @default(SPREAD_ONLY)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -59,6 +60,12 @@ enum BrokerAccountType {
   DEMO
   LIVE
   PROP_FIRM
+}
+
+enum FeeModel {
+  SPREAD_ONLY
+  COMMISSION_ONLY
+  COMMISSION_AND_SWAP
 }
 
 model TradingObjective {
