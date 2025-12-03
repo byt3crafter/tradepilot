@@ -3,7 +3,6 @@ import React from 'react';
 const AboutUsPage: React.FC = () => {
   React.useEffect(() => {
     window.scrollTo(0, 0);
-    // Hide animated background for this page
     (window as any).showAnimatedBackground?.(false);
   }, []);
 
@@ -166,9 +165,7 @@ const AboutUsPage: React.FC = () => {
             <p>
               We're in beta, and that's intentional. We're building this with real traders, for real traders. Your feedback directly shapes what we build next.
             </p>
-            <p>
-              In the next year, we want to:
-            </p>
+            <p>In the next year, we want to:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Help 10,000 traders build trading discipline</li>
               <li>Create advanced performance analytics that actually reveal trader edge</li>
@@ -208,7 +205,6 @@ const AboutUsPage: React.FC = () => {
           </p>
         </div>
       </div>
-    </div>
     </div>
   );
 };
