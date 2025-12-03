@@ -53,7 +53,7 @@ const NotificationBell: React.FC = () => {
       {isOpen && (
         <div className="fixed w-80 max-w-[calc(100vw-2rem)] bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl z-50 animate-fade-in-up" style={{
           right: '1rem',
-          top: '5.5rem'
+          top: '4rem'
         }}>
           <div className="p-3 border-b border-white/5 flex justify-between items-center">
             <h3 className="text-sm font-semibold text-future-light">Notifications</h3>
