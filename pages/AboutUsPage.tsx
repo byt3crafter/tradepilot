@@ -206,6 +206,7 @@ const AboutUsPage: React.FC = () => {
           <p className="text-future-gray text-sm">
             © 2024 JTradePilot. Building trading discipline, one trade at a time.
           </p>
+        </div>
       </div>
     </div>
   );
