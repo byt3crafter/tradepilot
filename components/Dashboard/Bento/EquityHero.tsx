@@ -34,7 +34,7 @@ const EquityHero: React.FC<EquityHeroProps> = ({ netPL, equityCurve }) => {
   const lineColor = isPositive ? "#A1E3CB" : "#E08E8E"; // profit (mint) vs loss (coral)
 
   return (
-    <Card className="h-[500px] flex flex-col relative overflow-hidden group">
+    <Card className="h-[350px] flex flex-col relative overflow-hidden group">
       {/* Background Ambience */}
       <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${isPositive ? 'from-profit/5' : 'from-loss/5'} to-transparent rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none transition-colors duration-500`} />
 
