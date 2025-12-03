@@ -16,9 +16,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex-1" />
           <div className="flex items-center gap-6 text-sm">
-            <a href="/about" className="text-future-gray hover:text-future-light transition-colors">
-              About
-            </a>
             <a href="/faq" className="text-future-gray hover:text-future-light transition-colors">
               FAQ
             </a>
@@ -63,9 +60,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
               © 2024 JTradePilot. Building trading discipline, one trade at a time.
             </div>
             <div className="flex gap-6 text-sm">
-              <a href="/about" className="text-future-gray hover:text-future-light transition-colors">
-                About
-              </a>
               <a href="/about-us" className="text-future-gray hover:text-future-light transition-colors">
                 Our Story
               </a>
