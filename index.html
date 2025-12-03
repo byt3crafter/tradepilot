@@ -34,11 +34,39 @@
       (document.head || document.body).appendChild(i);
     };
 
-    // Stub to prevent errors if React hasn't loaded yet
+    // Create or remove animated background
     window.showAnimatedBackground = function(show) {
       const bgContainer = document.getElementById('animated-background-container');
-      if (bgContainer) {
-        bgContainer.style.display = show ? 'block' : 'none';
+      if (!bgContainer) return;
+
+      if (show) {
+        // Only create background if it doesn't exist
+        if (bgContainer.children.length === 0) {
+          bgContainer.innerHTML = `
+            <div class="aura-background-component fixed top-0 w-full h-screen z-0 pointer-events-none" data-alpha-mask="80"
+              style="mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);">
+              <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0"></div>
+            </div>
+
+            <div class="fixed inset-0 z-0 pointer-events-none" style="
+              background-image:
+                linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+              background-size: 60px 60px;
+              background-attachment: fixed;
+              mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
+              -webkit-mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
+            "></div>
+
+            <div class="fixed inset-0 z-10 pointer-events-none" style="
+              background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
+              opacity: 0.8;
+            "></div>
+          `;
+        }
+      } else {
+        // Remove background content
+        bgContainer.innerHTML = '';
       }
     };
   </script>
@@ -93,31 +121,8 @@
 
 <body class="font-sans text-primary antialiased selection:bg-zinc-800 selection:text-white">
 
-  <!-- Animated Background - Only on Landing Page -->
-  <div id="animated-background-container" style="display: none;">
-    <!-- UnicornStudio Animated Background -->
-    <div class="aura-background-component fixed top-0 w-full h-screen z-0 pointer-events-none" data-alpha-mask="80"
-      style="mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);">
-      <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0"></div>
-    </div>
-
-    <!-- Grid Background with Fade Effect -->
-    <div class="fixed inset-0 z-0 pointer-events-none" style="
-      background-image:
-        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 60px 60px;
-      background-attachment: fixed;
-      mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
-      -webkit-mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
-    "></div>
-
-    <!-- Background Vignette Overlay -->
-    <div class="fixed inset-0 z-10 pointer-events-none" style="
-      background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
-      opacity: 0.8;
-    "></div>
-  </div>
+  <!-- Animated Background Container - Created dynamically by React on landing page -->
+  <div id="animated-background-container"></div>
 
   <div id="root"></div>
 
