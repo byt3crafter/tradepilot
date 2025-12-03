@@ -3,11 +3,33 @@ import React from 'react';
 const AboutUsPage: React.FC = () => {
   React.useEffect(() => {
     window.scrollTo(0, 0);
+    // Hide animated background for this page
+    (window as any).showAnimatedBackground?.(false);
   }, []);
 
   return (
-    <div className="min-h-screen bg-future-dark pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+    <div className="min-h-screen bg-future-dark pb-12">
+      {/* Navigation Header */}
+      <nav className="border-b border-white/5 bg-future-dark/50 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <a href="/" className="text-future-light font-semibold hover:opacity-80 transition-opacity">
+            ← Back to Home
+          </a>
+          <div className="flex items-center gap-6 text-sm">
+            <a href="/about" className="text-future-gray hover:text-future-light transition-colors">
+              About
+            </a>
+            <a href="/faq" className="text-future-gray hover:text-future-light transition-colors">
+              FAQ
+            </a>
+            <a href="/" className="text-future-gray hover:text-future-light transition-colors">
+              Home
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 py-12">
         {/* Header */}
         <section className="text-center space-y-6">
           <h1 className="text-5xl md:text-6xl font-orbitron font-bold text-future-light leading-tight">
@@ -184,7 +206,6 @@ const AboutUsPage: React.FC = () => {
           <p className="text-future-gray text-sm">
             © 2024 JTradePilot. Building trading discipline, one trade at a time.
           </p>
-        </div>
       </div>
     </div>
   );
