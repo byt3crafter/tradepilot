@@ -554,3 +554,36 @@ fixed inset-0 (viewport container)
 - ✅ No nested height calculation issues
 
 ---
+
+### Spacing Utilities: Space-Y vs Flexbox Gap (Critical Layout Fix)
+
+**Location**: `components/Dashboard/`, Dashboard components
+
+**Problem Fixed** (Commit cfa9f6a):
+Tailwind's `space-y-X` utilities add **bottom margins** to child elements, which causes overflow calculation errors in flex containers. When cards load and animate, the margins cause content to exceed viewport bounds, triggering unwanted scrollbars.
+
+**Solution Implemented**:
+Replaced all `space-y-X` utilities with `flex flex-col gap-X`:
+
+| Component | Before | After | Reason |
+|-----------|--------|-------|--------|
+| Dashboard.tsx (line 50) | `space-y-8` | `flex flex-col gap-8` | Main wrapper animating during load |
+| KeyMetricsDashboard.tsx (line 20) | `space-y-6` | `flex flex-col gap-6` | Left column with cards |
+| DashboardHeader.tsx (line 25) | `space-y-1` | `flex flex-col gap-1` | Title section in scrollable area |
+| RecentActivity.tsx (line 50) | `space-y-1` | `flex flex-col gap-1` | Activity list with flex-1 overflow-y-auto |
+| OnboardingQuestionnaire.tsx (line 61) | `space-y-8` | `flex flex-col gap-8` | Form sections in scrollable container |
+
+**Why This Works**:
+- `space-y-X` adds margins → causes overflow in animated flex containers
+- `gap-X` distributes space without margins → stays within bounds
+- More predictable with animations and responsive layouts
+
+**Key Principle**:
+**Never use `space-y-X` inside scrollable containers or animated elements**. Always use `flex flex-col gap-X` instead.
+
+**Also Fixed**:
+- Loading spinner: `fixed inset-0` → `flex justify-center items-center min-h-[400px]`
+  - Respects scrollable container bounds instead of full-screen overlay
+  - Prevents layout conflicts with viewport system
+
+---
