@@ -11,8 +11,11 @@ export class AdminUserDto {
   fullName: string;
 
   @Expose()
+  role: string;
+
+  @Expose()
   createdAt: Date;
-  
+
   @Expose()
   lastLoginAt: Date;
 
@@ -27,4 +30,13 @@ export class AdminUserDto {
 
   @Expose()
   proAccessReason: string;
+
+  @Expose()
+  apiUsageCost: number;
+
+  @Expose()
+  apiUsageTokens: number;
+
+  @Expose()
+  lastApiUsage: Date;
 }

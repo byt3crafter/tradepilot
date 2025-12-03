@@ -40,17 +40,17 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
 
   const handleDelete = async (userId: string) => {
     if (currentUser && userId === currentUser.id) {
-        alert("You cannot delete your own account from the admin panel.");
-        return;
+      alert("You cannot delete your own account from the admin panel.");
+      return;
     }
     if (window.confirm('Are you sure you want to PERMANENTLY delete this user?')) {
-        if (!accessToken) return;
-        try {
-            await api.deleteUser(userId, accessToken);
-            onRefresh();
-        } catch (err: any) {
-            alert(`Failed to delete user: ${err.message}`);
-        }
+      if (!accessToken) return;
+      try {
+        await api.deleteUser(userId, accessToken);
+        onRefresh();
+      } catch (err: any) {
+        alert(`Failed to delete user: ${err.message}`);
+      }
     }
   };
 
@@ -60,7 +60,7 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
         <h2 className="text-xl font-orbitron text-photonic-blue">User Management</h2>
         <div className="w-full md:w-72">
-          <Input 
+          <Input
             label=""
             id="search-users"
             type="text"
@@ -76,41 +76,82 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
           <thead className="border-b border-white/10">
             <tr>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">User</th>
+              <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Role</th>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Status</th>
-              <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Registered</th>
+              <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Trial Expires</th>
+              <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">API Usage</th>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Last Login</th>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map(user => (
-              <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
-                <td className="p-3">
-                  <p className="font-semibold text-white">{user.fullName}</p>
-                  <p className="text-xs text-secondary">{user.email}</p>
-                </td>
-                <td className="p-3">
+            {filteredUsers.map(user => {
+              const isTrialing = user.subscriptionStatus === 'TRIALING';
+              const trialExpired = user.trialEndsAt && new Date(user.trialEndsAt) < new Date();
+              const isAdmin = user.role === 'ADMIN';
+
+              return (
+                <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
+                  <td className="p-3">
+                    <p className="font-semibold text-white">{user.fullName}</p>
+                    <p className="text-xs text-secondary">{user.email}</p>
+                  </td>
+                  <td className="p-3">
+                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${isAdmin
+                        ? 'bg-photonic-blue/10 text-photonic-blue border border-photonic-blue/20'
+                        : 'bg-white/5 text-secondary border border-white/10'
+                      }`}>
+                      {user.role || 'USER'}
+                    </span>
+                  </td>
+                  <td className="p-3">
                     <StatusBadge user={user} />
-                </td>
-                <td className="p-3 font-tech-mono text-secondary">{new Date(user.createdAt).toLocaleDateString()}</td>
-                <td className="p-3 font-tech-mono text-secondary">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}</td>
-                <td className="p-3">
-                  <DropdownMenu>
-                    <DropdownMenuItem onSelect={() => onGrantPro(user)}>
-                      Grant Pro Access
-                    </DropdownMenuItem>
-                    {user.proAccessExpiresAt !== undefined && (
-                      <DropdownMenuItem onSelect={() => handleRevoke(user.id)} className="text-risk-high hover:bg-risk-high/10">
-                        Revoke Pro Access
-                      </DropdownMenuItem>
+                  </td>
+                  <td className="p-3">
+                    {isTrialing && user.trialEndsAt ? (
+                      <div className="flex flex-col">
+                        <span className={`font-tech-mono text-xs ${trialExpired ? 'text-risk-high' : 'text-secondary'}`}>
+                          {new Date(user.trialEndsAt).toLocaleDateString()}
+                        </span>
+                        {trialExpired && (
+                          <span className="text-[10px] text-risk-high uppercase">Expired</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-secondary">—</span>
                     )}
-                     <DropdownMenuItem onSelect={() => handleDelete(user.id)} className="text-risk-high hover:bg-risk-high/10">
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-tech-mono text-xs text-white">
+                        ${(user.apiUsageCost || 0).toFixed(4)}
+                      </span>
+                      <span className="text-[10px] text-secondary">
+                        {(user.apiUsageTokens || 0).toLocaleString()} tokens
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-3 font-tech-mono text-secondary text-xs">
+                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}
+                  </td>
+                  <td className="p-3">
+                    <DropdownMenu>
+                      <DropdownMenuItem onSelect={() => onGrantPro(user)}>
+                        Grant Pro Access
+                      </DropdownMenuItem>
+                      {user.proAccessExpiresAt !== undefined && (
+                        <DropdownMenuItem onSelect={() => handleRevoke(user.id)} className="text-risk-high hover:bg-risk-high/10">
+                          Revoke Pro Access
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onSelect={() => handleDelete(user.id)} className="text-risk-high hover:bg-risk-high/10">
                         Delete User
-                    </DropdownMenuItem>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
+                      </DropdownMenuItem>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

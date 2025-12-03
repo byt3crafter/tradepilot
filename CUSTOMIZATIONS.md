@@ -389,3 +389,91 @@ If you encounter issues related to these customizations:
 **Last Updated**: December 3, 2025
 **Created**: By Claude Code Agent
 **Project**: TradePilot v0.0.0
+
+---
+
+## Recent Updates (December 3, 2025)
+
+### Admin Panel Enhancements
+
+**Location**: `pages/AdminPage.tsx`, `components/admin/`, `backend/src/admin/`
+
+**Customization Details**:
+- **Sidebar Navigation**: Added `AdminSidebar` component matching user dashboard design
+  - Dashboard view: Overview stats
+  - Users view: Detailed user management
+- **Enhanced User Table**: Displays comprehensive user information
+  - User role (USER/ADMIN) with visual badges
+  - Trial expiration dates with expired status indicators
+  - API usage cost and token consumption per user
+  - Last login timestamps
+- **Admin Authentication**: 
+  - Added `/api/auth/me` debug endpoint to verify JWT claims
+  - Requires `public_metadata.role` in Clerk JWT template
+  - AdminGuard validates role from database after JWT verification
+
+**Key Features**:
+- Role-based access control (RBAC) with visual indicators
+- Trial management with expiration tracking
+- API usage monitoring per user
+- Promote users to admin (via Clerk dashboard)
+- Grant/revoke Pro access
+- Delete users with cascade protection
+
+---
+
+### API Usage Tracking System
+
+**Location**: `backend/src/ai/`, `backend/prisma/schema.prisma`
+
+**Database Schema**:
+```prisma
+model ApiUsage {
+  id        String   @id @default(uuid())
+  endpoint  String   // e.g., 'generate-idea', 'parse-trade-text'
+  model     String   // e.g., 'gemini-2.5-flash'
+  tokens    Int      // Total tokens used
+  cost      Float    // Calculated cost in USD
+  timestamp DateTime @default(now())
+  userId    String
+  user      User     @relation(...)
+}
+```
+
+**Implementation**:
+- **AiService.logUsage()**: Logs every AI API call with token count and cost
+- **Cost Calculation**: Approximate $0.0000002 per token (Gemini 2.5 Flash average)
+- **Tracked Endpoints**:
+  - `/api/ai/generate-idea` - Trade idea generation
+  - `/api/ai/parse-trade-text` - Natural language trade parsing
+- **Admin Dashboard**: Aggregates total cost and tokens per user
+- **Non-blocking**: Logging failures don't affect user requests
+
+**Usage Metadata**:
+- Extracts `usageMetadata` from Gemini API responses
+- Calculates total tokens: `promptTokenCount + candidatesTokenCount`
+- Stores per-request granular data for auditing
+
+---
+
+### Authentication Improvements
+
+**Location**: `backend/src/auth/`
+
+**Changes**:
+- **JWT Strategy**: Extracts `public_metadata.role` from Clerk tokens
+- **User Sync**: Updates user role on login if present in JWT
+- **Debug Endpoint**: `GET /api/auth/me` returns authenticated user's claims
+- **Admin Guard**: Validates `user.role === 'ADMIN'` from database
+
+**Setup Requirements**:
+1. Configure Clerk JWT Template to include:
+   ```json
+   {
+     "public_metadata": "{{user.public_metadata}}"
+   }
+   ```
+2. Set user role in Clerk Dashboard: `public_metadata.role = "ADMIN"`
+3. User must sign out and sign in again to refresh token
+
+---

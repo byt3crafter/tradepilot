@@ -12,7 +12,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   async getStats(): Promise<AdminStatsDto> {
     const totalUsers = await this.prisma.user.count();
@@ -36,49 +36,66 @@ export class AdminService {
 
   async getUsers(): Promise<AdminUserDto[]> {
     const users = await this.prisma.user.findMany({
+      include: {
+        apiUsage: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
-    return users.map((user: User) => plainToInstance(AdminUserDto, user, {
-      excludeExtraneousValues: true,
-    }));
+
+    return users.map((user: any) => {
+      const apiUsageCost = user.apiUsage?.reduce((sum, usage) => sum + (usage.cost || 0), 0) || 0;
+      const apiUsageTokens = user.apiUsage?.reduce((sum, usage) => sum + (usage.tokens || 0), 0) || 0;
+      const lastApiUsage = user.apiUsage?.length > 0
+        ? user.apiUsage.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0].timestamp
+        : null;
+
+      return plainToInstance(AdminUserDto, {
+        ...user,
+        apiUsageCost,
+        apiUsageTokens,
+        lastApiUsage,
+      }, {
+        excludeExtraneousValues: true,
+      });
+    });
   }
 
   async grantProAccess(userId: string, grantProDto: GrantProDto): Promise<AdminUserDto> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }});
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-        throw new NotFoundException(`User with ID ${userId} not found.`);
+      throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
     const dataToUpdate: Prisma.UserUpdateInput = {
-        proAccessExpiresAt: grantProDto.expiresAt,
-        proAccessReason: grantProDto.reason,
+      proAccessExpiresAt: grantProDto.expiresAt,
+      proAccessReason: grantProDto.reason,
     };
-    
+
     if (user.subscriptionStatus === 'TRIALING') {
-        dataToUpdate.subscriptionStatus = 'CANCELED';
-        dataToUpdate.trialEndsAt = null;
+      dataToUpdate.subscriptionStatus = 'CANCELED';
+      dataToUpdate.trialEndsAt = null;
     }
 
     const updatedUser = await this.prisma.user.update({
-        where: { id: userId },
-        data: dataToUpdate,
+      where: { id: userId },
+      data: dataToUpdate,
     });
 
     return plainToInstance(AdminUserDto, updatedUser, { excludeExtraneousValues: true });
   }
 
   async revokeProAccess(userId: string): Promise<AdminUserDto> {
-     const user = await this.prisma.user.findUnique({ where: { id: userId }});
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-        throw new NotFoundException(`User with ID ${userId} not found.`);
+      throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
     const updatedUser = await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-            proAccessExpiresAt: new Date(0), 
-            proAccessReason: 'Access revoked by admin.',
-        },
+      where: { id: userId },
+      data: {
+        proAccessExpiresAt: new Date(0),
+        proAccessReason: 'Access revoked by admin.',
+      },
     });
 
     return plainToInstance(AdminUserDto, updatedUser, { excludeExtraneousValues: true });

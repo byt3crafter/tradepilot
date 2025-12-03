@@ -33,6 +33,7 @@ model User {
   assetSpecs         AssetSpecification[]
 
   notifications      Notification[]
+  apiUsage           ApiUsage[]
 }
 
 model BrokerAccount {
@@ -256,4 +257,16 @@ model Notification {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
 
+}
+
+model ApiUsage {
+  id        String   @id @default(uuid())
+  endpoint  String
+  model     String
+  tokens    Int
+  cost      Float
+  timestamp DateTime @default(now())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

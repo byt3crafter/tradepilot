@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Trade, Playbook } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 const base64ToGenaiPart = (base64Data: string) => {
     const match = base64Data.match(/^data:(.+);base64,(.+)$/);
@@ -19,13 +20,39 @@ export class AiService {
     private readonly logger = new Logger(AiService.name);
     private genAI: GoogleGenAI;
 
-    constructor(private configService: ConfigService) {
+    constructor(
+        private configService: ConfigService,
+        private prisma: PrismaService
+    ) {
         const apiKey = this.configService.get<string>('API_KEY');
         if (!apiKey) {
             this.logger.error('API_KEY is not configured in the environment.');
             throw new InternalServerErrorException('API_KEY is not configured.');
         }
         this.genAI = new GoogleGenAI({ apiKey });
+    }
+
+    async logUsage(userId: string, endpoint: string, model: string, tokens: number) {
+        try {
+            // Cost calculation (approximate for Gemini 1.5 Flash)
+            // Input: $0.075 / 1M tokens
+            // Output: $0.30 / 1M tokens
+            // Averaging to $0.0000002 per token for simplicity
+            const cost = tokens * 0.0000002;
+
+            await this.prisma.apiUsage.create({
+                data: {
+                    userId,
+                    endpoint,
+                    model,
+                    tokens,
+                    cost
+                }
+            });
+        } catch (error) {
+            this.logger.error(`Failed to log API usage for user ${userId}`, error.stack);
+            // Don't fail the request if logging fails
+        }
     }
 
     async getTradeAnalysis(trade: Trade, playbook: Playbook, pastMistakes: string) {
@@ -38,7 +65,7 @@ export class AiService {
             const afterImagePart = base64ToGenaiPart(trade.screenshotAfterUrl);
 
             const textPart = {
-              text: `
+                text: `
                 **Your Task:**
                 Analyze the "Before Entry" and "After Exit" screenshots. Based on the trader's stated playbook, objectively evaluate the trade execution.
                 ${pastMistakes ? `Pay close attention to see if any of these recurring past mistakes were made: ${pastMistakes}.` : ''}
@@ -56,64 +83,64 @@ export class AiService {
                 - Exit Price: ${trade.exitPrice}
                 - Result: ${trade.result}
             `};
-            
+
             const response = await this.genAI.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: { parts: [textPart, beforeImagePart, afterImagePart] },
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: Type.OBJECT,
-                  properties: {
-                    summary: {
-                      type: Type.STRING,
-                      description: 'A brief, one-sentence summary of the trade execution quality.',
-                    },
-                    mistakes: {
-                      type: Type.ARRAY,
-                      description: 'List of mistakes made during the trade.',
-                      items: {
+                model: 'gemini-2.5-flash',
+                contents: { parts: [textPart, beforeImagePart, afterImagePart] },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                          mistake: {
-                            type: Type.STRING,
-                            description: 'Short description of a mistake.',
-                          },
-                          reasoning: {
-                            type: Type.STRING,
-                            description: 'Explain why it was a mistake based on the playbook.',
-                          },
+                            summary: {
+                                type: Type.STRING,
+                                description: 'A brief, one-sentence summary of the trade execution quality.',
+                            },
+                            mistakes: {
+                                type: Type.ARRAY,
+                                description: 'List of mistakes made during the trade.',
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        mistake: {
+                                            type: Type.STRING,
+                                            description: 'Short description of a mistake.',
+                                        },
+                                        reasoning: {
+                                            type: Type.STRING,
+                                            description: 'Explain why it was a mistake based on the playbook.',
+                                        },
+                                    },
+                                },
+                            },
+                            goodPoints: {
+                                type: Type.ARRAY,
+                                description: 'List of good points about the trade execution.',
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        point: {
+                                            type: Type.STRING,
+                                            description: 'Short description of a good point.',
+                                        },
+                                        reasoning: {
+                                            type: Type.STRING,
+                                            description: 'Explain why it was good based on the playbook.',
+                                        },
+                                    },
+                                },
+                            },
                         },
-                      },
                     },
-                    goodPoints: {
-                      type: Type.ARRAY,
-                      description: 'List of good points about the trade execution.',
-                      items: {
-                        type: Type.OBJECT,
-                        properties: {
-                          point: {
-                            type: Type.STRING,
-                            description: 'Short description of a good point.',
-                          },
-                          reasoning: {
-                            type: Type.STRING,
-                            description: 'Explain why it was good based on the playbook.',
-                          },
-                        },
-                      },
-                    },
-                  },
                 },
-              },
             });
-            
+
             if (!response.text) {
                 this.logger.error('AI analysis returned an empty response from Gemini API.');
                 throw new InternalServerErrorException('AI analysis returned an empty response.');
             }
             const jsonText = response.text.trim();
-            
+
             return JSON.parse(jsonText);
 
         } catch (error) {
@@ -121,11 +148,11 @@ export class AiService {
             throw new InternalServerErrorException('Failed to analyze trade with AI.');
         }
     }
-    
+
     async getChartAnalysis(screenshotBase64: string, availableAssets?: string[]) {
         try {
             const imagePart = base64ToGenaiPart(screenshotBase64);
-            
+
             const assetInstruction = availableAssets && availableAssets.length > 0
                 ? `From the image, identify the trading instrument. Then, select the BEST matching symbol from this list of available assets: [${availableAssets.join(', ')}]. For example, if the chart shows 'US 100 Cash CFD' and the list includes 'USTEC' or 'NAS100', you must choose one from the list. The goal is to return a symbol that exists in the provided list.`
                 : `Find the trading instrument symbol from the image. Extract the common ticker symbol. For example, if you see 'US 100 Cash CFD', extract 'NAS100' or 'US100'. If you see 'EURUSD', extract 'EURUSD'. Your goal is to identify the most common, short ticker symbol for the instrument shown.`;
@@ -155,29 +182,29 @@ export class AiService {
             };
 
             const response = await this.genAI.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: { parts: [textPart, imagePart] },
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        asset: { type: Type.STRING },
-                        direction: { type: Type.STRING, enum: ["Buy", "Sell"] },
-                        entryPrice: { type: Type.NUMBER },
-                        stopLoss: { type: Type.NUMBER },
-                        takeProfit: { type: Type.NUMBER },
-                        entryDate: { type: Type.STRING, description: 'Full date and time string from the chart, e.g., "Sep 26, 2025 10:29 UTC+2".' },
-                        lotSize: { type: Type.NUMBER },
-                        commission: { type: Type.NUMBER },
-                        swap: { type: Type.NUMBER },
-                        exitPrice: { type: Type.NUMBER },
-                        exitDate: { type: Type.STRING },
-                        profitLoss: { type: Type.NUMBER },
-                    },
-                    required: ["asset", "direction"]
+                model: 'gemini-2.5-flash',
+                contents: { parts: [textPart, imagePart] },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            asset: { type: Type.STRING },
+                            direction: { type: Type.STRING, enum: ["Buy", "Sell"] },
+                            entryPrice: { type: Type.NUMBER },
+                            stopLoss: { type: Type.NUMBER },
+                            takeProfit: { type: Type.NUMBER },
+                            entryDate: { type: Type.STRING, description: 'Full date and time string from the chart, e.g., "Sep 26, 2025 10:29 UTC+2".' },
+                            lotSize: { type: Type.NUMBER },
+                            commission: { type: Type.NUMBER },
+                            swap: { type: Type.NUMBER },
+                            exitPrice: { type: Type.NUMBER },
+                            exitDate: { type: Type.STRING },
+                            profitLoss: { type: Type.NUMBER },
+                        },
+                        required: ["asset", "direction"]
+                    }
                 }
-              }
             });
 
             if (!response.text) {
@@ -217,24 +244,24 @@ export class AiService {
                 ${entryCriteria}
                 `
             };
-            
+
             const response = await this.genAI.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: { parts: [textPart, imagePart] },
-              config: {
-                  responseMimeType: "application/json",
-                  responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            rule: { type: Type.STRING },
-                            met: { type: Type.STRING, enum: ['Yes', 'No', 'Indeterminate'] },
-                            reasoning: { type: Type.STRING },
+                model: 'gemini-2.5-flash',
+                contents: { parts: [textPart, imagePart] },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                rule: { type: Type.STRING },
+                                met: { type: Type.STRING, enum: ['Yes', 'No', 'Indeterminate'] },
+                                reasoning: { type: Type.STRING },
+                            }
                         }
                     }
-                  }
-              }
+                }
             });
 
             if (!response.text) {
@@ -250,9 +277,9 @@ export class AiService {
         }
     }
 
-    async generateTradeIdea(asset: string, strategyType: string, screenshotUrl?: string): Promise<string> {
+    async generateTradeIdea(userId: string, asset: string, strategyType: string, screenshotUrl?: string): Promise<string> {
         const systemInstruction = `You are a professional trading coach. Your goal is to provide educational, textbook examples of trading setups. You must not give financial advice or suggest live trades.`;
-        
+
         let prompt;
         const contents: any = {};
 
@@ -281,7 +308,7 @@ export class AiService {
             `;
             contents.parts = [{ text: prompt }];
         }
-        
+
         try {
             const response = await this.genAI.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -292,6 +319,11 @@ export class AiService {
                 this.logger.error('AI trade idea generation returned an empty response.');
                 throw new InternalServerErrorException('AI failed to generate an idea.');
             }
+
+            const usage = response.usageMetadata;
+            const totalTokens = (usage?.promptTokenCount || 0) + (usage?.candidatesTokenCount || 0);
+            this.logUsage(userId, 'generate-idea', 'gemini-2.5-flash', totalTokens);
+
             return response.text.trim();
         } catch (error) {
             this.logger.error('Error getting trade idea from Gemini', error.stack);
@@ -327,7 +359,7 @@ export class AiService {
         return this.generateDebrief(context, systemInstruction, 'daily debrief');
     }
 
-    async parseTradeText(text: string, availableAssets?: string[]) {
+    async parseTradeText(userId: string, text: string, availableAssets?: string[]) {
         try {
             const assetInstruction = availableAssets && availableAssets.length > 0
                 ? `The asset must be selected from this list: [${availableAssets.join(', ')}]. Match the asset name from the input text to the closest symbol in this list.`
@@ -358,30 +390,35 @@ export class AiService {
             };
 
             const response = await this.genAI.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: { parts: [textPart] },
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        asset: { type: Type.STRING },
-                        direction: { type: Type.STRING, enum: ["Buy", "Sell"] },
-                        entryPrice: { type: Type.NUMBER },
-                        stopLoss: { type: Type.NUMBER },
-                        takeProfit: { type: Type.NUMBER },
-                        riskPercentage: { type: Type.NUMBER },
-                        exitPrice: { type: Type.NUMBER },
-                        entryDate: { type: Type.STRING },
+                model: 'gemini-2.5-flash',
+                contents: { parts: [textPart] },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            asset: { type: Type.STRING },
+                            direction: { type: Type.STRING, enum: ["Buy", "Sell"] },
+                            entryPrice: { type: Type.NUMBER },
+                            stopLoss: { type: Type.NUMBER },
+                            takeProfit: { type: Type.NUMBER },
+                            riskPercentage: { type: Type.NUMBER },
+                            exitPrice: { type: Type.NUMBER },
+                            entryDate: { type: Type.STRING },
+                        }
                     }
                 }
-              }
             });
 
             if (!response.text) {
                 this.logger.error('AI trade text parsing returned empty response');
                 throw new InternalServerErrorException('AI trade text parsing returned empty response.');
             }
+
+            const usage = response.usageMetadata;
+            const totalTokens = (usage?.promptTokenCount || 0) + (usage?.candidatesTokenCount || 0);
+            this.logUsage(userId, 'parse-trade-text', 'gemini-2.5-flash', totalTokens);
+
             const jsonText = response.text.trim();
             return JSON.parse(jsonText);
 

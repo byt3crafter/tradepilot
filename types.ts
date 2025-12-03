@@ -99,7 +99,7 @@ export interface Trade {
   profitLoss?: number | null;
   result?: TradeResult | null;
   isPendingOrder: boolean;
-  
+
   // Execution details
   lotSize?: number | null;
   stopLoss?: number | null;
@@ -116,7 +116,7 @@ export interface Trade {
   userId: string;
   brokerAccountId: string;
   playbookId: string;
-  
+
   createdAt: string;
   updatedAt: string;
 }
@@ -216,12 +216,16 @@ export interface AdminUser {
   id: string;
   email: string;
   fullName: string;
+  role: 'USER' | 'ADMIN';
   createdAt: string;
   lastLoginAt: string | null;
   subscriptionStatus: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
   trialEndsAt: string | null;
   proAccessExpiresAt?: string | null;
   proAccessReason?: string | null;
+  apiUsageCost: number;
+  apiUsageTokens: number;
+  lastApiUsage: string | null;
 }
 
 // Trading Objectives Progress Type
@@ -418,7 +422,7 @@ export interface Analysis {
   tags: string[];
   revision: number;
   parentAnalysisId?: string | null;
-  
+
   // Relations
   userId: string;
   sessionId?: string | null;

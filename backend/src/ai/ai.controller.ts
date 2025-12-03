@@ -6,31 +6,35 @@ import { ParseTradeTextDto } from './dtos/parse-trade-text.dto';
 import { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {
-    user: {
-        sub: string;
-    }
+  user: {
+    sub: string;
+  }
 }
 
 @UseGuards(JwtAccessGuard)
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(private readonly aiService: AiService) { }
 
   @Post('generate-idea')
   @HttpCode(HttpStatus.OK)
-  async generateTradeIdea(@Body() generateIdeaDto: GenerateIdeaDto) {
+  async generateTradeIdea(@Req() req: AuthenticatedRequest, @Body() generateIdeaDto: GenerateIdeaDto) {
+    const userId = req.user.sub;
     const idea = await this.aiService.generateTradeIdea(
-        generateIdeaDto.asset,
-        generateIdeaDto.strategyType,
-        generateIdeaDto.screenshotUrl
+      userId,
+      generateIdeaDto.asset,
+      generateIdeaDto.strategyType,
+      generateIdeaDto.screenshotUrl
     );
     return { idea };
   }
 
   @Post('parse-trade-text')
   @HttpCode(HttpStatus.OK)
-  async parseTradeText(@Body() parseTradeTextDto: ParseTradeTextDto) {
+  async parseTradeText(@Req() req: AuthenticatedRequest, @Body() parseTradeTextDto: ParseTradeTextDto) {
+    const userId = req.user.sub;
     return await this.aiService.parseTradeText(
+      userId,
       parseTradeTextDto.text,
       parseTradeTextDto.availableAssets
     );
