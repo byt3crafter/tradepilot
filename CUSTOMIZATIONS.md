@@ -1,0 +1,391 @@
+# TradePilot Code Customizations Guide
+
+This document provides a comprehensive list of all customizations made to the TradePilot codebase. This is essential for AI agents and future developers to understand the project's unique architecture and requirements.
+
+---
+
+## Project Overview
+
+**TradePilot** is a professional trading journal and analytics platform built with:
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
+- **Backend**: NestJS + Prisma ORM
+- **Authentication**: Clerk Auth
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Custom Tailwind theme with "future-dark" aesthetic
+
+---
+
+## Core Architecture Customizations
+
+### 1. **Authentication System (Clerk + Custom AuthContext)**
+
+**Location**: `context/AuthContext.tsx`, `App.tsx`
+
+**Customization Details**:
+- Integrated Clerk authentication (`@clerk/clerk-react` v5.57.0)
+- Custom `AuthContext` wrapper for managing auth state alongside Clerk
+- Multi-level routing based on authentication status:
+  - `SignedIn` → AuthenticatedApp (Dashboard with nested providers)
+  - `SignedOut` → UnauthenticatedApp (Landing, Login, Signup, Public pages)
+  - Admin routes via hash routing (`#/admin-panel`)
+
+**Key Points for Future Work**:
+- Clerk Publishable Key must be set in `VITE_CLERK_PUBLISHABLE_KEY` environment variable
+- AuthContext provides custom auth state management beyond Clerk
+- All authenticated routes wrapped in `<SignedIn>` component
+- Public pages (Privacy, Terms, FAQ, About Us) accessible without authentication
+
+---
+
+### 2. **Animated Background System**
+
+**Location**: `index.html`, `App.tsx`, Custom JavaScript in HTML
+
+**Customization Details**:
+- UnicornStudio animated background integrated via JavaScript in `index.html`
+- Global function `showAnimatedBackground()` controls visibility
+- **Landing Page Only**: Background shows only on landing page (`/`)
+- **Dashboard**: Background hidden when user is authenticated
+- **Other Public Pages**: Background hidden on auth pages (login, signup)
+
+**Implementation Strategy** (App.tsx:36-86):
+```typescript
+// AuthenticatedApp: Hide background when logged in
+React.useEffect(() => {
+  (window as any).showAnimatedBackground?.(false);
+}, []);
+
+// UnauthenticatedApp: Show only on landing page
+React.useEffect(() => {
+  if (path === '/') {
+    (window as any).showAnimatedBackground?.(true);
+  } else {
+    (window as any).showAnimatedBackground?.(false);
+  }
+}, [path]);
+```
+
+**Important Notes**:
+- The background persists across page refreshes via IndexedDB/localStorage
+- Animation initialization happens in `index.html`
+- Grid fade effect applied to prevent full coverage
+
+---
+
+### 3. **Multi-Provider Architecture**
+
+**Location**: `App.tsx` (lines 50-72), `context/` directory
+
+**Nested Providers for Authenticated App** (in order):
+1. `UIProvider` - Global UI state
+2. `ViewProvider` - View/layout management
+3. `PaddleProvider` - Payment processing (v5.x custom wrapper)
+4. `SubscriptionProvider` - Subscription state management
+5. `AssetProvider` - Trading assets/instruments
+6. `AccountProvider` - User account data
+7. `PlaybookProvider` - Trading playbooks
+8. `ChecklistProvider` - Trading checklists
+9. `SettingsProvider` - User settings
+10. `TradeProvider` - Trade data management (custom P/L logic)
+11. `NotificationProvider` - In-app notifications
+
+**Key Principle**: This nesting order matters. Don't reorder without testing, as some providers depend on others being available.
+
+---
+
+## Feature Customizations
+
+### 4. **Trading Dashboard (DashboardPage)**
+
+**Location**: `pages/DashboardPage.tsx`, `components/Dashboard/`
+
+**Customization Details**:
+- Bento-grid layout with multiple card sections
+- Real-time trade tracking with live P/L calculations
+- Components include:
+  - `EquityHero` - Main equity display
+  - `StatGrid` - Key trading statistics
+  - `RecentActivity` - Activity feed
+  - `AccountStats` - Account overview
+  - `AiDebriefCard` - AI-powered trade analysis (currently disabled in some commits)
+  - `OnboardingCard` - First-time user guide
+
+**Note**: The `AiDebriefCard` was temporarily removed (commit 991c193) due to performance concerns. If re-enabling, ensure proper loading states.
+
+---
+
+### 5. **Profit/Loss (P/L) Calculation System**
+
+**Location**: `context/TradeContext.tsx`, `4claude.RD` (requirements)
+
+**Customization Details** (from 4claude.RD):
+- **Direction Factor Logic**:
+  - BUY/LONG trades: `directionFactor = +1`
+  - SELL/SHORT trades: `directionFactor = -1`
+- **Formula**: `P/L = (exitPrice - entryPrice) * directionFactor`
+- **Gross vs Net P/L**:
+  - Gross P/L: Raw profit/loss from price movement
+  - Net P/L: Gross P/L minus commissions/fees
+- **Helper Function**: `computePL(trade, currentPrice?)` should:
+  - Calculate both `grossPL` and `netPL`
+  - Return object with both values
+  - Be called consistently across: history tables, expanded rows, live trades, stats cards
+
+**Result Field Derivation**:
+- Win: `netPL > 0`
+- Loss: `netPL < 0`
+- Breakeven: `netPL = 0`
+
+---
+
+### 6. **Legal & Documentation Pages**
+
+**Location**: `pages/` directory
+
+**Pages Created** (commit 2d8c114):
+- `PrivacyPolicyPage.tsx` - Comprehensive privacy policy
+- `TermsOfServicePage.tsx` - Terms of service
+- `RiskDisclaimerPage.tsx` - Risk disclaimer for trading
+- `AboutPage.tsx` - Company about page
+- `AboutUsPage.tsx` - Our story/company mission (added in commit a2ba8f6)
+- `FAQPage.tsx` - Frequently asked questions
+
+**Routing** (App.tsx:94-111):
+```typescript
+if (path === '/privacy') return <PrivacyPolicyPage />;
+if (path === '/terms') return <TermsOfServicePage />;
+if (path === '/risk-disclaimer') return <RiskDisclaimerPage />;
+if (path === '/about') return <AboutPage />;
+if (path === '/about-us') return <AboutUsPage />;
+if (path === '/faq') return <FAQPage />;
+```
+
+**Navigation Updates**:
+- Landing page footer includes links to all legal pages
+- FAQ link removed from header navigation (commit f773e18)
+- About link removed from header (commit fdb964d) but "Our Story" available in footer
+
+---
+
+### 7. **UI/UX Customizations**
+
+#### Trading Limits Display
+**Commits**: b7f861b, 5713aca
+- Simplified trading limits display
+- Visual feedback with indicators
+- Portal-based tooltips for additional context
+- API validation error fixes
+
+#### Notification System
+**Commits**: cfa5d17, ad10240, 6009409, b143a6c, d0eb553
+- Redesigned notification dropdown
+- Portal architecture for proper z-index handling
+- Positioned to prevent overlap with dashboard elements
+- Trial banner with proper visibility
+- Equity card alignment to industry standards
+
+#### Admin Panel
+**Commits**: 9c1e037, 292f109
+- Role-based access control (RBAC)
+- JWT role extraction for admin identification
+- Hash-based routing (`#/admin-panel`)
+- Admin page protected by `<SignedIn>` wrapper
+
+---
+
+## Configuration Customizations
+
+### 8. **Tailwind CSS Configuration**
+
+**Location**: `tailwind.config.js`, `styles/`
+
+**Custom Theme Values**:
+- **Colors**:
+  - `future-dark` - Dark background (#0f0f1e)
+  - `future-light` - Light text
+  - `future-gray` - Secondary text
+  - `void` - Very dark background
+  - `primary`, `secondary` - Brand colors
+- **Fonts**:
+  - `orbitron` - Futuristic display font
+- **Animations**:
+  - `fade-in-up` - Landing page entrance animation
+
+**PostCSS Configuration** (commit bda32f0):
+- Replaced Tailwind CDN with proper PostCSS build
+- `postcss.config.js` configures autoprefixer + tailwindcss
+
+---
+
+### 9. **Environment Variables**
+
+**Required Variables**:
+```
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
+VITE_BACKEND_URL=http://localhost:3001
+```
+
+**Optional Variables**:
+- Database connection strings (backend)
+- Paddle API keys
+- Email service credentials
+
+---
+
+## Data Flow & Context Management
+
+### 10. **TradeContext (Custom P/L Logic)**
+
+**Location**: `context/TradeContext.tsx`
+
+**Responsibilities**:
+- Manage trade data state
+- Calculate P/L for all trades
+- Filter and sort trade history
+- Track live positions
+- Provide real-time updates to dashboard
+
+**Critical Implementation Note**:
+All P/L calculations must use the `computePL()` helper to ensure consistency across the app.
+
+---
+
+### 11. **PaddleContext (Payment Processing)**
+
+**Location**: `context/PaddleContext.tsx`
+
+**Customization**:
+- Custom wrapper around Paddle (v5.x)
+- Handles subscription products
+- Manages payment workflow
+- Token management for authenticated requests
+
+---
+
+### 12. **Subscription Management**
+
+**Location**: `context/SubscriptionContext.tsx`
+
+**Features**:
+- Trial period tracking (15-day free trial mentioned in LandingPage)
+- Subscription status management
+- Paddle integration for payments
+
+---
+
+## Important Development Guidelines
+
+### 13. **Routing Philosophy**
+
+**Current Routing System**:
+- **Path-based** for public pages and auth flows
+- **Hash-based** for authenticated app (`#/dashboard`, `#/admin-panel`)
+- **Custom routing** in App.tsx based on `window.location.pathname` and `window.location.hash`
+
+**Future Changes**:
+- Consider migrating to React Router for scalability
+- Keep in mind the split between signed-in/signed-out flows
+
+---
+
+### 14. **Component Naming & Organization**
+
+**Convention**:
+- Page components: `*Page.tsx` in `/pages`
+- UI components: `/components/ui`
+- Dashboard components: `/components/Dashboard`
+- Context providers: `/context/*Context.tsx`
+
+**File Permissions**: Some files have restricted permissions (chmod 600). These may contain sensitive configs - be careful when modifying.
+
+---
+
+### 15. **Type System**
+
+**Location**: `types.ts`, `constants.ts`
+
+**Key Types**:
+- Trade, Account, Subscription, Playbook, Checklist types
+- API response types
+- Notification types
+
+**Constants**:
+- Brand colors, sizes, strings
+- API endpoints base URLs
+- Feature flags
+
+---
+
+## Recent Fixes & Known Issues
+
+### Fixed Issues
+
+| Commit | Issue | Solution |
+|--------|-------|----------|
+| bda32f0 | Tailwind CDN inconsistency | Switched to PostCSS build |
+| 96c9299 | CORS errors (dev/prod) | Fixed backend CORS configuration |
+| b143a6c | UI misalignment | Professional layout adjustments |
+| cfa5d17 | Notification overlap | Portal-based positioning |
+| a2ba8f6 | Background animation lost on refresh | Persistence implementation |
+| e46795d | JSX syntax error in AboutUsPage | Fixed structure |
+
+### Known Considerations
+
+1. **Background Animation**: Relies on UnicornStudio JavaScript initialization - test carefully when updating `index.html`
+2. **P/L Logic**: Currently needs implementation review (see 4claude.RD notes)
+3. **Admin Panel**: Requires JWT role extraction - ensure JWT includes role field
+4. **Responsive Design**: Mobile-first approach used throughout
+
+---
+
+## Testing Recommendations
+
+When modifying these customizations:
+
+1. **Authentication Flow**: Test both authenticated and unauthenticated routes
+2. **Background Animation**: Verify on landing page and persistence across refreshes
+3. **P/L Calculations**: Test with buy, sell, and mixed position scenarios
+4. **Responsive Design**: Test at 320px, 768px, 1024px breakpoints
+5. **Legal Pages**: Ensure all links in footer work correctly
+6. **Admin Routes**: Test both authenticated and non-admin users accessing `/admin-panel`
+
+---
+
+## File Structure Quick Reference
+
+```
+TradePilot/
+├── pages/                    # Page components
+├── components/               # Reusable components
+├── context/                  # Context providers (15 providers)
+├── hooks/                    # Custom React hooks
+├── services/                 # API services
+├── utils/                    # Utility functions
+├── types.ts                  # Type definitions
+├── constants.ts              # Configuration constants
+├── App.tsx                   # Main app routing logic
+├── index.tsx                 # React entry point
+├── index.html                # HTML with UnicornStudio integration
+├── tailwind.config.js        # Tailwind theme
+├── postcss.config.js         # PostCSS configuration
+├── vite.config.ts            # Vite build config
+└── CUSTOMIZATIONS.md         # This file
+```
+
+---
+
+## Questions or Issues?
+
+If you encounter issues related to these customizations:
+
+1. Check the git history for the relevant feature/fix commits
+2. Review the nested provider order in App.tsx
+3. Ensure environment variables are properly set
+4. Verify Clerk authentication is properly configured
+5. Check browser console for animation initialization errors
+
+---
+
+**Last Updated**: December 3, 2025
+**Created**: By Claude Code Agent
+**Project**: TradePilot v0.0.0
