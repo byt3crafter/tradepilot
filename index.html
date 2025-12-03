@@ -8,6 +8,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+  <!-- UnicornStudio for Animated Background -->
+  <script>
+    !function(){if(!window.UnicornStudio){window.UnicornStudio={isInitialized:!1};var i=document.createElement("script");i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js",i.onload=function(){window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)},(document.head || document.body).appendChild(i)}}();
+  </script>
+
   <!-- Add Charting Libraries -->
   <script src="https://unpkg.com/d3@7.8.5/dist/d3.min.js"></script>
 <script type="importmap">
@@ -56,12 +61,6 @@
 </script>
 </head>
 <body class="font-sans text-primary antialiased selection:bg-zinc-800 selection:text-white">
-  
-  <!-- Background Vignette Overlay -->
-  <div class="fixed inset-0 z-[-1] pointer-events-none" style="
-    background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
-    opacity: 0.8;
-  "></div>
 
   <div id="root"></div>
 
