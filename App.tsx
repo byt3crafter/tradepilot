@@ -18,6 +18,11 @@ import { UIProvider } from './context/UIContext';
 import { AssetProvider } from './context/AssetContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import RiskDisclaimerPage from './pages/RiskDisclaimerPage';
+import AboutPage from './pages/AboutPage';
+import FAQPage from './pages/FAQPage';
 
 export type AuthPage = 'login' | 'signup';
 
@@ -70,6 +75,21 @@ const UnauthenticatedApp: React.FC = () => {
   }
   if (path === '/signup') {
     return <SignupPage />;
+  }
+  if (path === '/privacy') {
+    return <PrivacyPolicyPage />;
+  }
+  if (path === '/terms') {
+    return <TermsOfServicePage />;
+  }
+  if (path === '/risk-disclaimer') {
+    return <RiskDisclaimerPage />;
+  }
+  if (path === '/about') {
+    return <AboutPage />;
+  }
+  if (path === '/faq') {
+    return <FAQPage />;
   }
 
   // Redirect legacy routes to home or login
