@@ -131,17 +131,28 @@
         if (show) {
           bgContainer.style.display = 'block';
           bgContainer.style.opacity = '1';
+          bgContainer.style.transition = 'opacity 0.5s ease-in-out';
         } else {
           bgContainer.style.display = 'none';
           bgContainer.style.opacity = '0';
+          bgContainer.style.transition = 'opacity 0.5s ease-in-out';
         }
       }
     };
 
-    // Initially hide background (will be shown only on landing page)
-    document.addEventListener('DOMContentLoaded', function() {
-      window.showAnimatedBackground(false);
-    });
+    // Check current route immediately (before React loads)
+    function initializeBackgroundForCurrentRoute() {
+      const path = window.location.pathname;
+      const isLandingPage = path === '/';
+      window.showAnimatedBackground(isLandingPage);
+    }
+
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeBackgroundForCurrentRoute);
+    } else {
+      initializeBackgroundForCurrentRoute();
+    }
   </script>
   
   <script type="module" src="/index.tsx"></script>

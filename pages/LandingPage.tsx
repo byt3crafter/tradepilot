@@ -66,6 +66,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
               <a href="/about" className="text-future-gray hover:text-future-light transition-colors">
                 About
               </a>
+              <a href="/about-us" className="text-future-gray hover:text-future-light transition-colors">
+                Our Story
+              </a>
               <a href="/privacy" className="text-future-gray hover:text-future-light transition-colors">
                 Privacy
               </a>

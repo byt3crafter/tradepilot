@@ -22,6 +22,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import RiskDisclaimerPage from './pages/RiskDisclaimerPage';
 import AboutPage from './pages/AboutPage';
+import AboutUsPage from './pages/AboutUsPage';
 import FAQPage from './pages/FAQPage';
 
 export type AuthPage = 'login' | 'signup';
@@ -101,6 +102,9 @@ const UnauthenticatedApp: React.FC = () => {
   }
   if (path === '/about') {
     return <AboutPage />;
+  }
+  if (path === '/about-us') {
+    return <AboutUsPage />;
   }
   if (path === '/faq') {
     return <FAQPage />;
