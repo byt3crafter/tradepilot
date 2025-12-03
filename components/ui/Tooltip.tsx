@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   children: React.ReactNode;
@@ -9,69 +10,124 @@ interface TooltipProps {
 const Tooltip: React.FC<TooltipProps> = ({ children, text, position = 'right' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [adjustedPosition, setAdjustedPosition] = useState<'top' | 'bottom' | 'left' | 'right'>(position);
-
-  const positionClasses = {
-    top: 'bottom-full mb-2 left-1/2 -translate-x-1/2',
-    bottom: 'top-full mt-2 left-1/2 -translate-x-1/2',
-    left: 'right-full mr-2 top-1/2 -translate-y-1/2',
-    right: 'left-full ml-2 top-1/2 -translate-y-1/2',
-  };
-
-  useEffect(() => {
-    const handleMouseEnter = () => {
-      if (!containerRef.current || !tooltipRef.current) return;
-
-      // Get positions
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const tooltipRect = tooltipRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      // Check if tooltip overflows on the right
-      if (tooltipRect.right > viewportWidth - 10) {
-        setAdjustedPosition('left');
-      }
-      // Check if tooltip overflows on the left
-      else if (tooltipRect.left < 10) {
-        setAdjustedPosition('right');
-      }
-      // Check if tooltip overflows on the bottom
-      else if (tooltipRect.bottom > viewportHeight - 10) {
-        setAdjustedPosition('top');
-      }
-      // Check if tooltip overflows on the top
-      else if (tooltipRect.top < 10) {
-        setAdjustedPosition('bottom');
-      }
-      // Use original position if no overflow
-      else {
-        setAdjustedPosition(position);
-      }
-    };
-
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('mouseenter', handleMouseEnter);
-      return () => container.removeEventListener('mouseenter', handleMouseEnter);
-    }
-  }, [position]);
+  const [isVisible, setIsVisible] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
   // Don't show tooltip if text is empty
   if (!text) {
     return <>{children}</>;
   }
 
-  return (
-    <div className="relative flex items-center group justify-center" ref={containerRef}>
-      {children}
-      <div
-        ref={tooltipRef}
-        className={`absolute ${positionClasses[adjustedPosition]} px-2 py-1 bg-future-panel border border-photonic-blue/20 text-future-light text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 max-w-[200px] whitespace-normal break-words`}
-      >
-        {text}
-      </div>
+  const calculateTooltipPosition = () => {
+    if (!containerRef.current || !tooltipRef.current) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const viewportPadding = 10;
+    const space = 8; // gap between trigger and tooltip
+
+    let top = 0;
+    let left = 0;
+    let adjustedPosition = position;
+
+    // Calculate initial position based on requested position
+    switch (position) {
+      case 'top':
+        top = containerRect.top - tooltipRect.height - space;
+        left = containerRect.left + containerRect.width / 2 - tooltipRect.width / 2;
+        break;
+      case 'bottom':
+        top = containerRect.bottom + space;
+        left = containerRect.left + containerRect.width / 2 - tooltipRect.width / 2;
+        break;
+      case 'left':
+        top = containerRect.top + containerRect.height / 2 - tooltipRect.height / 2;
+        left = containerRect.left - tooltipRect.width - space;
+        break;
+      case 'right':
+        top = containerRect.top + containerRect.height / 2 - tooltipRect.height / 2;
+        left = containerRect.right + space;
+        break;
+    }
+
+    // Check and adjust for viewport overflow
+    // Right overflow
+    if (left + tooltipRect.width > window.innerWidth - viewportPadding) {
+      left = window.innerWidth - tooltipRect.width - viewportPadding;
+      // If right was the position, try left instead
+      if (position === 'right' || position === 'bottom' || position === 'top') {
+        adjustedPosition = 'left';
+        left = containerRect.left - tooltipRect.width - space;
+      }
+    }
+
+    // Left overflow
+    if (left < viewportPadding) {
+      left = viewportPadding;
+      // If left was the position, try right instead
+      if (position === 'left' || position === 'bottom' || position === 'top') {
+        adjustedPosition = 'right';
+        left = containerRect.right + space;
+      }
+    }
+
+    // Bottom overflow
+    if (top + tooltipRect.height > window.innerHeight - viewportPadding) {
+      if (position === 'bottom') {
+        adjustedPosition = 'top';
+        top = containerRect.top - tooltipRect.height - space;
+      } else {
+        top = window.innerHeight - tooltipRect.height - viewportPadding;
+      }
+    }
+
+    // Top overflow
+    if (top < viewportPadding) {
+      if (position === 'top') {
+        adjustedPosition = 'bottom';
+        top = containerRect.bottom + space;
+      } else {
+        top = viewportPadding;
+      }
+    }
+
+    setTooltipStyle({
+      position: 'fixed',
+      top: `${top}px`,
+      left: `${left}px`,
+      zIndex: 50,
+    });
+  };
+
+  const handleMouseEnter = () => {
+    setIsVisible(true);
+    // Calculate position on next frame to ensure DOM is updated
+    setTimeout(calculateTooltipPosition, 0);
+  };
+
+  const tooltipContent = (
+    <div
+      ref={tooltipRef}
+      style={tooltipStyle}
+      className="px-2 py-1 bg-future-panel border border-photonic-blue/20 text-future-light text-xs rounded-md pointer-events-none max-w-[200px] whitespace-normal break-words shadow-lg"
+    >
+      {text}
     </div>
+  );
+
+  return (
+    <>
+      <div
+        ref={containerRef}
+        className="relative flex items-center justify-center"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={() => setIsVisible(false)}
+      >
+        {children}
+      </div>
+
+      {isVisible && createPortal(tooltipContent, document.body)}
+    </>
   );
 };
 
