@@ -19,7 +19,7 @@ interface PlaybookBuilderModalProps {
 const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToEdit, onClose }) => {
   const { createPlaybook, updatePlaybook } = usePlaybook();
   const isEditMode = !!playbookToEdit;
-  
+
   const [playbook, setPlaybook] = useState<Partial<Playbook>>(
     playbookToEdit || {
       name: '',
@@ -43,7 +43,7 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
   };
 
   const handleArrayChange = (field: keyof Playbook, value: string) => {
-    setPlaybook(prev => ({ ...prev, [field]: value.split(',').map(item => item.trim()).filter(Boolean) }));
+    setPlaybook(prev => ({ ...prev, [field]: value.split(',').map(item => item.trim()) }));
   };
 
   const handleAddSetup = () => {
@@ -66,7 +66,7 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
       return { ...prev, setups: newSetups };
     });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -76,11 +76,11 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
       name: playbook.name,
       coreIdea: playbook.coreIdea,
       isPublic: playbook.isPublic,
-      tradingStyles: playbook.tradingStyles,
-      instruments: playbook.instruments,
-      timeframes: playbook.timeframes,
-      pros: playbook.pros,
-      cons: playbook.cons,
+      tradingStyles: playbook.tradingStyles?.filter(Boolean),
+      instruments: playbook.instruments?.filter(Boolean),
+      timeframes: playbook.timeframes?.filter(Boolean),
+      pros: playbook.pros?.filter(Boolean),
+      cons: playbook.cons?.filter(Boolean),
       setups: playbook.setups?.map(setup => ({
         name: setup.name,
         screenshotBeforeUrl: setup.screenshotBeforeUrl,
@@ -116,52 +116,52 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
             <Input label="Core Idea" id="coreIdea" name="coreIdea" value={playbook.coreIdea || ''} onChange={handleInputChange} placeholder="e.g., Trend continuation on pullbacks" />
           </div>
           <div className="mt-4">
-             <ToggleSwitch label="Make this playbook public" checked={!!playbook.isPublic} onChange={val => setPlaybook(p => ({...p, isPublic: val}))} />
+            <ToggleSwitch label="Make this playbook public" checked={!!playbook.isPublic} onChange={val => setPlaybook(p => ({ ...p, isPublic: val }))} />
           </div>
         </section>
 
         {/* --- TAGS --- */}
         <section>
-            <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Tags</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input label="Trading Styles" id="tradingStyles" name="tradingStyles" placeholder="Swing, Day, Scalp" value={playbook.tradingStyles?.join(', ')} onChange={e => handleArrayChange('tradingStyles', e.target.value)} />
-                <Input label="Instruments" id="instruments" name="instruments" placeholder="Forex, Crypto, Futures" value={playbook.instruments?.join(', ')} onChange={e => handleArrayChange('instruments', e.target.value)} />
-                <Input label="Timeframes" id="timeframes" name="timeframes" placeholder="4-Hour, 1-Hour" value={playbook.timeframes?.join(', ')} onChange={e => handleArrayChange('timeframes', e.target.value)} />
-            </div>
+          <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Tags</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Trading Styles" id="tradingStyles" name="tradingStyles" placeholder="Swing, Day, Scalp" value={playbook.tradingStyles?.join(', ')} onChange={e => handleArrayChange('tradingStyles', e.target.value)} />
+            <Input label="Instruments" id="instruments" name="instruments" placeholder="Forex, Crypto, Futures" value={playbook.instruments?.join(', ')} onChange={e => handleArrayChange('instruments', e.target.value)} />
+            <Input label="Timeframes" id="timeframes" name="timeframes" placeholder="4-Hour, 1-Hour" value={playbook.timeframes?.join(', ')} onChange={e => handleArrayChange('timeframes', e.target.value)} />
+          </div>
         </section>
 
         {/* --- PROS & CONS --- */}
         <section>
-            <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Pros & Cons</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Textarea label="Pros" id="pros" name="pros" placeholder="One per line..." value={playbook.pros?.join('\n')} onChange={e => setPlaybook(p => ({...p, pros: e.target.value.split('\n')}))} />
-                <Textarea label="Cons" id="cons" name="cons" placeholder="One per line..." value={playbook.cons?.join('\n')} onChange={e => setPlaybook(p => ({...p, cons: e.target.value.split('\n')}))} />
-            </div>
+          <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Pros & Cons</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Textarea label="Pros" id="pros" name="pros" placeholder="One per line..." value={playbook.pros?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, pros: e.target.value.split('\n') }))} />
+            <Textarea label="Cons" id="cons" name="cons" placeholder="One per line..." value={playbook.cons?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, cons: e.target.value.split('\n') }))} />
+          </div>
         </section>
 
         {/* --- SETUPS --- */}
         <section>
-            <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-orbitron text-photonic-blue">Setups</h3>
-                <Button type="button" onClick={handleAddSetup} className="w-auto flex items-center gap-2 text-sm px-3 py-1.5">
-                    <PlusIcon className="w-4 h-4" /> Add Setup
-                </Button>
-            </div>
-            <div className="space-y-4">
-                {playbook.setups?.map((setup, index) => (
-                    <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg border border-white/10">
-                        <Input label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
-                        
-                        <div className="grid grid-cols-2 gap-4 my-4">
-                             <ImageUploader label="'Before' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotBeforeUrl', base64)} currentImage={setup.screenshotBeforeUrl} />
-                            <ImageUploader label="'After' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotAfterUrl', base64)} currentImage={setup.screenshotAfterUrl} />
-                        </div>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-orbitron text-photonic-blue">Setups</h3>
+            <Button type="button" onClick={handleAddSetup} className="w-auto flex items-center gap-2 text-sm px-3 py-1.5">
+              <PlusIcon className="w-4 h-4" /> Add Setup
+            </Button>
+          </div>
+          <div className="space-y-4">
+            {playbook.setups?.map((setup, index) => (
+              <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg border border-white/10">
+                <Input label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
 
-                        <ChecklistInput title="Entry Criteria" items={setup.entryCriteria} onChange={items => handleSetupChange(index, 'entryCriteria', items)} />
-                        <ChecklistInput title="Risk Management" items={setup.riskManagement} onChange={items => handleSetupChange(index, 'riskManagement', items)} />
-                    </div>
-                ))}
-            </div>
+                <div className="grid grid-cols-2 gap-4 my-4">
+                  <ImageUploader label="'Before' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotBeforeUrl', base64)} currentImage={setup.screenshotBeforeUrl} />
+                  <ImageUploader label="'After' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotAfterUrl', base64)} currentImage={setup.screenshotAfterUrl} />
+                </div>
+
+                <ChecklistInput title="Entry Criteria" items={setup.entryCriteria} onChange={items => handleSetupChange(index, 'entryCriteria', items)} />
+                <ChecklistInput title="Risk Management" items={setup.riskManagement} onChange={items => handleSetupChange(index, 'riskManagement', items)} />
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* --- FOOTER --- */}

@@ -12,15 +12,15 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-surface/90 backdrop-blur-md p-3 border border-white/10 rounded-lg shadow-xl text-xs">
+      <div className="bg-[#0A0A0A]/90 backdrop-blur-md p-3 border border-white/10 rounded-lg shadow-xl text-xs">
         <p className="text-secondary font-orbitron mb-1">{data.date}</p>
         <div className="flex flex-col gap-1">
-            <span className="font-tech-mono font-bold text-primary">
-                Equity: ${data.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
-            <span className={`font-tech-mono ${data.pl >= 0 ? 'text-profit' : 'text-loss'}`}>
-                {data.pl >= 0 ? '+' : ''}${data.pl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
+          <span className="font-tech-mono font-bold text-primary">
+            Equity: ${data.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </span>
+          <span className={`font-tech-mono ${data.pl >= 0 ? 'text-profit' : 'text-loss'}`}>
+            {data.pl >= 0 ? '+' : ''}${data.pl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </span>
         </div>
       </div>
     );
@@ -41,12 +41,12 @@ const EquityHero: React.FC<EquityHeroProps> = ({ netPL, equityCurve }) => {
       <div className="relative z-10 p-2">
         <h3 className="text-secondary text-xs font-orbitron uppercase tracking-widest mb-1">Net Profit / Loss</h3>
         <div className="flex items-baseline gap-3">
-            <h1 className={`text-4xl md:text-5xl font-bold tracking-tight font-tech-mono ${isPositive ? 'text-white' : 'text-white'}`}>
+          <h1 className={`text-4xl md:text-5xl font-bold tracking-tight font-tech-mono ${isPositive ? 'text-white' : 'text-white'}`}>
             {netPL < 0 ? '-' : ''}${Math.abs(netPL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h1>
-            <span className={`px-2 py-0.5 rounded text-xs font-bold ${isPositive ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'}`}>
-                {isPositive ? 'ALL TIME PROFIT' : 'DRAWDOWN'}
-            </span>
+          </h1>
+          <span className={`px-2 py-0.5 rounded text-xs font-bold ${isPositive ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'}`}>
+            {isPositive ? 'ALL TIME PROFIT' : 'DRAWDOWN'}
+          </span>
         </div>
       </div>
 
@@ -60,17 +60,17 @@ const EquityHero: React.FC<EquityHeroProps> = ({ netPL, equityCurve }) => {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-            <XAxis 
-                dataKey="date" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#666', fontSize: 10, dy: 10 }}
-                minTickGap={30}
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#666', fontSize: 10, dy: 10 }}
+              minTickGap={30}
             />
-            <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#666', fontSize: 10 }} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#666', fontSize: 10 }}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1, strokeDasharray: '4 4' }} />
             <Area

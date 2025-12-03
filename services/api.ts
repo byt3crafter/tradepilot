@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics, Analysis, Notification } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics, Notification } from "../types";
 
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
 
@@ -16,10 +16,10 @@ interface ApiResponse<T> {
 // Re-export interface for component usage if needed
 export interface ApiService {
   get<T>(endpoint: string, token?: string | null): Promise<T>;
-  post<T>(endpoint:string, body: any, token?: string | null): Promise<T>;
+  post<T>(endpoint: string, body: any, token?: string | null): Promise<T>;
   patch<T>(endpoint: string, body: any, token?: string | null): Promise<T>;
   delete<T>(endpoint: string, token?: string | null): Promise<T>;
-  
+
   // Accounts
   getAccounts(token: string): Promise<BrokerAccount[]>;
   createAccount(data: Partial<BrokerAccount>, token: string): Promise<BrokerAccount>;
@@ -55,17 +55,13 @@ export interface ApiService {
   preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult>;
   analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult>;
   bulkImportTrades(data: { brokerAccountId: string; playbookId: string; trades: any[] }, token: string): Promise<{ imported: number; skipped: number }>;
-  
+
   // Trade Journals
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal>;
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal>;
 
-  // Analysis Tracker
-  getAnalyses(brokerAccountId: string, token: string): Promise<Analysis[]>;
-  createAnalysis(data: Partial<Analysis>, token: string): Promise<Analysis>;
-  updateAnalysis(id: string, data: Partial<Analysis>, token: string): Promise<Analysis>;
-  deleteAnalysis(id: string, token: string): Promise<{ message: string }>;
-  
+
+
   // Notifications
   getNotifications(token: string): Promise<Notification[]>;
   markNotificationAsRead(id: string, token: string): Promise<Notification>;
@@ -79,7 +75,7 @@ export interface ApiService {
   // Billing
   getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
   createCheckoutTransaction(token: string): Promise<{ transactionId: string }>;
-  
+
   // Admin
   getAdminStats(token: string): Promise<AdminStats>;
   getAdminUsers(token: string): Promise<AdminUser[]>;
@@ -110,9 +106,18 @@ async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
 
   try {
     const response = await fetch(fullUrl, options);
-    
+
     if (response.status === 401) {
+      // Check if we actually sent a token
+      const hasAuthHeader = options.headers && (options.headers as any)['Authorization'];
+
+      if (hasAuthHeader) {
+        console.error('API returned 401 with valid token - possible token expiry');
         throw new Error('Session expired. Please refresh the page.');
+      } else {
+        console.error('API returned 401 without auth header');
+        throw new Error('Authentication required');
+      }
     }
 
     if (!response.ok) {
@@ -121,10 +126,10 @@ async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
         throw new Error(errorData.message.join(', '));
       }
       if (errorData.error && errorData.error.message) {
-          throw new Error(errorData.error.message);
+        throw new Error(errorData.error.message);
       }
       if (errorData.message) {
-          throw new Error(errorData.message);
+        throw new Error(errorData.message);
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -136,8 +141,8 @@ async function request<T>(endpoint: string, options: RequestInit): Promise<T> {
     }
 
     return result.data;
-  } catch(error) {
-      throw error;
+  } catch (error) {
+    throw error;
   }
 }
 
@@ -146,12 +151,12 @@ const api: ApiService = {
     return request<T>(endpoint, { method: 'GET', headers: buildHeaders(token) });
   },
 
-  post<T>(endpoint:string, body: any, token?: string | null): Promise<T> {
+  post<T>(endpoint: string, body: any, token?: string | null): Promise<T> {
     return request<T>(endpoint, { method: 'POST', headers: buildHeaders(token), body: JSON.stringify(body) });
   },
-  
+
   patch<T>(endpoint: string, body: any, token?: string | null): Promise<T> {
-     return request<T>(endpoint, { method: 'PATCH', headers: buildHeaders(token), body: JSON.stringify(body) });
+    return request<T>(endpoint, { method: 'PATCH', headers: buildHeaders(token), body: JSON.stringify(body) });
   },
 
   delete<T>(endpoint: string, token?: string | null): Promise<T> {
@@ -204,16 +209,12 @@ const api: ApiService = {
   createTradeJournal(tradeId: string, data: Omit<TradeJournal, 'id' | 'tradeId'>, token: string): Promise<TradeJournal> { return this.post(`/api/trades/${tradeId}/journal`, data, token); },
   updateTradeJournal(journalId: string, data: Partial<Omit<TradeJournal, 'id' | 'tradeId'>>, token: string): Promise<TradeJournal> { return this.patch(`/api/trade-journals/${journalId}`, data, token); },
 
-  // Analysis Tracker Methods
-  getAnalyses(brokerAccountId: string, token: string): Promise<Analysis[]> { return this.get(`/api/analysis?brokerAccountId=${brokerAccountId}`, token); },
-  createAnalysis(data: Partial<Analysis>, token: string): Promise<Analysis> { return this.post('/api/analysis', data, token); },
-  updateAnalysis(id: string, data: Partial<Analysis>, token: string): Promise<Analysis> { return this.patch(`/api/analysis/${id}`, data, token); },
-  deleteAnalysis(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/analysis/${id}`, token); },
-  
+
+
   // Notification Methods
   getNotifications(token: string): Promise<Notification[]> { return this.get('/api/notifications', token); },
   markNotificationAsRead(id: string, token: string): Promise<Notification> { return this.patch(`/api/notifications/${id}/read`, {}, token); },
-  
+
   // AI Methods
   generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }> { return this.post('/api/ai/generate-idea', data, token); },
 
@@ -223,7 +224,7 @@ const api: ApiService = {
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> { return this.get('/api/billing/config', token); },
   createCheckoutTransaction(token: string): Promise<{ transactionId: string }> { return this.post('/api/billing/checkout', {}, token); },
-  
+
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> { return this.get('/api/admin/stats', token); },
   getAdminUsers(token: string): Promise<AdminUser[]> { return this.get('/api/admin/users', token); },

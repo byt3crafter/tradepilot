@@ -5,34 +5,34 @@ import AuthLogo from '../components/auth/AuthLogo';
 
 const LoginPage: React.FC = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative animate-fade-in-up">
+    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-4 relative animate-fade-in-up mx-auto">
       <div className="mb-8">
         <AuthLogo />
       </div>
-      <SignIn 
+      <SignIn
         appearance={{
-            baseTheme: dark,
-            variables: {
-                colorPrimary: '#FFFFFF',
-                colorBackground: '#0A0A0A',
-                colorText: '#FFFFFF',
-                colorTextSecondary: '#888888',
-                colorInputBackground: '#141414',
-                colorInputText: '#FFFFFF',
-                borderRadius: '0.75rem',
-            },
-            elements: {
-                rootBox: "w-full max-w-md",
-                card: "bg-surface border border-white/5 shadow-surface",
-                headerTitle: "text-white font-orbitron",
-                headerSubtitle: "text-secondary",
-                socialButtonsBlockButton: "bg-white/5 border border-white/10 text-white hover:bg-white/10",
-                formFieldLabel: "text-secondary",
-                formFieldInput: "bg-surface-highlight border border-white/10 text-white focus:border-white/30 transition-colors",
-                footerActionText: "text-secondary",
-                footerActionLink: "text-white hover:underline",
-                formButtonPrimary: "bg-white text-black hover:bg-gray-200 shadow-glow font-bold",
-            }
+          baseTheme: dark,
+          variables: {
+            colorPrimary: '#FFFFFF',
+            colorBackground: '#0A0A0A',
+            colorText: '#FFFFFF',
+            colorTextSecondary: '#888888',
+            colorInputBackground: '#141414',
+            colorInputText: '#FFFFFF',
+            borderRadius: '0.75rem',
+          },
+          elements: {
+            rootBox: "w-full max-w-md",
+            card: "bg-surface border border-white/5 shadow-surface",
+            headerTitle: "text-white font-orbitron",
+            headerSubtitle: "text-secondary",
+            socialButtonsBlockButton: "bg-white/5 border border-white/10 text-white hover:bg-white/10",
+            formFieldLabel: "text-secondary",
+            formFieldInput: "bg-surface-highlight border border-white/10 text-white focus:border-white/30 transition-colors",
+            footerActionText: "text-secondary",
+            footerActionLink: "text-white hover:underline",
+            formButtonPrimary: "bg-white text-black hover:bg-gray-200 shadow-glow font-bold",
+          }
         }}
         signUpUrl="/signup"
       />

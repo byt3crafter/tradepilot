@@ -22,6 +22,8 @@ import SelectInput from './ui/SelectInput';
 import { useUI } from '../context/UIContext';
 import Checkbox from './ui/Checkbox';
 import { TrashIcon } from './icons/TrashIcon';
+import ImportTradesModal from './accounts/ImportTradesModal';
+import { ImportIcon } from './icons/ImportIcon';
 
 type TradeView = 'live' | 'pending' | 'history';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
@@ -47,6 +49,7 @@ const TradeJournal: React.FC = () => {
   // State for bulk actions
   const [selectedTradeIds, setSelectedTradeIds] = useState<string[]>([]);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const headers = {
     live: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'SL / TP', 'Actions'],
@@ -56,7 +59,7 @@ const TradeJournal: React.FC = () => {
 
   const dailyLossRule = objectivesProgress?.find(obj => obj.key === 'maxDailyLoss');
   const isObjectiveBlocked = dailyLossRule?.status === 'Failed';
-  
+
   const isSmartLimitBlocked = smartLimitsProgress?.isTradeCreationBlocked ?? false;
   const blockReason = isObjectiveBlocked ? 'Daily loss limit reached.' : smartLimitsProgress?.blockReason;
 
@@ -69,10 +72,10 @@ const TradeJournal: React.FC = () => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(startOfWeek.getDate() - now.getDay()); 
-    
+    startOfWeek.setDate(startOfWeek.getDate() - now.getDay());
+
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     return closedTrades.filter(trade => {
@@ -127,12 +130,12 @@ const TradeJournal: React.FC = () => {
   }, [isTrialExpired, showUpgradeModal, isObjectiveBlocked, isSmartLimitBlocked, enforceChecklist, rules.length]);
 
   useEffect(() => {
-      if (isAddTradeModalOpenRequest) {
-        handleOpenAddTrade();
-        clearAddTradeModalRequest();
-      }
+    if (isAddTradeModalOpenRequest) {
+      handleOpenAddTrade();
+      clearAddTradeModalRequest();
+    }
   }, [isAddTradeModalOpenRequest, clearAddTradeModalRequest, handleOpenAddTrade]);
-  
+
   const handleOpenEditTrade = (trade: Trade) => {
     setEditingTrade(trade);
     setAddTradeStep('form');
@@ -202,17 +205,17 @@ const TradeJournal: React.FC = () => {
         </tr>
       );
     }
-    
+
     if (currentView === 'live' && liveTrades.length === 0) return <tr><td colSpan={headers.live.length} className="text-center p-8 text-future-gray">No live trades in the market.</td></tr>;
     if (currentView === 'pending' && pendingTrades.length === 0) return <tr><td colSpan={headers.pending.length} className="text-center p-8 text-future-gray">You have no pending orders.</td></tr>;
     if (currentView === 'history' && filteredClosedTrades.length === 0) {
-        const message = dateFilter === 'all-time' 
-            ? 'No closed trades logged for this account yet.'
-            : 'No closed trades found for the selected period.';
-        return <tr><td colSpan={headers.history.length} className="text-center p-8 text-future-gray">{message}</td></tr>;
+      const message = dateFilter === 'all-time'
+        ? 'No closed trades logged for this account yet.'
+        : 'No closed trades found for the selected period.';
+      return <tr><td colSpan={headers.history.length} className="text-center p-8 text-future-gray">{message}</td></tr>;
     }
 
-    switch(currentView) {
+    switch (currentView) {
       case 'live':
         return liveTrades.map(trade => <LiveTradeRow key={trade.id} trade={trade} onEdit={() => handleOpenEditTrade(trade)} onClose={() => handleOpenCloseTrade(trade)} />);
       case 'pending':
@@ -231,7 +234,7 @@ const TradeJournal: React.FC = () => {
         return null;
     }
   };
-  
+
   const renderModal = () => {
     if (addTradeStep !== 'form') return null;
 
@@ -257,7 +260,7 @@ const TradeJournal: React.FC = () => {
       </Modal>
     );
   };
-  
+
   const isAllSelected = filteredClosedTrades.length > 0 && selectedTradeIds.length === filteredClosedTrades.length;
   const isPartiallySelected = selectedTradeIds.length > 0 && !isAllSelected;
 
@@ -288,44 +291,49 @@ const TradeJournal: React.FC = () => {
                   ]}
                   containerClassName="w-40"
                 />
-                 {dateFilter === 'custom-range' && (
-                    <div className="flex items-end gap-2 animate-fade-in-up">
-                        <div>
-                            <label htmlFor="startDate" className="block text-xs font-medium text-future-gray mb-1">From</label>
-                            <input
-                                id="startDate"
-                                type="date"
-                                value={customStartDate}
-                                onChange={(e) => setCustomStartDate(e.target.value)}
-                                className="bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-2 text-sm text-future-light focus:outline-none focus:ring-2 focus:ring-photonic-blue transition-shadow"
-                                style={{ colorScheme: 'dark' }}
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="endDate" className="block text-xs font-medium text-future-gray mb-1">To</label>
-                            <input
-                                id="endDate"
-                                type="date"
-                                value={customEndDate}
-                                onChange={(e) => setCustomEndDate(e.target.value)}
-                                className="bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-2 text-sm text-future-light focus:outline-none focus:ring-2 focus:ring-photonic-blue transition-shadow"
-                                style={{ colorScheme: 'dark' }}
-                            />
-                        </div>
+                {dateFilter === 'custom-range' && (
+                  <div className="flex items-end gap-2 animate-fade-in-up">
+                    <div>
+                      <label htmlFor="startDate" className="block text-xs font-medium text-future-gray mb-1">From</label>
+                      <input
+                        id="startDate"
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-2 text-sm text-future-light focus:outline-none focus:ring-2 focus:ring-photonic-blue transition-shadow"
+                        style={{ colorScheme: 'dark' }}
+                      />
                     </div>
+                    <div>
+                      <label htmlFor="endDate" className="block text-xs font-medium text-future-gray mb-1">To</label>
+                      <input
+                        id="endDate"
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-2 text-sm text-future-light focus:outline-none focus:ring-2 focus:ring-photonic-blue transition-shadow"
+                        style={{ colorScheme: 'dark' }}
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
             )}
-            <div className="relative">
-               <Button onClick={handleOpenAddTrade} disabled={isObjectiveBlocked || isSmartLimitBlocked} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
-                  <PlusIcon className="w-5 h-5" />
-                  <span>Log Trade</span>
-               </Button>
+            <div className="relative flex items-center gap-2">
+              <Button onClick={() => setIsImportModalOpen(true)} variant="secondary" className="w-auto flex items-center gap-2 px-3 py-2 text-sm" disabled={!activeAccount}>
+                <ImportIcon className="w-5 h-5" />
+                <span className="hidden sm:inline">Import</span>
+              </Button>
+
+              <Button onClick={handleOpenAddTrade} disabled={isObjectiveBlocked || isSmartLimitBlocked} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
+                <PlusIcon className="w-5 h-5" />
+                <span>Log Trade</span>
+              </Button>
 
               {(isObjectiveBlocked || isSmartLimitBlocked) && (
-                   <div className="absolute -top-10 right-0 text-xs bg-risk-high text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
-                      {blockReason}
-                  </div>
+                <div className="absolute -top-10 right-0 text-xs bg-risk-high text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
+                  {blockReason}
+                </div>
               )}
             </div>
           </div>
@@ -391,8 +399,8 @@ const TradeJournal: React.FC = () => {
                   </th>
                 )}
                 {headers[currentView].slice(currentView === 'history' ? 1 : 0).map((header, index) => (
-                  <th 
-                    key={header} 
+                  <th
+                    key={header}
                     className={`p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs ${index === 0 ? 'w-12' : ''}`}
                   >
                     {header}
@@ -422,20 +430,27 @@ const TradeJournal: React.FC = () => {
           onClose={closeModals}
         />
       )}
-      
+
       {isDeleteConfirmOpen && (
         <Modal title="Confirm Deletion" onClose={closeModals} size="md">
-            <div className="text-center">
-                <p className="text-future-gray">Are you sure you want to permanently delete these {selectedTradeIds.length} trades?</p>
-                <p className="text-sm text-risk-medium mt-2">This action cannot be undone.</p>
-                <div className="mt-6 flex justify-center gap-4">
-                    <Button onClick={closeModals} variant="secondary" className="w-auto">Cancel</Button>
-                    <Button onClick={handleDeleteSelected} className="w-auto bg-risk-high text-white hover:bg-risk-high/90 shadow-glow-red">
-                        Delete
-                    </Button>
-                </div>
+          <div className="text-center">
+            <p className="text-future-gray">Are you sure you want to permanently delete these {selectedTradeIds.length} trades?</p>
+            <p className="text-sm text-risk-medium mt-2">This action cannot be undone.</p>
+            <div className="mt-6 flex justify-center gap-4">
+              <Button onClick={closeModals} variant="secondary" className="w-auto">Cancel</Button>
+              <Button onClick={handleDeleteSelected} className="w-auto bg-risk-high text-white hover:bg-risk-high/90 shadow-glow-red">
+                Delete
+              </Button>
             </div>
+          </div>
         </Modal>
+      )}
+
+      {isImportModalOpen && activeAccount && (
+        <ImportTradesModal
+          account={activeAccount}
+          onClose={() => setIsImportModalOpen(false)}
+        />
       )}
     </>
   );

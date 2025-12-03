@@ -1,10 +1,8 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAccount } from '../../context/AccountContext';
 import SmartLimitsCard from './SmartLimitsCard';
-import { SparklesIcon } from '../icons/SparklesIcon';
-import AiDebriefPopover from './AiDebriefPopover';
 import Tooltip from '../ui/Tooltip';
 import { PlusIcon } from '../icons/PlusIcon';
 import { useUI } from '../../context/UIContext';
@@ -14,26 +12,12 @@ import NotificationBell from '../notifications/NotificationBell';
 const DashboardHeader: React.FC = () => {
     const { user } = useAuth();
     const { activeAccount, smartLimitsProgress } = useAccount();
-    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-    const popoverRef = useRef<HTMLDivElement>(null);
     const { requestAddTradeModalOpen } = useUI();
     const { navigateTo } = useView();
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-                setIsPopoverOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
     const handleQuickLogTrade = () => {
-      requestAddTradeModalOpen();
-      navigateTo('journal');
+        requestAddTradeModalOpen();
+        navigateTo('journal');
     };
 
     return (
@@ -58,21 +42,8 @@ const DashboardHeader: React.FC = () => {
                     <NotificationBell />
                 )}
 
-                {/* AI Debrief */}
-                 <div className="relative" ref={popoverRef}>
-                    <Tooltip text="AI Debriefs">
-                       <button
-                           onClick={() => setIsPopoverOpen(!isPopoverOpen)}
-                           className="p-2.5 rounded-lg bg-surface border border-white/10 text-secondary hover:text-white hover:bg-white/5 transition-all active:scale-95"
-                       >
-                           <SparklesIcon className="w-5 h-5" />
-                       </button>
-                    </Tooltip>
-                    {isPopoverOpen && <AiDebriefPopover onClose={() => setIsPopoverOpen(false)} />}
-                </div>
-
                 {/* Quick Log */}
-                <Tooltip text="Log Trade">
+                <Tooltip text="Log Trade" position="bottom">
                     <button
                         onClick={handleQuickLogTrade}
                         className="p-2.5 rounded-lg bg-white text-black hover:bg-gray-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all active:scale-95"

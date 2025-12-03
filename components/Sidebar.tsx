@@ -18,7 +18,6 @@ import Tooltip from './ui/Tooltip';
 import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import { AnalyticsIcon } from './icons/AnalyticsIcon';
-import { TrackerIcon } from './icons/TrackerIcon';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -36,11 +35,10 @@ const NavItem: React.FC<{
   const Element: any = href ? 'a' : 'button';
 
   // Aesthetic: Clean, sharp edges, distinct active state text color
-  const navItemClasses = `relative flex items-center w-full px-4 py-2 my-0.5 transition-all duration-200 group ${
-    isActive 
-      ? 'text-white bg-white/[0.03] border-r-2 border-white' 
-      : 'text-secondary hover:text-white hover:bg-white/[0.02]'
-  } ${isCollapsed ? 'justify-center px-2' : ''}`;
+  const navItemClasses = `relative flex items-center w-full px-4 py-2 my-0.5 transition-all duration-200 group ${isActive
+    ? 'text-white bg-white/[0.03] border-r-2 border-white'
+    : 'text-secondary hover:text-white hover:bg-white/[0.02]'
+    } ${isCollapsed ? 'justify-center px-2' : ''}`;
 
   const content = (
     <Element href={href} onClick={onClick} className={navItemClasses}>
@@ -81,11 +79,11 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
 
   const initials = activeAccount
     ? activeAccount.name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .substring(0, 2)
-        .toUpperCase()
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase()
     : '';
 
   if (!activeAccount) {
@@ -126,51 +124,49 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
         ) : (
           <>
             <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center border border-white/10 shrink-0">
-                    <span className="font-mono text-[10px] text-white">{initials}</span>
-                </div>
-                <div className="overflow-hidden text-left">
-                    <p className="font-medium text-xs text-white truncate">{activeAccount.name}</p>
-                    <p className="text-[9px] text-secondary truncate uppercase tracking-wider">{activeAccount.type.replace('_', ' ')}</p>
-                </div>
+              <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center border border-white/10 shrink-0">
+                <span className="font-mono text-[10px] text-white">{initials}</span>
+              </div>
+              <div className="overflow-hidden text-left">
+                <p className="font-medium text-xs text-white truncate">{activeAccount.name}</p>
+                <p className="text-[9px] text-secondary truncate uppercase tracking-wider">{activeAccount.type.replace('_', ' ')}</p>
+              </div>
             </div>
             <ChevronDownIcon
-              className={`w-3 h-3 text-secondary group-hover:text-white transition-transform flex-shrink-0 ${
-                isOpen ? 'rotate-180' : ''
-              }`}
+              className={`w-3 h-3 text-secondary group-hover:text-white transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''
+                }`}
             />
           </>
         )}
       </button>
       {isOpen && (
         <div
-          className={`absolute top-0 mt-0 bg-[#08090A] border border-white/10 rounded shadow-2xl p-1 z-50 w-56 ${
-            isCollapsed ? 'left-full ml-2' : 'top-full mt-2 w-full left-0'
-          }`}
+          className={`absolute top-0 mt-0 bg-[#08090A] border border-white/10 rounded shadow-2xl p-1 z-50 w-56 ${isCollapsed ? 'left-full ml-2' : 'top-full mt-2 w-full left-0'
+            }`}
         >
           <div className="max-h-60 overflow-y-auto custom-scrollbar">
             {accounts.map((account) => (
-                <button
+              <button
                 key={account.id}
                 onClick={() => {
-                    switchAccount(account.id);
-                    setIsOpen(false);
+                  switchAccount(account.id);
+                  setIsOpen(false);
                 }}
                 className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors"
-                >
+              >
                 {account.name}
-                </button>
+              </button>
             ))}
           </div>
           <div className="border-t border-white/10 mt-1 pt-1">
-             <button
-                onClick={() => {
-                    navigateTo('settings', 'accounts');
-                    setIsOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wide"
-                >
-                <PlusIcon className="w-3 h-3" /> Create Account
+            <button
+              onClick={() => {
+                navigateTo('settings', 'accounts');
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wide"
+            >
+              <PlusIcon className="w-3 h-3" /> Create Account
             </button>
           </div>
         </div>
@@ -183,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed, toggleSidebar } = useUI();
-  
+
   const handleSetView = (view: DashboardView) => {
     navigateTo(view);
     onClose();
@@ -194,32 +190,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
         onClick={onClose}
         aria-hidden="true"
       ></div>
       <aside
-        className={`fixed top-0 left-0 h-full bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
-          isSidebarCollapsed ? 'w-16' : 'w-64'
-        } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`fixed top-0 left-0 h-full bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isSidebarCollapsed ? 'w-16' : 'w-64'
+          } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         {/* BRAND */}
         <div className={`h-16 flex items-center border-b border-white/10 ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
-            {isSidebarCollapsed ? (
-              <AuthMark size={18} />
-            ) : (
-              <AuthLogo />
-            )}
-            {!isSidebarCollapsed && (
-               <button
-                onClick={toggleSidebar}
-                className="text-secondary hover:text-white transition-colors"
-              >
-               <ChevronDoubleLeftIcon className="w-4 h-4" />
-              </button>
-            )}
+          {isSidebarCollapsed ? (
+            <AuthMark size={18} />
+          ) : (
+            <AuthLogo />
+          )}
+          {!isSidebarCollapsed && (
+            <button
+              onClick={toggleSidebar}
+              className="text-secondary hover:text-white transition-colors"
+            >
+              <ChevronDoubleLeftIcon className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         <div className="p-4 border-b border-white/10">
@@ -234,15 +228,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onClick={() => handleSetView('dashboard')}
             isCollapsed={isSidebarCollapsed}
           />
-          {user.featureFlags?.analysisTrackerEnabled && (
-            <NavItem
-              icon={<TrackerIcon className="w-4 h-4" />}
-              label="Tracker"
-              isActive={currentView === 'analysis-tracker'}
-              onClick={() => handleSetView('analysis-tracker')}
-              isCollapsed={isSidebarCollapsed}
-            />
-          )}
           <NavItem
             icon={<JournalIcon className="w-4 h-4" />}
             label="Journal"
@@ -257,7 +242,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onClick={() => handleSetView('playbooks')}
             isCollapsed={isSidebarCollapsed}
           />
-           <NavItem
+          <NavItem
             icon={<AnalyticsIcon className="w-4 h-4" />}
             label="Analytics"
             isActive={currentView === 'analytics'}
@@ -265,45 +250,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             isCollapsed={isSidebarCollapsed}
           />
           <NavItem
-                icon={<SettingsIcon className="w-4 h-4" />}
-                label="Settings"
-                isActive={currentView === 'settings'}
-                onClick={() => handleSetView('settings')}
-                isCollapsed={isSidebarCollapsed}
-            />
+            icon={<SettingsIcon className="w-4 h-4" />}
+            label="Settings"
+            isActive={currentView === 'settings'}
+            onClick={() => handleSetView('settings')}
+            isCollapsed={isSidebarCollapsed}
+          />
         </div>
 
         <div className="mt-auto p-4 border-t border-white/10">
-            {isSidebarCollapsed && (
-                 <button
-                    onClick={toggleSidebar}
-                    className="w-full flex items-center justify-center p-2 mb-4 text-secondary hover:text-white transition-colors"
-                >
-                <ChevronDoubleLeftIcon
-                    className="w-4 h-4 rotate-180"
-                />
-                </button>
-            )}
+          {isSidebarCollapsed && (
+            <button
+              onClick={toggleSidebar}
+              className="w-full flex items-center justify-center p-2 mb-4 text-secondary hover:text-white transition-colors"
+            >
+              <ChevronDoubleLeftIcon
+                className="w-4 h-4 rotate-180"
+              />
+            </button>
+          )}
 
-            <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                <UserButton 
-                    appearance={{
-                        baseTheme: dark,
-                        elements: {
-                            avatarBox: "w-8 h-8 rounded-full border border-white/10",
-                            userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
-                            userButtonPopoverFooter: "hidden",
-                            userButtonTrigger: "focus:shadow-none"
-                        }
-                    }}
-                />
-                {!isSidebarCollapsed && (
-                    <div className="overflow-hidden flex-1">
-                        <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
-                        <p className="text-[9px] text-secondary truncate uppercase tracking-wider">JTradePilot Pro</p>
-                    </div>
-                )}
-            </div>
+          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+            <UserButton
+              appearance={{
+                baseTheme: dark,
+                elements: {
+                  avatarBox: "w-8 h-8 rounded-full border border-white/10",
+                  userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
+                  userButtonPopoverFooter: "hidden",
+                  userButtonTrigger: "focus:shadow-none"
+                }
+              }}
+            />
+            {!isSidebarCollapsed && (
+              <div className="overflow-hidden flex-1">
+                <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
+                <p className="text-[9px] text-secondary truncate uppercase tracking-wider">JTradePilot Pro</p>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
     </>

@@ -15,7 +15,6 @@ import { AdminModule } from './admin/admin.module';
 import { TradeJournalsModule } from './trade-journals/trade-journals.module';
 import { AssetsModule } from './assets/assets.module';
 import { AnalyticsModule } from './analytics/analytics.module';
-import { AnalysisModule } from './analysis/analysis.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
@@ -30,7 +29,7 @@ import { JoiValidationSchema } from './config/config.schema';
       validationSchema: JoiValidationSchema,
       envFilePath: '.env',
     }),
-    
+
     // Configure ThrottlerModule asynchronously to use the ConfigService
     ThrottlerModule.forRootAsync({
       imports: [NestConfigModule], // Explicitly import the official ConfigModule to ensure dependency order.
@@ -57,7 +56,6 @@ import { JoiValidationSchema } from './config/config.schema';
     TradeJournalsModule,
     AssetsModule,
     AnalyticsModule,
-    AnalysisModule,
     NotificationsModule,
     TasksModule,
   ],
@@ -69,4 +67,4 @@ import { JoiValidationSchema } from './config/config.schema';
     }
   ],
 })
-export class AppModule {}
+export class AppModule { }

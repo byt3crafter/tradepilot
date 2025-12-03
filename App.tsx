@@ -16,7 +16,6 @@ import { TradeProvider } from './context/TradeContext';
 import AdminPage from './pages/AdminPage';
 import { UIProvider } from './context/UIContext';
 import { AssetProvider } from './context/AssetContext';
-import { AnalysisProvider } from './context/AnalysisContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
 
@@ -29,11 +28,11 @@ const AuthenticatedApp: React.FC = () => {
   const { isLoading } = useAuth();
 
   if (isLoading) {
-      return (
-          <div className="min-h-screen w-full flex items-center justify-center bg-void text-white">
-              <Spinner />
-          </div>
-      );
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-void text-white">
+        <Spinner />
+      </div>
+    );
   }
 
   return (
@@ -47,11 +46,9 @@ const AuthenticatedApp: React.FC = () => {
                   <ChecklistProvider>
                     <SettingsProvider>
                       <TradeProvider>
-                        <AnalysisProvider>
-                          <NotificationProvider>
-                            <DashboardPage />
-                          </NotificationProvider>
-                        </AnalysisProvider>
+                        <NotificationProvider>
+                          <DashboardPage />
+                        </NotificationProvider>
                       </TradeProvider>
                     </SettingsProvider>
                   </ChecklistProvider>
@@ -66,65 +63,65 @@ const AuthenticatedApp: React.FC = () => {
 };
 
 const UnauthenticatedApp: React.FC = () => {
-    const path = window.location.pathname;
+  const path = window.location.pathname;
 
-    if (path === '/login') {
-        return <LoginPage />;
-    }
-    if (path === '/signup') {
-        return <SignupPage />;
-    }
-    
-    // Redirect legacy routes to home or login
-    if (['/forgot-password', '/reset-password', '/verify-email'].includes(path)) {
-        window.location.href = '/login';
-        return null;
-    }
-    
-    return <LandingPage navigate={(page) => window.location.href = `/${page}`} />;
+  if (path === '/login') {
+    return <LoginPage />;
+  }
+  if (path === '/signup') {
+    return <SignupPage />;
+  }
+
+  // Redirect legacy routes to home or login
+  if (['/forgot-password', '/reset-password', '/verify-email'].includes(path)) {
+    window.location.href = '/login';
+    return null;
+  }
+
+  return <LandingPage navigate={(page) => window.location.href = `/${page}`} />;
 };
 
 const AppContent: React.FC = () => {
-    const [locationHash, setLocationHash] = useState(window.location.hash);
+  const [locationHash, setLocationHash] = useState(window.location.hash);
 
-    useEffect(() => {
-        const handleHashChange = () => {
-            setLocationHash(window.location.hash);
-        };
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
+  useEffect(() => {
+    const handleHashChange = () => {
+      setLocationHash(window.location.hash);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
-    // Handle Admin Route specially (though ideally this is protected by Clerk too)
-    if (locationHash.startsWith('#/admin-panel')) {
-        return (
-            <SignedIn>
-                <AdminPage />
-            </SignedIn>
-        );
-    }
-
+  // Handle Admin Route specially (though ideally this is protected by Clerk too)
+  if (locationHash.startsWith('#/admin-panel')) {
     return (
-        <>
-            <SignedIn>
-                <AuthenticatedApp />
-            </SignedIn>
-            <SignedOut>
-                <UnauthenticatedApp />
-            </SignedOut>
-        </>
+      <SignedIn>
+        <AdminPage />
+      </SignedIn>
     );
+  }
+
+  return (
+    <>
+      <SignedIn>
+        <AuthenticatedApp />
+      </SignedIn>
+      <SignedOut>
+        <UnauthenticatedApp />
+      </SignedOut>
+    </>
+  );
 };
 
 const App: React.FC = () => {
   if (CLERK_PUBLISHABLE_KEY === 'pk_test_PLACEHOLDER_KEY_HERE') {
-      console.warn("Clerk Publishable Key is missing. Please add VITE_CLERK_PUBLISHABLE_KEY to your environment.");
+    console.warn("Clerk Publishable Key is missing. Please add VITE_CLERK_PUBLISHABLE_KEY to your environment.");
   }
 
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <AuthProvider>
-          <AppContent />
+        <AppContent />
       </AuthProvider>
     </ClerkProvider>
   );

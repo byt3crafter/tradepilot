@@ -50,10 +50,13 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       } finally {
         setIsLoading(false);
       }
-    } else {
+    } else if (activeAccount === null) {
+      // Only set loading to false if we explicitly know there's no account
+      // Don't set it to false if account is just undefined (still loading)
       setAllTrades([]);
       setIsLoading(false);
     }
+    // If activeAccount is undefined (still loading), keep isLoading true
   }, [activeAccount, getToken]);
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // This prevents a "Too Many Requests" error from multiple simultaneous calls.
     refreshTrades();
   }, [refreshTrades]);
-  
+
   const { liveTrades, pendingTrades, closedTrades } = useMemo(() => {
     const pending = allTrades.filter(t => t.isPendingOrder);
     const closed = allTrades.filter(t => !t.isPendingOrder && t.result);
@@ -87,7 +90,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshTrades();
     await refreshAllProgress();
   };
-  
+
   const activatePendingOrder = async (id: string) => {
     const token = await getToken();
     if (!token) throw new Error("Not authenticated");
@@ -115,10 +118,10 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const analyzeTrade = async (tradeId: string) => {
     const token = await getToken();
     if (!token) throw new Error("Not authenticated");
-    
+
     // Call the secure backend endpoint to perform the analysis
     await api.analyzeTrade(tradeId, token);
-    
+
     // Refresh the trades to get the new analysis data
     await refreshTrades();
   };
@@ -128,7 +131,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!token) throw new Error("Not authenticated");
     const trade = allTrades.find(t => t.id === tradeId);
     if (!trade) throw new Error("Trade not found");
-    
+
     if (trade.tradeJournal) {
       await api.updateTradeJournal(trade.tradeJournal.id, journalData, token);
     } else {

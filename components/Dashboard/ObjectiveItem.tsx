@@ -20,31 +20,31 @@ const StatusPill: React.FC<{ status: ObjectiveProgress['status'] }> = ({ status 
 };
 
 const CountdownTimer: React.FC = () => {
-    const getTomorrow = () => {
-        const tomorrow = new Date();
-        tomorrow.setUTCHours(24, 0, 0, 0);
-        return tomorrow;
-    }
+  const getTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setUTCHours(24, 0, 0, 0);
+    return tomorrow;
+  }
 
-    const [timeLeft, setTimeLeft] = useState(getTomorrow().getTime() - new Date().getTime());
+  const [timeLeft, setTimeLeft] = useState(getTomorrow().getTime() - new Date().getTime());
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeLeft(getTomorrow().getTime() - new Date().getTime());
-        }, 1000);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(getTomorrow().getTime() - new Date().getTime());
+    }, 1000);
 
-        return () => clearInterval(timer);
-    }, []);
+    return () => clearInterval(timer);
+  }, []);
 
-    const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
-    const minutes = Math.floor((timeLeft / 1000 / 60) % 60);
-    const seconds = Math.floor((timeLeft / 1000) % 60);
+  const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((timeLeft / 1000 / 60) % 60);
+  const seconds = Math.floor((timeLeft / 1000) % 60);
 
-    return (
-        <span className="text-xs text-risk-high/80 font-tech-mono">
-           {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-        </span>
-    );
+  return (
+    <span className="text-xs text-risk-high/80 font-tech-mono">
+      {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+    </span>
+  );
 };
 
 
@@ -52,12 +52,12 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
   const { title, status, currentValue, targetValue, type, key, format = 'currency' } = objective;
 
   const progressPercentage = targetValue > 0 ? (currentValue / targetValue) * 100 : 0;
-  
+
   const isLossRule = key.includes('Loss');
   const isFailed = status === 'Failed';
   const isSuccess = status === 'Success';
-  
-  let barColor = 'bg-photonic-blue'; // Default for profit target
+
+  let barColor = 'bg-white'; // Default for profit target
   if (isFailed) barColor = 'bg-risk-high';
   else if (isSuccess) barColor = 'bg-momentum-green';
   else if (isLossRule) barColor = 'bg-risk-high';
@@ -71,12 +71,12 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
       valueColor = 'text-risk-high';
     }
   }
-  
+
   const formatValue = (val?: number) => {
     if (val === undefined || val === null) return format === 'currency' ? '$-.--' : '-';
     if (format === 'currency') {
-        const prefix = val < 0 ? '-$' : '$';
-        return `${prefix}${Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const prefix = val < 0 ? '-$' : '$';
+      return `${prefix}${Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return val.toLocaleString();
   };

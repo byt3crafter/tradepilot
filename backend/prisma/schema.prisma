@@ -31,7 +31,7 @@ model User {
   trades             Trade[]
   playbooks          Playbook[]
   assetSpecs         AssetSpecification[]
-  analyses           Analysis[]
+
   notifications      Notification[]
 }
 
@@ -52,7 +52,7 @@ model BrokerAccount {
   objectives     TradingObjective?
   smartLimits    SmartLimit?
   trades         Trade[]
-  analyses       Analysis[]
+
 }
 
 enum BrokerAccountType {
@@ -237,117 +237,7 @@ model AssetSpecification {
   @@unique([userId, symbol])
 }
 
-enum IncomeCategory {
-  ACTIVE_INCOME
-  DAILY_INCOME
-  WEEKLY_INCOME
-  MONTHLY_INCOME
-  LONG_TERM_INCOME
-}
 
-enum AssetClass {
-  FOREX
-  INDEX
-  METAL
-  CRYPTO
-  EQUITY
-  ENERGY
-}
-
-enum MarketVenue {
-  SPOT
-  CFD
-  FUTURES
-  PERP
-  OPTIONS
-}
-
-enum InstrumentSubtype {
-  FOREX_PAIR
-  INDEX_CFD
-  METAL_CFD
-  METAL_FUT
-  CRYPTO_SPOT
-  CRYPTO_PERP
-  INDEX_FUT
-  EQUITY_CFD
-  EQUITY_SPOT
-}
-
-enum ReviewCycle {
-  DAILY
-  WEEKLY
-  MONTHLY
-  QUARTERLY
-}
-
-enum AnalysisStatus {
-  WATCHING
-  ALERTED
-  TRIGGERED
-  EXECUTED
-  MISSED
-  EXPIRED
-  ARCHIVED
-}
-
-model Analysis {
-  id                String            @id @default(uuid())
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
-  screenshotUrls    String[]
-  
-  // Classification
-  category          IncomeCategory
-  assetClass        AssetClass
-  marketVenue       MarketVenue
-  instrumentSubtype InstrumentSubtype?
-  contract          Json?
-  leverage          Int?
-
-  // Context
-  symbol            String
-  assetName         String?
-  exchange          String?
-  quote             Json?
-  
-  brokerId          String
-  brokerAccount     BrokerAccount     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-
-  // Platforms
-  platforms         Json?
-
-  // Analysis Details
-  htf               String?
-  ltf               String[]
-  directionalBias   Direction
-  structureNotes    String?
-  levels            Json?
-  triggers          Json?
-
-  // Invalidation & Validity
-  invalidation      Json?
-  validityStartsAt  DateTime?
-  validityExpiresAt DateTime?
-
-  // Review & Status
-  reviewCycle       ReviewCycle
-  nextReviewAt      DateTime
-  status            AnalysisStatus    @default(WATCHING)
-
-  // Meta & Threading
-  tags              String[]
-  revision          Int               @default(1)
-  parentAnalysisId  String?
-  parentAnalysis    Analysis?         @relation("AnalysisHistory", fields: [parentAnalysisId], references: [id])
-  childAnalyses     Analysis[]        @relation("AnalysisHistory")
-  
-  userId            String
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  notifications     Notification[]
-}
 
 model Notification {
   id         String   @id @default(uuid())
@@ -358,6 +248,5 @@ model Notification {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  analysisId String?
-  analysis   Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
 }

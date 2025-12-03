@@ -19,22 +19,24 @@ const KeyMetricsDashboard: React.FC = () => {
       {/* --- Main Column (Left) --- */}
       <div className="xl:col-span-2 space-y-6">
         {/* Row 1: Equity Hero */}
-        <EquityHero 
-            netPL={stats.netPL} 
-            equityCurve={stats.equityCurve}
+        <EquityHero
+          netPL={stats.netPL}
+          equityCurve={stats.equityCurve}
         />
-        
+
         {/* Row 2: Stats Grid */}
-        <StatGrid 
-            winRate={stats.winRate} 
-            profitFactor={stats.profitFactor} 
-            currentStreak={stats.currentStreak} 
+        <StatGrid
+          winRate={stats.winRate}
+          profitFactor={stats.profitFactor}
+          currentStreak={stats.currentStreak}
         />
       </div>
 
       {/* --- Side Column (Right) --- */}
       <div className="xl:col-span-1 min-h-[500px] xl:min-h-0">
-        <RecentActivity trades={closedTrades} />
+        <div className="h-[400px]">
+          <RecentActivity trades={closedTrades} />
+        </div>
       </div>
     </div>
   );

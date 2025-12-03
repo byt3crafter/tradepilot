@@ -23,19 +23,19 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
 };
 
 const TimeBarChart: React.FC<{ data: PerformanceByTimeType[], dataKey: string }> = ({ data, dataKey }) => (
-    <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 191, 255, 0.1)" />
-            <XAxis dataKey="key" tick={{ fill: '#8899A6', fontSize: 10 }} tickLine={false} axisLine={{ stroke: '#8899A6' }} />
-            <YAxis tick={{ fill: '#8899A6', fontSize: 10 }} tickFormatter={(val) => `$${val}`} tickLine={false} axisLine={{ stroke: '#8899A6' }} />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 191, 255, 0.1)' }} />
-            <Bar dataKey={dataKey}>
-                {data.map((entry, index) => (
-                    <Recharts.Cell key={`cell-${index}`} fill={entry.netPL >= 0 ? '#39FF14' : '#FF003C'} />
-                ))}
-            </Bar>
-        </BarChart>
-    </ResponsiveContainer>
+  <ResponsiveContainer width="100%" height={250}>
+    <BarChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 191, 255, 0.1)" />
+      <XAxis dataKey="key" tick={{ fill: '#8899A6', fontSize: 10 }} tickLine={false} axisLine={{ stroke: '#8899A6' }} />
+      <YAxis tick={{ fill: '#8899A6', fontSize: 10 }} tickFormatter={(val) => `$${val}`} tickLine={false} axisLine={{ stroke: '#8899A6' }} />
+      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 191, 255, 0.1)' }} />
+      <Bar dataKey={dataKey}>
+        {data.map((entry, index) => (
+          <Recharts.Cell key={`cell-${index}`} fill={entry.netPL >= 0 ? '#10b981' : '#ef4444'} />
+        ))}
+      </Bar>
+    </BarChart>
+  </ResponsiveContainer>
 );
 
 
@@ -50,7 +50,7 @@ const PerformanceByTime: React.FC<PerformanceByTimeProps> = ({ dayData, hourData
         <h3 className="text-lg font-orbitron text-photonic-blue mb-2">Performance by Day of Week</h3>
         <TimeBarChart data={dayData} dataKey="netPL" />
       </div>
-       <div>
+      <div>
         <h3 className="text-lg font-orbitron text-photonic-blue mb-2">Performance by Hour of Day (UTC)</h3>
         <TimeBarChart data={hourData} dataKey="netPL" />
       </div>

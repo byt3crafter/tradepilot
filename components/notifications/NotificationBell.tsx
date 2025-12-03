@@ -48,8 +48,8 @@ const NotificationBell: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-future-panel border border-photonic-blue/20 rounded-lg shadow-lg z-20 animate-fade-in-up origin-top-right">
-          <div className="p-3 border-b border-photonic-blue/10 flex justify-between items-center">
+        <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-[#0A0A0A] border border-white/10 rounded-lg shadow-xl z-50 animate-fade-in-up origin-top-right">
+          <div className="p-3 border-b border-white/5 flex justify-between items-center">
             <h3 className="text-sm font-semibold text-future-light">Notifications</h3>
           </div>
           <div className="max-h-80 overflow-y-auto sidebar-scrollbar">
@@ -60,10 +60,10 @@ const NotificationBell: React.FC = () => {
             ) : (
               <ul>
                 {notifications.map(notification => (
-                  <li key={notification.id} className={`border-b border-future-panel/50 ${!notification.isRead ? 'bg-photonic-blue/5' : ''}`}>
+                  <li key={notification.id} className={`border-b border-white/5 last:border-0 ${!notification.isRead ? 'bg-white/[0.02]' : ''}`}>
                     <button
                       onClick={() => handleNotificationClick(notification.id, notification.analysisId)}
-                      className="w-full text-left p-3 hover:bg-photonic-blue/10 transition-colors"
+                      className="w-full text-left p-3 hover:bg-white/[0.03] transition-colors"
                     >
                       <p className={`text-xs ${notification.isRead ? 'text-future-gray' : 'text-future-light'}`}>
                         {notification.message}

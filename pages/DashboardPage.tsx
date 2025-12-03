@@ -48,11 +48,11 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full text-white bg-transparent">
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      
+
       {/* 
         Adjusted padding-left: 
         Sidebar is 16rem (64) expanded or 4rem (16) collapsed.
@@ -61,22 +61,22 @@ const DashboardPage: React.FC = () => {
       */}
       <div className={`relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
         <div className="min-h-screen border-l border-white/5 bg-[#08090A]/40 backdrop-blur-[2px]">
-            {isTrialing && <TrialBanner />}
+          {isTrialing && <TrialBanner />}
 
-            <header className="p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
+          <header className="p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
             <span className="font-medium text-sm">JTradePilot</span>
-            <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
-                aria-label="Open sidebar"
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
+              aria-label="Open sidebar"
             >
-                <MenuIcon className="w-6 h-6" />
+              <MenuIcon className="w-6 h-6" />
             </button>
-            </header>
-            
-            <main className="p-6 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
+          </header>
+
+          <main className="p-6 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
             {renderView()}
-            </main>
+          </main>
         </div>
       </div>
       <UpgradeModal />
