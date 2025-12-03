@@ -52,9 +52,10 @@ const NotificationBell: React.FC = () => {
         <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
       )}
       {isOpen && (
-        <div className="fixed w-80 max-w-[calc(100vw-2rem)] bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl z-50 animate-fade-in-up" style={{
-          right: '1rem',
-          top: '4rem'
+        <div className="absolute top-full mt-2 right-0 w-80 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl z-50 animate-fade-in-up origin-top-right" style={{
+          maxWidth: 'calc(100vw - 2rem)',
+          maxHeight: 'calc(100vh - 200px)',
+          overflow: 'auto'
         }}>
           <div className="p-3 border-b border-white/5 flex justify-between items-center">
             <h3 className="text-sm font-semibold text-future-light">Notifications</h3>
