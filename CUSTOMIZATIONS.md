@@ -48,27 +48,37 @@ This document provides a comprehensive list of all customizations made to the Tr
 - **Dashboard**: Background hidden when user is authenticated
 - **Other Public Pages**: Background hidden on auth pages (login, signup)
 
-**Implementation Strategy** (App.tsx:36-86):
-```typescript
-// AuthenticatedApp: Hide background when logged in
-React.useEffect(() => {
-  (window as any).showAnimatedBackground?.(false);
-}, []);
+**Performance Optimization** (Commit c28eddf):
+The UnicornStudio library is conditionally loaded BEFORE the page renders:
 
-// UnauthenticatedApp: Show only on landing page
-React.useEffect(() => {
-  if (path === '/') {
-    (window as any).showAnimatedBackground?.(true);
-  } else {
-    (window as any).showAnimatedBackground?.(false);
+```javascript
+// In index.html - check route BEFORE loading script
+function loadUnicornStudioIfNeeded() {
+  const path = window.location.pathname;
+  const isLandingPage = path === '/';
+
+  if (!isLandingPage) {
+    // Not on landing page - DON'T load UnicornStudio at all
+    window.UnicornStudio = { isInitialized: false, disabled: true };
+    return;
   }
-}, [path]);
+
+  // Only load external library on landing page
+  // ... load and initialize UnicornStudio.js
+}
 ```
 
-**Important Notes**:
-- The background persists across page refreshes via IndexedDB/localStorage
-- Animation initialization happens in `index.html`
-- Grid fade effect applied to prevent full coverage
+**What This Solves**:
+- ❌ **BEFORE**: Animation always loaded, even on dashboard → slow, flashes on refresh
+- ✅ **AFTER**: Animation only loads on landing page → dashboard instant load, zero flashes
+
+**Key Improvements**:
+- Route check happens BEFORE UnicornStudio.js download
+- No redundant show/hide calls in React components
+- Dashboard has zero animation overhead
+- Landing page gets smooth animation on first load
+- No animation flashes when refreshing dashboard
+- Grid fade effect applied only when animation loads
 
 ---
 
