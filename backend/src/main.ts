@@ -41,25 +41,45 @@ async function bootstrap() {
   // CORS Configuration
   // ──────────────────────────────────────────────────────────────────
   const allowedOrigins = frontendUrls.split(',').map(url => url.trim()).filter(Boolean);
-  
-  if (allowedOrigins.length > 0) {
-    Logger.log(`CORS allowed origins: [${allowedOrigins.join(', ')}]`, 'Bootstrap');
+
+  // Setup CORS based on environment
+  if (nodeEnv !== 'production') {
+    // In development, be permissive and allow all localhost origins
+    Logger.warn('Running in development mode. CORS configured to allow localhost origins.', 'Bootstrap');
+    app.enableCors({
+      origin: (origin, callback) => {
+        // If no origin (e.g., from mobile app, curl, or same-origin requests), allow it
+        if (!origin) return callback(null, true);
+
+        // In development, allow any localhost origin
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          return callback(null, true);
+        }
+
+        // If we have specific configured origins, also allow those
+        if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        // For all other origins in development, log a warning but allow
+        Logger.warn(`CORS request from origin: ${origin}`, 'Bootstrap');
+        callback(null, true);
+      },
+      credentials: true,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: 'Content-Type, Accept, Authorization',
+    });
+  } else if (allowedOrigins.length > 0) {
+    // In production, only allow configured origins
+    Logger.log(`CORS allowed origins (production): [${allowedOrigins.join(', ')}]`, 'Bootstrap');
     app.enableCors({
       origin: allowedOrigins,
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Accept, Authorization',
     });
-  } else if (nodeEnv !== 'production') {
-      Logger.warn('CORS is not configured with specific origins. Enabling ALL origins for development.', 'Bootstrap');
-      app.enableCors({
-        origin: true, // Reflects the request origin
-        credentials: true,
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        allowedHeaders: 'Content-Type, Accept, Authorization',
-      });
   } else {
-      Logger.warn(`CORS is not configured with any origins and not in dev mode. Requests may be blocked.`, 'Bootstrap');
+    Logger.warn(`CORS is not configured with any origins and running in production mode. CORS may be blocked.`, 'Bootstrap');
   }
 
 

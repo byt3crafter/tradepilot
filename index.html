@@ -207,11 +207,29 @@
   <script>
     window.APP_CONFIG = (function() {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocal 
-        ? 'http://localhost:8080' 
-        : window.location.origin;
+
+      let apiUrl;
+
+      if (isLocal) {
+        // In development (localhost), API is on the same machine but different port
+        // Try common development ports: 8080 (default), 3000, or same origin
+        apiUrl = 'http://localhost:8080';
+
+        // Check if we can reach the API on this port, otherwise try same origin
+        // For now, we'll use the environment config or default to 8080
+        try {
+          const apiHost = (import.meta as any).env.VITE_API_URL || apiUrl;
+          apiUrl = apiHost;
+        } catch (e) {
+          // Fallback to default if env var not available
+        }
+      } else {
+        // In production, API is on the same domain
+        apiUrl = window.location.origin;
+      }
 
       console.log('[JTradePilot] API URL configured for:', apiUrl);
+      console.log('[JTradePilot] Frontend running on:', window.location.origin);
 
       return {
         API_URL: apiUrl
