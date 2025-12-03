@@ -27,15 +27,15 @@ const ChecklistManager: React.FC = () => {
     setEditingRule(rule);
     setIsModalOpen(true);
   };
-  
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this rule?')) {
-        try {
-            await deleteRule(id);
-        } catch(err) {
-            console.error(err);
-            alert('Failed to delete rule.');
-        }
+      try {
+        await deleteRule(id);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete rule.');
+      }
     }
   };
 
@@ -72,42 +72,44 @@ const ChecklistManager: React.FC = () => {
             <ChecklistIcon className="w-12 h-12 mx-auto text-future-gray" />
             <h3 className="text-lg font-semibold text-future-light mt-4">No Rules Defined</h3>
             <p className="text-future-gray mt-2 mb-4">Add your first pre-trade confirmation rule.</p>
-            <Button onClick={openAddModal} className="w-auto">
-              Create a Rule
-            </Button>
+            <div className="flex justify-center">
+              <Button onClick={openAddModal} className="w-auto">
+                Create a Rule
+              </Button>
+            </div>
           </div>
         ) : (
           <ul className="space-y-2">
             {rules.map((rule, index) => (
-                <li key={rule.id} className="flex items-center justify-between bg-future-dark/50 p-3 rounded-md border border-future-panel">
-                    <span className="text-future-light">
-                        <span className="font-tech-mono text-photonic-blue/80 mr-3">{index + 1}.</span> 
-                        {rule.rule}
-                    </span>
-                    <div className="flex items-center gap-2">
-                        <Button variant="link" className="p-1 h-auto" onClick={() => openEditModal(rule)}>
-                            <PencilIcon className="w-4 h-4" />
-                        </Button>
-                        <Button variant="link" className="p-1 h-auto text-risk-high" onClick={() => handleDelete(rule.id)}>
-                            <TrashIcon className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </li>
+              <li key={rule.id} className="flex items-center justify-between bg-future-dark/50 p-3 rounded-md border border-future-panel">
+                <span className="text-future-light">
+                  <span className="font-tech-mono text-photonic-blue/80 mr-3">{index + 1}.</span>
+                  {rule.rule}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="link" className="p-1 h-auto" onClick={() => openEditModal(rule)}>
+                    <PencilIcon className="w-4 h-4" />
+                  </Button>
+                  <Button variant="link" className="p-1 h-auto text-risk-high" onClick={() => handleDelete(rule.id)}>
+                    <TrashIcon className="w-4 h-4" />
+                  </Button>
+                </div>
+              </li>
             ))}
           </ul>
         )}
       </div>
 
       {isModalOpen && (
-        <Modal 
-            title={editingRule ? "Edit Rule" : "Add New Rule"} 
-            onClose={() => setIsModalOpen(false)}
-            size="md"
+        <Modal
+          title={editingRule ? "Edit Rule" : "Add New Rule"}
+          onClose={() => setIsModalOpen(false)}
+          size="md"
         >
-            <ChecklistForm
-                rule={editingRule} 
-                onSuccess={() => setIsModalOpen(false)} 
-            />
+          <ChecklistForm
+            rule={editingRule}
+            onSuccess={() => setIsModalOpen(false)}
+          />
         </Modal>
       )}
     </>

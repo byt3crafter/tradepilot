@@ -10,12 +10,13 @@ import { useAuth } from '../context/AuthContext';
 import UpgradeModal from '../components/billing/UpgradeModal';
 import { useView } from '../context/ViewContext';
 import SubscriptionPage from './SubscriptionPage';
+import PricingPage from './PricingPage';
 import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 import AnalyticsPage from './AnalyticsPage';
 import AnalysisPage from './AnalysisPage';
 
-export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker';
+export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker' | 'pricing';
 export type SettingsSubView = 'accounts' | 'checklist' | 'security' | 'assets';
 
 const DashboardPage: React.FC = () => {
@@ -38,6 +39,8 @@ const DashboardPage: React.FC = () => {
         return <SettingsPage />;
       case 'subscription':
         return <SubscriptionPage />;
+      case 'pricing':
+        return <PricingPage />;
       case 'analysis-tracker':
         return user?.featureFlags?.analysisTrackerEnabled ? <AnalysisPage /> : <Dashboard />;
       case 'dashboard':
