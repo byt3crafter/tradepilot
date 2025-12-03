@@ -3,6 +3,8 @@ import React from 'react';
 import { AuthPage } from '../App';
 import Button from '../components/ui/Button';
 import AuthLogo from '../components/auth/AuthLogo';
+import { XIcon } from '../components/icons/XIcon';
+import { DiscordIcon } from '../components/icons/DiscordIcon';
 
 interface LandingPageProps {
   navigate: (page: AuthPage) => void;
@@ -14,8 +16,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
       {/* Navigation Header */}
       <nav className="border-b border-white/5 bg-future-dark/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex-1" />
+          <div className="flex items-center gap-3">
+            <span className="px-2 py-1 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-xs font-bold text-photonic-blue uppercase tracking-wider">
+              BETA
+            </span>
+          </div>
           <div className="flex items-center gap-6 text-sm">
+            <a href="https://x.com/JTradePilot" target="_blank" rel="noopener noreferrer" className="text-future-gray hover:text-white transition-colors">
+              <XIcon className="w-5 h-5" />
+            </a>
+            <a href="https://discord.gg/JTradePilot" target="_blank" rel="noopener noreferrer" className="text-future-gray hover:text-white transition-colors">
+              <DiscordIcon className="w-5 h-5" />
+            </a>
             <button onClick={() => navigate('login')} className="text-future-gray hover:text-future-light transition-colors">
               Log In
             </button>
@@ -29,11 +41,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
           <div className="flex justify-center mb-6">
               <AuthLogo />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold font-orbitron text-white mb-6 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold font-orbitron text-white mb-2 tracking-tight">
               Master Your Edge.
           </h1>
-          <p className="mt-4 text-lg text-secondary leading-relaxed">
-            The professional trading journal for serious traders. Record, analyze, and refine your execution with intelligent insights.
+          <p className="text-lg text-photonic-blue font-semibold tracking-wide">
+            JTradeJournal - Your Professional Trading Companion
+          </p>
+          <p className="mt-6 text-lg text-secondary leading-relaxed">
+            The most powerful trading journal for serious traders. Record every trade, analyze performance, and refine your strategy with AI-driven insights.
           </p>
           <p className="mt-8 font-semibold text-primary/80">
             Start your 15-day free trial. No credit card required.
@@ -54,7 +69,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
             <div className="text-future-gray text-sm">
-              © 2024 JTradePilot. Building trading discipline, one trade at a time.
+              © 2024 JTradeJournal. Master your trading with intelligent insights.
             </div>
             <div className="flex gap-6 text-sm">
               <a href="/about-us" className="text-future-gray hover:text-future-light transition-colors">

@@ -23,9 +23,14 @@ const DashboardHeader: React.FC = () => {
     return (
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-8 animate-slide-up">
             <div className="flex flex-col gap-1">
-                <h1 className="text-3xl text-white tracking-tight">
-                    Good morning, <span className="font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.fullName.split(' ')[0]}</span>.
-                </h1>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-3xl text-white tracking-tight">
+                        Good morning, <span className="font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.fullName.split(' ')[0]}</span>.
+                    </h1>
+                    <span className="px-2 py-1 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-xs font-bold text-photonic-blue uppercase tracking-wider h-fit">
+                        BETA
+                    </span>
+                </div>
                 <p className="text-secondary text-sm">
                     Trading Account: <span className="text-white font-medium">{activeAccount?.name || 'No Account Selected'}</span>
                 </p>
