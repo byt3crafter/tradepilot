@@ -75,25 +75,28 @@
 </head>
 <body class="font-sans text-primary antialiased selection:bg-zinc-800 selection:text-white">
 
-  <!-- Grid Background -->
-  <div class="fixed inset-0 z-0 pointer-events-none" style="
-    background-image:
-      linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
-    background-attachment: fixed;
-  "></div>
+  <!-- Animated Background - Only on Landing Page -->
+  <div id="animated-background-container">
+    <!-- Grid Background -->
+    <div class="fixed inset-0 z-0 pointer-events-none" style="
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      background-attachment: fixed;
+    "></div>
 
-  <!-- UnicornStudio Animated Background -->
-  <div class="aura-background-component fixed top-0 w-full h-screen -z-10 pointer-events-none" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)">
-    <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0 -z-10"></div>
+    <!-- UnicornStudio Animated Background -->
+    <div class="aura-background-component fixed top-0 w-full h-screen -z-10 pointer-events-none" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)">
+      <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0 -z-10"></div>
+    </div>
+
+    <!-- Background Vignette Overlay -->
+    <div class="fixed inset-0 z-10 pointer-events-none" style="
+      background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
+      opacity: 0.8;
+    "></div>
   </div>
-
-  <!-- Background Vignette Overlay -->
-  <div class="fixed inset-0 z-10 pointer-events-none" style="
-    background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
-    opacity: 0.8;
-  "></div>
 
   <div id="root"></div>
 
@@ -118,6 +121,19 @@
         API_URL: apiUrl
       };
     })();
+
+    // Show/Hide animated background based on route
+    window.showAnimatedBackground = function(show) {
+      const bgContainer = document.getElementById('animated-background-container');
+      if (bgContainer) {
+        bgContainer.style.display = show ? 'block' : 'none';
+      }
+    };
+
+    // Initially hide background (will be shown only on landing page)
+    document.addEventListener('DOMContentLoaded', function() {
+      window.showAnimatedBackground(false);
+    });
   </script>
   
   <script type="module" src="/index.tsx"></script>

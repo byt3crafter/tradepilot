@@ -32,6 +32,11 @@ const CLERK_PUBLISHABLE_KEY = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KE
 const AuthenticatedApp: React.FC = () => {
   const { isLoading } = useAuth();
 
+  // Hide animated background when user is authenticated (dashboard)
+  React.useEffect(() => {
+    (window as any).showAnimatedBackground?.(false);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-void text-white">
@@ -69,6 +74,15 @@ const AuthenticatedApp: React.FC = () => {
 
 const UnauthenticatedApp: React.FC = () => {
   const path = window.location.pathname;
+
+  // Show animated background only on landing page
+  React.useEffect(() => {
+    if (path === '/') {
+      (window as any).showAnimatedBackground?.(true);
+    } else {
+      (window as any).showAnimatedBackground?.(false);
+    }
+  }, [path]);
 
   if (path === '/login') {
     return <LoginPage />;
