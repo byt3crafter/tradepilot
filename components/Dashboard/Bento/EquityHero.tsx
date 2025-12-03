@@ -34,13 +34,13 @@ const EquityHero: React.FC<EquityHeroProps> = ({ netPL, equityCurve }) => {
   const lineColor = isPositive ? "#A1E3CB" : "#E08E8E"; // profit (mint) vs loss (coral)
 
   return (
-    <Card className="h-[400px] flex flex-col relative overflow-hidden group">
+    <Card className="h-[500px] flex flex-col relative overflow-hidden group">
       {/* Background Ambience */}
       <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${isPositive ? 'from-profit/5' : 'from-loss/5'} to-transparent rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none transition-colors duration-500`} />
 
-      <div className="relative z-10 flex-shrink-0 flex flex-col items-start justify-center p-4">
-        <h3 className="text-secondary text-xs font-orbitron uppercase tracking-widest mb-3">Net Profit / Loss</h3>
-        <h1 className={`text-5xl md:text-6xl font-bold tracking-tight font-tech-mono mb-2 ${isPositive ? 'text-white' : 'text-white'}`}>
+      <div className="relative z-10 flex-shrink-0 flex flex-col items-start justify-start p-6 pb-2">
+        <h3 className="text-secondary text-xs font-orbitron uppercase tracking-widest mb-2">Net Profit / Loss</h3>
+        <h1 className={`text-5xl md:text-6xl font-bold tracking-tight font-tech-mono mb-1 ${isPositive ? 'text-white' : 'text-white'}`}>
           {netPL < 0 ? '-' : ''}${Math.abs(netPL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </h1>
         <span className={`px-3 py-1 rounded text-xs font-bold ${isPositive ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'}`}>
