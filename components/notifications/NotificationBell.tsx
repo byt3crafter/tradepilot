@@ -30,11 +30,12 @@ const NotificationBell: React.FC = () => {
   };
 
   return (
-    <div className="relative" ref={popoverRef}>
+    <div ref={popoverRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg bg-future-panel/50 text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
-        aria-label="Toggle notifications"
+        className="relative p-2 rounded-lg bg-future-panel/50 text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors cursor-pointer"
+        aria-label="Notifications"
+        title="Notifications"
       >
         <BellIcon className="w-6 h-6" />
         {unreadCount > 0 && (
@@ -48,7 +49,7 @@ const NotificationBell: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed top-0 left-0 right-0 bottom-0 z-40" onClick={() => setIsOpen(false)} />
+        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
       )}
       {isOpen && (
         <div className="fixed w-80 max-w-[calc(100vw-2rem)] bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl z-50 animate-fade-in-up" style={{

@@ -31,7 +31,7 @@ const DashboardHeader: React.FC = () => {
                 </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
                 {/* Smart Limits Mini-Display */}
                 {activeAccount?.smartLimits?.isEnabled && smartLimitsProgress && (
                     <SmartLimitsCard progress={smartLimitsProgress} limits={activeAccount.smartLimits} />
@@ -39,7 +39,9 @@ const DashboardHeader: React.FC = () => {
 
                 {/* Notifications */}
                 {user?.featureFlags?.analysisTrackerEnabled && (
-                    <NotificationBell />
+                    <div title="Notifications">
+                        <NotificationBell />
+                    </div>
                 )}
 
                 {/* Quick Log */}
