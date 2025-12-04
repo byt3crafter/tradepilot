@@ -4,11 +4,12 @@ import { useView } from '../../context/ViewContext';
 import { XCircleIcon } from '../icons/XCircleIcon';
 
 const TrialBanner: React.FC = () => {
-  const { trialDaysRemaining, isTrialExpired, isTrialing } = useAuth();
+  const { trialDaysRemaining, isTrialExpired, isTrialing, user } = useAuth();
   const { navigateTo } = useView();
   const [isVisible, setIsVisible] = useState(true);
 
-  if (!isVisible || !isTrialing) {
+  // Don't show trial banner for admin users
+  if (!isVisible || !isTrialing || user?.role === 'ADMIN') {
     return null;
   }
 

@@ -17,7 +17,7 @@ import AnalyticsPage from './AnalyticsPage';
 import AnalysisPage from './AnalysisPage';
 
 export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker' | 'pricing';
-export type SettingsSubView = 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
+export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
 
 const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

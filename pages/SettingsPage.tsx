@@ -11,6 +11,7 @@ import { useView } from '../context/ViewContext';
 import { SettingsSubView } from './DashboardPage';
 import AssetManager from '../components/assets/AssetManager';
 import BillingSettings from '../components/settings/BillingSettings';
+import ProfileSettings from '../components/settings/ProfileSettings';
 
 const SecuritySettings: React.FC = () => {
     const { accessToken } = useAuth();
@@ -78,6 +79,8 @@ const SettingsPage: React.FC = () => {
 
     const renderContent = () => {
         switch (currentSubView) {
+            case 'profile':
+                return <ProfileSettings />;
             case 'accounts':
                 return <Card><AccountManager /></Card>;
             case 'checklist':
@@ -89,7 +92,7 @@ const SettingsPage: React.FC = () => {
             case 'billing':
                 return <BillingSettings />;
             default:
-                return <Card><AccountManager /></Card>;
+                return <ProfileSettings />;
         }
     };
 
@@ -112,6 +115,7 @@ const SettingsPage: React.FC = () => {
             <div className="flex flex-col md:flex-row gap-8">
                 <nav className="flex-shrink-0 md:w-48">
                     <div className="flex flex-row md:flex-col gap-2 p-2 bg-surface border border-white/5 rounded-lg">
+                        <NavButton tab="profile" label="Profile" />
                         <NavButton tab="accounts" label="Accounts" />
                         <NavButton tab="checklist" label="Checklist" />
                         <NavButton tab="assets" label="Assets" />
