@@ -165,25 +165,25 @@ export class BrokerAccountsService {
     const totalNetPL = cumulativePL;
     const uniqueTradingDays = uniqueTradingDaysSet.size;
 
-    // --- Calculation for Daily Loss (specific to last trading day) ---
+    // --- Calculation for Daily Loss (TODAY, not last trading day) ---
     let currentDailyLoss = 0;
     if (maxDailyLoss && trades.length > 0) {
-      const lastTradeExitDate = new Date(trades[trades.length - 1].exitDate!);
-      const startOfLastDay = new Date(lastTradeExitDate);
-      startOfLastDay.setUTCHours(0, 0, 0, 0);
-      const endOfLastDay = new Date(startOfLastDay);
-      endOfLastDay.setUTCHours(23, 59, 59, 999);
+      const today = new Date();
+      const startOfToday = new Date(today);
+      startOfToday.setUTCHours(0, 0, 0, 0);
+      const endOfToday = new Date(today);
+      endOfToday.setUTCHours(23, 59, 59, 999);
 
-      const tradesOnLastDay = trades.filter(t => {
+      const tradesToday = trades.filter(t => {
         const exitDate = new Date(t.exitDate!);
-        return exitDate >= startOfLastDay && exitDate <= endOfLastDay;
+        return exitDate >= startOfToday && exitDate <= endOfToday;
       });
 
-      const netPLOnLastDay = tradesOnLastDay.reduce((sum, trade) => sum + (trade.profitLoss ?? 0), 0);
+      const netPLToday = tradesToday.reduce((sum, trade) => sum + (trade.profitLoss ?? 0), 0);
 
       // FIX: Daily loss is $0 if the day was profitable, otherwise it's the net loss.
-      if (netPLOnLastDay < 0) {
-        currentDailyLoss = Math.abs(netPLOnLastDay);
+      if (netPLToday < 0) {
+        currentDailyLoss = Math.abs(netPLToday);
       } else {
         currentDailyLoss = 0;
       }
