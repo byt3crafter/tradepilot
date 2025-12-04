@@ -62,14 +62,16 @@ export class BillingService {
 
       let customerId: string | null = user.paddleCustomerId ?? null;
 
+      // If we don't have the customer ID in database, try to create or find it
       if (!customerId) {
-        this.logger.log(`Creating Paddle customer for user ${userId} with email: ${emailToUse}`);
+        this.logger.log(`No paddleCustomerId in DB for user ${userId}. Attempting to create Paddle customer with email: ${emailToUse}`);
         try {
           const customer = await this.paddle.customers.create({
             email: emailToUse,
             name: user.fullName || undefined,
           });
           customerId = customer.id;
+          this.logger.log(`✓ Created new Paddle customer: ${customerId}`);
 
           await this.prisma.user.update({
             where: { id: userId },
@@ -80,24 +82,24 @@ export class BillingService {
           const body = err?.response?.data || err?.body || err?.message;
           const errorMsg = typeof body === 'string' ? body : JSON.stringify(body);
 
-          // Handle 409 Conflict - customer already exists
+          // Handle 409 Conflict - customer already exists in Paddle with this email
           if (status === 409 && errorMsg.includes('customer email conflicts')) {
             // Extract the existing customer ID from the error message
             // Format: "customer email conflicts with customer of id ctm_01kbm13zhpvrazqvesc3peeh8a"
             const match = errorMsg.match(/id\s+(ctm_\w+)/);
             if (match && match[1]) {
               const existingCustomerId = match[1];
-              this.logger.log(`✓ Customer already exists: ${existingCustomerId}, using existing customer`);
+              this.logger.log(`⚠️ Customer already exists in Paddle: ${existingCustomerId}. Syncing to database.`);
               customerId = existingCustomerId;
 
-              // Update the database with the existing Paddle customer ID
+              // Store the existing customer ID in database so we don't try to create again
               await this.prisma.user.update({
                 where: { id: userId },
                 data: { paddleCustomerId: existingCustomerId },
               });
             } else {
               this.logger.error(
-                `Paddle error (customers.create) status=409 but couldn't extract customer ID from: ${errorMsg}`,
+                `✗ 409 error but couldn't extract customer ID from: ${errorMsg}`,
               );
               throw new InternalServerErrorException(
                 'Could not create checkout session. Please try again later.',
@@ -105,7 +107,7 @@ export class BillingService {
             }
           } else {
             this.logger.error(
-              `Paddle error (customers.create) status=${status} body=${errorMsg}`,
+              `✗ Paddle error (customers.create) status=${status} message=${errorMsg}`,
             );
             throw new InternalServerErrorException(
               'Could not create checkout session. Please try again later.',
@@ -113,7 +115,10 @@ export class BillingService {
           }
         }
       } else {
-        // Customer already exists - update email if provided from frontend
+        // Customer ID already in database
+        this.logger.log(`✓ Using existing Paddle customer: ${customerId}`);
+
+        // Update email if provided from frontend and different
         if (frontendEmail && frontendEmail !== user.email) {
           this.logger.log(`Updating Paddle customer ${customerId} email to: ${frontendEmail}`);
           try {
