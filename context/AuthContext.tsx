@@ -85,9 +85,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const hasGiftedAccess = appUser?.proAccessExpiresAt === null || (appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date());
     const isSubscribed = appUser?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
     const isTrialing = appUser?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
-    
-    const trialDaysRemaining = 14; 
-    const isTrialExpired = false;
+
+    // Calculate trial days remaining from trialEndsAt
+    let trialDaysRemaining = 14;
+    let isTrialExpired = false;
+
+    if (appUser?.trialEndsAt) {
+      const now = new Date();
+      const trialEnd = new Date(appUser.trialEndsAt);
+      const diffMs = trialEnd.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      trialDaysRemaining = Math.max(0, diffDays);
+      isTrialExpired = diffDays <= 0;
+    }
 
     return { isTrialing, isSubscribed, trialDaysRemaining, isTrialExpired };
   }, [appUser]);
