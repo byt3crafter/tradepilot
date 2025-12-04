@@ -1,9 +1,14 @@
 import React from 'react';
 
-export const CTraderIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" {...props}>
-    <path fill="#27a799" d="M110.19 86.29c-14.77 16.2-37.42 22.84-59.39 17.06C28.23 97.4 12.5 77.1 12.5 54.4c0-5.32 1.01-10.45 2.89-15.22l29.41 29.41-11.4 11.41c-3.14 3.14-3.14 8.24 0 11.4l2.83 2.83c3.14 3.14 8.24 3.14 11.4 0l11.4-11.4 39.86 39.86c-1.12.83-2.29 1.6-3.49 2.29z"/>
-    <path fill="#27a799" d="M100.1 21.61c-3.14-3.14-8.24-3.14-11.4 0l-11.4 11.4L49.37 5.08C54.1 3.5 59.13 2.5 64.4 2.5c22.7 0 43 15.73 48.95 38.31 5.78-21.97-.96-44.62-13.25-59.2z" opacity=".8"/>
-    <path fill="#27a799" d="M72.13 41.71 41.71 72.13l-2.83-2.83c-3.14-3.14-3.14-8.24 0-11.4l11.4-11.4-11.4-11.4c-3.14-3.14-3.14-8.24 0-11.4l2.83-2.83c3.14-3.14 8.24-3.14 11.4 0l11.4 11.4 11.4-11.4c3.14-3.14 8.24-3.14 11.4 0l2.83 2.83c3.14 3.14 3.14 8.24 0 11.4l-11.4 11.4 11.4 11.4c3.14 3.14 3.14 8.24 0 11.4l-2.83 2.83c-3.14 3.14-8.24 3.14-11.4 0L72.13 41.71z"/>
-  </svg>
+interface CTraderIconProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  className?: string;
+}
+
+export const CTraderIcon: React.FC<CTraderIconProps> = ({ className = '', ...props }) => (
+  <img
+    src="/ctrader.png"
+    alt="cTrader"
+    className={`${className}`}
+    {...props}
+  />
 );
