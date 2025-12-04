@@ -176,7 +176,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user } = useAuth();
+  const { user, isTrialing, isSubscribed } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed, toggleSidebar } = useUI();
 
@@ -285,7 +285,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             {!isSidebarCollapsed && (
               <div className="overflow-hidden flex-1">
                 <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
-                <p className="text-[9px] text-secondary truncate uppercase tracking-wider">JTradePilot Pro</p>
+                <p className={`text-[9px] truncate uppercase tracking-wider ${
+                  isSubscribed ? 'text-momentum-green' : isTrialing ? 'text-photonic-blue' : 'text-secondary'
+                }`}>
+                  JTradePilot {isSubscribed ? 'Pro' : isTrialing ? 'Trial' : 'Free'}
+                </p>
               </div>
             )}
           </div>
