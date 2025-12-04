@@ -10,6 +10,7 @@ import api from '../services/api';
 import { useView } from '../context/ViewContext';
 import { SettingsSubView } from './DashboardPage';
 import AssetManager from '../components/assets/AssetManager';
+import BillingSettings from '../components/settings/BillingSettings';
 
 const SecuritySettings: React.FC = () => {
     const { accessToken } = useAuth();
@@ -85,6 +86,8 @@ const SettingsPage: React.FC = () => {
                 return <Card><AssetManager /></Card>;
             case 'security':
                 return <SecuritySettings />;
+            case 'billing':
+                return <BillingSettings />;
             default:
                 return <Card><AccountManager /></Card>;
         }
@@ -112,6 +115,7 @@ const SettingsPage: React.FC = () => {
                         <NavButton tab="accounts" label="Accounts" />
                         <NavButton tab="checklist" label="Checklist" />
                         <NavButton tab="assets" label="Assets" />
+                        <NavButton tab="billing" label="Billing" />
                         <NavButton tab="security" label="Security" />
                     </div>
                 </nav>
