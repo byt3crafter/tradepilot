@@ -29,9 +29,10 @@ export class BillingController {
   
   @UseGuards(JwtAccessGuard)
   @Post('checkout')
-  async createCheckoutTransaction(@Req() req: AuthenticatedRequest) {
+  async createCheckoutTransaction(@Req() req: AuthenticatedRequest, @Body() body: { email?: string }) {
     const userId = req.user.sub;
-    return this.billingService.createCheckoutTransaction(userId);
+    const email = body?.email; // Optional: email from frontend to ensure correct address
+    return this.billingService.createCheckoutTransaction(userId, email);
   }
 
   @Post('webhook')

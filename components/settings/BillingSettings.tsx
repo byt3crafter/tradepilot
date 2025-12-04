@@ -27,8 +27,10 @@ const BillingSettings: React.FC = () => {
         throw new Error('Payment system is not ready. Please refresh the page and try again.');
       }
 
-      // Create checkout transaction on backend
-      const { transactionId } = await api.post('/api/billing/checkout', {}, accessToken!);
+      // Create checkout transaction on backend, passing the correct Clerk email
+      const { transactionId } = await api.post('/api/billing/checkout', {
+        email: user?.email, // Send Clerk's verified email to ensure correct billing email
+      }, accessToken!);
 
       // Open Paddle checkout with the transaction ID
       paddle.Checkout.open({

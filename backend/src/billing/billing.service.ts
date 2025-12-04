@@ -42,20 +42,23 @@ export class BillingService {
     this.logger.log(`Paddle SDK initialized in "${paddleEnv}" mode.`);
   }
 
-  async createCheckoutTransaction(userId: string) {
+  async createCheckoutTransaction(userId: string, frontendEmail?: string) {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
         throw new NotFoundException(`User with ID ${userId} not found.`);
       }
 
+      // Use email from frontend (Clerk) if provided, otherwise use database email
+      const emailToUse = frontendEmail || user.email;
+
       let customerId: string | null = user.paddleCustomerId ?? null;
 
       if (!customerId) {
-        this.logger.log(`Creating Paddle customer for user ${userId}.`);
+        this.logger.log(`Creating Paddle customer for user ${userId} with email: ${emailToUse}`);
         try {
           const customer = await this.paddle.customers.create({
-            email: user.email,
+            email: emailToUse,
             name: user.fullName || undefined,
           });
           customerId = customer.id;
@@ -73,6 +76,19 @@ export class BillingService {
           throw new InternalServerErrorException(
             'Could not create checkout session. Please try again later.',
           );
+        }
+      } else {
+        // Customer already exists - update email if provided from frontend
+        if (frontendEmail && frontendEmail !== user.email) {
+          this.logger.log(`Updating Paddle customer ${customerId} email to: ${frontendEmail}`);
+          try {
+            await this.paddle.customers.update(customerId, {
+              email: frontendEmail,
+            });
+          } catch (err: any) {
+            this.logger.warn(`Failed to update customer email: ${err.message}`);
+            // Don't fail checkout if email update fails, just log it
+          }
         }
       }
 
