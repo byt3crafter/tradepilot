@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePaddle } from '../../context/PaddleContext';
 import Card from '../Card';
 import Button from '../ui/Button';
+import api from '../../services/api';
 
 const BillingSettings: React.FC = () => {
-  const { user, isTrialing } = useAuth();
+  const { user, isTrialing, accessToken } = useAuth();
+  const { paddle, isLoading: isPaddleLoading } = usePaddle();
   const [isLoading, setIsLoading] = useState(false);
 
   const calculateDaysRemaining = (endDate: string | null): number | null => {
@@ -16,12 +19,31 @@ const BillingSettings: React.FC = () => {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     setIsLoading(true);
-    // TODO: Integrate Paddle checkout
-    // window.Paddle?.Checkout?.open({ product: PADDLE_PRICE_ID });
-    console.log('Upgrade button clicked - Paddle integration pending');
-    setIsLoading(false);
+    try {
+      if (!paddle) {
+        console.error('Paddle not initialized');
+        throw new Error('Payment system is not ready. Please refresh the page and try again.');
+      }
+
+      // Create checkout transaction on backend
+      const { transactionId } = await api.post('/api/billing/checkout', {}, accessToken!);
+
+      // Open Paddle checkout with the transaction ID
+      paddle.Checkout.open({
+        transactionId,
+        settings: {
+          allowLogout: false,
+          displayMode: 'inline',
+        },
+      });
+    } catch (err: any) {
+      console.error('Upgrade error:', err);
+      alert(err.message || 'Failed to initiate checkout. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getStatusColor = (): string => {
@@ -140,10 +162,11 @@ const BillingSettings: React.FC = () => {
                 </p>
                 <Button
                   onClick={handleUpgrade}
-                  isLoading={isLoading}
+                  isLoading={isLoading || isPaddleLoading}
+                  disabled={isPaddleLoading}
                   className="w-full"
                 >
-                  {isTrialing ? 'Upgrade to Pro' : 'Renew Subscription'}
+                  {isPaddleLoading ? 'Loading...' : isTrialing ? 'Upgrade to Pro' : 'Renew Subscription'}
                 </Button>
               </div>
             ) : user?.subscriptionStatus === 'ACTIVE' ? (
