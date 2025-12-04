@@ -194,6 +194,14 @@ export interface PlaybookStats {
   avgLoss: number;
   profitFactor: number;
   expectancy: number;
+  riskRewardRatio: number;
+  maxDrawdown: number;
+  maxDrawdownPercent: number;
+  largestDailyLoss: number;
+  recoveryFactor: number;
+  tradesPerDay: string | number;
+  maxConsecutiveProfitableDays: number;
+  currentStreak: number;
   avgHoldTimeHours: number;
   equityCurve: EquityDataPoint[];
 }
