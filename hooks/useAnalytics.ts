@@ -67,13 +67,16 @@ export const useAnalytics = (trades: Trade[]) => {
         };
     });
 
-    // --- Largest Daily Loss ---
+    // --- Largest Daily Loss & Count Unique Trading Days ---
     const tradesByDay = new Map<string, number>();
     closedTrades.forEach(t => {
         const day = new Date(t.exitDate!).toLocaleDateString();
         const current = tradesByDay.get(day) || 0;
         tradesByDay.set(day, current + (t.profitLoss ?? 0));
     });
+
+    const uniqueTradingDays = tradesByDay.size;
+
     tradesByDay.forEach(dailyPL => {
         if (dailyPL < 0) {
             largestDailyLoss = Math.max(largestDailyLoss, Math.abs(dailyPL));
