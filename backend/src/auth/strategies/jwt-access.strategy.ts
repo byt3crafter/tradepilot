@@ -57,7 +57,9 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
         throw new UnauthorizedException('User could not be validated');
       }
 
-      const result = { sub: user.id, email: user.email, role: user.role };
+      // Use role from JWT payload first (most up-to-date), fallback to database role
+      const jwtRole = payload.role || payload.public_metadata?.role || user.role;
+      const result = { sub: user.id, email: user.email, role: jwtRole };
       this.logger.log(`✅ JWT VALIDATION SUCCESS - Returning user object: ${JSON.stringify(result)}`);
 
       return result;
