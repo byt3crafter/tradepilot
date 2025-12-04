@@ -53,6 +53,14 @@ const PlaybookStatsTab: React.FC<PlaybookStatsTabProps> = ({ stats, isLoading })
         <StatBox label="Expectancy" value={`$${stats.expectancy.toFixed(2)}`} />
         <StatBox label="Avg. Win" value={`$${stats.avgWin.toFixed(2)}`} />
         <StatBox label="Avg. Loss" value={`$${stats.avgLoss.toFixed(2)}`} />
+        <StatBox label="Risk/Reward Ratio" value={isFinite(stats.riskRewardRatio) ? stats.riskRewardRatio.toFixed(2) : '∞'} />
+        <StatBox label="Max Drawdown" value={`$${stats.maxDrawdown.toFixed(2)}`} />
+        <StatBox label="Drawdown %" value={`${stats.maxDrawdownPercent.toFixed(2)}%`} />
+        <StatBox label="Largest Daily Loss" value={`$${stats.largestDailyLoss.toFixed(2)}`} />
+        <StatBox label="Recovery Factor" value={isFinite(stats.recoveryFactor) ? stats.recoveryFactor.toFixed(2) : '∞'} />
+        <StatBox label="Trades Per Day" value={stats.tradesPerDay} />
+        <StatBox label="Best Win Streak (Days)" value={stats.maxConsecutiveProfitableDays} />
+        <StatBox label="Current Streak" value={stats.currentStreak} />
         <StatBox label="Avg. Hold Time" value={`${stats.avgHoldTimeHours.toFixed(1)} hrs`} />
       </div>
     </div>
