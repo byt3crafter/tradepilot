@@ -82,7 +82,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const subscriptionState = useMemo(() => {
-    const hasGiftedAccess = appUser?.proAccessExpiresAt === null || (appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date());
+    // hasGiftedAccess = true ONLY if proAccessExpiresAt is set AND in the future
+    const hasGiftedAccess = appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date();
     const isSubscribed = appUser?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
     const isTrialing = appUser?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
 
