@@ -78,12 +78,39 @@ export class BillingService {
         } catch (err: any) {
           const status = err?.status || err?.response?.status;
           const body = err?.response?.data || err?.body || err?.message;
-          this.logger.error(
-            `Paddle error (customers.create) status=${status} body=${JSON.stringify(body)}`,
-          );
-          throw new InternalServerErrorException(
-            'Could not create checkout session. Please try again later.',
-          );
+          const errorMsg = typeof body === 'string' ? body : JSON.stringify(body);
+
+          // Handle 409 Conflict - customer already exists
+          if (status === 409 && errorMsg.includes('customer email conflicts')) {
+            // Extract the existing customer ID from the error message
+            // Format: "customer email conflicts with customer of id ctm_01kbm13zhpvrazqvesc3peeh8a"
+            const match = errorMsg.match(/id\s+(ctm_\w+)/);
+            if (match && match[1]) {
+              const existingCustomerId = match[1];
+              this.logger.log(`✓ Customer already exists: ${existingCustomerId}, using existing customer`);
+              customerId = existingCustomerId;
+
+              // Update the database with the existing Paddle customer ID
+              await this.prisma.user.update({
+                where: { id: userId },
+                data: { paddleCustomerId: existingCustomerId },
+              });
+            } else {
+              this.logger.error(
+                `Paddle error (customers.create) status=409 but couldn't extract customer ID from: ${errorMsg}`,
+              );
+              throw new InternalServerErrorException(
+                'Could not create checkout session. Please try again later.',
+              );
+            }
+          } else {
+            this.logger.error(
+              `Paddle error (customers.create) status=${status} body=${errorMsg}`,
+            );
+            throw new InternalServerErrorException(
+              'Could not create checkout session. Please try again later.',
+            );
+          }
         }
       } else {
         // Customer already exists - update email if provided from frontend
