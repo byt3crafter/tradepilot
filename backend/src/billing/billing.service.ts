@@ -27,6 +27,14 @@ export class BillingService {
   ) {
     const apiKey = this.configService.get<string>('PADDLE_API_KEY');
     const paddleEnv = (this.configService.get<string>('PADDLE_ENV') || 'production').toLowerCase();
+    const priceId = this.configService.get<string>('PADDLE_PRICE_ID');
+    const clientToken = this.configService.get<string>('PADDLE_CLIENT_SIDE_TOKEN');
+
+    // Log all config on startup for debugging
+    this.logger.log(`[Config] PADDLE_ENV: ${paddleEnv}`);
+    this.logger.log(`[Config] PADDLE_API_KEY: ${apiKey ? '✓ Set' : '✗ MISSING'}`);
+    this.logger.log(`[Config] PADDLE_PRICE_ID: ${priceId ? '✓ Set' : '✗ MISSING'}`);
+    this.logger.log(`[Config] PADDLE_CLIENT_SIDE_TOKEN: ${clientToken ? '✓ Set' : '✗ MISSING'}`);
 
     if (!apiKey) {
       this.logger.error('PADDLE_API_KEY is missing. Set it in your environment.');
@@ -39,7 +47,7 @@ export class BillingService {
     };
 
     this.paddle = new Paddle(apiKey, options);
-    this.logger.log(`Paddle SDK initialized in "${paddleEnv}" mode.`);
+    this.logger.log(`✓ Paddle SDK initialized in "${paddleEnv}" mode.`);
   }
 
   async createCheckoutTransaction(userId: string, frontendEmail?: string) {
@@ -105,6 +113,8 @@ export class BillingService {
           );
         }
 
+        this.logger.log(`Creating transaction with priceId: ${priceId}, customerId: ${customerId}`);
+
         const transaction = await this.paddle.transactions.create({
           items: [{ priceId, quantity: 1 }],
           customerId: customerId as string,
@@ -112,15 +122,18 @@ export class BillingService {
         });
 
         this.logger.log(
-          `Successfully created Paddle transaction ${transaction.id} for user ${userId}.`,
+          `✓ Successfully created Paddle transaction ${transaction.id} for user ${userId}.`,
         );
         return { transactionId: transaction.id };
       } catch (err: any) {
         const status = err?.status || err?.response?.status;
         const body = err?.response?.data || err?.body || err?.message;
+        const errorMsg = typeof body === 'string' ? body : JSON.stringify(body);
         this.logger.error(
-          `Paddle error (transactions.create) status=${status} body=${JSON.stringify(body)}`,
+          `✗ Paddle error (transactions.create) status=${status} message=${errorMsg}`,
         );
+        // Log the full error for debugging
+        this.logger.error(`Full error object: ${JSON.stringify(err)}`);
         throw new InternalServerErrorException(
           'Could not create checkout session. Please try again later.',
         );
