@@ -169,12 +169,29 @@ export class BillingService {
       case 'subscription.updated':
       case 'subscription.resumed':
       case 'subscription.activated':
+        // Extract billing dates if available
+        const updateData: any = {
+          subscriptionStatus: newStatus,
+          paddleSubscriptionId: subscriptionId,
+        };
+
+        // Update pro access expiration if available
+        if (data.next_billed_at) {
+          updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
+        }
+
+        // If subscription is now active, clear/update trial end date
+        if (newStatus === SubscriptionStatus.ACTIVE) {
+          this.logger.log(`User ${user.id} subscription activated - no longer in trial`);
+          // Trial is over when subscription activates
+          if (!updateData.proAccessExpiresAt && data.next_billed_at) {
+            updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
+          }
+        }
+
         await this.prisma.user.update({
           where: { id: user.id },
-          data: {
-            subscriptionStatus: newStatus,
-            paddleSubscriptionId: subscriptionId,
-          },
+          data: updateData,
         });
         this.logger.log(`Updated subscription for user ${user.id} to ${data.status}`);
         break;

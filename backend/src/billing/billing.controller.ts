@@ -40,7 +40,12 @@ export class BillingController {
   async handlePaddleWebhook(@Headers('paddle-signature') signature: string, @Body() body: any, @Req() req: Request) {
     // SECURITY: In production, it's CRITICAL to verify the webhook signature.
     this.logger.log(`Received Paddle webhook: ${body.event_type}`);
-    await this.billingService.handleWebhookEvent(body);
-    return;
+    try {
+      await this.billingService.handleWebhookEvent(body);
+      this.logger.log(`Successfully processed webhook: ${body.event_type}`);
+    } catch (err: any) {
+      this.logger.error(`Error processing webhook: ${err.message}`);
+    }
+    return { success: true };
   }
 }
