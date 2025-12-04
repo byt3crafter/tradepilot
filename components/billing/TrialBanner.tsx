@@ -15,31 +15,34 @@ const TrialBanner: React.FC = () => {
   // Display trial period (showing remaining days)
   const daysRemaining = trialDaysRemaining || 14;
   const message = isTrialExpired
-    ? "Your free trial has ended. Please upgrade to continue logging trades."
-    : `You have ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left in your trial.`;
+    ? "Your trial has ended. Upgrade to continue."
+    : `${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left in your trial`;
 
-  const bannerClass = isTrialExpired ? 'bg-risk-high/80' : 'bg-photonic-blue/80';
+  // Minimal, subtle design - not stressful
+  const bannerClass = isTrialExpired
+    ? 'bg-white/5 border-b border-white/10'
+    : 'bg-white/5 border-b border-photonic-blue/20';
 
   const handleUpgrade = () => {
     navigateTo('settings', 'billing');
   };
 
   return (
-    <div className={`w-full p-3 text-sm text-future-dark font-semibold ${bannerClass} relative flex items-center justify-between`}>
+    <div className={`w-full px-4 py-2 text-xs text-future-gray font-medium ${bannerClass} relative flex items-center justify-between`}>
       <span>{message}</span>
       <div className="flex items-center gap-2">
         <button
           onClick={handleUpgrade}
-          className="px-3 py-1 rounded-md bg-future-dark/80 hover:bg-future-dark text-photonic-blue font-semibold transition-colors text-xs"
+          className="px-3 py-1 rounded-md bg-photonic-blue/20 hover:bg-photonic-blue/30 text-photonic-blue font-semibold transition-colors text-xs"
         >
-          Upgrade Now
+          Upgrade
         </button>
         <button
           onClick={() => setIsVisible(false)}
-          className="p-1 rounded-full hover:bg-black/20"
+          className="p-0.5 rounded hover:bg-white/10 transition-colors"
           aria-label="Dismiss"
         >
-          <XCircleIcon className="w-5 h-5" />
+          <XCircleIcon className="w-4 h-4" />
         </button>
       </div>
     </div>
