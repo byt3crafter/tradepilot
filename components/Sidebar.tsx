@@ -180,6 +180,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed, toggleSidebar } = useUI();
 
+  // Determine user tier/role display
+  const getUserTierDisplay = (): { label: string; color: string } => {
+    if (user?.role === 'ADMIN') {
+      return { label: 'Admin', color: 'text-risk-high' };
+    }
+    if (isSubscribed) {
+      return { label: 'Pro', color: 'text-momentum-green' };
+    }
+    if (isTrialing) {
+      return { label: 'Trial', color: 'text-photonic-blue' };
+    }
+    return { label: 'Free', color: 'text-secondary' };
+  };
+
   const handleSetView = (view: DashboardView) => {
     navigateTo(view);
     onClose();
@@ -285,10 +299,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             {!isSidebarCollapsed && (
               <div className="overflow-hidden flex-1">
                 <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
-                <p className={`text-[9px] truncate uppercase tracking-wider ${
-                  isSubscribed ? 'text-momentum-green' : isTrialing ? 'text-photonic-blue' : 'text-secondary'
-                }`}>
-                  JTradePilot {isSubscribed ? 'Pro' : isTrialing ? 'Trial' : 'Free'}
+                <p className={`text-[9px] truncate uppercase tracking-wider ${getUserTierDisplay().color}`}>
+                  JTradePilot {getUserTierDisplay().label}
                 </p>
               </div>
             )}
