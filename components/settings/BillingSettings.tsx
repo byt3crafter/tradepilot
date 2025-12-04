@@ -35,7 +35,7 @@ const BillingSettings: React.FC = () => {
         transactionId,
         settings: {
           allowLogout: false,
-          displayMode: 'inline',
+          displayMode: 'modal',
         },
       });
     } catch (err: any) {
