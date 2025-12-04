@@ -72,13 +72,16 @@ const PlaybooksPage: React.FC = () => {
 
     if (playbooks.length === 0) {
       return (
-        <div className="text-center p-16">
-          <div className="border-2 border-dashed border-photonic-blue/20 rounded-lg p-8">
-            <h3 className="text-lg font-semibold text-future-light">Your Playbook is Empty</h3>
-            <p className="text-future-gray mt-2 mb-4">Create your first playbook to get started.</p>
-            <Button onClick={openAddModal} className="w-auto">
-              Create a Playbook
-            </Button>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center max-w-md">
+            <div className="border-2 border-dashed border-photonic-blue/30 rounded-xl p-12 bg-photonic-blue/5">
+              <h3 className="text-2xl font-bold text-future-light mb-3">Your Playbook is Empty</h3>
+              <p className="text-future-gray mb-8">Create your first playbook to get started building your trading strategies.</p>
+              <Button onClick={openAddModal} className="w-full">
+                <PlusIcon className="w-5 h-5 mr-2" />
+                Create a Playbook
+              </Button>
+            </div>
           </div>
         </div>
       );
