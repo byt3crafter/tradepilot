@@ -41,6 +41,7 @@ body {
   overflow-x: hidden !important;
   overflow-y: hidden !important;
   position: relative;
+  z-index: 20;
 }
 
 /* Modern Scrollbars */
