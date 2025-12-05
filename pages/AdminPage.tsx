@@ -3,25 +3,31 @@ import StatCard from '../components/admin/StatCard';
 import UserManagementTable from '../components/admin/UserManagementTable';
 import AdminSidebar from '../components/admin/AdminSidebar';
 import { useAuth } from '../context/AuthContext';
-import { AdminStats, AdminUser } from '../types';
+import { AdminStats, AdminUser, PropFirmTemplate } from '../types';
 import api from '../services/api';
 import Spinner from '../components/Spinner';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import GrantProAccessModal from '../components/admin/GrantProAccessModal';
+import TemplatesManagement from '../components/admin/TemplatesManagement';
+import TemplateFormModal from '../components/admin/TemplateFormModal';
 
-type AdminView = 'dashboard' | 'users';
+type AdminView = 'dashboard' | 'users' | 'templates';
 
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<PropFirmTemplate | null>(null);
 
   const fetchUsers = async () => {
     if (!accessToken) return;
@@ -33,18 +39,30 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const fetchTemplates = async () => {
+    if (!accessToken) return;
+    try {
+      const templatesData = await api.getAllPropFirmTemplates(accessToken);
+      setTemplates(templatesData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to refresh templates.');
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!accessToken) return;
       setIsLoading(true);
       setError('');
       try {
-        const [statsData, usersData] = await Promise.all([
+        const [statsData, usersData, templatesData] = await Promise.all([
           api.getAdminStats(accessToken),
           api.getAdminUsers(accessToken),
+          api.getAllPropFirmTemplates(accessToken),
         ]);
         setStats(statsData);
         setUsers(usersData);
+        setTemplates(templatesData);
       } catch (err: any) {
         setError(err.message || 'Failed to load admin data.');
       } finally {
@@ -71,6 +89,31 @@ const AdminPage: React.FC = () => {
   const handleSuccess = async () => {
     handleCloseModal();
     await fetchUsers();
+  };
+
+  const handleCreateTemplate = () => {
+    setSelectedTemplate(null);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleEditTemplate = (template: PropFirmTemplate) => {
+    setSelectedTemplate(template);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleCloseTemplateModal = () => {
+    setSelectedTemplate(null);
+    setIsTemplateModalOpen(false);
+  };
+
+  const handleTemplateSuccess = async () => {
+    handleCloseTemplateModal();
+    await fetchTemplates();
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!accessToken) return;
+    await api.deletePropFirmTemplate(accessToken, id);
   };
 
   const renderContent = () => {
@@ -114,6 +157,18 @@ const AdminPage: React.FC = () => {
         </>
       );
     }
+
+    if (currentView === 'templates') {
+      return (
+        <TemplatesManagement
+          templates={templates}
+          onRefresh={fetchTemplates}
+          onEdit={handleEditTemplate}
+          onCreate={handleCreateTemplate}
+          onDelete={handleDeleteTemplate}
+        />
+      );
+    }
   };
 
   return (
@@ -130,7 +185,7 @@ const AdminPage: React.FC = () => {
         <header className="flex-shrink-0 h-16 border-b border-white/10 flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <span className="font-orbitron text-lg text-secondary">
-              {currentView === 'dashboard' ? 'Dashboard' : 'Users'}
+              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : 'Templates'}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -148,6 +203,15 @@ const AdminPage: React.FC = () => {
       {isModalOpen && selectedUser && (
         <Modal title={`Manage Pro Access for ${selectedUser.fullName}`} onClose={handleCloseModal}>
           <GrantProAccessModal user={selectedUser} onSuccess={handleSuccess} />
+        </Modal>
+      )}
+
+      {isTemplateModalOpen && (
+        <Modal
+          title={selectedTemplate ? 'Edit Template' : 'Create Template'}
+          onClose={handleCloseTemplateModal}
+        >
+          <TemplateFormModal template={selectedTemplate} onSuccess={handleTemplateSuccess} />
         </Modal>
       )}
     </div>

@@ -35,7 +35,7 @@ const AboutUsPage: React.FC = () => {
             About JTradePilot
           </h1>
           <p className="text-xl text-future-gray max-w-2xl mx-auto font-light">
-            We're building the tools traders actually need to improve. No hype. No shortcuts. Just discipline.
+            Built specifically for prop firm traders. Pass your challenge. Get funded. Stay disciplined.
           </p>
         </section>
 
@@ -44,13 +44,13 @@ const AboutUsPage: React.FC = () => {
           <h2 className="text-3xl font-bold text-future-light">Our Story</h2>
           <div className="space-y-4 text-future-gray leading-relaxed">
             <p>
-              JTradePilot was born from frustration. We watched traders with solid strategies fail because they lacked discipline. They didn't journal. They didn't reflect. They made the same mistakes repeatedly.
+              JTradePilot was born from watching talented traders fail prop firm challenges. Not because they couldn't trade—but because they broke rules, exceeded drawdown limits, or lacked discipline under evaluation pressure.
             </p>
             <p>
-              The existing tools were either too complex, too expensive, or focused on the wrong things. They promised signals, predictions, and shortcuts. We knew there had to be a better way.
+              The existing tools weren't built for prop traders. They didn't track challenge progress, monitor drawdown limits, or help traders stay disciplined during evaluations.
             </p>
             <p>
-              So we built JTradePilot. A simple trading journal that makes reflection effortless and analysis automatic. Not to replace trader judgment—to support it.
+              So we built JTradePilot specifically for prop firm traders. Track your challenge progress, stay within your limits, and get funded faster through disciplined trading and AI-powered insights.
             </p>
           </div>
         </section>
@@ -94,10 +94,10 @@ const AboutUsPage: React.FC = () => {
         <section className="bg-gradient-to-r from-photonic-blue/10 to-photonic-blue/5 rounded-lg p-8 md:p-12 border border-photonic-blue/30 space-y-6">
           <h2 className="text-3xl font-bold text-future-light">Our Mission</h2>
           <p className="text-lg text-future-gray leading-relaxed">
-            Help traders build discipline through honest reflection. We believe trading mastery doesn't come from better indicators or more signals. It comes from understanding yourself—your biases, your emotional triggers, your edge.
+            Help prop firm traders pass their challenges and get funded. We believe success comes from discipline, not luck. Track every rule, monitor every limit, and stay accountable to your plan.
           </p>
           <p className="text-lg text-future-gray leading-relaxed">
-            JTradePilot removes the friction from journaling so you can focus on the hard part: actually improving as a trader.
+            JTradePilot gives you the tools to pass FTMO, MyForexFunds, The5%ers, and any prop firm challenge through disciplined tracking and trade analysis.
           </p>
         </section>
 
@@ -201,7 +201,7 @@ const AboutUsPage: React.FC = () => {
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-photonic-blue/10 text-center">
           <p className="text-future-gray text-sm">
-            © 2024 JTradePilot. Building trading discipline, one trade at a time.
+            © 2024 JTradePilot. Helping prop traders get funded through disciplined tracking.
           </p>
         </div>
       </div>

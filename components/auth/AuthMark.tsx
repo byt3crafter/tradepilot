@@ -2,18 +2,17 @@ import React from 'react';
 
 interface AuthMarkProps {
   className?: string;
-  size?: number; // font size in px
+  size?: number; // height in px
 }
 
 const AuthMark: React.FC<AuthMarkProps> = ({ className = '', size = 20 }) => {
   return (
-    <span
-      className={`font-orbitron font-bold text-photonic-blue drop-shadow-[0_0_6px_rgba(0,191,255,0.65)] ${className}`}
-      style={{ fontSize: size }}
-      aria-label="JTradePilot"
-    >
-      JTP
-    </span>
+    <img
+      src="/JTP_logo.png"
+      alt="JTradePilot"
+      className={`w-auto ${className}`}
+      style={{ height: `${size}px` }}
+    />
   );
 };
 

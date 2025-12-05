@@ -15,6 +15,8 @@ import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 import AnalyticsPage from './AnalyticsPage';
 import AnalysisPage from './AnalysisPage';
+import { UserButton } from '@clerk/clerk-react';
+import { dark } from '@clerk/themes';
 
 export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker' | 'pricing';
 export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
@@ -64,13 +66,26 @@ const DashboardPage: React.FC = () => {
         {/* Mobile header - fixed height, no scroll */}
         <header className="flex-shrink-0 p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
           <span className="font-medium text-sm">JTradePilot</span>
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
-            aria-label="Open sidebar"
-          >
-            <MenuIcon className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            <UserButton
+              appearance={{
+                baseTheme: dark,
+                elements: {
+                  avatarBox: "w-8 h-8 rounded-full border border-white/10",
+                  userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
+                  userButtonPopoverFooter: "hidden",
+                  userButtonTrigger: "focus:shadow-none"
+                }
+              }}
+            />
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
+              aria-label="Open sidebar"
+            >
+              <MenuIcon className="w-6 h-6" />
+            </button>
+          </div>
         </header>
 
         {/* Scrollable content area */}

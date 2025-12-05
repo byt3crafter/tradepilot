@@ -218,7 +218,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           {isSidebarCollapsed ? (
             <AuthMark size={18} />
           ) : (
-            <AuthLogo />
+            <div className="flex items-center gap-2">
+              <img src="/JTP_logo.png" alt="JTP Logo" className="h-8 w-auto" />
+              <span className="px-2 py-1 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-xs font-bold text-photonic-blue uppercase tracking-wider">
+                BETA
+              </span>
+            </div>
           )}
           {!isSidebarCollapsed && (
             <button

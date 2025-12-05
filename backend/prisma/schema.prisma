@@ -51,6 +51,9 @@ model BrokerAccount {
   userId         String
   user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  templateId     String?
+  template       PropFirmTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
   objectives     TradingObjective?
   smartLimits    SmartLimit?
   trades         Trade[]
@@ -76,9 +79,32 @@ model TradingObjective {
   minTradingDays  Int?
   maxLoss         Float?
   maxDailyLoss    Float?
-  
+
   brokerAccountId String        @unique
   brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+model PropFirmTemplate {
+  id                String          @id @default(uuid())
+  name              String          // e.g., "FTMO $100k Challenge"
+  firmName          String          // e.g., "FTMO"
+  accountSize       Float           // e.g., 100000
+  profitTarget      Float           // e.g., 10000
+  dailyDrawdown     Float           // e.g., 5000
+  maxDrawdown       Float           // e.g., 10000
+  drawdownType      DrawdownType    @default(TRAILING)
+  minTradingDays    Int             // e.g., 10
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  brokerAccounts    BrokerAccount[]
+}
+
+enum DrawdownType {
+  TRAILING
+  STATIC
 }
 
 model SmartLimit {

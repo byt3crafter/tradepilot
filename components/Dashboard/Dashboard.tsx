@@ -8,6 +8,7 @@ import GettingStartedGuide from './GettingStartedGuide';
 import { useAccount } from '../../context/AccountContext';
 import TradingObjectivesCard from './TradingObjectivesCard';
 import DashboardHeader from './DashboardHeader';
+import ChallengeProgressCard from './ChallengeProgressCard';
 
 import Spinner from '../Spinner';
 
@@ -47,14 +48,19 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 animate-fade-in-up">
+    <div className="flex flex-col gap-4 md:gap-6 animate-fade-in-up">
       {/* Only show header and objectives if there's data */}
       {hasTrades && (
         <>
           <DashboardHeader />
 
-          {/* Prop Firm Objectives */}
-          {activeAccount?.objectives?.isEnabled && objectivesProgress && objectivesProgress.length > 0 && (
+          {/* Challenge Progress Card (for prop firm accounts with template) */}
+          {activeAccount?.type === 'PROP_FIRM' && activeAccount?.templateId && (
+            <ChallengeProgressCard />
+          )}
+
+          {/* Prop Firm Objectives (fallback for accounts without template) */}
+          {activeAccount?.objectives?.isEnabled && !activeAccount?.templateId && objectivesProgress && objectivesProgress.length > 0 && (
             <TradingObjectivesCard objectives={objectivesProgress} currentEquity={activeAccount.currentBalance} />
           )}
         </>

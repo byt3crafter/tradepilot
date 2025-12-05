@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
 import { JoiValidationSchema } from './config/config.schema';
+import { PdfModule } from './pdf/pdf.module';
 
 
 @Module({
@@ -58,6 +59,7 @@ import { JoiValidationSchema } from './config/config.schema';
     AnalyticsModule,
     NotificationsModule,
     TasksModule,
+    PdfModule,
   ],
   controllers: [],
   providers: [

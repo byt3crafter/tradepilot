@@ -6,6 +6,9 @@ import { AdminUserDto } from './dtos/admin-user.dto';
 import { GrantProDto } from './dtos/grant-pro.dto';
 import { UsersService } from '../users/users.service';
 import { Prisma, User } from '@prisma/client';
+import { CreatePropFirmTemplateDto } from './dtos/create-prop-firm-template.dto';
+import { UpdatePropFirmTemplateDto } from './dtos/update-prop-firm-template.dto';
+import { PropFirmTemplateDto } from './dtos/prop-firm-template.dto';
 
 @Injectable()
 export class AdminService {
@@ -103,5 +106,59 @@ export class AdminService {
 
   async deleteUser(userId: string): Promise<{ message: string }> {
     return this.usersService.delete(userId);
+  }
+
+  // Prop Firm Templates CRUD
+  async getAllTemplates(): Promise<PropFirmTemplateDto[]> {
+    const templates = await this.prisma.propFirmTemplate.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return templates.map(template =>
+      plainToInstance(PropFirmTemplateDto, template, { excludeExtraneousValues: true })
+    );
+  }
+
+  async getTemplateById(id: string): Promise<PropFirmTemplateDto> {
+    const template = await this.prisma.propFirmTemplate.findUnique({
+      where: { id },
+    });
+    if (!template) {
+      throw new NotFoundException(`Prop firm template with ID ${id} not found.`);
+    }
+    return plainToInstance(PropFirmTemplateDto, template, { excludeExtraneousValues: true });
+  }
+
+  async createTemplate(dto: CreatePropFirmTemplateDto): Promise<PropFirmTemplateDto> {
+    const template = await this.prisma.propFirmTemplate.create({
+      data: dto,
+    });
+    return plainToInstance(PropFirmTemplateDto, template, { excludeExtraneousValues: true });
+  }
+
+  async updateTemplate(id: string, dto: UpdatePropFirmTemplateDto): Promise<PropFirmTemplateDto> {
+    const existingTemplate = await this.prisma.propFirmTemplate.findUnique({
+      where: { id },
+    });
+    if (!existingTemplate) {
+      throw new NotFoundException(`Prop firm template with ID ${id} not found.`);
+    }
+    const updatedTemplate = await this.prisma.propFirmTemplate.update({
+      where: { id },
+      data: dto,
+    });
+    return plainToInstance(PropFirmTemplateDto, updatedTemplate, { excludeExtraneousValues: true });
+  }
+
+  async deleteTemplate(id: string): Promise<{ message: string }> {
+    const template = await this.prisma.propFirmTemplate.findUnique({
+      where: { id },
+    });
+    if (!template) {
+      throw new NotFoundException(`Prop firm template with ID ${id} not found.`);
+    }
+    await this.prisma.propFirmTemplate.delete({
+      where: { id },
+    });
+    return { message: `Template ${template.name} deleted successfully.` };
   }
 }

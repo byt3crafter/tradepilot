@@ -5,11 +5,12 @@ import AuthLogo from '../components/auth/AuthLogo';
 
 const LoginPage: React.FC = () => {
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-4 relative animate-fade-in-up mx-auto">
-      <div className="mb-8">
-        <AuthLogo />
-      </div>
-      <SignIn
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8 bg-void">
+      <div className="w-full max-w-md flex flex-col items-center">
+        <div className="mb-8">
+          <AuthLogo />
+        </div>
+        <SignIn
         appearance={{
           baseTheme: dark,
           variables: {
@@ -36,6 +37,7 @@ const LoginPage: React.FC = () => {
         }}
         signUpUrl="/signup"
       />
+      </div>
     </div>
   );
 };

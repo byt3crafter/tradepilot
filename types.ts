@@ -55,6 +55,7 @@ export interface BrokerAccount {
   leverage?: number | null;
   feeModel: FeeModel;
   userId: string;
+  templateId?: string | null;
   createdAt: string;
   updatedAt: string;
   objectives?: TradingObjective | null;
@@ -445,4 +446,37 @@ export interface Notification {
   createdAt: string;
   userId: string;
   analysisId?: string | null;
+}
+
+// Prop Firm Template Types
+export enum DrawdownType {
+  TRAILING = 'TRAILING',
+  STATIC = 'STATIC',
+}
+
+export interface PropFirmTemplate {
+  id: string;
+  name: string;
+  firmName: string;
+  accountSize: number;
+  profitTarget: number;
+  dailyDrawdown: number;
+  maxDrawdown: number;
+  drawdownType: DrawdownType;
+  minTradingDays: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePropFirmTemplateDto {
+  name: string;
+  firmName: string;
+  accountSize: number;
+  profitTarget: number;
+  dailyDrawdown: number;
+  maxDrawdown: number;
+  drawdownType: 'TRAILING' | 'STATIC';
+  minTradingDays: number;
+  isActive?: boolean;
 }

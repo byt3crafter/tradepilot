@@ -15,9 +15,9 @@ const KeyMetricsDashboard: React.FC = () => {
   const closedTrades = trades.filter(t => t.result);
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fade-in-up">
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6 animate-fade-in-up">
       {/* --- Main Column (Left) --- */}
-      <div className="xl:col-span-2 flex flex-col gap-6">
+      <div className="xl:col-span-2 flex flex-col gap-4 md:gap-6">
         {/* Row 1: Equity Hero */}
         <EquityHero
           netPL={stats.netPL}
@@ -33,8 +33,8 @@ const KeyMetricsDashboard: React.FC = () => {
       </div>
 
       {/* --- Side Column (Right) --- */}
-      <div className="xl:col-span-1 min-h-[500px] xl:min-h-0">
-        <div className="h-[400px]">
+      <div className="xl:col-span-1 min-h-[400px] xl:min-h-0">
+        <div className="h-full min-h-[400px]">
           <RecentActivity trades={closedTrades} />
         </div>
       </div>

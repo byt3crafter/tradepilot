@@ -1,12 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccount } from '../../context/AccountContext';
-import { BrokerAccount, BrokerAccountType, FeeModel } from '../../types';
+import { BrokerAccount, BrokerAccountType, FeeModel, PropFirmTemplate } from '../../types';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import SelectInput from '../ui/SelectInput';
 import ToggleSwitch from '../ui/ToggleSwitch';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 interface AccountFormProps {
   account: BrokerAccount | null;
@@ -15,12 +17,16 @@ interface AccountFormProps {
 
 const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const { createAccount, updateAccount } = useAccount();
+  const { accessToken } = useAuth();
   const [name, setName] = useState(account?.name || '');
   const [type, setType] = useState<BrokerAccountType>(account?.type || BrokerAccountType.LIVE);
   const [initialBalance, setInitialBalance] = useState(account?.initialBalance || '');
   const [currency, setCurrency] = useState(account?.currency || 'USD');
   const [leverage, setLeverage] = useState(account?.leverage || '');
   const [feeModel, setFeeModel] = useState<FeeModel>(account?.feeModel || FeeModel.SPREAD_ONLY);
+
+  const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   
   const [objectivesEnabled, setObjectivesEnabled] = useState(account?.objectives?.isEnabled || false);
   const [profitTarget, setProfitTarget] = useState(account?.objectives?.profitTarget ?? '');
@@ -35,6 +41,37 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch templates on mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      if (!accessToken) return;
+      try {
+        const templatesData = await api.getAllPropFirmTemplates(accessToken);
+        setTemplates(templatesData.filter(t => t.isActive));
+      } catch (err) {
+        console.error('Failed to fetch templates:', err);
+      }
+    };
+    fetchTemplates();
+  }, [accessToken]);
+
+  // Handle template selection - auto-fill fields
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (!templateId) return;
+
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // Auto-fill all fields from template
+    setInitialBalance(template.accountSize.toString());
+    setObjectivesEnabled(true);
+    setProfitTarget(template.profitTarget.toString());
+    setMinTradingDays(template.minTradingDays.toString());
+    setMaxLoss(template.maxDrawdown.toString());
+    setMaxDailyLoss(template.dailyDrawdown.toString());
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +104,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       initialBalance: balance,
       currency,
       leverage: leverage ? parseInt(leverage as string, 10) : null,
+      templateId: selectedTemplateId || null,
       // Note: feeModel is not sent to the API - it's stored locally only
     };
 
@@ -110,6 +148,30 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
           { value: BrokerAccountType.PROP_FIRM, label: 'Prop Firm' },
         ]}
       />
+
+      {type === BrokerAccountType.PROP_FIRM && templates.length > 0 && (
+        <div className="animate-fade-in-up">
+          <SelectInput
+            label="Choose a Template (Optional)"
+            id="template"
+            value={selectedTemplateId}
+            onChange={(e) => handleTemplateSelect(e.target.value)}
+            options={[
+              { value: '', label: 'No Template (Enter Manually)' },
+              ...templates.map(t => ({
+                value: t.id,
+                label: `${t.name} - ${t.firmName} ($${t.accountSize.toLocaleString()})`
+              }))
+            ]}
+          />
+          {selectedTemplateId && (
+            <p className="text-xs text-secondary mt-1">
+              Template applied! Fields have been auto-filled below. You can adjust them if needed.
+            </p>
+          )}
+        </div>
+      )}
+
       <Input
         label="Initial Balance"
         id="initialBalance"

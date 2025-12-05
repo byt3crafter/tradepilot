@@ -101,7 +101,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit, isSelected, onSelect
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>('ai');
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   const assetSpec = findSpec(trade.asset);
   

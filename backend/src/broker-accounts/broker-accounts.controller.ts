@@ -4,6 +4,7 @@ import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Request } from 'express';
+import { DrawdownService } from './drawdown.service';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -14,7 +15,10 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAccessGuard)
 @Controller('broker-accounts')
 export class BrokerAccountsController {
-  constructor(private readonly brokerAccountsService: BrokerAccountsService) {}
+  constructor(
+    private readonly brokerAccountsService: BrokerAccountsService,
+    private readonly drawdownService: DrawdownService,
+  ) {}
 
   @Post()
   create(@Body() createBrokerAccountDto: CreateBrokerAccountDto, @Req() req: AuthenticatedRequest) {
@@ -44,6 +48,12 @@ export class BrokerAccountsController {
   getSmartLimitsProgress(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.brokerAccountsService.getSmartLimitsProgress(id, userId);
+  }
+
+  @Get(':id/drawdown')
+  getDrawdownCalculation(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return this.drawdownService.calculateDrawdown(id, userId);
   }
 
   @Post(':id/weekly-debrief')

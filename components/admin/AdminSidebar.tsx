@@ -3,10 +3,11 @@ import AuthLogo from '../auth/AuthLogo';
 import AuthMark from '../auth/AuthMark';
 import { AdminIcon } from '../icons/AdminIcon';
 import { UserIcon } from '../icons/UserIcon';
+import { SettingsIcon } from '../icons/SettingsIcon';
 
 interface AdminSidebarProps {
-    currentView: 'dashboard' | 'users';
-    onNavigate: (view: 'dashboard' | 'users') => void;
+    currentView: 'dashboard' | 'users' | 'templates';
+    onNavigate: (view: 'dashboard' | 'users' | 'templates') => void;
     isCollapsed: boolean;
 }
 
@@ -74,6 +75,13 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
                     label="Users"
                     isActive={currentView === 'users'}
                     onClick={() => onNavigate('users')}
+                    isCollapsed={isCollapsed}
+                />
+                <AdminNavItem
+                    icon={<SettingsIcon className="w-4 h-4" />}
+                    label="Templates"
+                    isActive={currentView === 'templates'}
+                    onClick={() => onNavigate('templates')}
                     isCollapsed={isCollapsed}
                 />
             </div>

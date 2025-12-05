@@ -173,6 +173,7 @@ const api: ApiService = {
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress> { return this.get(`/api/broker-accounts/${id}/smart-limits-progress`, token); },
   getWeeklyDebrief(accountId: string, token: string): Promise<{ debrief: string }> { return this.post(`/api/broker-accounts/${accountId}/weekly-debrief`, {}, token); },
   getDailyDebrief(accountId: string, token: string): Promise<{ debrief: string }> { return this.post(`/api/broker-accounts/${accountId}/daily-debrief`, {}, token); },
+  getDrawdownCalculation(token: string, accountId: string): Promise<any> { return this.get(`/api/broker-accounts/${accountId}/drawdown`, token); },
   getAnalytics(accountId: string, token: string, params?: { startDate?: string; endDate?: string }): Promise<AccountAnalytics> {
     const query = new URLSearchParams();
     if (params?.startDate) query.set('startDate', params.startDate);
@@ -233,6 +234,13 @@ const api: ApiService = {
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/grant-pro`, data, token); },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> { return this.delete(`/api/admin/users/${userId}/grant-pro`, token); },
   deleteUser(userId: string, token: string): Promise<{ message: string }> { return this.delete(`/api/admin/users/${userId}`, token); },
+
+  // Prop Firm Template Methods (Admin)
+  getAllPropFirmTemplates(token: string): Promise<import('../types').PropFirmTemplate[]> { return this.get('/api/admin/templates', token); },
+  getPropFirmTemplate(token: string, id: string): Promise<import('../types').PropFirmTemplate> { return this.get(`/api/admin/templates/${id}`, token); },
+  createPropFirmTemplate(token: string, data: import('../types').CreatePropFirmTemplateDto): Promise<import('../types').PropFirmTemplate> { return this.post('/api/admin/templates', data, token); },
+  updatePropFirmTemplate(token: string, id: string, data: Partial<import('../types').CreatePropFirmTemplateDto>): Promise<import('../types').PropFirmTemplate> { return this.patch(`/api/admin/templates/${id}`, data, token); },
+  deletePropFirmTemplate(token: string, id: string): Promise<{ message: string }> { return this.delete(`/api/admin/templates/${id}`, token); },
 
   // Asset Methods
   getAssetSpecs(token: string): Promise<AssetSpecification[]> { return this.get('/api/assets/specs', token); },
