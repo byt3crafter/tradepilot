@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://sandbox-buy.paddle.com https://buy.paddle.com https://*.paddle.com;">
+  <meta http-equiv="Content-Security-Policy"
+    content="frame-ancestors 'self' https://sandbox-buy.paddle.com https://buy.paddle.com https://*.paddle.com;">
   <title>JTradePilot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +16,7 @@
   <!-- UnicornStudio Animated Background - Landing Page Only (Loaded by React) -->
   <script type="text/javascript">
     // Global function for React to load UnicornStudio when on landing page
-    window.loadUnicornStudio = function() {
+    window.loadUnicornStudio = function () {
       if (window.UnicornStudio && window.UnicornStudio.isInitialized) {
         return; // Already loaded
       }
@@ -36,7 +37,7 @@
     };
 
     // Create or remove animated background
-    window.showAnimatedBackground = function(show) {
+    window.showAnimatedBackground = function (show) {
       const bgContainer = document.getElementById('animated-background-container');
       if (!bgContainer) return;
 
@@ -149,21 +150,7 @@
       };
     })();
 
-    // Show/Hide animated background based on route
-    window.showAnimatedBackground = function (show) {
-      const bgContainer = document.getElementById('animated-background-container');
-      if (bgContainer) {
-        if (show) {
-          bgContainer.style.display = 'block';
-          bgContainer.style.opacity = '1';
-          bgContainer.style.transition = 'opacity 0.5s ease-in-out';
-        } else {
-          bgContainer.style.display = 'none';
-          bgContainer.style.opacity = '0';
-          bgContainer.style.transition = 'opacity 0.5s ease-in-out';
-        }
-      }
-    };
+
 
     // Check current route immediately (before React loads)
     function initializeBackgroundForCurrentRoute() {

@@ -1,3 +1,5 @@
+export type AuthPage = 'login' | 'signup';
+
 export interface User {
   id: string;
   email: string;

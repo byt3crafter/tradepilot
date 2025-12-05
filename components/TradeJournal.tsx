@@ -118,7 +118,8 @@ const TradeJournal: React.FC = () => {
       showUpgradeModal();
       return;
     }
-    if (isObjectiveBlocked || isSmartLimitBlocked) return;
+    // Allow logging trades even when limits are reached - they're just warnings
+    // if (isObjectiveBlocked || isSmartLimitBlocked) return;
 
     setEditingTrade(null);
     if (enforceChecklist && rules.length > 0) {
@@ -126,7 +127,7 @@ const TradeJournal: React.FC = () => {
     } else {
       setAddTradeStep('form');
     }
-  }, [isTrialExpired, showUpgradeModal, isObjectiveBlocked, isSmartLimitBlocked, enforceChecklist, rules.length]);
+  }, [isTrialExpired, showUpgradeModal, enforceChecklist, rules.length]);
 
   useEffect(() => {
     if (isAddTradeModalOpenRequest) {
@@ -177,8 +178,9 @@ const TradeJournal: React.FC = () => {
       setSelectedTradeIds([]);
       setIsDeleteConfirmOpen(false);
     } catch (err: any) {
-      console.error(err);
-      alert(`Failed to delete trades: ${err.message}`);
+      console.error('Bulk delete error:', err);
+      const errorMessage = err?.response?.data?.message || err?.message || 'An unknown error occurred';
+      alert(`Failed to delete trades: ${errorMessage}`);
     }
   };
 
@@ -311,14 +313,14 @@ const TradeJournal: React.FC = () => {
                 <span className="hidden sm:inline">Import</span>
               </Button>
 
-              <Button onClick={handleOpenAddTrade} disabled={isObjectiveBlocked || isSmartLimitBlocked} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
+              <Button onClick={handleOpenAddTrade} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
                 <PlusIcon className="w-5 h-5" />
                 <span>Log Trade</span>
               </Button>
 
               {(isObjectiveBlocked || isSmartLimitBlocked) && (
-                <div className="absolute -top-10 right-0 text-xs bg-risk-high text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
-                  {blockReason}
+                <div className="absolute -top-10 right-0 text-xs bg-risk-medium text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
+                  Warning: {blockReason}
                 </div>
               )}
             </div>
@@ -361,7 +363,8 @@ const TradeJournal: React.FC = () => {
             <span className="text-sm font-semibold text-future-light">{selectedTradeIds.length} trades selected</span>
             <Button
               onClick={() => setIsDeleteConfirmOpen(true)}
-              className="w-auto flex items-center gap-2 px-3 py-1.5 text-sm bg-risk-high text-white hover:bg-risk-high/90 shadow-glow-red"
+              variant="danger"
+              className="w-auto flex items-center gap-2 px-3 py-1.5 text-sm"
             >
               <TrashIcon className="w-4 h-4" />
               Delete Selected
@@ -424,7 +427,7 @@ const TradeJournal: React.FC = () => {
             <p className="text-sm text-risk-medium mt-2">This action cannot be undone.</p>
             <div className="mt-6 flex justify-center gap-4">
               <Button onClick={closeModals} variant="secondary" className="w-auto">Cancel</Button>
-              <Button onClick={handleDeleteSelected} className="w-auto bg-risk-high text-white hover:bg-risk-high/90 shadow-glow-red">
+              <Button onClick={handleDeleteSelected} variant="danger" className="w-auto">
                 Delete
               </Button>
             </div>

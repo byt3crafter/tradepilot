@@ -7,8 +7,8 @@ interface StatBoxProps {
 }
 
 const StatBox: React.FC<StatBoxProps> = ({ label, value }) => {
-  const isPositive = typeof value === 'string' && value.startsWith('$') && !value.includes('-$');
-  const isNegative = typeof value === 'string' && value.includes('-$');
+  const isPositive = typeof value === 'string' && value.startsWith('$') && !value.includes('$-');
+  const isNegative = typeof value === 'string' && value.includes('$-');
 
   const valueColor = isPositive ? 'text-momentum-green' : isNegative ? 'text-risk-high' : 'text-future-light';
 

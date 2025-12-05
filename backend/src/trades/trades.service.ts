@@ -80,13 +80,16 @@ export class TradesService {
     await this.prisma.$transaction(async (tx) => {
       for (const trade of trades) {
         // Check for duplicates within this transaction scope
+        // A trade is considered duplicate if it has the same asset, entry/exit dates, and entry/exit prices
         const existingTrade = await tx.trade.findFirst({
           where: {
             brokerAccountId,
             userId,
             asset: trade.asset,
             entryDate: trade.entryDate,
+            exitDate: trade.exitDate,
             entryPrice: trade.entryPrice,
+            exitPrice: trade.exitPrice,
           },
         });
 

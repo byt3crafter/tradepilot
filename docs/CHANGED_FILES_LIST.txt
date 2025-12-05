@@ -1,0 +1,123 @@
+# Files Changed in Bug Fix Session - December 4, 2024
+
+## UPDATE: Landing Page Links Added
+pages/LandingPage.tsx - Added Pricing and Refund Policy footer links
+
+## Frontend Changes (12 files)
+
+### Components
+components/playbooks/StatBox.tsx
+components/TradeJournal.tsx
+
+### Pages
+pages/AboutPage.tsx
+pages/AboutUsPage.tsx
+pages/PrivacyPolicyPage.tsx
+pages/TermsOfServicePage.tsx
+pages/RiskDisclaimerPage.tsx
+pages/FAQPage.tsx
+pages/PricingPage.tsx
+pages/RefundPolicyPage.tsx (NEW FILE - created)
+
+### Routing & Navigation
+App.tsx
+pages/LandingPage.tsx
+
+## Backend Changes (2 files)
+
+backend/src/main.ts
+backend/src/trades/trades.service.ts
+
+## Documentation (2 files)
+
+BUG_FIXES_DECEMBER_2024.md (NEW - comprehensive guide)
+CURRENT_SESSION_SUMMARY.md (UPDATED - session summary)
+
+---
+
+## Git Commit Suggestions
+
+### Option 1: Single Commit
+```bash
+git add .
+git commit -m "fix: resolve 9 critical UI/UX bugs
+
+- Fix negative P&L color display in performance stats
+- Update delete button styling to danger variant
+- Increase file upload limit to 50MB
+- Change risk margin blocking to warning behavior
+- Add /pricing and /refund-policy routes
+- Fix scrolling on all policy pages
+- Enhance bulk delete error handling
+- Improve CSV import duplicate detection
+
+See BUG_FIXES_DECEMBER_2024.md for details"
+```
+
+### Option 2: Separate Commits by Category
+
+#### UI Fixes
+```bash
+git add components/playbooks/StatBox.tsx components/TradeJournal.tsx
+git commit -m "fix(ui): update colors and button styling
+
+- Fix negative P&L red color detection
+- Change delete buttons to danger variant"
+```
+
+#### Policy Pages
+```bash
+git add pages/AboutPage.tsx pages/AboutUsPage.tsx pages/PrivacyPolicyPage.tsx pages/TermsOfServicePage.tsx pages/RiskDisclaimerPage.tsx pages/FAQPage.tsx pages/PricingPage.tsx pages/RefundPolicyPage.tsx App.tsx
+git commit -m "fix(pages): add missing pages and fix scrolling
+
+- Create RefundPolicyPage
+- Add /pricing and /refund-policy routes
+- Fix scrolling on all 8 policy pages"
+```
+
+#### Backend Improvements
+```bash
+git add backend/src/main.ts backend/src/trades/trades.service.ts
+git commit -m "fix(backend): increase upload limit and improve duplicate detection
+
+- Increase payload size from 10MB to 50MB
+- Enhance duplicate detection with exit date/price"
+```
+
+#### UX Improvements
+```bash
+git add components/TradeJournal.tsx
+git commit -m "fix(ux): improve risk limit and error handling
+
+- Change risk blocking to warning behavior
+- Enhance bulk delete error messages"
+```
+
+#### Documentation
+```bash
+git add BUG_FIXES_DECEMBER_2024.md CURRENT_SESSION_SUMMARY.md CHANGED_FILES_LIST.txt
+git commit -m "docs: add comprehensive bug fix documentation"
+```
+
+---
+
+## For Review
+
+**Total Files Modified**: 13 files
+**New Files Created**: 3 files (RefundPolicyPage.tsx + 2 docs)
+**Lines Changed**: ~150 lines (estimate)
+**Risk Level**: Low (non-breaking changes)
+
+---
+
+## Quick File Reference by Issue
+
+Issue #1 (P&L Color): components/playbooks/StatBox.tsx
+Issue #2 (Delete Styling): components/TradeJournal.tsx
+Issue #3 (File Upload): backend/src/main.ts
+Issue #4 (Risk Blocking): components/TradeJournal.tsx
+Issue #5 (Pricing URL): App.tsx
+Issue #6 (Refund URL): pages/RefundPolicyPage.tsx, App.tsx
+Issue #7 (Scrolling): 8 page files
+Issue #8 (Delete Error): components/TradeJournal.tsx
+Issue #9 (CSV Duplicates): backend/src/trades/trades.service.ts

@@ -204,9 +204,9 @@ const BillingSettings: React.FC = () => {
           </div>
 
           <div className="pt-4 border-t border-white/10">
-            <p className="font-semibold text-future-light mb-1">Do you offer refunds?</p>
+            <p className="font-semibold text-future-light mb-1">Early Adopter Pricing</p>
             <p className="text-future-gray">
-              We offer a 30-day money-back guarantee for all new subscriptions. Contact support@tradepilot.com for refund requests.
+              As an early adopter, you lock in $5/month pricing forever and receive all new features. Contact support@tradepilot.com for any billing questions.
             </p>
           </div>
         </div>

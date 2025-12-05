@@ -64,7 +64,7 @@ const PricingPage: React.FC = () => {
 
     if (uiStage === 'activated') {
         return (
-            <div className="min-h-screen flex items-center justify-center p-6">
+            <div className="h-screen overflow-y-auto flex items-center justify-center p-6">
                 <Card className="max-w-md w-full">
                     <div className="text-center p-8">
                         <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green" />
@@ -77,7 +77,7 @@ const PricingPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="h-screen overflow-y-auto flex items-center justify-center p-6">
             <div className="max-w-5xl w-full space-y-8">
                 {/* Header */}
                 <div className="text-center space-y-3">
@@ -95,15 +95,18 @@ const PricingPage: React.FC = () => {
                         {/* Plan Header */}
                         <div className="text-center mb-8">
                             <div className="inline-block px-4 py-1 bg-photonic-blue/10 text-photonic-blue rounded-full text-sm font-semibold mb-4">
-                                MOST POPULAR
+                                EARLY ADOPTER PRICE
                             </div>
                             <h2 className="text-3xl font-orbitron font-bold text-future-light mb-2">
                                 JTradePilot Pro
                             </h2>
                             <div className="flex items-baseline justify-center gap-2">
-                                <span className="text-5xl font-bold text-white">$19</span>
+                                <span className="text-5xl font-bold text-white">$5</span>
                                 <span className="text-future-gray">/month</span>
                             </div>
+                            <p className="text-sm text-photonic-blue mt-2 font-semibold">
+                                🔒 Lock in $5/month forever as an early adopter
+                            </p>
                         </div>
 
                         {/* Features List */}
@@ -132,7 +135,7 @@ const PricingPage: React.FC = () => {
                             className="w-full text-lg py-4"
                         >
                             {uiStage === 'opening' && <Spinner />}
-                            {uiStage === 'idle' && 'Upgrade Now – $19/month'}
+                            {uiStage === 'idle' && 'Upgrade Now – $5/month'}
                             {uiStage === 'paid' && (
                                 <span className="inline-flex items-center gap-2">
                                     <Spinner /> Payment received — finalizing…
@@ -146,7 +149,7 @@ const PricingPage: React.FC = () => {
                         {/* Trust Signals */}
                         <div className="mt-6 pt-6 border-t border-white/10 text-center space-y-2">
                             <p className="text-xs text-future-gray">
-                                ✓ Cancel anytime • ✓ Secure payment via Paddle • ✓ 30-day money-back guarantee
+                                ✓ Cancel anytime • ✓ Secure payment via Paddle • ✓ Early adopter pricing
                             </p>
                         </div>
                     </div>
@@ -172,9 +175,10 @@ const PricingPage: React.FC = () => {
                                 </p>
                             </div>
                             <div className="border-t border-white/10 pt-4">
-                                <h4 className="font-semibold text-future-light mb-1">Do you offer refunds?</h4>
+                                <h4 className="font-semibold text-future-light mb-1">What if I'm not satisfied?</h4>
                                 <p className="text-sm text-future-gray">
-                                    Yes! We offer a 30-day money-back guarantee. If you're not satisfied, contact support for a full refund.
+                                    You can cancel your subscription at any time. As an early adopter, you lock in the $5/month price
+                                    forever and continue to receive all new features as we build them.
                                 </p>
                             </div>
                         </div>

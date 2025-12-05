@@ -7,7 +7,7 @@ const AboutUsPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-future-dark pb-12">
+    <div className="h-screen overflow-y-auto bg-future-dark pb-12">
       {/* Navigation Header */}
       <nav className="border-b border-white/5 bg-future-dark/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">

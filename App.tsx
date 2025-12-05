@@ -24,8 +24,11 @@ import RiskDisclaimerPage from './pages/RiskDisclaimerPage';
 import AboutPage from './pages/AboutPage';
 import AboutUsPage from './pages/AboutUsPage';
 import FAQPage from './pages/FAQPage';
+import PricingPage from './pages/PricingPage';
+import PublicPricingPage from './pages/PublicPricingPage';
+import RefundPolicyPage from './pages/RefundPolicyPage';
 
-export type AuthPage = 'login' | 'signup';
+
 
 // NOTE: using import.meta.env for Vite. Cast to any to avoid TS error if types are missing.
 const CLERK_PUBLISHABLE_KEY = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
@@ -109,6 +112,12 @@ const UnauthenticatedApp: React.FC = () => {
   }
   if (path === '/faq') {
     return <FAQPage />;
+  }
+  if (path === '/pricing') {
+    return <PublicPricingPage />;
+  }
+  if (path === '/refund-policy') {
+    return <RefundPolicyPage />;
   }
 
   // Redirect legacy routes to home or login

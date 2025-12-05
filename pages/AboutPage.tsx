@@ -9,7 +9,7 @@ const AboutPage: React.FC = () => {
   const { navigateTo } = useView();
 
   return (
-    <div className="min-h-screen bg-future-dark pt-20 pb-12">
+    <div className="h-screen overflow-y-auto bg-future-dark pt-20 pb-12">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 z-0 opacity-30">
