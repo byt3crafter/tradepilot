@@ -14,12 +14,13 @@ import BillingSettings from '../components/settings/BillingSettings';
 import ProfileSettings from '../components/settings/ProfileSettings';
 
 const SecuritySettings: React.FC = () => {
-    const { accessToken } = useAuth();
+    const { accessToken, user } = useAuth();
     const [currentPassword, setCurrentPassword] = React.useState('');
     const [newPassword, setNewPassword] = React.useState('');
     const [passwordIsLoading, setPasswordIsLoading] = React.useState(false);
     const [passwordError, setPasswordError] = React.useState('');
     const [passwordSuccess, setPasswordSuccess] = React.useState('');
+    const [resetEmailSent, setResetEmailSent] = React.useState(false);
 
     const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,20 +39,43 @@ const SecuritySettings: React.FC = () => {
         }
     };
 
+    const handleRequestPasswordReset = async () => {
+        setPasswordError('');
+        setPasswordSuccess('');
+        setResetEmailSent(false);
+        try {
+            await api.post('/api/auth/forgot-password', { email: user?.email });
+            setResetEmailSent(true);
+            setPasswordSuccess('Password reset link sent to your email. Please check your inbox.');
+        } catch (err: any) {
+            setPasswordError(err.message || 'Failed to send reset email');
+        }
+    };
+
     return (
         <Card>
             <h2 className="text-xl font-orbitron text-photonic-blue mb-4">Security</h2>
             <form onSubmit={handlePasswordSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                        label="Current Password"
-                        id="currentPassword"
-                        type="password"
-                        value={currentPassword}
-                        onChange={e => setCurrentPassword(e.target.value)}
-                        disabled={passwordIsLoading}
-                        placeholder="••••••••"
-                    />
+                    <div>
+                        <Input
+                            label="Current Password"
+                            id="currentPassword"
+                            type="password"
+                            value={currentPassword}
+                            onChange={e => setCurrentPassword(e.target.value)}
+                            disabled={passwordIsLoading}
+                            placeholder="••••••••"
+                            required
+                        />
+                        <button
+                            type="button"
+                            onClick={handleRequestPasswordReset}
+                            className="text-xs text-blue-400 hover:text-blue-300 mt-1 transition-colors"
+                        >
+                            Forgot your password? Send reset email
+                        </button>
+                    </div>
                     <Input
                         label="New Password"
                         id="newPassword"
@@ -60,12 +84,13 @@ const SecuritySettings: React.FC = () => {
                         onChange={e => setNewPassword(e.target.value)}
                         disabled={passwordIsLoading}
                         placeholder="Minimum 8 characters"
+                        required
                     />
                 </div>
                 {passwordError && <p className="text-sm text-risk-high mt-2">{passwordError}</p>}
                 {passwordSuccess && <p className="text-sm text-momentum-green mt-2">{passwordSuccess}</p>}
                 <div className="mt-4">
-                    <Button type="submit" isLoading={passwordIsLoading}>
+                    <Button type="submit" isLoading={passwordIsLoading} disabled={!currentPassword || !newPassword}>
                         Update Password
                     </Button>
                 </div>

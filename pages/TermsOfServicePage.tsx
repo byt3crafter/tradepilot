@@ -121,8 +121,10 @@ const TermsOfServicePage: React.FC = () => {
               <div>
                 <h3 className="font-semibold text-future-light mb-2">Free Trial</h3>
                 <p className="text-future-gray">
-                  New users are eligible for a free trial period as specified during signup. At the end of the trial,
-                  your account will automatically convert to a paid subscription unless you cancel before the trial ends.
+                  New users are eligible for a free trial period as specified during signup (typically 15 days).
+                  No credit card is required to start your trial. At the end of the trial period, you will need to
+                  upgrade to a paid subscription to continue using the service. Your trial account and data will be
+                  preserved for 90 days, giving you time to decide if you want to subscribe.
                 </p>
               </div>
 

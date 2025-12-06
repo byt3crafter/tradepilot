@@ -101,11 +101,11 @@ const PricingPage: React.FC = () => {
                                 JTradePilot Pro
                             </h2>
                             <div className="flex items-baseline justify-center gap-2">
-                                <span className="text-5xl font-bold text-white">$5</span>
+                                <span className="text-5xl font-bold text-white">$5.99</span>
                                 <span className="text-future-gray">/month</span>
                             </div>
-                            <p className="text-sm text-photonic-blue mt-2 font-semibold">
-                                🔒 Lock in $5/month forever as an early adopter
+                            <p className="text-sm text-green-400 mt-2 font-semibold">
+                                Or save $11.88/year with annual plan ($60/year)
                             </p>
                         </div>
 
@@ -135,7 +135,7 @@ const PricingPage: React.FC = () => {
                             className="w-full text-lg py-4"
                         >
                             {uiStage === 'opening' && <Spinner />}
-                            {uiStage === 'idle' && 'Upgrade Now – $5/month'}
+                            {uiStage === 'idle' && 'Upgrade Now – $5.99/month'}
                             {uiStage === 'paid' && (
                                 <span className="inline-flex items-center gap-2">
                                     <Spinner /> Payment received — finalizing…
@@ -177,8 +177,8 @@ const PricingPage: React.FC = () => {
                             <div className="border-t border-white/10 pt-4">
                                 <h4 className="font-semibold text-future-light mb-1">What if I'm not satisfied?</h4>
                                 <p className="text-sm text-future-gray">
-                                    You can cancel your subscription at any time. As an early adopter, you lock in the $5/month price
-                                    forever and continue to receive all new features as we build them.
+                                    You can cancel your subscription at any time. No questions asked, no strings attached.
+                                    Your data will be preserved for 90 days if you want to return.
                                 </p>
                             </div>
                         </div>

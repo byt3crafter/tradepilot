@@ -38,7 +38,7 @@ const PublicPricingPage: React.FC = () => {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-16">
           {/* Free Trial Card */}
           <div className="bg-future-panel/50 rounded-lg p-8 border border-photonic-blue/10">
             <div className="mb-6">
@@ -74,11 +74,11 @@ const PublicPricingPage: React.FC = () => {
             </a>
           </div>
 
-          {/* Pro Plan Card */}
+          {/* Pro Plan Card - Monthly */}
           <div className="bg-gradient-to-br from-photonic-blue/20 to-photonic-blue/5 rounded-lg p-8 border-2 border-photonic-blue/50 relative">
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
               <span className="px-4 py-1 bg-photonic-blue text-future-dark rounded-full text-sm font-bold">
-                EARLY ADOPTER PRICE
+                MONTHLY PLAN
               </span>
             </div>
 
@@ -87,11 +87,11 @@ const PublicPricingPage: React.FC = () => {
                 Pro Plan
               </h2>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-white">$5</span>
+                <span className="text-5xl font-bold text-white">$5.99</span>
                 <span className="text-future-gray">/month</span>
               </div>
-              <p className="text-sm text-photonic-blue mt-2 font-semibold">
-                🔒 Lock in $5/month forever as an early adopter
+              <p className="text-sm text-future-gray mt-2">
+                Billed monthly • Cancel anytime
               </p>
             </div>
 
@@ -122,7 +122,59 @@ const PublicPricingPage: React.FC = () => {
             </a>
 
             <p className="text-xs text-center text-future-gray mt-4">
-              Early adopter pricing • Lock in $5/month forever • Cancel anytime
+              $5.99/month billed monthly • Cancel anytime
+            </p>
+          </div>
+
+          {/* Pro Plan Card - Annual */}
+          <div className="bg-gradient-to-br from-green-500/20 to-green-500/5 rounded-lg p-8 border-2 border-green-500/50 relative">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <span className="px-4 py-1 bg-green-500 text-black rounded-full text-sm font-bold">
+                BEST VALUE • SAVE $11.88
+              </span>
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-2xl font-orbitron font-bold text-future-light mb-2">
+                Annual Plan
+              </h2>
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-bold text-white">$5</span>
+                <span className="text-future-gray">/month</span>
+              </div>
+              <p className="text-sm text-green-400 mt-2 font-semibold">
+                Billed annually at $60/year
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-8">
+              {[
+                'Everything in Free Trial',
+                'Unlimited trade logging & journaling',
+                'Advanced analytics & performance tracking',
+                'AI-powered trade insights & debriefs',
+                'Pre-trade checklist & risk management',
+                'Custom playbooks & trading strategies',
+                'Prop firm objective tracking',
+                'Smart limits & drawdown protection',
+                'Priority support & updates',
+              ].map((feature, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <CheckCircleIcon className="w-5 h-5 text-momentum-green flex-shrink-0 mt-0.5" />
+                  <span className="text-future-light">{feature}</span>
+                </div>
+              ))}
+            </div>
+
+            <a
+              href="/signup"
+              className="block w-full text-center px-6 py-3 bg-green-500 text-black hover:bg-green-400 rounded-lg transition-colors font-bold shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+            >
+              Start Free Trial
+            </a>
+
+            <p className="text-xs text-center text-future-gray mt-4">
+              $60 billed annually • Save $11.88/year • Cancel anytime
             </p>
           </div>
         </div>

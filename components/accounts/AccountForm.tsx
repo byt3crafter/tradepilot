@@ -26,7 +26,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const [feeModel, setFeeModel] = useState<FeeModel>(account?.feeModel || FeeModel.SPREAD_ONLY);
 
   const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(account?.templateId || '');
   
   const [objectivesEnabled, setObjectivesEnabled] = useState(account?.objectives?.isEnabled || false);
   const [profitTarget, setProfitTarget] = useState(account?.objectives?.profitTarget ?? '');
@@ -160,13 +160,18 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
               { value: '', label: 'No Template (Enter Manually)' },
               ...templates.map(t => ({
                 value: t.id,
-                label: `${t.name} - ${t.firmName} ($${t.accountSize.toLocaleString()})`
+                label: `${t.name} ($${(t.accountSize / 1000).toFixed(0)}K)`
               }))
             ]}
           />
           {selectedTemplateId && (
+            <p className="text-xs text-green-400 mt-1">
+              ✓ Template applied! Fields have been auto-filled below. You can adjust them if needed.
+            </p>
+          )}
+          {!selectedTemplateId && type === BrokerAccountType.PROP_FIRM && (
             <p className="text-xs text-secondary mt-1">
-              Template applied! Fields have been auto-filled below. You can adjust them if needed.
+              Select a template to auto-fill challenge parameters, or enter them manually below.
             </p>
           )}
         </div>
