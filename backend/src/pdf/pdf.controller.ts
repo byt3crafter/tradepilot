@@ -16,14 +16,14 @@ export class PdfController {
 
   @Get('compliance-report')
   async generateComplianceReport(
-    @Query('accountId') accountId: string,
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+    @Query('accountId') accountId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('includeScreenshots') includeScreenshots?: string,
     @Query('includeJournal') includeJournal?: string,
     @Query('includeAiNotes') includeAiNotes?: string,
-    @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
   ) {
     if (!accountId) {
       throw new HttpException('accountId is required', HttpStatus.BAD_REQUEST);
