@@ -70,7 +70,7 @@ export class AuthService {
         role: role, // Set role from Clerk
         trialEndsAt,
         isEarlySupporter,
-        referredByUserId,
+        referrer: referredByUserId ? { connect: { id: referredByUserId } } : undefined,
       });
 
       // Seed default assets for the new user
