@@ -60,6 +60,10 @@ export class CreateBrokerAccountDto {
   @IsOptional()
   leverage?: number;
 
+  @IsString()
+  @IsOptional()
+  templateId?: string;
+
   @IsOptional()
   @ValidateNested()
   @Type(() => TradingObjectiveDto)
