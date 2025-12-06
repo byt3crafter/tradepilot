@@ -36,7 +36,8 @@ const ComplianceReportModal: React.FC<ComplianceReportModalProps> = ({ onClose }
         includeScreenshots: includeScreenshots.toString(),
       });
 
-      const response = await fetch(`/api/pdf/compliance-report?${params.toString()}`, {
+      const API_URL = (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
+      const response = await fetch(`${API_URL}/api/pdf/compliance-report?${params.toString()}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${accessToken}`,

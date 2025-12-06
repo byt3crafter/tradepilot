@@ -69,6 +69,7 @@ const EquityHero: React.FC<EquityHeroProps> = ({ netPL, equityCurve }) => {
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#666', fontSize: 10 }}
+              domain={['auto', 'auto']}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1, strokeDasharray: '4 4' }} />
             <Area

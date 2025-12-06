@@ -75,11 +75,24 @@ const AuthenticatedApp: React.FC = () => {
 };
 
 const UnauthenticatedApp: React.FC = () => {
-  const path = window.location.pathname;
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
 
   // Load animated background only on landing page
-  React.useEffect(() => {
-    if (path === '/') {
+  useEffect(() => {
+    if (currentPath === '/') {
       // Landing page - load UnicornStudio
       (window as any).loadUnicornStudio?.();
       (window as any).showAnimatedBackground?.(true);
@@ -87,46 +100,47 @@ const UnauthenticatedApp: React.FC = () => {
       // Other pages - hide background
       (window as any).showAnimatedBackground?.(false);
     }
-  }, [path]);
+  }, [currentPath]);
 
-  if (path === '/login') {
+  if (currentPath === '/login') {
     return <LoginPage />;
   }
-  if (path === '/signup') {
+  if (currentPath === '/signup') {
     return <SignupPage />;
   }
-  if (path === '/privacy') {
+  if (currentPath === '/privacy') {
     return <PrivacyPolicyPage />;
   }
-  if (path === '/terms') {
+  if (currentPath === '/terms') {
     return <TermsOfServicePage />;
   }
-  if (path === '/risk-disclaimer') {
+  if (currentPath === '/risk-disclaimer') {
     return <RiskDisclaimerPage />;
   }
-  if (path === '/about') {
+  if (currentPath === '/about') {
     return <AboutPage />;
   }
-  if (path === '/about-us') {
+  if (currentPath === '/about-us') {
     return <AboutUsPage />;
   }
-  if (path === '/faq') {
+  if (currentPath === '/faq') {
     return <FAQPage />;
   }
-  if (path === '/pricing') {
+  if (currentPath === '/pricing') {
     return <PublicPricingPage />;
   }
-  if (path === '/refund-policy') {
+  if (currentPath === '/refund-policy') {
     return <RefundPolicyPage />;
   }
 
   // Redirect legacy routes to home or login
-  if (['/forgot-password', '/reset-password', '/verify-email'].includes(path)) {
-    window.location.href = '/login';
+  if (['/forgot-password', '/reset-password', '/verify-email'].includes(currentPath)) {
+    window.history.replaceState({}, '', '/login');
+    setCurrentPath('/login');
     return null;
   }
 
-  return <LandingPage navigate={(page) => window.location.href = `/${page}`} />;
+  return <LandingPage navigate={(page) => navigate(`/${page}`)} />;
 };
 
 const AppContent: React.FC = () => {

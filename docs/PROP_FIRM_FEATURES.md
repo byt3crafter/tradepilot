@@ -15,10 +15,23 @@ This document describes the Real-Time Drawdown Calculator and Compliance PDF Exp
 
 ## Overview
 
-JTradePilot now includes two major features specifically designed to help prop firm traders pass their challenges and get funded:
+## Recent Updates
 
-1. **Real-Time Drawdown Calculator** - Live tracking of challenge progress with automatic compliance monitoring
-2. **Compliance PDF Export** - Professional PDF reports for prop firm submission
+- **Dashboard Restoration**: The dashboard has been restored to its original design, featuring the "Equity", "Profit Target", and "Max Loss" cards.
+- **Challenge Progress**: The "Challenge Progress" feature is now integrated into the dashboard without duplicating the main metrics card.
+- **PDF Export**: The compliance report export functionality has been fixed to ensure valid PDF generation. It is accessible via the document icon in the dashboard header.
+- **Landing Page**: The landing page navigation has been optimized to prevent white flashes during page transitions.
+
+## Features
+
+1. **Real-Time Drawdown Calculator**:
+   - Tracks equity, profit targets, and drawdown limits in real-time.
+   - Visual progress bars for quick status checks.
+
+2. **Compliance PDF Export**:
+   - Generates a professional PDF report for prop firm challenges.
+   - Includes trade history, compliance checklist, and executive summary.
+   - Accessible via the "Export Report" button in the dashboard header.
 
 These features support popular prop firms including:
 - FTMO

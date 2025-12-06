@@ -52,6 +52,14 @@ const Dashboard: React.FC = () => {
       {hasTrades && (
         <>
           <DashboardHeader />
+
+          {/* Old Design - Trading Objectives (Equity, Profit Target, etc.) */}
+          {activeAccount && (
+            <TradingObjectivesCard
+              objectives={objectivesProgress}
+              currentEquity={activeAccount.currentBalance}
+            />
+          )}
         </>
       )}
 

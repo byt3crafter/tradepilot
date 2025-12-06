@@ -12,12 +12,12 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAccessGuard)
 @Controller('pdf')
 export class PdfController {
-  constructor(private readonly pdfService: PdfService) {}
+  constructor(private readonly pdfService: PdfService) { }
 
   @Get('compliance-report')
   async generateComplianceReport(
     @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
     @Query('accountId') accountId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -42,8 +42,12 @@ export class PdfController {
         includeAiNotes: includeAiNotes === 'true',
       });
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=compliance-report-${accountId}-${Date.now()}.pdf`);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="compliance-report-${accountId}-${Date.now()}.pdf"`,
+        'Content-Length': pdfBuffer.length.toString(),
+      });
+
       res.send(pdfBuffer);
     } catch (error) {
       throw new HttpException(error.message || 'Failed to generate PDF', HttpStatus.INTERNAL_SERVER_ERROR);
