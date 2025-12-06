@@ -5,6 +5,11 @@ import Button from '../components/ui/Button';
 import AuthLogo from '../components/auth/AuthLogo';
 import { XIcon } from '../components/icons/XIcon';
 import { DiscordIcon } from '../components/icons/DiscordIcon';
+import { MenuIcon } from '../components/icons/MenuIcon';
+import { DashboardIcon } from '../components/icons/DashboardIcon';
+import { JournalIcon } from '../components/icons/JournalIcon';
+import { PlaybookIcon } from '../components/icons/PlaybookIcon';
+import { AnalyticsIcon } from '../components/icons/AnalyticsIcon';
 
 interface LandingPageProps {
   navigate: (page: AuthPage) => void;
@@ -12,6 +17,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const slides = [
     {
@@ -39,15 +45,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
   return (
     <div className="w-full h-full overflow-y-scroll">
       {/* Navigation Header */}
-      <nav className="border-b border-white/5 bg-future-dark/50 sticky top-0 z-50">
+      <nav className="border-b border-white/5 bg-future-dark/50 sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/JTP_logo.png" alt="JTP" className="h-8 w-auto" />
+            <img src="/JTP_logo.png" alt="JTP" className="h-6 w-auto" />
             <span className="px-2 py-1 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-xs font-bold text-photonic-blue uppercase tracking-wider">
               BETA
             </span>
           </div>
-          <div className="flex items-center gap-6 text-sm">
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-6 text-sm">
             <a href="https://x.com/JTradePilot" target="_blank" rel="noopener noreferrer" className="text-future-gray hover:text-white transition-colors">
               <XIcon className="w-5 h-5" />
             </a>
@@ -57,8 +65,80 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
             <button onClick={() => navigate('login')} className="text-future-gray hover:text-future-light transition-colors">
               Log In
             </button>
+            <Button onClick={() => navigate('signup')} className="px-4 py-2 text-sm">
+              Get Started
+            </Button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-future-gray hover:text-white p-2 transition-colors"
+            >
+              {isMobileMenuOpen ? (
+                <XIcon className="w-6 h-6" />
+              ) : (
+                <MenuIcon className="w-6 h-6" />
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-[#08090A] border-b border-white/10 absolute w-full left-0 top-16 z-50 shadow-2xl animate-fade-in">
+            <div className="px-4 py-6 space-y-4">
+              {/* Sidebar Items Mimic */}
+              <div className="space-y-1 pb-4 border-b border-white/5">
+                <p className="px-2 text-xs font-semibold text-future-gray uppercase tracking-wider mb-2">Features</p>
+                <button onClick={() => navigate('login')} className="w-full flex items-center gap-3 px-2 py-3 text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                  <DashboardIcon className="w-5 h-5" />
+                  <span className="font-medium">Dashboard</span>
+                </button>
+                <button onClick={() => navigate('login')} className="w-full flex items-center gap-3 px-2 py-3 text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                  <JournalIcon className="w-5 h-5" />
+                  <span className="font-medium">Journal</span>
+                </button>
+                <button onClick={() => navigate('login')} className="w-full flex items-center gap-3 px-2 py-3 text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                  <PlaybookIcon className="w-5 h-5" />
+                  <span className="font-medium">Playbooks</span>
+                </button>
+                <button onClick={() => navigate('login')} className="w-full flex items-center gap-3 px-2 py-3 text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                  <AnalyticsIcon className="w-5 h-5" />
+                  <span className="font-medium">Analytics</span>
+                </button>
+              </div>
+
+              {/* Site Links */}
+              <div className="space-y-1 pb-4 border-b border-white/5">
+                <a href="/pricing" className="block px-2 py-2 text-secondary hover:text-white transition-colors">Pricing</a>
+                <a href="/about-us" className="block px-2 py-2 text-secondary hover:text-white transition-colors">Our Story</a>
+                <a href="/faq" className="block px-2 py-2 text-secondary hover:text-white transition-colors">FAQ</a>
+              </div>
+
+              {/* Socials */}
+              <div className="flex items-center gap-4 px-2 py-2">
+                <a href="https://x.com/JTradePilot" target="_blank" rel="noopener noreferrer" className="text-future-gray hover:text-white transition-colors">
+                  <XIcon className="w-5 h-5" />
+                </a>
+                <a href="https://discord.gg/JTradePilot" target="_blank" rel="noopener noreferrer" className="text-future-gray hover:text-white transition-colors">
+                  <DiscordIcon className="w-5 h-5" />
+                </a>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3 pt-2">
+                <Button onClick={() => navigate('login')} variant="secondary" className="w-full justify-center">
+                  Log In
+                </Button>
+                <Button onClick={() => navigate('signup')} className="w-full justify-center">
+                  Start Free Trial
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -140,8 +220,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                 key={index}
                 onClick={() => setCurrentSlide(index)}
                 className={`w-3 h-3 rounded-full transition-all ${index === currentSlide
-                    ? 'bg-photonic-blue w-8'
-                    : 'bg-future-gray/30 hover:bg-future-gray/50'
+                  ? 'bg-photonic-blue w-8'
+                  : 'bg-future-gray/30 hover:bg-future-gray/50'
                   }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
