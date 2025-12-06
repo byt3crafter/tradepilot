@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import PublicNavbar from '../components/PublicNavbar';
+import PublicFooter from '../components/PublicFooter';
 
 interface FAQItem {
   category: string;
@@ -38,10 +40,7 @@ const FAQPage: React.FC = () => {
           q: 'Do I need to be an experienced trader to use JTradePilot?',
           a: 'No. JTradePilot is designed for traders at all levels, from beginners to professionals. If you trade and want to improve, JTradePilot can help. We\'re especially useful for new traders building consistent trading habits.',
         },
-        {
-          q: 'Is there a free trial?',
-          a: 'Yes! New users get a free trial period (typically 14 days). You can try all features without entering payment information. At the end of your trial, your account will convert to a paid subscription unless you cancel.',
-        },
+
       ],
     },
     {
@@ -53,7 +52,7 @@ const FAQPage: React.FC = () => {
         },
         {
           q: 'Can I import trades from my broker?',
-          a: 'Yes! We support bulk import. You can copy your trading history from your broker and paste it into JTradePilot. We\'ll parse the data and create trades automatically. This saves time if you have many historical trades.',
+          a: 'Currently, we support direct import from cTrader. We are working on adding support for MetaTrader 4/5, TradeLocker, and other platforms soon. In the meantime, you can manually log trades from any platform.',
         },
         {
           q: 'What is a Playbook?',
@@ -99,7 +98,7 @@ const FAQPage: React.FC = () => {
       questions: [
         {
           q: 'How much does JTradePilot cost?',
-          a: 'We offer different subscription tiers depending on your needs. See our Pricing page for current pricing. All plans include a free trial to test features before committing to a paid plan.',
+          a: 'We offer different subscription tiers depending on your needs. See our Pricing page for current pricing.',
         },
         {
           q: 'Can I upgrade or downgrade my subscription?',
@@ -213,8 +212,10 @@ const FAQPage: React.FC = () => {
   ];
 
   return (
-    <div className="h-screen overflow-y-auto bg-future-dark pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="h-screen overflow-y-auto bg-future-dark">
+      <PublicNavbar />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-12 text-center">
           <h1 className="text-4xl font-orbitron font-bold text-future-light mb-4">
@@ -251,9 +252,8 @@ const FAQPage: React.FC = () => {
                           {item.q}
                         </h3>
                         <span
-                          className={`text-photonic-blue text-2xl flex-shrink-0 ml-4 transition-transform ${
-                            isExpanded ? 'rotate-180' : ''
-                          }`}
+                          className={`text-photonic-blue text-2xl flex-shrink-0 ml-4 transition-transform ${isExpanded ? 'rotate-180' : ''
+                            }`}
                         >
                           ▼
                         </span>
@@ -297,14 +297,9 @@ const FAQPage: React.FC = () => {
             </a>
           </div>
         </section>
-
-        {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-photonic-blue/10 text-center">
-          <p className="text-future-gray text-sm">
-            © 2024 JTradePilot. All rights reserved.
-          </p>
-        </div>
       </div>
+
+      <PublicFooter />
     </div>
   );
 };

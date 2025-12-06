@@ -1,5 +1,7 @@
 import React from 'react';
 import { useView } from '../context/ViewContext';
+import PublicNavbar from '../components/PublicNavbar';
+import PublicFooter from '../components/PublicFooter';
 
 const PrivacyPolicyPage: React.FC = () => {
   React.useEffect(() => {
@@ -7,8 +9,10 @@ const PrivacyPolicyPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen overflow-y-auto bg-future-dark pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="h-screen overflow-y-auto bg-future-dark">
+      <PublicNavbar />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-orbitron font-bold text-future-light mb-4">
@@ -356,14 +360,10 @@ const PrivacyPolicyPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Footer */}
-          <div className="mt-12 pt-8 border-t border-photonic-blue/10">
-            <p className="text-future-gray text-sm text-center">
-              © 2024 JTradePilot. All rights reserved. | Privacy Policy
-            </p>
-          </div>
         </div>
       </div>
+
+      <PublicFooter />
     </div>
   );
 };

@@ -59,7 +59,7 @@ const DashboardPage: React.FC = () => {
       />
 
       {/* Main content area with proper flex layout */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
         {/* Trial Banner - fixed height, no scroll */}
         {isTrialing && <TrialBanner />}
 
@@ -90,7 +90,7 @@ const DashboardPage: React.FC = () => {
 
         {/* Scrollable content area */}
         <main className="flex-1 overflow-y-auto border-l border-white/5 bg-[#08090A]/40 backdrop-blur-[2px]">
-          <div className="p-6 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
+          <div className="p-4 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
             {renderView()}
           </div>
         </main>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useTrade } from '../../context/TradeContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';

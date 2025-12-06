@@ -18,6 +18,7 @@ import Tooltip from './ui/Tooltip';
 import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import { AnalyticsIcon } from './icons/AnalyticsIcon';
+import { UsersIcon } from './icons/UsersIcon';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -195,6 +196,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   };
 
   const handleSetView = (view: DashboardView) => {
+    if (window.location.pathname !== '/dashboard' && window.location.pathname !== '/') {
+      // If on a standalone page (like /referral), we need to navigate back to dashboard
+      // App.tsx listens to popstate, so we push state and dispatch the event
+      window.history.pushState({}, '', '/dashboard');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
     navigateTo(view);
     onClose();
   };
@@ -275,6 +282,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onClick={() => handleSetView('settings')}
             isCollapsed={isSidebarCollapsed}
           />
+
+          <div className="my-2 border-t border-white/10 mx-4" />
+
+          <NavItem
+            icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
+            label="Refer & Earn"
+            isActive={window.location.pathname === '/referral'}
+            onClick={() => {
+              window.location.href = '/referral';
+              onClose();
+            }}
+            isCollapsed={isSidebarCollapsed}
+          />
         </div>
 
         <div className="mt-auto p-4 border-t border-white/10">
@@ -307,6 +327,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <p className={`text-[9px] truncate uppercase tracking-wider ${getUserTierDisplay().color}`}>
                   JTradePilot {getUserTierDisplay().label}
                 </p>
+                {user.isEarlySupporter && (
+                  <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded bg-momentum-green/10 border border-momentum-green/20">
+                    <span className="text-[8px] font-bold text-momentum-green uppercase tracking-wider leading-none">
+                      Early Supporter
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,4 +1,6 @@
 import React from 'react';
+import PublicNavbar from '../components/PublicNavbar';
+import PublicFooter from '../components/PublicFooter';
 
 const AboutUsPage: React.FC = () => {
   React.useEffect(() => {
@@ -7,26 +9,8 @@ const AboutUsPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen overflow-y-auto bg-future-dark pb-12">
-      {/* Navigation Header */}
-      <nav className="border-b border-white/5 bg-future-dark/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <a href="/" className="text-future-light font-semibold hover:opacity-80 transition-opacity">
-            ← Back to Home
-          </a>
-          <div className="flex items-center gap-6 text-sm">
-            <a href="/about" className="text-future-gray hover:text-future-light transition-colors">
-              About
-            </a>
-            <a href="/faq" className="text-future-gray hover:text-future-light transition-colors">
-              FAQ
-            </a>
-            <a href="/" className="text-future-gray hover:text-future-light transition-colors">
-              Home
-            </a>
-          </div>
-        </div>
-      </nav>
+    <div className="h-screen overflow-y-auto bg-future-dark">
+      <PublicNavbar />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 py-12">
         {/* Header */}
@@ -197,14 +181,9 @@ const AboutUsPage: React.FC = () => {
             </a>
           </div>
         </section>
-
-        {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-photonic-blue/10 text-center">
-          <p className="text-future-gray text-sm">
-            © 2024 JTradePilot. Helping prop traders get funded through disciplined tracking.
-          </p>
-        </div>
       </div>
+
+      <PublicFooter />
     </div>
   );
 };

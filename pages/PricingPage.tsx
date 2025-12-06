@@ -8,6 +8,7 @@ import api from '../services/api';
 import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
 
 type UiStage = 'idle' | 'opening' | 'paid' | 'activated' | 'error';
+type BillingCycle = 'monthly' | 'yearly';
 
 const PricingPage: React.FC = () => {
     const { user, accessToken, refreshUser } = useAuth();
@@ -15,6 +16,11 @@ const PricingPage: React.FC = () => {
 
     const [uiStage, setUiStage] = useState<UiStage>('idle');
     const [error, setError] = useState<string>('');
+    const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+
+    // TODO: Add these to your .env file
+    const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || (import.meta as any).env.VITE_PADDLE_PRICE_ID;
+    const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01jk4...'; // Placeholder
 
     const isButtonDisabled = useMemo(
         () => isPaddleLoading || uiStage === 'opening' || !paddle,
@@ -64,127 +70,136 @@ const PricingPage: React.FC = () => {
 
     if (uiStage === 'activated') {
         return (
-            <div className="h-screen overflow-y-auto flex items-center justify-center p-6">
-                <Card className="max-w-md w-full">
-                    <div className="text-center p-8">
-                        <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green" />
-                        <h3 className="text-xl font-semibold text-momentum-green mt-4">Welcome Back to JTradePilot Pro!</h3>
-                        <p className="text-future-gray mt-2">Your subscription is now active. Redirecting to dashboard...</p>
-                    </div>
+            <div className="h-full flex items-center justify-center p-6">
+                <Card className="max-w-md w-full text-center">
+                    <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green" />
+                    <h3 className="text-xl font-semibold text-momentum-green mt-4">Welcome Back to JTradePilot Pro!</h3>
+                    <p className="text-future-gray mt-2">Your subscription is now active. Redirecting to dashboard...</p>
                 </Card>
             </div>
         );
     }
 
     return (
-        <div className="h-screen overflow-y-auto flex items-center justify-center p-6">
-            <div className="max-w-5xl w-full space-y-8">
-                {/* Header */}
-                <div className="text-center space-y-3">
-                    <h1 className="text-4xl font-orbitron font-bold text-future-light">
-                        Your Trial Has Expired
-                    </h1>
-                    <p className="text-future-gray text-lg max-w-2xl mx-auto">
-                        Continue your trading journey with full access to all JTradePilot Pro features
-                    </p>
+        <div className="max-w-6xl mx-auto p-6 md:p-12 lg:p-16 space-y-12">
+
+            {/* Header */}
+            <div className="text-center space-y-4">
+                <h1 className="text-3xl font-orbitron font-bold text-white">
+                    Upgrade to Pro
+                </h1>
+                <p className="text-future-gray max-w-2xl mx-auto">
+                    Unlock the full potential of your trading with advanced analytics, AI insights, and unlimited journaling.
+                </p>
+
+                {/* Billing Toggle */}
+                <div className="flex items-center justify-center gap-4 mt-8">
+                    <span className={`text-sm font-bold transition-colors ${billingCycle === 'monthly' ? 'text-white' : 'text-future-gray'}`}>Monthly</span>
+                    <button
+                        onClick={() => setBillingCycle(prev => prev === 'monthly' ? 'yearly' : 'monthly')}
+                        className="w-12 h-6 bg-white/10 rounded-full p-1 relative transition-colors hover:bg-white/20"
+                    >
+                        <div className={`w-4 h-4 bg-momentum-green rounded-full shadow-sm transform transition-transform duration-200 ${billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                    <span className={`text-sm font-bold transition-colors ${billingCycle === 'yearly' ? 'text-white' : 'text-future-gray'}`}>
+                        Yearly <span className="text-momentum-green text-xs ml-1">(Save 17%)</span>
+                    </span>
                 </div>
+            </div>
 
-                {/* Pricing Card */}
-                <Card className="max-w-2xl mx-auto">
-                    <div className="p-8">
-                        {/* Plan Header */}
-                        <div className="text-center mb-8">
-                            <div className="inline-block px-4 py-1 bg-photonic-blue/10 text-photonic-blue rounded-full text-sm font-semibold mb-4">
-                                EARLY ADOPTER PRICE
-                            </div>
-                            <h2 className="text-3xl font-orbitron font-bold text-future-light mb-2">
-                                JTradePilot Pro
-                            </h2>
-                            <div className="flex items-baseline justify-center gap-2">
-                                <span className="text-5xl font-bold text-white">$5.99</span>
-                                <span className="text-future-gray">/month</span>
-                            </div>
-                            <p className="text-sm text-green-400 mt-2 font-semibold">
-                                Or save $11.88/year with annual plan ($60/year)
-                            </p>
+            {/* Pricing Cards */}
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+
+                {/* Standard Plan */}
+                <Card className={`!p-5 md:!p-6 transition-opacity duration-200 ${billingCycle === 'monthly' ? 'opacity-100' : 'opacity-60'}`}>
+                    <div className="mb-6">
+                        <h3 className="text-xl font-bold text-white mb-2">Monthly</h3>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-bold text-white">$5.00</span>
+                            <span className="text-future-gray">/month</span>
                         </div>
-
-                        {/* Features List */}
-                        <div className="space-y-4 mb-8">
-                            {[
-                                'Unlimited trade logging & journaling',
-                                'Advanced analytics & performance tracking',
-                                'AI-powered trade insights & debriefs',
-                                'Pre-trade checklist & risk management',
-                                'Custom playbooks & trading strategies',
-                                'Prop firm objective tracking',
-                                'Smart limits & drawdown protection',
-                                'Priority support & updates',
-                            ].map((feature, index) => (
-                                <div key={index} className="flex items-start gap-3">
-                                    <CheckCircleIcon className="w-5 h-5 text-momentum-green flex-shrink-0 mt-0.5" />
-                                    <span className="text-future-light">{feature}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* CTA Button */}
-                        <Button
-                            onClick={openCheckout}
-                            disabled={isButtonDisabled}
-                            className="w-full text-lg py-4"
-                        >
-                            {uiStage === 'opening' && <Spinner />}
-                            {uiStage === 'idle' && 'Upgrade Now – $5.99/month'}
-                            {uiStage === 'paid' && (
-                                <span className="inline-flex items-center gap-2">
-                                    <Spinner /> Payment received — finalizing…
-                                </span>
-                            )}
-                            {uiStage === 'error' && 'Try again'}
-                        </Button>
-
-                        {error && <p className="text-sm text-risk-high mt-3 text-center">{error}</p>}
-
-                        {/* Trust Signals */}
-                        <div className="mt-6 pt-6 border-t border-white/10 text-center space-y-2">
-                            <p className="text-xs text-future-gray">
-                                ✓ Cancel anytime • ✓ Secure payment via Paddle • ✓ Early adopter pricing
-                            </p>
-                        </div>
+                        <p className="text-sm text-future-gray mt-2">Flexible, cancel anytime.</p>
                     </div>
+
+                    <Button
+                        onClick={() => { setBillingCycle('monthly'); openCheckout(); }}
+                        disabled={isButtonDisabled}
+                        className={`w-full mb-6 ${billingCycle === 'monthly' ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    >
+                        {billingCycle === 'monthly' ? 'Choose Monthly' : 'Switch to Monthly'}
+                    </Button>
+
+                    <ul className="space-y-3">
+                        <li className="flex items-center gap-3 text-sm text-future-gray">
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> Unlimited Journaling
+                        </li>
+                        <li className="flex items-center gap-3 text-sm text-future-gray">
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> Basic Analytics
+                        </li>
+                    </ul>
                 </Card>
 
-                {/* FAQ Section */}
-                <div className="max-w-2xl mx-auto space-y-4">
-                    <h3 className="text-xl font-orbitron font-semibold text-future-light text-center mb-6">
-                        Frequently Asked Questions
-                    </h3>
-                    <Card>
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="font-semibold text-future-light mb-1">Can I cancel anytime?</h4>
-                                <p className="text-sm text-future-gray">
-                                    Yes! You can cancel your subscription at any time from your account settings. No strings attached.
-                                </p>
-                            </div>
-                            <div className="border-t border-white/10 pt-4">
-                                <h4 className="font-semibold text-future-light mb-1">What happens to my data if I cancel?</h4>
-                                <p className="text-sm text-future-gray">
-                                    Your data is safe and will be preserved. You can reactivate anytime and pick up right where you left off.
-                                </p>
-                            </div>
-                            <div className="border-t border-white/10 pt-4">
-                                <h4 className="font-semibold text-future-light mb-1">What if I'm not satisfied?</h4>
-                                <p className="text-sm text-future-gray">
-                                    You can cancel your subscription at any time. No questions asked, no strings attached.
-                                    Your data will be preserved for 90 days if you want to return.
-                                </p>
-                            </div>
+                {/* Annual Plan (Highlighted) */}
+                <Card className={`!p-5 md:!p-6 relative overflow-hidden ${billingCycle === 'yearly' ? 'border-momentum-green/50' : ''}`}>
+                    {billingCycle === 'yearly' && (
+                        <div className="absolute top-0 right-0 bg-momentum-green text-black text-xs font-bold px-3 py-1 rounded-bl-md">
+                            BEST VALUE
                         </div>
+                    )}
+
+                    <div className="mb-6">
+                        <h3 className="text-xl font-bold text-white mb-2">Yearly</h3>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-bold text-white">$50.00</span>
+                            <span className="text-future-gray">/year</span>
+                        </div>
+                        <p className="text-sm text-momentum-green mt-2 font-bold">Save $10 per year</p>
+                    </div>
+
+                    <Button
+                        onClick={() => { setBillingCycle('yearly'); openCheckout(); }}
+                        disabled={isButtonDisabled}
+                        className={`w-full mb-6 ${billingCycle === 'yearly' ? 'bg-momentum-green text-black hover:bg-momentum-green-hover' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    >
+                        {billingCycle === 'yearly' ? 'Choose Yearly' : 'Switch to Yearly'}
+                    </Button>
+
+                    <ul className="space-y-3">
+                        <li className="flex items-center gap-3 text-sm text-white">
+                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> All Monthly Features
+                        </li>
+                        <li className="flex items-center gap-3 text-sm text-white">
+                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Priority Support
+                        </li>
+                        <li className="flex items-center gap-3 text-sm text-white">
+                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Early Access to Features
+                        </li>
+                    </ul>
+                </Card>
+
+            </div>
+
+            {/* FAQ Section */}
+            <div className="max-w-3xl mx-auto space-y-8">
+                <h3 className="text-xl font-orbitron font-bold text-center text-white">
+                    Frequently Asked Questions
+                </h3>
+                <div className="grid gap-6">
+                    <Card>
+                        <h4 className="font-bold text-white mb-2">Can I cancel anytime?</h4>
+                        <p className="text-sm text-future-gray">
+                            Yes! You can cancel your subscription at any time from your account settings. No strings attached.
+                        </p>
+                    </Card>
+                    <Card>
+                        <h4 className="font-bold text-white mb-2">What happens to my data if I cancel?</h4>
+                        <p className="text-sm text-future-gray">
+                            Your data is safe and will be preserved. You can reactivate anytime and pick up right where you left off.
+                        </p>
                     </Card>
                 </div>
             </div>
+
         </div>
     );
 };

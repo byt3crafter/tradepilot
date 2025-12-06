@@ -1,4 +1,6 @@
 import React from 'react';
+import PublicNavbar from '../components/PublicNavbar';
+import PublicFooter from '../components/PublicFooter';
 
 const TermsOfServicePage: React.FC = () => {
   React.useEffect(() => {
@@ -6,8 +8,10 @@ const TermsOfServicePage: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen overflow-y-auto bg-future-dark pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="h-screen overflow-y-auto bg-future-dark">
+      <PublicNavbar />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-orbitron font-bold text-future-light mb-4">
@@ -118,15 +122,7 @@ const TermsOfServicePage: React.FC = () => {
             </h2>
 
             <div className="space-y-4 ml-11">
-              <div>
-                <h3 className="font-semibold text-future-light mb-2">Free Trial</h3>
-                <p className="text-future-gray">
-                  New users are eligible for a free trial period as specified during signup (typically 15 days).
-                  No credit card is required to start your trial. At the end of the trial period, you will need to
-                  upgrade to a paid subscription to continue using the service. Your trial account and data will be
-                  preserved for 90 days, giving you time to decide if you want to subscribe.
-                </p>
-              </div>
+
 
               <div>
                 <h3 className="font-semibold text-future-light mb-2">Automatic Renewal</h3>
@@ -356,7 +352,7 @@ const TermsOfServicePage: React.FC = () => {
             <div className="space-y-3 ml-11 text-future-gray">
               <p>
                 <strong>To the maximum extent permitted by law, JTradePilot is provided on an "AS-IS" and "AS-AVAILABLE" basis.
-                We make no warranties, representations, or conditions of any kind, including:</strong>
+                  We make no warranties, representations, or conditions of any kind, including:</strong>
               </p>
               <ul className="list-disc ml-5 space-y-1">
                 <li>Accuracy or completeness of trading data</li>
@@ -471,14 +467,10 @@ const TermsOfServicePage: React.FC = () => {
             </div>
           </section>
 
-          {/* Footer */}
-          <div className="mt-12 pt-8 border-t border-photonic-blue/10">
-            <p className="text-future-gray text-sm text-center">
-              © 2024 JTradePilot. All rights reserved. | Terms of Service
-            </p>
-          </div>
         </div>
       </div>
+
+      <PublicFooter />
     </div>
   );
 };

@@ -24,6 +24,12 @@ model User {
   paddleSubscriptionId String?
   proAccessExpiresAt DateTime?
   proAccessReason    String?
+  
+  // Referral System
+  isEarlySupporter   Boolean   @default(false)
+  referredByUserId   String?
+  referrer           User?     @relation("Referrals", fields: [referredByUserId], references: [id])
+  referrals          User[]    @relation("Referrals")
 
   // Relations
   brokerAccounts     BrokerAccount[]

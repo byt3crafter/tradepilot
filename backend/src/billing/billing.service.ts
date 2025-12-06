@@ -232,6 +232,32 @@ export class BillingService {
           if (!updateData.proAccessExpiresAt && data.next_billed_at) {
             updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
           }
+
+          // REFERRAL REWARD LOGIC
+          // If this is the FIRST activation (we can check if we already processed this? Or just check if referredByUserId exists and we haven't rewarded yet?)
+          // For simplicity, we'll reward every time it goes ACTIVE (which might be monthly? No, usually just once or on renewal).
+          // Actually, 'subscription.activated' happens once. 'subscription.updated' happens on renewal.
+          // We want to reward when the referred user PAYS.
+          // 'subscription.activated' usually means payment success.
+
+          if (event_type === 'subscription.activated' && (user as any).referredByUserId) {
+            const referrer = await this.prisma.user.findUnique({ where: { id: (user as any).referredByUserId } });
+            if (referrer) {
+              this.logger.log(`Processing Referral Reward: User ${user.id} paid. Rewarding Referrer ${referrer.id}`);
+
+              // Add 30 days to referrer's proAccessExpiresAt
+              const currentExpiry = referrer.proAccessExpiresAt ? new Date(referrer.proAccessExpiresAt) : new Date();
+              // If expired, start from now. If active, add to existing.
+              const basisDate = currentExpiry > new Date() ? currentExpiry : new Date();
+              basisDate.setDate(basisDate.getDate() + 30);
+
+              await this.prisma.user.update({
+                where: { id: referrer.id },
+                data: { proAccessExpiresAt: basisDate }
+              });
+              this.logger.log(`✓ Added 30 days to Referrer ${referrer.id}. New Expiry: ${basisDate.toISOString()}`);
+            }
+          }
         }
 
         await this.prisma.user.update({

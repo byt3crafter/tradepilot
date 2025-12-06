@@ -17,27 +17,24 @@ import AdminPage from './pages/AdminPage';
 import { UIProvider } from './context/UIContext';
 import { AssetProvider } from './context/AssetContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { PublicRouterProvider, usePublicRouter } from './context/PublicRouterContext';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import RiskDisclaimerPage from './pages/RiskDisclaimerPage';
-import AboutPage from './pages/AboutPage';
 import AboutUsPage from './pages/AboutUsPage';
 import FAQPage from './pages/FAQPage';
-import PricingPage from './pages/PricingPage';
 import PublicPricingPage from './pages/PublicPricingPage';
 import RefundPolicyPage from './pages/RefundPolicyPage';
-
-
+import ReferralPage from './pages/ReferralPage';
+import PricingPage from './pages/PricingPage';
 
 // NOTE: using import.meta.env for Vite. Cast to any to avoid TS error if types are missing.
 const CLERK_PUBLISHABLE_KEY = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
 
 const AuthenticatedApp: React.FC = () => {
   const { isLoading } = useAuth();
-
-  // Animated background is never loaded for authenticated users
-  // It's only conditionally loaded on landing page in index.html
+  const { currentPath } = usePublicRouter();
 
   if (isLoading) {
     return (
@@ -59,7 +56,13 @@ const AuthenticatedApp: React.FC = () => {
                     <SettingsProvider>
                       <TradeProvider>
                         <NotificationProvider>
-                          <DashboardPage />
+                          {currentPath === '/referral' ? (
+                            <ReferralPage />
+                          ) : currentPath === '/pricing' ? (
+                            <PricingPage />
+                          ) : (
+                            <DashboardPage />
+                          )}
                         </NotificationProvider>
                       </TradeProvider>
                     </SettingsProvider>
@@ -75,20 +78,7 @@ const AuthenticatedApp: React.FC = () => {
 };
 
 const UnauthenticatedApp: React.FC = () => {
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const navigate = (path: string) => {
-    window.history.pushState({}, '', path);
-    setCurrentPath(path);
-  };
+  const { currentPath, navigate, replace } = usePublicRouter();
 
   // Load animated background only on landing page
   useEffect(() => {
@@ -118,7 +108,8 @@ const UnauthenticatedApp: React.FC = () => {
     return <RiskDisclaimerPage />;
   }
   if (currentPath === '/about') {
-    return <AboutPage />;
+    replace('/about-us');
+    return null;
   }
   if (currentPath === '/about-us') {
     return <AboutUsPage />;
@@ -135,8 +126,7 @@ const UnauthenticatedApp: React.FC = () => {
 
   // Redirect legacy routes to home or login
   if (['/forgot-password', '/reset-password', '/verify-email'].includes(currentPath)) {
-    window.history.replaceState({}, '', '/login');
-    setCurrentPath('/login');
+    replace('/login');
     return null;
   }
 
@@ -183,7 +173,9 @@ const App: React.FC = () => {
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <AuthProvider>
-        <AppContent />
+        <PublicRouterProvider>
+          <AppContent />
+        </PublicRouterProvider>
       </AuthProvider>
     </ClerkProvider>
   );
