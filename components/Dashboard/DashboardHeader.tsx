@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAccount } from '../../context/AccountContext';
 import SmartLimitsCard from './SmartLimitsCard';
@@ -8,12 +8,15 @@ import { PlusIcon } from '../icons/PlusIcon';
 import { useUI } from '../../context/UIContext';
 import { useView } from '../../context/ViewContext';
 import NotificationBell from '../notifications/NotificationBell';
+import Modal from '../ui/Modal';
+import ComplianceReportModal from '../compliance/ComplianceReportModal';
 
 const DashboardHeader: React.FC = () => {
     const { user } = useAuth();
     const { activeAccount, smartLimitsProgress } = useAccount();
     const { requestAddTradeModalOpen } = useUI();
     const { navigateTo } = useView();
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
     const handleQuickLogTrade = () => {
         requestAddTradeModalOpen();
@@ -49,6 +52,20 @@ const DashboardHeader: React.FC = () => {
                     </div>
                 )}
 
+                {/* Export PDF (for prop firm accounts with objectives) */}
+                {activeAccount?.type === 'PROP_FIRM' && activeAccount?.objectives?.isEnabled && (
+                    <Tooltip text="Export Compliance Report" position="bottom">
+                        <button
+                            onClick={() => setIsExportModalOpen(true)}
+                            className="p-2.5 rounded-lg bg-future-panel/50 border border-white/10 text-white hover:bg-white/5 transition-all active:scale-95"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                        </button>
+                    </Tooltip>
+                )}
+
                 {/* Quick Log */}
                 <Tooltip text="Log Trade" position="bottom">
                     <button
@@ -59,6 +76,13 @@ const DashboardHeader: React.FC = () => {
                     </button>
                 </Tooltip>
             </div>
+
+            {/* Export Modal */}
+            {isExportModalOpen && (
+                <Modal title="Export Compliance Report" onClose={() => setIsExportModalOpen(false)}>
+                    <ComplianceReportModal onClose={() => setIsExportModalOpen(false)} />
+                </Modal>
+            )}
         </div>
     );
 };

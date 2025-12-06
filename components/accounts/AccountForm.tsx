@@ -164,16 +164,6 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
               }))
             ]}
           />
-          {selectedTemplateId && (
-            <p className="text-xs text-green-400 mt-1">
-              ✓ Template applied! Fields have been auto-filled below. You can adjust them if needed.
-            </p>
-          )}
-          {!selectedTemplateId && type === BrokerAccountType.PROP_FIRM && (
-            <p className="text-xs text-secondary mt-1">
-              Select a template to auto-fill challenge parameters, or enter them manually below.
-            </p>
-          )}
         </div>
       )}
 

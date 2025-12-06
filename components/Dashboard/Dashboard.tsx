@@ -8,7 +8,6 @@ import GettingStartedGuide from './GettingStartedGuide';
 import { useAccount } from '../../context/AccountContext';
 import TradingObjectivesCard from './TradingObjectivesCard';
 import DashboardHeader from './DashboardHeader';
-import ChallengeProgressCard from './ChallengeProgressCard';
 
 import Spinner from '../Spinner';
 
@@ -53,11 +52,6 @@ const Dashboard: React.FC = () => {
       {hasTrades && (
         <>
           <DashboardHeader />
-
-          {/* Challenge Progress Card (for prop firm accounts with objectives enabled) */}
-          {activeAccount?.type === 'PROP_FIRM' && activeAccount?.objectives?.isEnabled && (
-            <ChallengeProgressCard />
-          )}
         </>
       )}
 
