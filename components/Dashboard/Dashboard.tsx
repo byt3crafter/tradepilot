@@ -54,14 +54,9 @@ const Dashboard: React.FC = () => {
         <>
           <DashboardHeader />
 
-          {/* Challenge Progress Card (for prop firm accounts with template) */}
-          {activeAccount?.type === 'PROP_FIRM' && activeAccount?.templateId && (
+          {/* Challenge Progress Card (for prop firm accounts with objectives enabled) */}
+          {activeAccount?.type === 'PROP_FIRM' && activeAccount?.objectives?.isEnabled && (
             <ChallengeProgressCard />
-          )}
-
-          {/* Prop Firm Objectives (fallback for accounts without template) */}
-          {activeAccount?.objectives?.isEnabled && !activeAccount?.templateId && objectivesProgress && objectivesProgress.length > 0 && (
-            <TradingObjectivesCard objectives={objectivesProgress} currentEquity={activeAccount.currentBalance} />
           )}
         </>
       )}

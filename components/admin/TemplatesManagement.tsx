@@ -3,6 +3,8 @@ import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import { PropFirmTemplate } from '../../types';
 import Spinner from '../Spinner';
+import { PencilIcon } from '../icons/PencilIcon';
+import { TrashIcon } from '../icons/TrashIcon';
 
 interface TemplatesManagementProps {
   templates: PropFirmTemplate[];
@@ -87,18 +89,30 @@ const TemplatesManagement: React.FC<TemplatesManagementProps> = ({
                       {template.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <Button variant="link" onClick={() => onEdit(template)} className="text-xs">
-                      Edit
-                    </Button>
-                    <Button
-                      variant="link"
-                      onClick={() => setConfirmDelete(template.id)}
-                      className="text-xs text-red-400 hover:text-red-300"
-                      disabled={deletingId === template.id}
-                    >
-                      {deletingId === template.id ? <Spinner /> : 'Delete'}
-                    </Button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onEdit(template)}
+                        className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded transition-colors"
+                        title="Edit template"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(template.id)}
+                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={deletingId === template.id}
+                        title="Delete template"
+                      >
+                        {deletingId === template.id ? (
+                          <div className="w-4 h-4 flex items-center justify-center">
+                            <Spinner />
+                          </div>
+                        ) : (
+                          <TrashIcon className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
