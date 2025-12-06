@@ -124,6 +124,17 @@ const UnauthenticatedApp: React.FC = () => {
     return <RefundPolicyPage />;
   }
 
+  // Handle Referral Invite Links
+  if (currentPath.startsWith('/invite/')) {
+    const referralCode = currentPath.split('/invite/')[1];
+    if (referralCode) {
+      localStorage.setItem('referralCode', referralCode);
+      // Redirect to signup with the code in query param as backup/for tracking
+      replace(`/signup?ref=${referralCode}`);
+      return null;
+    }
+  }
+
   // Redirect legacy routes to home or login
   if (['/forgot-password', '/reset-password', '/verify-email'].includes(currentPath)) {
     replace('/login');

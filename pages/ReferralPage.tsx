@@ -11,7 +11,7 @@ const ReferralPage: React.FC = () => {
     const { user } = useAuth();
     const [copied, setCopied] = useState(false);
 
-    const referralLink = `https://jtradejournal.com/invite/${user?.id}`;
+    const referralLink = `${window.location.origin}/invite/${user?.id}`;
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(referralLink);
