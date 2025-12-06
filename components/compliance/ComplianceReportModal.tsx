@@ -9,7 +9,7 @@ interface ComplianceReportModalProps {
 }
 
 const ComplianceReportModal: React.FC<ComplianceReportModalProps> = ({ onClose }) => {
-  const { selectedAccount } = useAccount();
+  const { activeAccount } = useAccount();
   const { accessToken } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -21,14 +21,14 @@ const ComplianceReportModal: React.FC<ComplianceReportModalProps> = ({ onClose }
   const [includeScreenshots, setIncludeScreenshots] = useState(false);
 
   const handleGenerate = async () => {
-    if (!selectedAccount || !accessToken) return;
+    if (!activeAccount || !accessToken) return;
 
     setIsGenerating(true);
     setError('');
 
     try {
       const params = new URLSearchParams({
-        accountId: selectedAccount.id,
+        accountId: activeAccount.id,
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
         includeJournal: includeJournal.toString(),
@@ -52,7 +52,7 @@ const ComplianceReportModal: React.FC<ComplianceReportModalProps> = ({ onClose }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `compliance-report-${selectedAccount.name}-${Date.now()}.pdf`;
+      a.download = `compliance-report-${activeAccount.name}-${Date.now()}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -66,7 +66,7 @@ const ComplianceReportModal: React.FC<ComplianceReportModalProps> = ({ onClose }
     }
   };
 
-  if (!selectedAccount) return null;
+  if (!activeAccount) return null;
 
   return (
     <div className="space-y-6">

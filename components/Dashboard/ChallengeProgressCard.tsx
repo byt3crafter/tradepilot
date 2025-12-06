@@ -31,7 +31,7 @@ interface DrawdownData {
 }
 
 const ChallengeProgressCard: React.FC = () => {
-  const { selectedAccount } = useAccount();
+  const { activeAccount } = useAccount();
   const { accessToken } = useAuth();
   const [drawdownData, setDrawdownData] = useState<DrawdownData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,10 +40,10 @@ const ChallengeProgressCard: React.FC = () => {
 
   useEffect(() => {
     const fetchDrawdownData = async () => {
-      if (!selectedAccount || !accessToken) return;
+      if (!activeAccount || !accessToken) return;
 
       // Only fetch for PROP_FIRM accounts with objectives enabled
-      if (selectedAccount.type !== 'PROP_FIRM' || !selectedAccount.objectives?.isEnabled) {
+      if (activeAccount.type !== 'PROP_FIRM' || !activeAccount.objectives?.isEnabled) {
         setDrawdownData(null);
         return;
       }
@@ -51,7 +51,7 @@ const ChallengeProgressCard: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
-        const data = await api.getDrawdownCalculation(accessToken, selectedAccount.id);
+        const data = await api.getDrawdownCalculation(accessToken, activeAccount.id);
         setDrawdownData(data);
       } catch (err: any) {
         setError(err.message || 'Failed to load challenge progress');
@@ -65,9 +65,9 @@ const ChallengeProgressCard: React.FC = () => {
     // Refresh every 30 seconds for live updates
     const interval = setInterval(fetchDrawdownData, 30000);
     return () => clearInterval(interval);
-  }, [selectedAccount, accessToken]);
+  }, [activeAccount, accessToken]);
 
-  if (!selectedAccount || selectedAccount.type !== 'PROP_FIRM' || !selectedAccount.objectives?.isEnabled) {
+  if (!activeAccount || activeAccount.type !== 'PROP_FIRM' || !activeAccount.objectives?.isEnabled) {
     return null;
   }
 
