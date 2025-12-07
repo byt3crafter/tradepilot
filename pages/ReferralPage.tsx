@@ -6,6 +6,8 @@ import { UsersIcon } from '../components/icons/UsersIcon';
 import Button from '../components/ui/Button';
 import Card from '../components/Card';
 import { useUI } from '../context/UIContext';
+import { UserButton } from '@clerk/clerk-react';
+import { dark } from '@clerk/themes';
 
 const ReferralPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -28,10 +30,26 @@ const ReferralPage: React.FC = () => {
             <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
                 {/* Mobile Header */}
                 <header className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#08090A]">
-                    <span className="font-bold text-lg">Refer & Earn</span>
-                    <button onClick={() => setIsSidebarOpen(true)} className="text-secondary">
-                        <MenuIcon className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
+                        <span className="font-orbitron font-bold text-sm">JTradePilot</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <UserButton
+                            appearance={{
+                                baseTheme: dark,
+                                elements: {
+                                    avatarBox: "w-8 h-8 rounded-full border border-white/10",
+                                    userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
+                                    userButtonPopoverFooter: "hidden",
+                                    userButtonTrigger: "focus:shadow-none"
+                                }
+                            }}
+                        />
+                        <button onClick={() => setIsSidebarOpen(true)} className="text-secondary">
+                            <MenuIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-16">
@@ -52,7 +70,7 @@ const ReferralPage: React.FC = () => {
                             </p>
                         </div>
 
-                        <div className="grid lg:grid-cols-12 gap-8 items-start">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
                             {/* Left Column: Link & Stats (7 cols) */}
                             <div className="lg:col-span-7 space-y-6">

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import SelectInput from '../components/ui/SelectInput';
 import api from '../services/api';
 import { useView } from '../context/ViewContext';
 import { SettingsSubView } from './DashboardPage';
@@ -139,7 +140,25 @@ const SettingsPage: React.FC = () => {
 
             <div className="flex flex-col md:flex-row gap-8">
                 <nav className="flex-shrink-0 md:w-48">
-                    <div className="flex flex-col gap-2 p-2 bg-surface border border-white/5 rounded-lg">
+                    {/* Mobile Dropdown */}
+                    <div className="md:hidden mb-6">
+                        <SelectInput
+                            id="settings-nav"
+                            value={currentSubView}
+                            onChange={(e) => navigateTo('settings', e.target.value as SettingsSubView)}
+                            options={[
+                                { value: 'profile', label: 'Profile' },
+                                { value: 'accounts', label: 'Accounts' },
+                                { value: 'checklist', label: 'Checklist' },
+                                { value: 'assets', label: 'Assets' },
+                                { value: 'billing', label: 'Billing' },
+                                { value: 'security', label: 'Security' },
+                            ]}
+                        />
+                    </div>
+
+                    {/* Desktop Vertical List */}
+                    <div className="hidden md:flex flex-col gap-2 p-2 bg-surface border border-white/5 rounded-lg">
                         <NavButton tab="profile" label="Profile" />
                         <NavButton tab="accounts" label="Accounts" />
                         <NavButton tab="checklist" label="Checklist" />

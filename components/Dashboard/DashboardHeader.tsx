@@ -42,7 +42,7 @@ const DashboardHeader: React.FC = () => {
             {/* Smart Trade Input (Center) */}
             <SmartTradeInput />
 
-            <div className="flex flex-wrap items-center gap-2 min-w-fit justify-end">
+            <div className="flex flex-wrap items-center gap-2 min-w-fit justify-center lg:justify-end">
                 {/* Smart Limits Mini-Display */}
                 {activeAccount?.smartLimits?.isEnabled && smartLimitsProgress && (
                     <SmartLimitsCard progress={smartLimitsProgress} limits={activeAccount.smartLimits} />

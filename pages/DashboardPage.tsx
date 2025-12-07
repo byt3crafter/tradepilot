@@ -65,7 +65,10 @@ const DashboardPage: React.FC = () => {
 
         {/* Mobile header - fixed height, no scroll */}
         <header className="flex-shrink-0 p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
-          <span className="font-medium text-sm">JTradePilot</span>
+          <div className="flex flex-wrap items-center gap-2 min-w-fit justify-center lg:justify-end">
+            <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
+            <span className="font-orbitron font-bold text-sm">JTradePilot</span>
+          </div>
           <div className="flex items-center gap-3">
             <UserButton
               appearance={{
