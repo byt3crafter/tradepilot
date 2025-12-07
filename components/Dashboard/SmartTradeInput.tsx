@@ -93,7 +93,7 @@ const SmartTradeInput: React.FC = () => {
     };
 
     return (
-        <div className="flex-1 max-w-2xl mx-6 relative group flex flex-col gap-2">
+        <div className="flex-1 max-w-2xl mx-0 sm:mx-6 relative group flex flex-col gap-2">
             <div className="relative w-full">
                 <div className="absolute left-3 top-3 text-photonic-blue transition-opacity duration-300 group-focus-within:opacity-100 opacity-70">
                     {isLoading ? <Spinner size="sm" /> : <SparklesIcon className="w-4 h-4" />}

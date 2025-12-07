@@ -50,7 +50,19 @@ const PublicNavbar: React.FC = () => {
 
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
-                <div className="md:hidden bg-[#08090A] border-b border-white/10 absolute w-full left-0 top-16 z-50 shadow-2xl">
+                <div className="md:hidden bg-[#08090A] fixed inset-0 z-50 flex flex-col">
+                    <div className="flex items-center justify-between px-4 h-16 border-b border-white/10">
+                        <PublicLink href="/" className="text-white font-semibold flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+                            <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
+                            <span className="font-orbitron tracking-wider">JTradePilot</span>
+                        </PublicLink>
+                        <button
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="text-future-gray hover:text-white p-2 transition-colors"
+                        >
+                            <XIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                     <div className="px-4 py-6 space-y-4">
                         <PublicLink
                             href="/pricing"

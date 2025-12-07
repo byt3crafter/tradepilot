@@ -11,9 +11,10 @@ import Modal from '../components/ui/Modal';
 import GrantProAccessModal from '../components/admin/GrantProAccessModal';
 import TemplatesManagement from '../components/admin/TemplatesManagement';
 import TemplateFormModal from '../components/admin/TemplateFormModal';
+import PlaybooksManagement from '../components/admin/PlaybooksManagement';
 import { MenuIcon } from '../components/icons/MenuIcon';
 
-type AdminView = 'dashboard' | 'users' | 'templates';
+type AdminView = 'dashboard' | 'users' | 'templates' | 'playbooks';
 
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
@@ -22,6 +23,7 @@ const AdminPage: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
+  const [playbooks, setPlaybooks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -51,20 +53,32 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const fetchPlaybooks = async () => {
+    if (!accessToken) return;
+    try {
+      const playbooksData = await api.getCommunityPlaybooks(accessToken);
+      setPlaybooks(playbooksData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to refresh playbooks.');
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!accessToken) return;
       setIsLoading(true);
       setError('');
       try {
-        const [statsData, usersData, templatesData] = await Promise.all([
+        const [statsData, usersData, templatesData, playbooksData] = await Promise.all([
           api.getAdminStats(accessToken),
           api.getAdminUsers(accessToken),
           api.getAllPropFirmTemplates(accessToken),
+          api.getCommunityPlaybooks(accessToken),
         ]);
         setStats(statsData);
         setUsers(usersData);
         setTemplates(templatesData);
+        setPlaybooks(playbooksData);
       } catch (err: any) {
         setError(err.message || 'Failed to load admin data.');
       } finally {
@@ -116,6 +130,11 @@ const AdminPage: React.FC = () => {
   const handleDeleteTemplate = async (id: string) => {
     if (!accessToken) return;
     await api.deletePropFirmTemplate(accessToken, id);
+  };
+
+  const handleDeletePlaybook = async (id: string) => {
+    if (!accessToken) return;
+    await api.deletePlaybook(id, accessToken);
   };
 
   const renderContent = () => {
@@ -171,6 +190,16 @@ const AdminPage: React.FC = () => {
         />
       );
     }
+
+    if (currentView === 'playbooks') {
+      return (
+        <PlaybooksManagement
+          playbooks={playbooks}
+          onRefresh={fetchPlaybooks}
+          onDelete={handleDeletePlaybook}
+        />
+      );
+    }
   };
 
   return (
@@ -195,7 +224,7 @@ const AdminPage: React.FC = () => {
               <MenuIcon className="w-6 h-6" />
             </button>
             <span className="font-orbitron text-lg text-secondary">
-              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : 'Templates'}
+              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : currentView === 'templates' ? 'Templates' : 'Playbooks'}
             </span>
           </div>
           <div className="flex items-center gap-4">

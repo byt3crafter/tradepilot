@@ -4,10 +4,11 @@ import AuthMark from '../auth/AuthMark';
 import { AdminIcon } from '../icons/AdminIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { SettingsIcon } from '../icons/SettingsIcon';
+import { PlaybookIcon } from '../icons/PlaybookIcon';
 
 interface AdminSidebarProps {
-    currentView: 'dashboard' | 'users' | 'templates';
-    onNavigate: (view: 'dashboard' | 'users' | 'templates') => void;
+    currentView: 'dashboard' | 'users' | 'templates' | 'playbooks';
+    onNavigate: (view: 'dashboard' | 'users' | 'templates' | 'playbooks') => void;
     isCollapsed: boolean;
     isOpen?: boolean;
     onClose?: () => void;
@@ -53,7 +54,9 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
             >
                 {/* BRAND */}
                 <div className={`h-16 flex items-center border-b border-white/10 ${isCollapsed ? 'justify-center' : 'px-6'}`}>
-                    {isCollapsed ? <AuthMark size={18} /> : <AuthLogo />}
+                    <a href="/" className="hover:opacity-80 transition-opacity">
+                        {isCollapsed ? <AuthMark size={18} /> : <AuthLogo />}
+                    </a>
                 </div>
 
                 {/* Admin Badge */}
@@ -92,6 +95,13 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
                         label="Templates"
                         isActive={currentView === 'templates'}
                         onClick={() => { onNavigate('templates'); onClose?.(); }}
+                        isCollapsed={isCollapsed}
+                    />
+                    <AdminNavItem
+                        icon={<PlaybookIcon className="w-4 h-4" />}
+                        label="Playbooks"
+                        isActive={currentView === 'playbooks'}
+                        onClick={() => { onNavigate('playbooks'); onClose?.(); }}
                         isCollapsed={isCollapsed}
                     />
                 </div>

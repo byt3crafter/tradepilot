@@ -211,7 +211,18 @@ export class PlaybooksService {
   }
 
   async remove(id: string, userId: string) {
-    await this.findOne(id, userId, false); // Authorization check
+    const playbook = await this.prisma.playbook.findUnique({ where: { id } });
+    if (!playbook) {
+      throw new NotFoundException(`Playbook with ID ${id} not found.`);
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const isAdmin = user?.role === 'ADMIN';
+
+    if (playbook.userId !== userId && !isAdmin) {
+      throw new ForbiddenException('You are not authorized to delete this playbook.');
+    }
+
     await this.prisma.playbook.delete({ where: { id } });
     return { message: 'Playbook deleted successfully.' };
   }

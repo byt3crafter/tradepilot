@@ -27,7 +27,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
 
   const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(account?.templateId || '');
-  
+
   const [objectivesEnabled, setObjectivesEnabled] = useState(account?.objectives?.isEnabled || false);
   const [profitTarget, setProfitTarget] = useState(account?.objectives?.profitTarget ?? '');
   const [minTradingDays, setMinTradingDays] = useState(account?.objectives?.minTradingDays ?? '');
@@ -176,7 +176,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         onChange={(e) => setInitialBalance(e.target.value)}
         required
       />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SelectInput
           label="Currency"
           id="currency"
@@ -192,7 +192,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
             { value: 'CHF', label: 'CHF' },
           ]}
         />
-         <Input
+        <Input
           label="Leverage (e.g., 100)"
           id="leverage"
           type="number"
@@ -214,33 +214,33 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       />
 
       <div className="my-4 pt-4 border-t border-white/10">
-        <ToggleSwitch 
-            label="Enable Trading Objectives (for Prop Firms)"
-            checked={objectivesEnabled}
-            onChange={setObjectivesEnabled}
+        <ToggleSwitch
+          label="Enable Trading Objectives (for Prop Firms)"
+          checked={objectivesEnabled}
+          onChange={setObjectivesEnabled}
         />
         {objectivesEnabled && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
-                <Input label="Profit Target ($)" id="profitTarget" type="number" placeholder="e.g., 8000" value={profitTarget} onChange={e => setProfitTarget(e.target.value)} />
-                <Input label="Min Trading Days" id="minTradingDays" type="number" placeholder="e.g., 5" value={minTradingDays} onChange={e => setMinTradingDays(e.target.value)} />
-                <Input label="Max Overall Loss ($)" id="maxLoss" type="number" placeholder="e.g., 5000" value={maxLoss} onChange={e => setMaxLoss(e.target.value)} />
-                <Input label="Max Daily Loss ($)" id="maxDailyLoss" type="number" placeholder="e.g., 2500" value={maxDailyLoss} onChange={e => setMaxDailyLoss(e.target.value)} />
-            </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
+            <Input label="Profit Target ($)" id="profitTarget" type="number" placeholder="e.g., 8000" value={profitTarget} onChange={e => setProfitTarget(e.target.value)} />
+            <Input label="Min Trading Days" id="minTradingDays" type="number" placeholder="e.g., 5" value={minTradingDays} onChange={e => setMinTradingDays(e.target.value)} />
+            <Input label="Max Overall Loss ($)" id="maxLoss" type="number" placeholder="e.g., 5000" value={maxLoss} onChange={e => setMaxLoss(e.target.value)} />
+            <Input label="Max Daily Loss ($)" id="maxDailyLoss" type="number" placeholder="e.g., 2500" value={maxDailyLoss} onChange={e => setMaxDailyLoss(e.target.value)} />
+          </div>
         )}
       </div>
 
-       <div className="my-4 pt-4 border-t border-white/10">
-        <ToggleSwitch 
-            label="Enable Smart Limits (Personal Rules)"
-            checked={smartLimitsEnabled}
-            onChange={setSmartLimitsEnabled}
+      <div className="my-4 pt-4 border-t border-white/10">
+        <ToggleSwitch
+          label="Enable Smart Limits (Personal Rules)"
+          checked={smartLimitsEnabled}
+          onChange={setSmartLimitsEnabled}
         />
         {smartLimitsEnabled && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
-                <Input label="Max Risk per Trade (%)" id="maxRiskPerTrade" type="number" step="0.1" placeholder="e.g., 1" value={maxRiskPerTrade} onChange={e => setMaxRiskPerTrade(e.target.value)} />
-                <Input label="Max Trades per Day" id="maxTradesPerDay" type="number" placeholder="e.g., 3" value={maxTradesPerDay} onChange={e => setMaxTradesPerDay(e.target.value)} />
-                <Input label="Max Losses per Day" id="maxLossesPerDay" type="number" placeholder="e.g., 2" value={maxLossesPerDay} onChange={e => setMaxLossesPerDay(e.target.value)} />
-            </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
+            <Input label="Max Risk per Trade (%)" id="maxRiskPerTrade" type="number" step="0.1" placeholder="e.g., 1" value={maxRiskPerTrade} onChange={e => setMaxRiskPerTrade(e.target.value)} />
+            <Input label="Max Trades per Day" id="maxTradesPerDay" type="number" placeholder="e.g., 3" value={maxTradesPerDay} onChange={e => setMaxTradesPerDay(e.target.value)} />
+            <Input label="Max Losses per Day" id="maxLossesPerDay" type="number" placeholder="e.g., 2" value={maxLossesPerDay} onChange={e => setMaxLossesPerDay(e.target.value)} />
+          </div>
         )}
       </div>
 

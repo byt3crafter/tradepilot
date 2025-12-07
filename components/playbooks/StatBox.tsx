@@ -4,13 +4,14 @@ import Card from '../Card';
 interface StatBoxProps {
   label: string;
   value: string | number;
+  valueColor?: string;
 }
 
-const StatBox: React.FC<StatBoxProps> = ({ label, value }) => {
+const StatBox: React.FC<StatBoxProps> = ({ label, value, valueColor: customValueColor }) => {
   const isPositive = typeof value === 'string' && value.startsWith('$') && !value.includes('$-');
   const isNegative = typeof value === 'string' && value.includes('$-');
 
-  const valueColor = isPositive ? 'text-momentum-green' : isNegative ? 'text-risk-high' : 'text-future-light';
+  const valueColor = customValueColor || (isPositive ? 'text-momentum-green' : isNegative ? 'text-risk-high' : 'text-future-light');
 
   return (
     <Card className="p-3">
