@@ -138,8 +138,8 @@ const SettingsPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col md:flex-row gap-8">
-                <nav className="flex-shrink-0 md:w-48 overflow-x-auto no-scrollbar">
-                    <div className="flex flex-row md:flex-col gap-2 p-2 bg-surface border border-white/5 rounded-lg min-w-max md:min-w-0">
+                <nav className="flex-shrink-0 md:w-48">
+                    <div className="flex flex-col gap-2 p-2 bg-surface border border-white/5 rounded-lg">
                         <NavButton tab="profile" label="Profile" />
                         <NavButton tab="accounts" label="Accounts" />
                         <NavButton tab="checklist" label="Checklist" />

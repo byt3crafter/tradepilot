@@ -15,8 +15,8 @@ const StatBox: React.FC<StatBoxProps> = ({ label, value, valueColor: customValue
 
   return (
     <Card className="p-3">
-      <h4 className="text-xs text-future-gray uppercase tracking-wider font-semibold">{label}</h4>
-      <p className={`text-2xl font-orbitron mt-2 ${valueColor}`}>{value}</p>
+      <p className="text-xs text-future-gray uppercase tracking-wider mb-1 truncate">{label}</p>
+      <p className={`text-xl font-bold font-tech-mono ${valueColor} truncate`}>{value}</p>
     </Card>
   );
 };

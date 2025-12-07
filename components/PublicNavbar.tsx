@@ -15,6 +15,9 @@ const PublicNavbar: React.FC = () => {
                 <PublicLink href="/" className="text-white font-semibold hover:opacity-80 transition-opacity flex items-center gap-2">
                     <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
                     <span className="font-orbitron tracking-wider">JTradePilot</span>
+                    <span className="px-2 py-0.5 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-[10px] font-bold text-photonic-blue uppercase tracking-wider">
+                        BETA
+                    </span>
                 </PublicLink>
 
                 {/* Desktop Navigation */}
@@ -55,10 +58,13 @@ const PublicNavbar: React.FC = () => {
                         <PublicLink href="/" className="text-white font-semibold flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
                             <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
                             <span className="font-orbitron tracking-wider">JTradePilot</span>
+                            <span className="px-2 py-0.5 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-[10px] font-bold text-photonic-blue uppercase tracking-wider">
+                                BETA
+                            </span>
                         </PublicLink>
                         <button
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="text-future-gray hover:text-white p-2 transition-colors"
+                            className="text-future-gray hover:text-white p-2 transition-colors rounded-lg active:bg-white/10"
                         >
                             <XIcon className="w-6 h-6" />
                         </button>

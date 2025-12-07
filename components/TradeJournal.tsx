@@ -315,7 +315,7 @@ const TradeJournal: React.FC = () => {
 
               <Button onClick={handleOpenAddTrade} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
                 <PlusIcon className="w-5 h-5" />
-                <span>Log Trade</span>
+                <span className="hidden sm:inline">Log Trade</span>
               </Button>
 
               {(isObjectiveBlocked || isSmartLimitBlocked) && (
