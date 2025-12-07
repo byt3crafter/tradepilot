@@ -48,6 +48,12 @@ const TermsOfServicePage: React.FC = () => {
 
           {/* Introduction */}
           <section className="bg-future-panel/50 rounded-lg p-6 border border-photonic-blue/10">
+            <div className="mb-4 text-future-gray">
+              <p className="font-semibold text-future-light mb-2">Service Operator:</p>
+              <p>Ludovic Micinthe (Sole Proprietor)</p>
+              <p>Operating as: JTradePilot</p>
+              <p>Contact: legal@jtradepilot.com</p>
+            </div>
             <p className="text-future-gray mb-4">
               These Terms of Service ("Terms") govern your use of JTradePilot, including our website,
               mobile application, and all related services (the "Service"). By accessing or using JTradePilot,
@@ -433,7 +439,7 @@ const TermsOfServicePage: React.FC = () => {
 
             <div className="space-y-3 ml-11 text-future-gray">
               <p>
-                These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law provisions.
+                These Terms shall be governed by and interpreted in accordance with applicable laws.
               </p>
               <p>
                 Any disputes shall be resolved through binding arbitration, except that either party may pursue injunctive relief
@@ -459,10 +465,10 @@ const TermsOfServicePage: React.FC = () => {
                 For questions about these Terms, please contact:
               </p>
               <p className="text-future-gray">
-                <strong>Email:</strong> legal@jtradepilot.com
+                <strong>Legal Business Name:</strong> Ludovic Micinthe
               </p>
               <p className="text-future-gray">
-                <strong>Website:</strong> www.jtradepilot.com
+                <strong>Email:</strong> legal@jtradepilot.com
               </p>
             </div>
           </section>

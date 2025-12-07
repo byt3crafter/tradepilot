@@ -6,14 +6,14 @@ import { UsersIcon } from '../components/icons/UsersIcon';
 import Button from '../components/ui/Button';
 import Card from '../components/Card';
 import { useUI } from '../context/UIContext';
-import { UserButton } from '@clerk/clerk-react';
-import { dark } from '@clerk/themes';
+import { useClerk } from '@clerk/clerk-react';
 
 const ReferralPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { user } = useAuth();
     const { isSidebarCollapsed } = useUI();
     const [copied, setCopied] = useState(false);
+    const { openUserProfile } = useClerk();
 
     const referralLink = `${window.location.origin}/invite/${user?.id}`;
 
@@ -24,35 +24,46 @@ const ReferralPage: React.FC = () => {
     };
 
     return (
-        <div className="flex h-screen bg-[#08090A] text-white font-sans overflow-hidden">
+        <div className="flex min-h-screen bg-[#08090A] text-white font-sans">
             <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
                 {/* Mobile Header */}
                 <header className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#08090A]">
-                    <div className="flex items-center gap-2">
+                    <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
                         <span className="font-orbitron font-bold text-sm">JTradePilot</span>
-                    </div>
+                    </a>
                     <div className="flex items-center gap-3">
-                        <UserButton
-                            appearance={{
-                                baseTheme: dark,
-                                elements: {
-                                    avatarBox: "w-8 h-8 rounded-full border border-white/10",
-                                    userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
-                                    userButtonPopoverFooter: "hidden",
-                                    userButtonTrigger: "focus:shadow-none"
-                                }
-                            }}
-                        />
+                        <button
+                            onClick={() => openUserProfile()}
+                            className="hover:opacity-80 transition-opacity"
+                        >
+                            {user?.preferences?.useGravatar && user?.gravatarUrl ? (
+                                <img
+                                    src={user.gravatarUrl}
+                                    alt={user.fullName}
+                                    className="w-8 h-8 rounded-full border border-white/10"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                />
+                            ) : (
+                                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                                    <span className="text-xs font-bold text-white">
+                                        {user?.fullName?.substring(0, 2).toUpperCase()}
+                                    </span>
+                                </div>
+                            )}
+                        </button>
                         <button onClick={() => setIsSidebarOpen(true)} className="text-secondary">
                             <MenuIcon className="w-6 h-6" />
                         </button>
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-16">
+                <main className="flex-1 p-6 md:p-12 lg:p-16 pb-24">
                     <div className="max-w-6xl mx-auto space-y-8">
 
                         {/* Header */}

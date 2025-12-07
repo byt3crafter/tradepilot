@@ -15,7 +15,7 @@ import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 import AnalyticsPage from './AnalyticsPage';
 import AnalysisPage from './AnalysisPage';
-import { UserButton } from '@clerk/clerk-react';
+import { UserButton, useClerk } from '@clerk/clerk-react';
 import { dark } from '@clerk/themes';
 
 export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker' | 'pricing';
@@ -26,6 +26,7 @@ const DashboardPage: React.FC = () => {
   const { user, isTrialing } = useAuth();
   const { currentView } = useView();
   const { isSidebarCollapsed } = useUI();
+  const { openUserProfile } = useClerk();
 
   const renderView = () => {
     switch (currentView) {
@@ -65,22 +66,33 @@ const DashboardPage: React.FC = () => {
 
         {/* Mobile header - fixed height, no scroll */}
         <header className="flex-shrink-0 p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">
-          <div className="flex flex-wrap items-center gap-2 min-w-fit justify-center lg:justify-end">
+          <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
             <span className="font-orbitron font-bold text-sm">JTradePilot</span>
-          </div>
+          </a>
           <div className="flex items-center gap-3">
-            <UserButton
-              appearance={{
-                baseTheme: dark,
-                elements: {
-                  avatarBox: "w-8 h-8 rounded-full border border-white/10",
-                  userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
-                  userButtonPopoverFooter: "hidden",
-                  userButtonTrigger: "focus:shadow-none"
-                }
-              }}
-            />
+            <button
+              onClick={() => openUserProfile()}
+              className="hover:opacity-80 transition-opacity"
+            >
+              {user?.preferences?.useGravatar && user?.gravatarUrl ? (
+                <img
+                  src={user.gravatarUrl}
+                  alt={user.fullName}
+                  className="w-8 h-8 rounded-full border border-white/10"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                  <span className="text-xs font-bold text-white">
+                    {user?.fullName?.substring(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </button>
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
