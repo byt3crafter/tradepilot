@@ -5,10 +5,12 @@ import { MenuIcon } from '../components/icons/MenuIcon';
 import { UsersIcon } from '../components/icons/UsersIcon';
 import Button from '../components/ui/Button';
 import Card from '../components/Card';
+import { useUI } from '../context/UIContext';
 
 const ReferralPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { user } = useAuth();
+    const { isSidebarCollapsed } = useUI();
     const [copied, setCopied] = useState(false);
 
     const referralLink = `${window.location.origin}/invite/${user?.id}`;
@@ -23,7 +25,7 @@ const ReferralPage: React.FC = () => {
         <div className="flex h-screen bg-[#08090A] text-white font-sans overflow-hidden">
             <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+            <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
                 {/* Mobile Header */}
                 <header className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#08090A]">
                     <span className="font-bold text-lg">Refer & Earn</span>

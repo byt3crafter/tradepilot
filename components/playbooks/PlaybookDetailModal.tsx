@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
-import { Playbook, PlaybookStats } from '../../types';
+import { Playbook, PlaybookStats, Trade } from '../../types';
 import Button from '../ui/Button';
 import { PencilIcon } from '../icons/PencilIcon';
 import { useTrade } from '../../context/TradeContext';
@@ -10,6 +10,7 @@ import api from '../../services/api';
 import PlaybookStatsTab from './PlaybookStatsTab';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { TrashIcon } from '../icons/TrashIcon';
+import TradeFormModal from '../trades/TradeFormModal';
 
 interface PlaybookDetailModalProps {
   playbook: Playbook;
@@ -32,7 +33,7 @@ const ChecklistDisplay: React.FC<{ title: string, items: { text: string }[] }> =
   </div>
 );
 
-const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
+const PlaybookDetailsTab: React.FC<{ playbook: Playbook, onEditTrade: (trade: Trade) => void }> = ({ playbook, onEditTrade }) => {
   const { closedTrades, isLoading: tradesLoading } = useTrade();
   const relevantTrades = closedTrades.filter(trade => trade.playbookId === playbook.id);
 
@@ -74,7 +75,29 @@ const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <ChecklistDisplay title="Entry Criteria" items={setup.entryCriteria} />
+                  {setup.confirmationFilters && setup.confirmationFilters.length > 0 && (
+                    <ChecklistDisplay title="Confirmation Filters" items={setup.confirmationFilters} />
+                  )}
+                  {setup.exitRules && setup.exitRules.length > 0 && (
+                    <ChecklistDisplay title="Exit Rules" items={setup.exitRules} />
+                  )}
                   <ChecklistDisplay title="Risk Management" items={setup.riskManagement} />
+
+                  {setup.riskSettings && (
+                    <div className="mt-4 p-3 bg-white/5 rounded border border-white/5">
+                      <h4 className="font-semibold text-future-light mb-2 text-sm">Risk Parameters</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-future-gray block text-xs">Risk %</span>
+                          <span className="text-white">{setup.riskSettings.riskPercent}%</span>
+                        </div>
+                        <div>
+                          <span className="text-future-gray block text-xs">Stop Loss Type</span>
+                          <span className="text-white">{setup.riskSettings.stopLossType}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <div>
@@ -108,8 +131,7 @@ const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
                 </tr>
               </thead>
               <tbody>
-                {/* FIX: Add missing isSelected and onSelect props */}
-                {relevantTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => {}} isSelected={false} onSelect={() => {}} />)}
+                {relevantTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => onEditTrade(trade)} isSelected={false} onSelect={() => { }} />)}
               </tbody>
             </table>
           </div>
@@ -124,9 +146,13 @@ const PlaybookDetailsTab: React.FC<{ playbook: Playbook }> = ({ playbook }) => {
 const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onClose, onEdit }) => {
   const { accessToken } = useAuth();
   const { deletePlaybook } = usePlaybook();
+  const { refreshTrades } = useTrade();
   const [activeTab, setActiveTab] = useState<'details' | 'stats'>('details');
   const [stats, setStats] = useState<PlaybookStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -152,13 +178,24 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
     }
   };
 
+  const handleEditTrade = (trade: Trade) => {
+    setEditingTrade(trade);
+    setIsTradeModalOpen(true);
+  };
+
+  const handleTradeSaved = async () => {
+    await refreshTrades();
+    setIsTradeModalOpen(false);
+    setEditingTrade(null);
+  };
+
   return (
     <Modal title={playbook.name} onClose={onClose} size="4xl">
       <div className="absolute top-4 right-20 flex items-center gap-4">
         <Button onClick={onEdit} variant="link" className="flex items-center gap-1 text-sm p-0">
           <PencilIcon className="w-4 h-4 mr-1" /> Edit
         </Button>
-         <Button onClick={handleDelete} variant="link" className="flex items-center gap-1 text-sm p-0 text-risk-high">
+        <Button onClick={handleDelete} variant="link" className="flex items-center gap-1 text-sm p-0 text-risk-high">
           <TrashIcon className="w-4 h-4 mr-1" /> Delete
         </Button>
       </div>
@@ -180,8 +217,17 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
         </nav>
       </div>
 
-      {activeTab === 'details' && <PlaybookDetailsTab playbook={playbook} />}
+      {activeTab === 'details' && <PlaybookDetailsTab playbook={playbook} onEditTrade={handleEditTrade} />}
       {activeTab === 'stats' && <PlaybookStatsTab stats={stats} isLoading={isLoadingStats} />}
+
+      {isTradeModalOpen && (
+        <TradeFormModal
+          isOpen={isTradeModalOpen}
+          onClose={() => setIsTradeModalOpen(false)}
+          tradeToEdit={editingTrade}
+          onSuccess={handleTradeSaved}
+        />
+      )}
 
     </Modal>
   );

@@ -14,6 +14,10 @@ export interface User {
   featureFlags?: {
     analysisTrackerEnabled?: boolean;
   };
+  gravatarUrl?: string;
+  preferences?: {
+    useGravatar?: boolean;
+  };
 }
 
 export enum BrokerAccountType {
@@ -119,6 +123,7 @@ export interface Trade {
   userId: string;
   brokerAccountId: string;
   playbookId: string;
+  playbookSetupId?: string | null;
 
   createdAt: string;
   updatedAt: string;
@@ -137,6 +142,8 @@ export interface Candle {
 export enum ChecklistItemType {
   ENTRY_CRITERIA = 'ENTRY_CRITERIA',
   RISK_MANAGEMENT = 'RISK_MANAGEMENT',
+  EXIT_RULES = 'EXIT_RULES',
+  CONFIRMATION_FILTERS = 'CONFIRMATION_FILTERS',
 }
 
 export interface ChecklistItem {
@@ -152,6 +159,9 @@ export interface PlaybookSetup {
   screenshotAfterUrl?: string | null;
   entryCriteria: ChecklistItem[];
   riskManagement: ChecklistItem[];
+  exitRules: ChecklistItem[];
+  confirmationFilters: ChecklistItem[];
+  riskSettings?: any;
 }
 
 export interface Playbook {
@@ -179,7 +189,10 @@ export interface CommunityPlaybook {
   pros: string[];
   cons: string[];
   authorName: string;
+  authorId: string;
   setups: PlaybookSetup[];
+  winRate?: number;
+  tradeCount?: number;
 }
 
 // --- NEW: Playbook Analytics ---
@@ -207,6 +220,13 @@ export interface PlaybookStats {
   currentStreak: number;
   avgHoldTimeHours: number;
   equityCurve: EquityDataPoint[];
+  setups?: {
+    setupId: string;
+    setupName: string;
+    winRate: number;
+    totalTrades: number;
+    netPL: number;
+  }[];
 }
 
 
@@ -329,6 +349,12 @@ export interface AccountAnalytics {
   performanceByAsset: PerformanceByAsset[];
   performanceByDayOfWeek: PerformanceByTime[];
   performanceByHourOfDay: PerformanceByTime[];
+  winRate?: number;
+  profitFactor?: number;
+  expectancy?: number;
+  currentStreak?: number;
+  totalTrades?: number;
+  netProfit?: number;
 }
 
 // --- NEW: ANALYSIS TRACKER ---

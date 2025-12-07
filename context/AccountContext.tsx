@@ -33,60 +33,68 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
   const refreshObjectives = useCallback(async () => {
     const token = await getToken();
     if (activeAccount && activeAccount.objectives?.isEnabled && token) {
-        try {
-            const progress = await api.getObjectivesProgress(activeAccount.id, token);
-            setObjectivesProgress(progress);
-        } catch (error) {
-            console.error("Failed to fetch objectives progress", error);
-            setObjectivesProgress(null);
-        }
-    } else {
+      try {
+        const progress = await api.getObjectivesProgress(activeAccount.id, token);
+        setObjectivesProgress(progress);
+      } catch (error) {
+        console.error("Failed to fetch objectives progress", error);
         setObjectivesProgress(null);
+      }
+    } else {
+      setObjectivesProgress(null);
     }
   }, [activeAccount, getToken]);
 
   const refreshSmartLimitsProgress = useCallback(async () => {
     const token = await getToken();
     if (activeAccount && activeAccount.smartLimits?.isEnabled && token) {
-        try {
-            const progress = await api.getSmartLimitsProgress(activeAccount.id, token);
-            setSmartLimitsProgress(progress);
-        } catch (error) {
-            console.error("Failed to fetch smart limits progress", error);
-            setSmartLimitsProgress(null);
-        }
-    } else {
+      try {
+        const progress = await api.getSmartLimitsProgress(activeAccount.id, token);
+        setSmartLimitsProgress(progress);
+      } catch (error) {
+        console.error("Failed to fetch smart limits progress", error);
         setSmartLimitsProgress(null);
+      }
+    } else {
+      setSmartLimitsProgress(null);
     }
   }, [activeAccount, getToken]);
 
   const refreshAccounts = useCallback(async () => {
     if (isAuthenticated) {
-      setIsLoading(true);
+      // REMOVED: This causes a UI flash when adding the first account or refreshing.
+      // if (accounts.length === 0) {
+      //   setIsLoading(true);
+      // }
       setIsServerOffline(false);
       try {
         const token = await getToken();
         if (!token) {
-            setAccounts([]);
-            setActiveAccount(null);
-            setIsLoading(false);
-            return;
+          setAccounts([]);
+          setActiveAccount(null);
+          setIsLoading(false);
+          return;
         }
-        
+
         const fetchedAccounts = await api.getAccounts(token);
         setAccounts(fetchedAccounts);
-        
+
         const lastActiveId = localStorage.getItem('activeAccountId');
         const accountToActivate = fetchedAccounts.find(acc => acc.id === lastActiveId) || fetchedAccounts[0] || null;
         setActiveAccount(accountToActivate);
 
       } catch (error: any) {
         console.error("Failed to fetch broker accounts", error);
-        setAccounts([]);
-        setActiveAccount(null);
+        // Only clear accounts if it's an auth error
+        if (error.message === 'Authentication required' || error.message.includes('Session expired')) {
+          setAccounts([]);
+          setActiveAccount(null);
+        }
+        // Otherwise keep existing accounts to prevent UI flash
+
         // Check for network error / connection refused
         if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('Network request failed'))) {
-            setIsServerOffline(true);
+          setIsServerOffline(true);
         }
       } finally {
         setIsLoading(false);
@@ -101,7 +109,7 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     refreshAccounts();
   }, [refreshAccounts]);
-  
+
   useEffect(() => {
     refreshObjectives();
     refreshSmartLimitsProgress();
@@ -114,7 +122,7 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
       localStorage.setItem('activeAccountId', id);
     }
   };
-  
+
   const createAccount = async (data: Partial<BrokerAccount>) => {
     const token = await getToken();
     if (!token) throw new Error("Not authenticated");
@@ -128,12 +136,12 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
     await api.updateAccount(id, data, token);
     await refreshAccounts();
   };
-  
+
   const deleteAccount = async (id: string) => {
-     const token = await getToken();
-     if (!token) throw new Error("Not authenticated");
-     await api.deleteAccount(id, token);
-     await refreshAccounts();
+    const token = await getToken();
+    if (!token) throw new Error("Not authenticated");
+    await api.deleteAccount(id, token);
+    await refreshAccounts();
   };
 
   const value = {

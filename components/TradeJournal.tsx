@@ -327,29 +327,29 @@ const TradeJournal: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-b border-photonic-blue/20 mb-4 flex justify-between items-end">
-          <nav className="flex space-x-4">
+        <div className="border-b border-photonic-blue/20 mb-4 flex flex-col md:flex-row md:justify-between md:items-end gap-2">
+          <nav className="flex space-x-4 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar">
             <button
               onClick={() => setCurrentView('live')}
-              className={`px-3 py-2 text-sm font-semibold transition-colors ${currentView === 'live' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+              className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${currentView === 'live' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
             >
               Live Trades ({liveTrades.length})
             </button>
             <button
               onClick={() => setCurrentView('pending')}
-              className={`px-3 py-2 text-sm font-semibold transition-colors ${currentView === 'pending' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+              className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${currentView === 'pending' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
             >
               Pending Orders ({pendingTrades.length})
             </button>
             <button
               onClick={() => setCurrentView('history')}
-              className={`px-3 py-2 text-sm font-semibold transition-colors ${currentView === 'history' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+              className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${currentView === 'history' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
             >
               Trading History ({filteredClosedTrades.length})
             </button>
           </nav>
           {currentView === 'history' && filteredClosedTrades.length > 0 && (
-            <div className="pb-2 text-sm">
+            <div className="pb-2 text-sm whitespace-nowrap">
               <span className="text-future-gray">Total P/L: </span>
               <span className={`font-tech-mono font-bold ${totalPnl >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
                 {totalPnl >= 0 ? '+' : '-'}${Math.abs(totalPnl).toFixed(2)}

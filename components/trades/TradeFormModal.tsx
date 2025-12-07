@@ -42,6 +42,7 @@ interface FormState {
   screenshotAfterUrl: string | null;
   commission: string;
   swap: string;
+  playbookSetupId?: string;
 }
 
 const toDateTimeLocal = (dateString?: string | null) => {
@@ -71,7 +72,7 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
   const shouldShowCosts = useMemo(() => {
     if (!activeAccount) return false;
     return activeAccount.feeModel === FeeModel.COMMISSION_ONLY ||
-           activeAccount.feeModel === FeeModel.COMMISSION_AND_SWAP;
+      activeAccount.feeModel === FeeModel.COMMISSION_AND_SWAP;
   }, [activeAccount]);
 
   const [formState, setFormState] = useState<FormState>({
@@ -91,6 +92,7 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
     screenshotAfterUrl: null,
     commission: '',
     swap: '',
+    playbookSetupId: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -120,6 +122,7 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
         screenshotAfterUrl: tradeToEdit.screenshotAfterUrl || null,
         commission: tradeToEdit.commission?.toString() ?? '',
         swap: tradeToEdit.swap?.toString() ?? '',
+        playbookSetupId: tradeToEdit.playbookSetupId || '',
       });
     } else {
       // Default playbook for new trades
@@ -226,6 +229,7 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
       takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
       lotSize: formState.lotSize ? Number(formState.lotSize) : null,
       screenshotBeforeUrl: formState.screenshotBeforeUrl,
+      playbookSetupId: formState.playbookSetupId || null,
     };
 
     console.log('Payload:', payload);
@@ -284,6 +288,7 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
       takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
       lotSize: formState.lotSize ? Number(formState.lotSize) : null,
       screenshotBeforeUrl: formState.screenshotBeforeUrl,
+      playbookSetupId: formState.playbookSetupId || null,
     };
 
     // Only include exit-related fields when editing a closed trade
@@ -518,13 +523,32 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   id="playbookId"
                   name="playbookId"
                   value={formState.playbookId}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    // Reset setup when playbook changes
+                    setFormState(prev => ({ ...prev, playbookSetupId: '' }));
+                  }}
                   disabled={playbooks.length === 0}
                   options={playbooks.length > 0
                     ? playbooks.map(s => ({ value: s.id, label: s.name }))
                     : [{ value: '', label: 'Create a playbook first' }]
                   }
                 />
+
+                {formState.playbookId && (
+                  <SelectInput
+                    label="Specific Setup (Optional)"
+                    id="playbookSetupId"
+                    name="playbookSetupId"
+                    value={formState.playbookSetupId || ''}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: '', label: 'General / No Specific Setup' },
+                      ...(playbooks.find(p => p.id === formState.playbookId)?.setups.map(s => ({ value: s.id, label: s.name })) || [])
+                    ]}
+                  />
+                )}
+
                 <div className="flex items-end pb-2">
                   <Checkbox
                     label="This is a Pending Order"
@@ -565,17 +589,17 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(activeAccount?.feeModel === FeeModel.COMMISSION_ONLY ||
                       activeAccount?.feeModel === FeeModel.COMMISSION_AND_SWAP) && (
-                      <Input
-                        label="Commission ($)"
-                        id="commission"
-                        name="commission"
-                        type="number"
-                        step="any"
-                        value={formState.commission}
-                        onChange={handleInputChange}
-                        containerClassName="mb-0"
-                      />
-                    )}
+                        <Input
+                          label="Commission ($)"
+                          id="commission"
+                          name="commission"
+                          type="number"
+                          step="any"
+                          value={formState.commission}
+                          onChange={handleInputChange}
+                          containerClassName="mb-0"
+                        />
+                      )}
                     {activeAccount?.feeModel === FeeModel.COMMISSION_AND_SWAP && (
                       <Input
                         label="Swap / Financing ($)"

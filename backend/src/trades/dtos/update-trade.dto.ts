@@ -25,7 +25,7 @@ export class UpdateTradeDto {
   @IsNumber()
   @IsOptional()
   entryPrice?: number;
-  
+
   @IsNumber()
   @IsOptional()
   exitPrice?: number | null;
@@ -34,7 +34,7 @@ export class UpdateTradeDto {
   @Min(0)
   @IsOptional()
   riskPercentage?: number;
-  
+
   @IsNumber()
   @IsOptional()
   rr?: number | null;
@@ -42,11 +42,11 @@ export class UpdateTradeDto {
   @IsNumber()
   @IsOptional()
   profitLoss?: number | null;
-  
+
   @IsEnum(TradeResult)
   @IsOptional()
   result?: TradeResult | null;
-  
+
   @IsString()
   @IsOptional()
   screenshotBeforeUrl?: string | null;
@@ -58,7 +58,7 @@ export class UpdateTradeDto {
   @IsObject()
   @IsOptional()
   aiAnalysis?: any | null;
-  
+
   @IsBoolean()
   @IsOptional()
   isPendingOrder?: boolean;
@@ -87,4 +87,8 @@ export class UpdateTradeDto {
   @IsNotEmpty()
   @IsOptional()
   playbookId?: string;
+
+  @IsString()
+  @IsOptional()
+  playbookSetupId?: string | null;
 }

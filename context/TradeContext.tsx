@@ -11,6 +11,7 @@ interface TradeContextType {
   pendingTrades: Trade[];
   closedTrades: Trade[];
   isLoading: boolean;
+  isTradesSynced: boolean;
   createTrade: (data: Partial<Trade>) => Promise<void>;
   updateTrade: (id: string, data: Partial<Trade>) => Promise<void>;
   deleteTrade: (id: string) => Promise<void>;
@@ -29,6 +30,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { activeAccount, refreshAccounts, refreshObjectives, refreshSmartLimitsProgress } = useAccount();
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [initializedAccountId, setInitializedAccountId] = useState<string | null>(null);
 
   const refreshAllProgress = useCallback(async () => {
     // Refresh account first to update balance, then refresh dependent progress
@@ -37,35 +39,53 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshSmartLimitsProgress();
   }, [refreshAccounts, refreshObjectives, refreshSmartLimitsProgress]);
 
-  const refreshTrades = useCallback(async () => {
+  const fetchTrades = useCallback(async (showLoading = false) => {
     const token = await getToken();
-    if (activeAccount && token) {
-      setIsLoading(true);
-      try {
-        const fetchedTrades = await api.getTrades(activeAccount.id, token);
-        setAllTrades(fetchedTrades);
-      } catch (error) {
-        console.error("Failed to fetch trades", error);
+    if (!activeAccount || !token) {
+      if (activeAccount === null) {
         setAllTrades([]);
-      } finally {
+        setInitializedAccountId(null);
         setIsLoading(false);
       }
-    } else if (activeAccount === null) {
-      // Only set loading to false if we explicitly know there's no account
-      // Don't set it to false if account is just undefined (still loading)
-      setAllTrades([]);
-      setIsLoading(false);
+      return;
     }
-    // If activeAccount is undefined (still loading), keep isLoading true
+
+    if (showLoading) setIsLoading(true);
+
+    try {
+      const fetchedTrades = await api.getTrades(activeAccount.id, token);
+      setAllTrades(fetchedTrades);
+      setInitializedAccountId(activeAccount.id);
+    } catch (error) {
+      console.error("Failed to fetch trades", error);
+      // Even on error, we mark as initialized so we don't get stuck loading
+      setInitializedAccountId(activeAccount.id);
+    } finally {
+      if (showLoading) setIsLoading(false);
+    }
   }, [activeAccount, getToken]);
 
+  const refreshTrades = useCallback(async () => {
+    await fetchTrades(false);
+  }, [fetchTrades]);
+
   useEffect(() => {
-    // On initial load, just refresh the trades. The AccountContext is already
-    // handling the initial fetch of account data. Objectives and Smart Limits
-    // will be refreshed by the useEffect in AccountContext when the active account changes.
-    // This prevents a "Too Many Requests" error from multiple simultaneous calls.
-    refreshTrades();
-  }, [refreshTrades]);
+    if (activeAccount) {
+      // If we switched accounts, show loading immediately
+      if (activeAccount.id !== initializedAccountId) {
+        fetchTrades(true);
+      } else {
+        // Just a refresh (e.g. token change?), silent
+        fetchTrades(false);
+      }
+    } else {
+      setAllTrades([]);
+      setInitializedAccountId(null);
+      setIsLoading(false);
+    }
+  }, [activeAccount, fetchTrades, initializedAccountId]);
+
+  const isTradesSynced = activeAccount ? activeAccount.id === initializedAccountId : true;
 
   const { liveTrades, pendingTrades, closedTrades } = useMemo(() => {
     const pending = allTrades.filter(t => t.isPendingOrder);
@@ -155,6 +175,7 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     pendingTrades,
     closedTrades,
     isLoading,
+    isTradesSynced,
     createTrade,
     updateTrade,
     deleteTrade,

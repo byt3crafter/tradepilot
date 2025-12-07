@@ -5,8 +5,7 @@ import AuthLogo from './auth/AuthLogo';
 import AuthMark from './auth/AuthMark';
 import { JournalIcon } from './icons/JournalIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
-import { UserButton } from '@clerk/clerk-react';
-import { dark } from '@clerk/themes';
+import { useClerk } from '@clerk/clerk-react';
 import { useAccount } from '../context/AccountContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { PlaybookIcon } from './icons/PlaybookIcon';
@@ -19,6 +18,7 @@ import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import { AnalyticsIcon } from './icons/AnalyticsIcon';
 import { UsersIcon } from './icons/UsersIcon';
+import { LogoutIcon } from './icons/LogoutIcon';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -47,13 +47,20 @@ const NavItem: React.FC<{
         {icon}
       </div>
 
-      {!isCollapsed && (
-        <span className="ml-3 text-xs font-normal uppercase tracking-widest">{label}</span>
-      )}
+      <span className={`ml-3 text-xs font-normal uppercase tracking-widest ${isCollapsed ? 'hidden md:hidden' : ''} md:block`}>
+        {label}
+      </span>
+      {/* Mobile override: Always show text on mobile even if isCollapsed is true (though we try to prevent that) */}
+      <span className={`ml-3 text-xs font-normal uppercase tracking-widest md:hidden ${!isCollapsed ? 'hidden' : 'block'}`}>
+        {label}
+      </span>
     </Element>
   );
 
   if (isCollapsed) {
+    // On mobile, we don't want the tooltip, we want the text.
+    // But Tooltip wrapper might interfere.
+    // Let's rely on the parent passing the correct isCollapsed state.
     return <Tooltip text={label}>{content}</Tooltip>;
   }
 
@@ -177,9 +184,24 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, isTrialing, isSubscribed } = useAuth();
+  const { user, isTrialing, isSubscribed, logout } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed, toggleSidebar } = useUI();
+  const { openUserProfile } = useClerk();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Determine user tier/role display
   const getUserTierDisplay = (): { label: string; color: string } => {
@@ -217,7 +239,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         aria-hidden="true"
       ></div>
       <aside
-        className={`fixed top-0 left-0 h-screen bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isSidebarCollapsed ? 'w-16' : 'w-64'
+        className={`fixed top-0 left-0 h-screen bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] w-64 ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'
           } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         {/* BRAND */}
@@ -235,7 +257,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           {!isSidebarCollapsed && (
             <button
               onClick={toggleSidebar}
-              className="text-secondary hover:text-white transition-colors"
+              className="hidden md:block text-secondary hover:text-white transition-colors"
             >
               <ChevronDoubleLeftIcon className="w-4 h-4" />
             </button>
@@ -297,7 +319,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           />
         </div>
 
-        <div className="mt-auto p-4 border-t border-white/10">
+        <div className="mt-auto p-4 border-t border-white/10 pb-8 md:pb-4">
           {isSidebarCollapsed && (
             <button
               onClick={toggleSidebar}
@@ -309,31 +331,80 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </button>
           )}
 
-          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-            <UserButton
-              appearance={{
-                baseTheme: dark,
-                elements: {
-                  avatarBox: "w-8 h-8 rounded-full border border-white/10",
-                  userButtonPopoverCard: "bg-[#08090A] border border-white/10 shadow-xl",
-                  userButtonPopoverFooter: "hidden",
-                  userButtonTrigger: "focus:shadow-none"
-                }
-              }}
-            />
-            {!isSidebarCollapsed && (
-              <div className="overflow-hidden flex-1">
-                <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
-                <p className={`text-[9px] truncate uppercase tracking-wider ${getUserTierDisplay().color}`}>
-                  JTradePilot {getUserTierDisplay().label}
-                </p>
-                {user.isEarlySupporter && (
-                  <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded bg-momentum-green/10 border border-momentum-green/20">
-                    <span className="text-[8px] font-bold text-momentum-green uppercase tracking-wider leading-none">
-                      Early Supporter
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className={`flex items-center gap-3 w-full hover:bg-white/5 p-2 rounded-lg transition-colors text-left group ${isSidebarCollapsed ? 'justify-center' : ''}`}
+            >
+              <div className="relative">
+                {user.preferences?.useGravatar ? (
+                  <>
+                    <img
+                      src={user.gravatarUrl}
+                      alt={user.fullName}
+                      className="w-8 h-8 rounded-full border border-white/10 group-hover:border-white/30 transition-colors"
+                      onError={(e) => {
+                        // Fallback to initials if image fails
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">
+                        {user.fullName.substring(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">
+                      {user.fullName.substring(0, 2).toUpperCase()}
                     </span>
                   </div>
                 )}
+              </div>
+
+              {!isSidebarCollapsed && (
+                <div className="overflow-hidden flex-1">
+                  <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
+                  <p className={`text-[9px] truncate uppercase tracking-wider ${getUserTierDisplay().color}`}>
+                    JTradePilot {getUserTierDisplay().label}
+                  </p>
+                  {user.isEarlySupporter && (
+                    <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded bg-momentum-green/10 border border-momentum-green/20">
+                      <span className="text-[8px] font-bold text-momentum-green uppercase tracking-wider leading-none">
+                        Early Supporter
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </button>
+
+            {isProfileOpen && (
+              <div
+                className={`absolute bottom-full mb-2 bg-[#08090A] border border-white/10 rounded shadow-2xl p-1 z-50 w-56 ${isSidebarCollapsed ? 'left-full ml-2 bottom-0' : 'left-0 w-full'
+                  }`}
+              >
+                <button
+                  onClick={() => {
+                    openUserProfile();
+                    setIsProfileOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                >
+                  <UsersIcon className="w-3 h-3" /> Manage Account
+                </button>
+                <div className="border-t border-white/10 my-1"></div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsProfileOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-risk-high hover:bg-risk-high/10 transition-colors flex items-center gap-2"
+                >
+                  <LogoutIcon className="w-3 h-3" /> Log Out
+                </button>
               </div>
             )}
           </div>

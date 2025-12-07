@@ -29,6 +29,7 @@ export interface ApiService {
   getSmartLimitsProgress(id: string, token: string): Promise<SmartLimitProgress>;
   getWeeklyDebrief(accountId: string, token: string): Promise<{ debrief: string }>;
   getDailyDebrief(accountId: string, token: string): Promise<{ debrief: string }>;
+  getDrawdownCalculation(token: string, accountId: string): Promise<any>;
   getAnalytics(accountId: string, token: string, params?: { startDate?: string; endDate?: string }): Promise<AccountAnalytics>;
 
   // Playbooks
@@ -89,6 +90,13 @@ export interface ApiService {
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification>;
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification>;
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }>;
+
+  // Prop Firm Template Methods (Admin)
+  getAllPropFirmTemplates(token: string): Promise<import('../types').PropFirmTemplate[]>;
+  getPropFirmTemplate(token: string, id: string): Promise<import('../types').PropFirmTemplate>;
+  createPropFirmTemplate(token: string, data: import('../types').CreatePropFirmTemplateDto): Promise<import('../types').PropFirmTemplate>;
+  updatePropFirmTemplate(token: string, id: string, data: Partial<import('../types').CreatePropFirmTemplateDto>): Promise<import('../types').PropFirmTemplate>;
+  deletePropFirmTemplate(token: string, id: string): Promise<{ message: string }>;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {

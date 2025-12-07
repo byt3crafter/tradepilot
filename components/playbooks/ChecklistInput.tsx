@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ChecklistItem, ChecklistItemType } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { ArrowUpIcon } from '../icons/ArrowUpIcon';
+import { ArrowDownIcon } from '../icons/ArrowDownIcon';
 
 interface ChecklistInputProps {
   title: string;
@@ -18,22 +20,36 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
         id: `new-${Date.now()}`, // Temporary ID for local state
         text: newItemText.trim(),
         // The type doesn't matter here as the backend assigns it based on the list
-        type: ChecklistItemType.ENTRY_CRITERIA, 
+        type: ChecklistItemType.ENTRY_CRITERIA,
       };
       onChange([...items, newItem]);
       setNewItemText('');
     }
   };
-  
+
   const handleRemoveItem = (indexToRemove: number) => {
     onChange(items.filter((_, index) => index !== indexToRemove));
   };
-  
+
   const handleItemTextChange = (indexToChange: number, newText: string) => {
-      const newItems = items.map((item, index) => 
-        index === indexToChange ? { ...item, text: newText } : item
-      );
-      onChange(newItems);
+    const newItems = items.map((item, index) =>
+      index === indexToChange ? { ...item, text: newText } : item
+    );
+    onChange(newItems);
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index === 0) return;
+    const newItems = [...items];
+    [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+    onChange(newItems);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index === items.length - 1) return;
+    const newItems = [...items];
+    [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+    onChange(newItems);
   };
 
   return (
@@ -41,7 +57,25 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
       <h4 className="text-sm font-semibold text-future-light mb-2">{title}</h4>
       <div className="space-y-2">
         {items.map((item, index) => (
-          <div key={item.id || index} className="flex items-center gap-2">
+          <div key={item.id || index} className="flex items-center gap-2 group">
+            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                onClick={() => handleMoveUp(index)}
+                disabled={index === 0}
+                className="text-future-gray hover:text-photonic-blue disabled:opacity-30"
+              >
+                <ArrowUpIcon className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMoveDown(index)}
+                disabled={index === items.length - 1}
+                className="text-future-gray hover:text-photonic-blue disabled:opacity-30"
+              >
+                <ArrowDownIcon className="w-3 h-3" />
+              </button>
+            </div>
             <input
               type="text"
               value={item.text}
@@ -54,7 +88,7 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2 mt-2 pl-6">
         <input
           type="text"
           value={newItemText}
@@ -72,3 +106,4 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
 };
 
 export default ChecklistInput;
+

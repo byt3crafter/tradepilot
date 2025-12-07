@@ -381,6 +381,7 @@ export class AiService {
                 - **riskPercentage**: Extract risk as a percentage (e.g., "risk 1%" → 1, "risk 2.5%" → 2.5). If risk is in dollars (e.g., "risk $50"), return null for riskPercentage.
                 - **exitPrice**: Extract exit price if the trade is closed (e.g., "closed at 47481" → 47481).
                 - **entryDate**: If a specific date/time is mentioned, extract it. Otherwise return null.
+                - **profitLoss**: Extract the profit or loss amount if mentioned (e.g., "made $500" → 500, "lost $200" → -200, "+$500" → 500).
 
                 **Important:**
                 - For any field not clearly present in the text, return null.
@@ -405,6 +406,7 @@ export class AiService {
                             riskPercentage: { type: Type.NUMBER },
                             exitPrice: { type: Type.NUMBER },
                             entryDate: { type: Type.STRING },
+                            profitLoss: { type: Type.NUMBER },
                         }
                     }
                 }

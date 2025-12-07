@@ -154,11 +154,13 @@ model PlaybookSetup {
   name                String
   screenshotBeforeUrl String?
   screenshotAfterUrl  String?
+  riskSettings        Json?    // Stores { riskPercent, stopLossType, maxPositionSize, etc. }
   
   playbookId          String
   playbook            Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
   
   checklistItems      ChecklistItem[]
+  trades              Trade[]
 }
 
 model ChecklistItem {
@@ -173,6 +175,8 @@ model ChecklistItem {
 enum ChecklistItemType {
   ENTRY_CRITERIA
   RISK_MANAGEMENT
+  EXIT_RULES
+  CONFIRMATION_FILTERS
 }
 
 model Trade {
@@ -216,6 +220,9 @@ model Trade {
   
   playbookId          String
   playbook            Playbook      @relation(fields: [playbookId], references: [id])
+
+  playbookSetupId     String?
+  playbookSetup       PlaybookSetup? @relation(fields: [playbookSetupId], references: [id])
   
   tradeJournal        TradeJournal?
   aiAnalysis          AiAnalysis?

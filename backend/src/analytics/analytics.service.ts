@@ -10,7 +10,7 @@ export class AnalyticsService {
     private readonly prisma: PrismaService,
     private readonly accountsService: BrokerAccountsService,
     private readonly assetsService: AssetsService,
-  ) {}
+  ) { }
 
   async getAnalytics(userId: string, accountId: string, startDate?: Date, endDate?: Date) {
     await this.accountsService.findOne(accountId, userId); // Authorization check
@@ -30,7 +30,7 @@ export class AnalyticsService {
         ...dateFilter,
       },
     });
-    
+
     const assetSpecs = await this.assetsService.findAll(userId);
     const assetSpecMap = new Map<string, AssetSpecification>(assetSpecs.map(spec => [spec.symbol, spec]));
 
@@ -46,7 +46,7 @@ export class AnalyticsService {
         performanceByHourOfDay: [],
       };
     }
-    
+
     // --- Single Value Metrics ---
     let largestWinningTrade = 0;
     let largestLosingTrade = 0;
@@ -54,22 +54,22 @@ export class AnalyticsService {
     let totalHoldTimeMs = 0;
 
     trades.forEach(trade => {
-        const pl = trade.profitLoss ?? 0;
-        if (pl > largestWinningTrade) largestWinningTrade = pl;
-        if (pl < largestLosingTrade) largestLosingTrade = pl;
+      const pl = trade.profitLoss ?? 0;
+      if (pl > largestWinningTrade) largestWinningTrade = pl;
+      if (pl < largestLosingTrade) largestLosingTrade = pl;
 
-        if (trade.entryDate && trade.exitDate) {
-            totalHoldTimeMs += new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime();
-        }
+      if (trade.entryDate && trade.exitDate) {
+        totalHoldTimeMs += new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime();
+      }
 
-        const spec = assetSpecMap.get(trade.asset);
-        const pipSize = spec?.pipSize ?? 1;
-        if (pipSize > 0 && trade.exitPrice) {
-            const pips = trade.direction === 'Buy'
-                ? (trade.exitPrice - trade.entryPrice) / pipSize
-                : (trade.entryPrice - trade.exitPrice) / pipSize;
-            totalPips += pips;
-        }
+      const spec = assetSpecMap.get(trade.asset);
+      const pipSize = spec?.pipSize ?? 1;
+      if (pipSize > 0 && trade.exitPrice) {
+        const pips = trade.direction === 'Buy'
+          ? (trade.exitPrice - trade.entryPrice) / pipSize
+          : (trade.entryPrice - trade.exitPrice) / pipSize;
+        totalPips += pips;
+      }
     });
 
     const averagePips = trades.length > 0 ? totalPips / trades.length : 0;
@@ -78,20 +78,20 @@ export class AnalyticsService {
     // --- Performance by Asset ---
     const assetPerformanceMap = new Map<string, { totalTrades: number, netPL: number, wins: number, totalPips: number }>();
     trades.forEach(trade => {
-        const current = assetPerformanceMap.get(trade.asset) || { totalTrades: 0, netPL: 0, wins: 0, totalPips: 0 };
-        current.totalTrades++;
-        current.netPL += trade.profitLoss ?? 0;
-        if (trade.result === 'Win') current.wins++;
-        
-        const spec = assetSpecMap.get(trade.asset);
-        if (spec?.pipSize && trade.exitPrice) {
-             const pips = trade.direction === 'Buy'
-                ? (trade.exitPrice - trade.entryPrice) / spec.pipSize
-                : (trade.entryPrice - trade.exitPrice) / spec.pipSize;
-            current.totalPips += pips;
-        }
-        
-        assetPerformanceMap.set(trade.asset, current);
+      const current = assetPerformanceMap.get(trade.asset) || { totalTrades: 0, netPL: 0, wins: 0, totalPips: 0 };
+      current.totalTrades++;
+      current.netPL += trade.profitLoss ?? 0;
+      if (trade.result === 'Win') current.wins++;
+
+      const spec = assetSpecMap.get(trade.asset);
+      if (spec?.pipSize && trade.exitPrice) {
+        const pips = trade.direction === 'Buy'
+          ? (trade.exitPrice - trade.entryPrice) / spec.pipSize
+          : (trade.entryPrice - trade.exitPrice) / spec.pipSize;
+        current.totalPips += pips;
+      }
+
+      assetPerformanceMap.set(trade.asset, current);
     });
 
     const performanceByAsset = Array.from(assetPerformanceMap.entries()).map(([symbol, data]) => ({
@@ -105,22 +105,22 @@ export class AnalyticsService {
     const hourOfDayMap = new Map<number, { netPL: number, totalTrades: number }>();
 
     trades.forEach(trade => {
-        if (!trade.entryDate) return;
-        const entryDate = new Date(trade.entryDate);
-        const day = entryDate.getUTCDay(); // 0 = Sunday
-        const hour = entryDate.getUTCHours();
-        
-        const dayCurrent = dayOfWeekMap.get(day) || { netPL: 0, totalTrades: 0 };
-        dayCurrent.netPL += trade.profitLoss ?? 0;
-        dayCurrent.totalTrades++;
-        dayOfWeekMap.set(day, dayCurrent);
-        
-        const hourCurrent = hourOfDayMap.get(hour) || { netPL: 0, totalTrades: 0 };
-        hourCurrent.netPL += trade.profitLoss ?? 0;
-        hourCurrent.totalTrades++;
-        hourOfDayMap.set(hour, hourCurrent);
+      if (!trade.entryDate) return;
+      const entryDate = new Date(trade.entryDate);
+      const day = entryDate.getUTCDay(); // 0 = Sunday
+      const hour = entryDate.getUTCHours();
+
+      const dayCurrent = dayOfWeekMap.get(day) || { netPL: 0, totalTrades: 0 };
+      dayCurrent.netPL += trade.profitLoss ?? 0;
+      dayCurrent.totalTrades++;
+      dayOfWeekMap.set(day, dayCurrent);
+
+      const hourCurrent = hourOfDayMap.get(hour) || { netPL: 0, totalTrades: 0 };
+      hourCurrent.netPL += trade.profitLoss ?? 0;
+      hourCurrent.totalTrades++;
+      hourOfDayMap.set(hour, hourCurrent);
     });
-    
+
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const performanceByDayOfWeek = dayNames.map((name, i) => ({
       key: name,
@@ -133,6 +133,63 @@ export class AnalyticsService {
     }));
 
 
+    // --- Advanced Metrics Calculation ---
+    const winningTrades = trades.filter(t => t.profitLoss && t.profitLoss > 0);
+    const losingTrades = trades.filter(t => t.profitLoss && t.profitLoss < 0);
+    const breakevenTrades = trades.filter(t => t.profitLoss === 0);
+
+    const totalTradesCount = trades.length;
+    const winRate = totalTradesCount > 0 ? (winningTrades.length / totalTradesCount) : 0;
+    const lossRate = totalTradesCount > 0 ? (losingTrades.length / totalTradesCount) : 0;
+
+    const grossProfit = winningTrades.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
+    const grossLoss = Math.abs(losingTrades.reduce((sum, t) => sum + (t.profitLoss || 0), 0));
+
+    const avgWin = winningTrades.length > 0 ? grossProfit / winningTrades.length : 0;
+    const avgLoss = losingTrades.length > 0 ? grossLoss / losingTrades.length : 0;
+
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 999 : 0); // Cap at 999 for infinite
+    const expectancy = (winRate * avgWin) - (lossRate * avgLoss);
+
+    // Risk of Ruin (Simplified: based on win rate and risk/reward)
+    // Formula: ((1 - WR) / (1 + WR)) ^ Units
+    // We'll use a standard approximation or just return 0 if profitable
+    let riskOfRuin = 0;
+    if (expectancy <= 0) {
+      riskOfRuin = 100; // Certain ruin if negative expectancy
+    } else {
+      // Simple approximation based on loss rate and risk per trade (assuming 1-2% risk)
+      // This is a complex metric, for now we'll use a placeholder or simple logic
+      // If profitable, risk of ruin is low.
+      const riskRewardRatio = avgLoss > 0 ? avgWin / avgLoss : 0;
+      if (riskRewardRatio > 0 && winRate > 0 && winRate < 1) {
+        // Kelly Criterion-ish or similar
+        // Let's stick to a simpler "Risk of Ruin" based on consecutive losses potential
+        // For this MVP, let's return 0 if profitable, and high if not.
+        // Actually, let's omit complex RoR for now and stick to Sharpe/Expectancy
+        riskOfRuin = 0; // Placeholder
+      }
+    }
+
+    // Current Streak
+    let currentStreak = 0;
+    // Sort trades by date descending to find latest streak
+    const sortedTrades = [...trades].sort((a, b) => new Date(b.exitDate || 0).getTime() - new Date(a.exitDate || 0).getTime());
+
+    for (const trade of sortedTrades) {
+      const pl = trade.profitLoss || 0;
+      if (currentStreak === 0) {
+        if (pl > 0) currentStreak = 1;
+        else if (pl < 0) currentStreak = -1;
+      } else if (currentStreak > 0) {
+        if (pl > 0) currentStreak++;
+        else break;
+      } else if (currentStreak < 0) {
+        if (pl < 0) currentStreak--;
+        else break;
+      }
+    }
+
     return {
       largestWinningTrade,
       largestLosingTrade,
@@ -142,6 +199,13 @@ export class AnalyticsService {
       performanceByAsset,
       performanceByDayOfWeek,
       performanceByHourOfDay,
+      // New Metrics
+      winRate: winRate * 100,
+      profitFactor,
+      expectancy,
+      currentStreak,
+      totalTrades: totalTradesCount,
+      netProfit: grossProfit - grossLoss
     };
   }
 }

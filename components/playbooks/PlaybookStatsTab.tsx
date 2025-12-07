@@ -63,6 +63,38 @@ const PlaybookStatsTab: React.FC<PlaybookStatsTabProps> = ({ stats, isLoading })
         <StatBox label="Current Streak" value={stats.currentStreak} />
         <StatBox label="Avg. Hold Time" value={`${stats.avgHoldTimeHours.toFixed(1)} hrs`} />
       </div>
+
+      {stats.setups && stats.setups.length > 0 && (
+        <Card>
+          <h3 className="text-lg font-orbitron text-photonic-blue mb-4">Performance by Setup</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-future-light">
+              <thead className="text-xs text-future-gray uppercase bg-white/5 border-b border-white/10">
+                <tr>
+                  <th className="px-4 py-3">Setup Name</th>
+                  <th className="px-4 py-3">Trades</th>
+                  <th className="px-4 py-3">Win Rate</th>
+                  <th className="px-4 py-3">Net P/L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.setups.map(setup => (
+                  <tr key={setup.setupId} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="px-4 py-3 font-medium">{setup.setupName}</td>
+                    <td className="px-4 py-3">{setup.totalTrades}</td>
+                    <td className={`px-4 py-3 ${setup.winRate >= 50 ? 'text-momentum-green' : 'text-risk-high'}`}>
+                      {setup.winRate}%
+                    </td>
+                    <td className={`px-4 py-3 ${setup.netPL >= 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
+                      ${setup.netPL.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

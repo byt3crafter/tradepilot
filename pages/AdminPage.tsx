@@ -11,12 +11,14 @@ import Modal from '../components/ui/Modal';
 import GrantProAccessModal from '../components/admin/GrantProAccessModal';
 import TemplatesManagement from '../components/admin/TemplatesManagement';
 import TemplateFormModal from '../components/admin/TemplateFormModal';
+import { MenuIcon } from '../components/icons/MenuIcon';
 
 type AdminView = 'dashboard' | 'users' | 'templates';
 
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
@@ -177,25 +179,33 @@ const AdminPage: React.FC = () => {
         currentView={currentView}
         onNavigate={setCurrentView}
         isCollapsed={false}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main content area - flex column layout */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-64 transition-all duration-300">
         {/* Fixed header - no scroll */}
-        <header className="flex-shrink-0 h-16 border-b border-white/10 flex items-center justify-between px-6">
+        <header className="flex-shrink-0 h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#08090A]">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden text-secondary hover:text-white transition-colors"
+            >
+              <MenuIcon className="w-6 h-6" />
+            </button>
             <span className="font-orbitron text-lg text-secondary">
               {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : 'Templates'}
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Button onClick={handleBackToApp} variant="link">Back to App</Button>
-            <Button onClick={logout} className="w-auto">Logout</Button>
+            <Button onClick={handleBackToApp} variant="link" className="hidden md:block">Back to App</Button>
+            <Button onClick={logout} className="w-auto text-xs md:text-sm">Logout</Button>
           </div>
         </header>
 
         {/* Scrollable content area */}
-        <main className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 animate-fade-in-up">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-8 animate-fade-in-up">
           {renderContent()}
         </main>
       </div>

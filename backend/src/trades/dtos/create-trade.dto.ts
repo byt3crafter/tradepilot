@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Direction } from '@prisma/client';
+import { Direction, TradeResult } from '@prisma/client';
 
 export class CreateTradeDto {
   @IsDate()
@@ -18,15 +18,15 @@ export class CreateTradeDto {
 
   @IsNumber()
   entryPrice: number;
-  
+
   @IsNumber()
   @Min(0)
   riskPercentage: number;
-  
+
   @IsBoolean()
   @IsOptional()
   isPendingOrder?: boolean;
-  
+
   @IsString()
   @IsNotEmpty()
   brokerAccountId: string;
@@ -34,7 +34,11 @@ export class CreateTradeDto {
   @IsString()
   @IsNotEmpty()
   playbookId: string;
-  
+
+  @IsString()
+  @IsOptional()
+  playbookSetupId?: string;
+
   @IsNumber()
   @IsOptional()
   lotSize?: number | null;
@@ -42,7 +46,7 @@ export class CreateTradeDto {
   @IsNumber()
   @IsOptional()
   stopLoss?: number | null;
-  
+
   @IsNumber()
   @IsOptional()
   takeProfit?: number | null;
@@ -50,4 +54,25 @@ export class CreateTradeDto {
   @IsString()
   @IsOptional()
   screenshotBeforeUrl?: string | null;
+
+  @IsNumber()
+  @IsOptional()
+  exitPrice?: number | null;
+
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  exitDate?: Date | null;
+
+  @IsNumber()
+  @IsOptional()
+  profitLoss?: number | null;
+
+  @IsEnum(TradeResult)
+  @IsOptional()
+  result?: TradeResult | null;
+
+  @IsString()
+  @IsOptional()
+  status?: string;
 }

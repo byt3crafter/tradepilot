@@ -11,6 +11,7 @@ interface LogWithAIProps {
   onQuickSubmit?: () => void;
   canQuickSubmit?: boolean;
   isSubmitting?: boolean;
+  initialExpanded?: boolean;
 }
 
 const EXAMPLE_TRADES = [
@@ -19,10 +20,10 @@ const EXAMPLE_TRADES = [
   "Long BTCUSD, risk 0.5%, market entry now, stop 47000, TP 49000."
 ];
 
-const LogWithAI: React.FC<LogWithAIProps> = ({ onParsedData, isLoading, onParseText, error, onQuickSubmit, canQuickSubmit, isSubmitting }) => {
+const LogWithAI: React.FC<LogWithAIProps> = ({ onParsedData, isLoading, onParseText, error, onQuickSubmit, canQuickSubmit, isSubmitting, initialExpanded = false }) => {
   const [tradeText, setTradeText] = useState('');
   const [showCheatSheet, setShowCheatSheet] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(initialExpanded);
 
   const handleFillForm = async () => {
     if (tradeText.trim()) {

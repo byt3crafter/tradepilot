@@ -11,14 +11,15 @@ import DashboardHeader from './DashboardHeader';
 import Spinner from '../Spinner';
 
 const Dashboard: React.FC = () => {
-  const { closedTrades, liveTrades, isLoading: tradesLoading } = useTrade();
+  const { closedTrades, liveTrades, isLoading: tradesLoading, isTradesSynced } = useTrade();
   const { activeAccount, objectivesProgress, isLoading: accountLoading } = useAccount();
   const [questionnaireCompleted, setQuestionnaireCompleted] = useLocalStorage<boolean>('onboardingQuestionnaireCompleted', false);
 
   const hasTrades = closedTrades.length > 0 || liveTrades.length > 0;
 
   // Wait for BOTH account AND trades to load before showing anything
-  const isLoading = accountLoading || tradesLoading;
+  // Also wait for trades to be synced with the active account
+  const isLoading = accountLoading || tradesLoading || !isTradesSynced;
 
   // Show loading spinner while fetching data - DON'T show anything else
   if (isLoading) {

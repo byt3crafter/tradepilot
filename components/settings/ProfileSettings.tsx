@@ -4,19 +4,21 @@ import Card from '../Card';
 import Button from '../ui/Button';
 
 const ProfileSettings: React.FC = () => {
-  const { user } = useAuth();
-  const [useGravatar, setUseGravatar] = useState(false);
+  const { user, updateUserPreferences } = useAuth();
+  const [useGravatar, setUseGravatar] = useState(user?.preferences?.useGravatar || false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGravatarToggle = async () => {
     setIsLoading(true);
     try {
-      // In future, this would save to database
-      // For now, just toggle the local state
-      setUseGravatar(!useGravatar);
-      console.log('Gravatar preference:', !useGravatar);
+      const newValue = !useGravatar;
+      setUseGravatar(newValue);
+      await updateUserPreferences({ useGravatar: newValue });
+      console.log('Gravatar preference updated:', newValue);
     } catch (err) {
-      console.error('Failed to update Gravatar preference');
+      console.error('Failed to update Gravatar preference', err);
+      // Revert on error
+      setUseGravatar(!useGravatar);
     } finally {
       setIsLoading(false);
     }

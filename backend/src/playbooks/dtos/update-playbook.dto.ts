@@ -31,6 +31,21 @@ class PlaybookSetupDto {
   @Type(() => ChecklistItemDto)
   @IsOptional()
   riskManagement?: ChecklistItemDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChecklistItemDto)
+  @IsOptional()
+  exitRules?: ChecklistItemDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChecklistItemDto)
+  @IsOptional()
+  confirmationFilters?: ChecklistItemDto[];
+
+  @IsOptional()
+  riskSettings?: any;
 }
 
 export class UpdatePlaybookDto {
@@ -45,7 +60,7 @@ export class UpdatePlaybookDto {
   @IsBoolean()
   @IsOptional()
   isPublic?: boolean;
-  
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
@@ -55,17 +70,17 @@ export class UpdatePlaybookDto {
   @IsString({ each: true })
   @IsOptional()
   instruments?: string[];
-  
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
   timeframes?: string[];
-  
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
   pros?: string[];
-  
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

@@ -19,7 +19,7 @@ export class TradesService {
   async create(userId: string, createTradeDto: CreateTradeDto) {
     // Explicitly destructure entryDate to prevent it from being included in ...rest with an optional type,
     // which confuses TypeScript when we try to assign a definite Date value later.
-    const { brokerAccountId, playbookId, riskPercentage, entryDate, ...rest } = createTradeDto;
+    const { brokerAccountId, playbookId, playbookSetupId, riskPercentage, entryDate, status, ...rest } = createTradeDto;
 
     const brokerAccount = await this.prisma.brokerAccount.findFirst({
       where: { id: brokerAccountId, userId },
@@ -44,10 +44,18 @@ export class TradesService {
     // --- End of Enforcement ---
 
     const playbook = await this.prisma.playbook.findFirst({
-      where: { id: playbookId, userId }
+      where: { id: playbookId, userId },
+      include: { setups: true }
     });
     if (!playbook) {
       throw new BadRequestException('Playbook not found or does not belong to the user.');
+    }
+
+    if (playbookSetupId) {
+      const setupExists = playbook.setups.some(s => s.id === playbookSetupId);
+      if (!setupExists) {
+        throw new BadRequestException('The selected setup does not belong to the specified playbook.');
+      }
     }
 
     return this.prisma.trade.create({
@@ -58,6 +66,7 @@ export class TradesService {
         user: { connect: { id: userId } },
         brokerAccount: { connect: { id: brokerAccountId } },
         playbook: { connect: { id: playbookId } },
+        ...(playbookSetupId ? { playbookSetup: { connect: { id: playbookSetupId } } } : {}),
       },
     });
   }

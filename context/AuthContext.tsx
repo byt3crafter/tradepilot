@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, ReactNode, useState, useEffect } from 'react';
 import { User } from '../types';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import md5 from 'md5';
 
 interface AuthContextType {
   user: User | null;
@@ -13,7 +14,7 @@ interface AuthContextType {
   isTrialExpired: boolean;
   logout: () => void;
   refreshUser: () => Promise<User | undefined>;
-  getToken: () => Promise<string | null>;
+  updateUserPreferences: (prefs: { useGravatar?: boolean }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (isSignedIn) {
       // Refresh token periodically to ensure it doesn't expire in the state
       // Clerk handles the actual rotation, we just need to pull the latest valid one
-      intervalId = setInterval(fetchToken, 50 * 1000); 
+      intervalId = setInterval(fetchToken, 50 * 1000);
     }
 
     return () => {
@@ -57,11 +58,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Adapter to map Clerk user to our app's User type
   const appUser: User | null = useMemo(() => {
     if (!clerkUser) return null;
+    const email = clerkUser.primaryEmailAddress?.emailAddress || '';
     return {
       id: clerkUser.id,
-      email: clerkUser.primaryEmailAddress?.emailAddress || '',
+      email: email,
       fullName: clerkUser.fullName || '',
-      isEmailVerified: true, 
+      isEmailVerified: true,
       createdAt: clerkUser.createdAt?.toISOString() || new Date().toISOString(),
       lastLoginAt: clerkUser.lastSignInAt?.toISOString() || new Date().toISOString(),
       role: (clerkUser.publicMetadata?.role as any) || 'USER',
@@ -69,16 +71,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       trialEndsAt: (clerkUser.publicMetadata?.trialEndsAt as string) || null,
       proAccessExpiresAt: (clerkUser.publicMetadata?.proAccessExpiresAt as string) || null,
       featureFlags: {
-          analysisTrackerEnabled: true 
-      }
+        analysisTrackerEnabled: true
+      },
+      gravatarUrl: `https://www.gravatar.com/avatar/${md5(email.toLowerCase().trim())}?d=mp`,
+      preferences: (clerkUser.unsafeMetadata?.preferences as any) || { useGravatar: false }
     };
   }, [clerkUser]);
 
   const logout = () => { signOut(); };
-  
-  const refreshUser = async () => { 
-      await clerkUser?.reload();
-      return appUser || undefined; 
+
+  const refreshUser = async () => {
+    await clerkUser?.reload();
+    return appUser || undefined;
+  };
+
+  const updateUserPreferences = async (prefs: { useGravatar?: boolean }) => {
+    if (!clerkUser) return;
+    try {
+      await clerkUser.update({
+        unsafeMetadata: {
+          ...clerkUser.unsafeMetadata,
+          preferences: {
+            ...(clerkUser.unsafeMetadata?.preferences as any),
+            ...prefs
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Failed to update user preferences:', err);
+      throw err;
+    }
   };
 
   const subscriptionState = useMemo(() => {
@@ -115,13 +137,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value = {
     user: appUser,
-    accessToken, 
+    accessToken,
     isAuthenticated: !!isSignedIn,
     isLoading: !isUserLoaded,
     ...subscriptionState,
     logout,
     refreshUser,
     getToken,
+    updateUserPreferences,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

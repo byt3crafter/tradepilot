@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAccount } from '../../context/AccountContext';
@@ -10,6 +9,7 @@ import { useView } from '../../context/ViewContext';
 import NotificationBell from '../notifications/NotificationBell';
 import Modal from '../ui/Modal';
 import ComplianceReportModal from '../compliance/ComplianceReportModal';
+import SmartTradeInput from './SmartTradeInput';
 
 const DashboardHeader: React.FC = () => {
     const { user } = useAuth();
@@ -24,8 +24,8 @@ const DashboardHeader: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-8 animate-slide-up">
-            <div className="flex flex-col gap-1">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 mb-8 animate-slide-up">
+            <div className="flex flex-col gap-1 min-w-[200px]">
                 <div className="flex items-center gap-3">
                     <h1 className="text-3xl text-white tracking-tight">
                         Good morning, <span className="font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.fullName.split(' ')[0]}</span>.
@@ -39,7 +39,10 @@ const DashboardHeader: React.FC = () => {
                 </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Smart Trade Input (Center) */}
+            <SmartTradeInput />
+
+            <div className="flex items-center gap-2 min-w-fit">
                 {/* Smart Limits Mini-Display */}
                 {activeAccount?.smartLimits?.isEnabled && smartLimitsProgress && (
                     <SmartLimitsCard progress={smartLimitsProgress} limits={activeAccount.smartLimits} />
@@ -66,7 +69,7 @@ const DashboardHeader: React.FC = () => {
                     </Tooltip>
                 )}
 
-                {/* Quick Log */}
+                {/* Add Trade Button */}
                 <Tooltip text="Log Trade" position="bottom">
                     <button
                         onClick={handleQuickLogTrade}

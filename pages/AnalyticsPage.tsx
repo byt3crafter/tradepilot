@@ -43,22 +43,22 @@ const AnalyticsPage: React.FC = () => {
       </div>
 
       <div className="border-b border-photonic-blue/20 mb-4">
-        <nav className="flex space-x-4">
+        <nav className="flex space-x-4 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
           <button
             onClick={() => setActiveTab('summary')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors ${activeTab === 'summary' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'summary' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
           >
             Overall Summary
           </button>
           <button
             onClick={() => setActiveTab('byAsset')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors ${activeTab === 'byAsset' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'byAsset' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
           >
             By Asset
           </button>
           <button
             onClick={() => setActiveTab('byTime')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors ${activeTab === 'byTime' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'byTime' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
           >
             By Time
           </button>

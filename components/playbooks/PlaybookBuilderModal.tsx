@@ -52,6 +52,9 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
       name: 'New Setup',
       entryCriteria: [],
       riskManagement: [],
+      exitRules: [],
+      confirmationFilters: [],
+      riskSettings: { riskPercent: 1, stopLossType: 'Technical' },
     };
     setPlaybook(prev => ({
       ...prev,
@@ -63,6 +66,18 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
     setPlaybook(prev => {
       const newSetups = [...(prev.setups || [])];
       newSetups[index] = { ...newSetups[index], [field]: value };
+      return { ...prev, setups: newSetups };
+    });
+  };
+
+  const handleRiskSettingChange = (index: number, setting: string, value: any) => {
+    setPlaybook(prev => {
+      const newSetups = [...(prev.setups || [])];
+      const currentSettings = newSetups[index].riskSettings || {};
+      newSetups[index] = {
+        ...newSetups[index],
+        riskSettings: { ...currentSettings, [setting]: value }
+      };
       return { ...prev, setups: newSetups };
     });
   };
@@ -87,6 +102,9 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
         screenshotAfterUrl: setup.screenshotAfterUrl,
         entryCriteria: setup.entryCriteria.map(item => ({ text: item.text })),
         riskManagement: setup.riskManagement.map(item => ({ text: item.text })),
+        exitRules: setup.exitRules?.map(item => ({ text: item.text })) || [],
+        confirmationFilters: setup.confirmationFilters?.map(item => ({ text: item.text })) || [],
+        riskSettings: setup.riskSettings,
       })),
     };
 
@@ -157,8 +175,35 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
                   <ImageUploader label="'After' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotAfterUrl', base64)} currentImage={setup.screenshotAfterUrl} />
                 </div>
 
-                <ChecklistInput title="Entry Criteria" items={setup.entryCriteria} onChange={items => handleSetupChange(index, 'entryCriteria', items)} />
-                <ChecklistInput title="Risk Management" items={setup.riskManagement} onChange={items => handleSetupChange(index, 'riskManagement', items)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <ChecklistInput title="Entry Criteria" items={setup.entryCriteria} onChange={items => handleSetupChange(index, 'entryCriteria', items)} />
+                  <ChecklistInput title="Confirmation Filters" items={setup.confirmationFilters || []} onChange={items => handleSetupChange(index, 'confirmationFilters', items)} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <ChecklistInput title="Exit Rules" items={setup.exitRules || []} onChange={items => handleSetupChange(index, 'exitRules', items)} />
+                  <ChecklistInput title="Risk Management Rules" items={setup.riskManagement} onChange={items => handleSetupChange(index, 'riskManagement', items)} />
+                </div>
+
+                {/* Risk Settings */}
+                <div className="mt-4 p-3 bg-white/5 rounded border border-white/5">
+                  <h4 className="text-sm font-semibold text-future-light mb-2">Risk Parameters</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Risk % per Trade"
+                      type="number"
+                      step="0.1"
+                      value={setup.riskSettings?.riskPercent || ''}
+                      onChange={e => handleRiskSettingChange(index, 'riskPercent', parseFloat(e.target.value))}
+                    />
+                    <Input
+                      label="Stop Loss Type"
+                      placeholder="e.g. Technical, Fixed Pips"
+                      value={setup.riskSettings?.stopLossType || ''}
+                      onChange={e => handleRiskSettingChange(index, 'stopLossType', e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
             ))}
           </div>

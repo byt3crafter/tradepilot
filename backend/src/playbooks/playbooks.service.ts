@@ -6,7 +6,7 @@ import { ChecklistItemType, Trade } from '@prisma/client';
 
 @Injectable()
 export class PlaybooksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Helper function to transform the Prisma result to match the frontend's expected structure.
   private transformPlaybook(playbook: any) {
@@ -15,9 +15,12 @@ export class PlaybooksService {
     const transformedSetups = playbook.setups.map((setup: any) => {
       const entryCriteria = setup.checklistItems.filter((item: any) => item.type === 'ENTRY_CRITERIA');
       const riskManagement = setup.checklistItems.filter((item: any) => item.type === 'RISK_MANAGEMENT');
+      const exitRules = setup.checklistItems.filter((item: any) => item.type === 'EXIT_RULES');
+      const confirmationFilters = setup.checklistItems.filter((item: any) => item.type === 'CONFIRMATION_FILTERS');
+
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { checklistItems, ...restOfSetup } = setup;
-      return { ...restOfSetup, entryCriteria, riskManagement };
+      return { ...restOfSetup, entryCriteria, riskManagement, exitRules, confirmationFilters };
     });
 
     return { ...playbook, setups: transformedSetups };
@@ -36,18 +39,29 @@ export class PlaybooksService {
               text: item.text,
               type: ChecklistItemType.ENTRY_CRITERIA,
             })) || [];
-            
+
             const riskManagementItems = setup.riskManagement?.map(item => ({
               text: item.text,
               type: ChecklistItemType.RISK_MANAGEMENT,
             })) || [];
-            
+
+            const exitRulesItems = setup.exitRules?.map(item => ({
+              text: item.text,
+              type: ChecklistItemType.EXIT_RULES,
+            })) || [];
+
+            const confirmationFiltersItems = setup.confirmationFilters?.map(item => ({
+              text: item.text,
+              type: ChecklistItemType.CONFIRMATION_FILTERS,
+            })) || [];
+
             return {
               name: setup.name,
               screenshotBeforeUrl: setup.screenshotBeforeUrl,
               screenshotAfterUrl: setup.screenshotAfterUrl,
+              riskSettings: setup.riskSettings,
               checklistItems: {
-                create: [...entryCriteriaItems, ...riskManagementItems],
+                create: [...entryCriteriaItems, ...riskManagementItems, ...exitRulesItems, ...confirmationFiltersItems],
               },
             };
           }) || [],
@@ -76,7 +90,7 @@ export class PlaybooksService {
       where: {
         isPublic: true,
       },
-      include: { // Use include instead of select to get all relations
+      include: {
         user: {
           select: {
             fullName: true,
@@ -87,6 +101,14 @@ export class PlaybooksService {
             checklistItems: true,
           },
         },
+        trades: { // Include trades to calculate stats
+          where: {
+            result: { not: null }
+          },
+          select: {
+            result: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc',
@@ -94,12 +116,21 @@ export class PlaybooksService {
     });
 
     return publicPlaybooks.map((playbook) => {
-      const transformed = this.transformPlaybook(playbook); // Reuse existing transformer
+      const transformed = this.transformPlaybook(playbook);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { userId, ...rest } = transformed; // Remove userId for privacy
+      const { userId, trades, ...rest } = transformed;
+
+      // Calculate basic stats
+      const totalTrades = playbook.trades.length;
+      const winningTrades = playbook.trades.filter(t => t.result === 'Win').length;
+      const winRate = totalTrades > 0 ? Math.round((winningTrades / totalTrades) * 100) : 0;
+
       return {
         ...rest,
         authorName: playbook.user.fullName,
+        authorId: playbook.userId, // Include authorId for frontend checks
+        winRate,
+        tradeCount: totalTrades,
       };
     });
   }
@@ -130,40 +161,51 @@ export class PlaybooksService {
     const { setups, ...playbookData } = updateDto;
 
     const updatedPlaybook = await this.prisma.playbook.update({
-        where: { id },
-        data: {
-            ...playbookData,
-            setups: {
-                deleteMany: {},
-                create: setups?.map(setup => {
-                  const entryCriteriaItems = setup.entryCriteria?.map(item => ({
-                    text: item.text,
-                    type: ChecklistItemType.ENTRY_CRITERIA,
-                  })) || [];
-                  
-                  const riskManagementItems = setup.riskManagement?.map(item => ({
-                    text: item.text,
-                    type: ChecklistItemType.RISK_MANAGEMENT,
-                  })) || [];
+      where: { id },
+      data: {
+        ...playbookData,
+        setups: {
+          deleteMany: {},
+          create: setups?.map(setup => {
+            const entryCriteriaItems = setup.entryCriteria?.map(item => ({
+              text: item.text,
+              type: ChecklistItemType.ENTRY_CRITERIA,
+            })) || [];
 
-                  return {
-                    name: setup.name,
-                    screenshotBeforeUrl: setup.screenshotBeforeUrl,
-                    screenshotAfterUrl: setup.screenshotAfterUrl,
-                    checklistItems: {
-                      create: [...entryCriteriaItems, ...riskManagementItems],
-                    },
-                  };
-                }) || [],
-            },
+            const riskManagementItems = setup.riskManagement?.map(item => ({
+              text: item.text,
+              type: ChecklistItemType.RISK_MANAGEMENT,
+            })) || [];
+
+            const exitRulesItems = setup.exitRules?.map(item => ({
+              text: item.text,
+              type: ChecklistItemType.EXIT_RULES,
+            })) || [];
+
+            const confirmationFiltersItems = setup.confirmationFilters?.map(item => ({
+              text: item.text,
+              type: ChecklistItemType.CONFIRMATION_FILTERS,
+            })) || [];
+
+            return {
+              name: setup.name,
+              screenshotBeforeUrl: setup.screenshotBeforeUrl,
+              screenshotAfterUrl: setup.screenshotAfterUrl,
+              riskSettings: setup.riskSettings,
+              checklistItems: {
+                create: [...entryCriteriaItems, ...riskManagementItems, ...exitRulesItems, ...confirmationFiltersItems],
+              },
+            };
+          }) || [],
         },
-        include: {
-          setups: {
-            include: {
-              checklistItems: true,
-            },
+      },
+      include: {
+        setups: {
+          include: {
+            checklistItems: true,
           },
         },
+      },
     });
     return this.transformPlaybook(updatedPlaybook);
   }
@@ -239,40 +281,40 @@ export class PlaybooksService {
     let largestDailyLoss = 0;
 
     const equityCurve = closedTrades.map((trade: Trade) => {
-        const tradeNetPL = trade.profitLoss ?? 0;
-        runningBalance += tradeNetPL;
+      const tradeNetPL = trade.profitLoss ?? 0;
+      runningBalance += tradeNetPL;
 
-        // Track max equity for drawdown calculation
-        if (runningBalance > maxEquity) {
-            maxEquity = runningBalance;
-        }
+      // Track max equity for drawdown calculation
+      if (runningBalance > maxEquity) {
+        maxEquity = runningBalance;
+      }
 
-        // Calculate drawdown from peak
-        const currentDrawdown = Math.max(0, maxEquity - runningBalance);
-        if (currentDrawdown > maxDrawdown) {
-            maxDrawdown = currentDrawdown;
-        }
+      // Calculate drawdown from peak
+      const currentDrawdown = Math.max(0, maxEquity - runningBalance);
+      if (currentDrawdown > maxDrawdown) {
+        maxDrawdown = currentDrawdown;
+      }
 
-        return {
-            date: trade.exitDate!.toISOString().split('T')[0],
-            cumulativePL: runningBalance,
-        };
+      return {
+        date: trade.exitDate!.toISOString().split('T')[0],
+        cumulativePL: runningBalance,
+      };
     });
 
     // Largest Daily Loss & Unique Trading Days
     const tradesByDay = new Map<string, number>();
     closedTrades.forEach(t => {
-        const day = new Date(t.exitDate!).toLocaleDateString();
-        const current = tradesByDay.get(day) || 0;
-        tradesByDay.set(day, current + (t.profitLoss ?? 0));
+      const day = new Date(t.exitDate!).toLocaleDateString();
+      const current = tradesByDay.get(day) || 0;
+      tradesByDay.set(day, current + (t.profitLoss ?? 0));
     });
 
     const uniqueTradingDays = tradesByDay.size;
 
     tradesByDay.forEach(dailyPL => {
-        if (dailyPL < 0) {
-            largestDailyLoss = Math.max(largestDailyLoss, Math.abs(dailyPL));
-        }
+      if (dailyPL < 0) {
+        largestDailyLoss = Math.max(largestDailyLoss, Math.abs(dailyPL));
+      }
     });
 
     // Max Drawdown Percentage
@@ -289,36 +331,59 @@ export class PlaybooksService {
     let currentConsecutiveDays = 0;
     const dailyResults = Array.from(tradesByDay.entries()).sort();
     dailyResults.forEach(([, dailyPL]) => {
-        if (dailyPL > 0) {
-            currentConsecutiveDays++;
-            maxConsecutiveProfitableDays = Math.max(maxConsecutiveProfitableDays, currentConsecutiveDays);
-        } else {
-            currentConsecutiveDays = 0;
-        }
+      if (dailyPL > 0) {
+        currentConsecutiveDays++;
+        maxConsecutiveProfitableDays = Math.max(maxConsecutiveProfitableDays, currentConsecutiveDays);
+      } else {
+        currentConsecutiveDays = 0;
+      }
     });
 
     // Current Streak (Win/Loss streak from most recent trades)
     let currentStreak = 0;
     for (let i = closedTrades.length - 1; i >= 0; i--) {
-        const t = closedTrades[i];
-        if (t.result === 'Win') {
-            if (currentStreak >= 0) currentStreak++;
-            else break;
-        } else if (t.result === 'Loss') {
-            if (currentStreak <= 0) currentStreak--;
-            else break;
-        } else {
-            break;
-        }
+      const t = closedTrades[i];
+      if (t.result === 'Win') {
+        if (currentStreak >= 0) currentStreak++;
+        else break;
+      } else if (t.result === 'Loss') {
+        if (currentStreak <= 0) currentStreak--;
+        else break;
+      } else {
+        break;
+      }
     }
 
     const totalHoldTimeMs = closedTrades.reduce((sum: number, trade: Trade) => {
-        if (trade.entryDate && trade.exitDate) {
-            return sum + (new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime());
-        }
-        return sum;
+      if (trade.entryDate && trade.exitDate) {
+        return sum + (new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime());
+      }
+      return sum;
     }, 0);
     const avgHoldTimeHours = closedTrades.length > 0 ? (totalHoldTimeMs / closedTrades.length) / (1000 * 60 * 60) : 0;
+
+    // --- Per-Setup Stats ---
+    const playbook = await this.findOne(id, userId, true);
+    const setupStats = playbook.setups.map((setup: any) => {
+      const setupTrades = closedTrades.filter(t => t.playbookSetupId === setup.id);
+    });
+
+    // Add "Unassigned" category for existing trades or general trades
+    const unassignedTrades = closedTrades.filter(t => !t.playbookSetupId);
+    if (unassignedTrades.length > 0) {
+      const total = unassignedTrades.length;
+      const wins = unassignedTrades.filter(t => t.result === 'Win').length;
+      const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+      const netPL = unassignedTrades.reduce((sum, t) => sum + (t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0), 0);
+
+      setupStats.push({
+        setupId: 'unassigned',
+        setupName: 'Unassigned / General',
+        winRate,
+        totalTrades: total,
+        netPL
+      });
+    }
 
     return {
       netPL,
@@ -338,6 +403,7 @@ export class PlaybooksService {
       currentStreak,
       avgHoldTimeHours,
       equityCurve,
+      setups: setupStats,
     };
   }
 }
