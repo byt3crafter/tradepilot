@@ -126,14 +126,14 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
         className="w-full flex items-center justify-between px-3 py-2 border border-white/10 rounded bg-white/[0.01] hover:bg-white/[0.03] transition-colors group"
       >
         {isCollapsed ? (
-          <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center mx-auto border border-white/10">
-            <span className="font-mono text-[10px] text-white">{initials}</span>
+          <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center mx-auto border border-white/10">
+            <span className="font-mono text-xs font-semibold text-white">{initials}</span>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center border border-white/10 shrink-0">
-                <span className="font-mono text-[10px] text-white">{initials}</span>
+              <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center border border-white/10 shrink-0">
+                <span className="font-mono text-xs font-semibold text-white">{initials}</span>
               </div>
               <div className="overflow-hidden text-left">
                 <p className="font-medium text-xs text-white truncate">{activeAccount.name}</p>
@@ -339,28 +339,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className={`hidden md:flex items-center gap-3 w-full hover:bg-white/5 p-2 rounded-lg transition-colors text-left group ${isSidebarCollapsed ? 'justify-center' : ''}`}
             >
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 {user.preferences?.useGravatar ? (
                   <>
                     <img
                       src={user.gravatarUrl}
                       alt={user.fullName}
-                      className="w-8 h-8 rounded-full border border-white/10 group-hover:border-white/30 transition-colors"
+                      className="w-10 h-10 rounded-full border border-white/10 group-hover:border-white/30 transition-colors object-cover"
                       onError={(e) => {
                         // Fallback to initials if image fails
                         e.currentTarget.style.display = 'none';
                         e.currentTarget.nextElementSibling?.classList.remove('hidden');
                       }}
                     />
-                    <div className="hidden w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-white">
+                    <div className="hidden w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                      <span className="text-sm font-bold text-white">
                         {user.fullName.substring(0, 2).toUpperCase()}
                       </span>
                     </div>
                   </>
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
-                    <span className="text-xs font-bold text-white">
+                  <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                    <span className="text-sm font-bold text-white">
                       {user.fullName.substring(0, 2).toUpperCase()}
                     </span>
                   </div>
