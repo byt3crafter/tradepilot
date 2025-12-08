@@ -45,7 +45,7 @@ export interface DrawdownCalculation {
 
 @Injectable()
 export class DrawdownService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async calculateDrawdown(accountId: string, userId: string): Promise<DrawdownCalculation> {
     // Fetch account with template and trades
@@ -68,7 +68,7 @@ export class DrawdownService {
     const initialBalance = account.initialBalance;
     const currentBalance = account.currentBalance;
     const totalProfitLoss = currentBalance - initialBalance;
-    const profitLossPercentage = (totalProfitLoss / initialBalance) * 100;
+    const profitLossPercentage = initialBalance > 0 ? (totalProfitLoss / initialBalance) * 100 : 0;
 
     // Get objectives from template or account
     const profitTarget = account.objectives?.profitTarget ?? account.template?.profitTarget ?? null;

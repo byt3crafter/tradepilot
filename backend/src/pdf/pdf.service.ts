@@ -18,7 +18,7 @@ export class PdfService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly drawdownService: DrawdownService,
-  ) {}
+  ) { }
 
   async generateComplianceReport(options: ComplianceReportOptions): Promise<Buffer> {
     const { accountId, userId, startDate, endDate, includeScreenshots, includeJournal, includeAiNotes } = options;
@@ -56,14 +56,19 @@ export class PdfService {
     const html = this.generateReportHtml(account, drawdownData, options);
 
     // Generate PDF using Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
+    console.log('Launching Puppeteer...');
+    let browser;
     try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      console.log('Puppeteer launched successfully.');
+
       const page = await browser.newPage();
+      console.log('New page created. Setting content...');
       await page.setContent(html, { waitUntil: 'networkidle0' });
+      console.log('Content set. Generating PDF...');
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
@@ -75,10 +80,16 @@ export class PdfService {
           left: '15mm',
         },
       });
+      console.log('PDF generated successfully.');
 
       return Buffer.from(pdfBuffer);
+    } catch (error) {
+      console.error('Puppeteer Error:', error);
+      throw error;
     } finally {
-      await browser.close();
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 

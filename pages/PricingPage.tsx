@@ -22,6 +22,27 @@ const PricingPage: React.FC = () => {
     const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || (import.meta as any).env.VITE_PADDLE_PRICE_ID;
     const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01jk4...'; // Placeholder
 
+    const [promoCode, setPromoCode] = useState('');
+    const [promoError, setPromoError] = useState('');
+    const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+    const [appliedPromo, setAppliedPromo] = useState<{ code: string; type: string; value: number } | null>(null);
+
+    const validatePromo = async () => {
+        if (!promoCode) return;
+        setIsValidatingPromo(true);
+        setPromoError('');
+        try {
+            const res = await api.validatePromoCode(promoCode, accessToken || '');
+            setAppliedPromo(res);
+            setPromoError('');
+        } catch (err: any) {
+            setPromoError(err.message || 'Invalid promo code');
+            setAppliedPromo(null);
+        } finally {
+            setIsValidatingPromo(false);
+        }
+    };
+
     const isButtonDisabled = useMemo(
         () => isPaddleLoading || uiStage === 'opening' || !paddle,
         [isPaddleLoading, uiStage, paddle]
@@ -37,7 +58,7 @@ const PricingPage: React.FC = () => {
         setUiStage('opening');
 
         try {
-            const { transactionId } = await api.createCheckoutTransaction(accessToken);
+            const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code);
             console.log('[PricingPage] Open Paddle checkout for txn:', transactionId);
 
             paddle.Checkout.open({ transactionId });
@@ -106,6 +127,32 @@ const PricingPage: React.FC = () => {
                     </span>
                 </div>
             </div>
+            {/* Promo Code Input */}
+            <div className="max-w-md mx-auto">
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        placeholder="Have a promo code?"
+                        className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-future-gray focus:outline-none focus:border-momentum-green"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    />
+                    <Button
+                        onClick={validatePromo}
+                        disabled={!promoCode || isValidatingPromo}
+                        variant="ghost"
+                        className="whitespace-nowrap"
+                    >
+                        {isValidatingPromo ? 'Checking...' : 'Apply'}
+                    </Button>
+                </div>
+                {promoError && <p className="text-risk-high text-sm mt-1">{promoError}</p>}
+                {appliedPromo && (
+                    <p className="text-momentum-green text-sm mt-1">
+                        Code applied! {appliedPromo.type === 'PERCENTAGE' ? `${appliedPromo.value}%` : `$${appliedPromo.value}`} discount will be applied at checkout.
+                    </p>
+                )}
+            </div>
 
             {/* Pricing Cards */}
             <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -137,10 +184,10 @@ const PricingPage: React.FC = () => {
                             <CheckCircleIcon className="w-4 h-4 text-white" /> Basic Analytics
                         </li>
                     </ul>
-                </Card>
+                </Card >
 
                 {/* Annual Plan (Highlighted) */}
-                <Card className={`!p-5 md:!p-6 relative overflow-hidden ${billingCycle === 'yearly' ? 'border-momentum-green/50' : ''}`}>
+                < Card className={`!p-5 md:!p-6 relative overflow-hidden ${billingCycle === 'yearly' ? 'border-momentum-green/50' : ''}`}>
                     {billingCycle === 'yearly' && (
                         <div className="absolute top-0 right-0 bg-momentum-green text-black text-xs font-bold px-3 py-1 rounded-bl-md">
                             BEST VALUE
@@ -175,12 +222,12 @@ const PricingPage: React.FC = () => {
                             <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Early Access to Features
                         </li>
                     </ul>
-                </Card>
+                </Card >
 
-            </div>
+            </div >
 
             {/* FAQ Section */}
-            <div className="max-w-3xl mx-auto space-y-8">
+            < div className="max-w-3xl mx-auto space-y-8" >
                 <h3 className="text-xl font-orbitron font-bold text-center text-white">
                     Frequently Asked Questions
                 </h3>
@@ -198,9 +245,9 @@ const PricingPage: React.FC = () => {
                         </p>
                     </Card>
                 </div>
-            </div>
+            </div >
 
-        </div>
+        </div >
     );
 };
 

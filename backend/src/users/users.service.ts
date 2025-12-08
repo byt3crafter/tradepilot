@@ -5,7 +5,7 @@ import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(data: Prisma.UserCreateInput): Promise<User> {
     return this.prisma.user.create({ data });
@@ -36,5 +36,26 @@ export class UsersService {
       where: { id },
     });
     return { message: 'User deleted successfully.' };
+  }
+  async setLifetimeAccess(id: string, isLifetime: boolean): Promise<User> {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isLifetimeAccess: isLifetime },
+    });
+  }
+
+  async extendTrial(id: string, days: number): Promise<User> {
+    const user = await this.findById(id);
+    const currentTrialEnd = user.trialEndsAt ? new Date(user.trialEndsAt) : new Date();
+    const basisDate = currentTrialEnd > new Date() ? currentTrialEnd : new Date();
+    basisDate.setDate(basisDate.getDate() + days);
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        trialEndsAt: basisDate,
+        subscriptionStatus: 'TRIALING' // Ensure status is trialing
+      },
+    });
   }
 }

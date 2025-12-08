@@ -41,6 +41,9 @@ export class AdminService {
     const users = await this.prisma.user.findMany({
       include: {
         apiUsage: true,
+        _count: {
+          select: { referrals: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -57,9 +60,96 @@ export class AdminService {
         apiUsageCost,
         apiUsageTokens,
         lastApiUsage,
+        referralCount: user._count?.referrals || 0,
       }, {
         excludeExtraneousValues: true,
       });
+    });
+  }
+
+  async grantLifetimeAccess(userId: string): Promise<AdminUserDto> {
+    const user = await this.usersService.setLifetimeAccess(userId, true);
+    return plainToInstance(AdminUserDto, user, { excludeExtraneousValues: true });
+  }
+
+  async extendTrial(userId: string, days: number): Promise<AdminUserDto> {
+    const user = await this.usersService.extendTrial(userId, days);
+    return plainToInstance(AdminUserDto, user, { excludeExtraneousValues: true });
+  }
+
+  async getReferralStats() {
+    const totalReferrals = await this.prisma.user.count({
+      where: { referredByUserId: { not: null } },
+    });
+
+    const topReferrers = await this.prisma.user.findMany({
+      where: { referrals: { some: {} } },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        _count: {
+          select: { referrals: true },
+        },
+      },
+      orderBy: {
+        referrals: {
+          _count: 'desc',
+        },
+      },
+      take: 5,
+    });
+
+    const recentReferrals = await this.prisma.user.findMany({
+      where: { referredByUserId: { not: null } },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        createdAt: true,
+        subscriptionStatus: true,
+        hasRewardedReferrer: true,
+        referrer: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    return {
+      totalReferrals,
+      topReferrers: topReferrers.map(u => ({ ...u, referralCount: u._count.referrals })),
+      recentReferrals,
+    };
+  }
+
+  async generateInvite(type: 'TRIAL' | 'LIFETIME', duration?: number) {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    return this.prisma.inviteCode.create({
+      data: {
+        code,
+        type,
+        duration: type === 'TRIAL' ? duration : null,
+      },
+    });
+  }
+
+  async getInvites() {
+    return this.prisma.inviteCode.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        usedByUser: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
     });
   }
 

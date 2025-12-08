@@ -12,9 +12,11 @@ import GrantProAccessModal from '../components/admin/GrantProAccessModal';
 import TemplatesManagement from '../components/admin/TemplatesManagement';
 import TemplateFormModal from '../components/admin/TemplateFormModal';
 import PlaybooksManagement from '../components/admin/PlaybooksManagement';
+import ReferralDashboard from '../components/admin/ReferralDashboard';
+import PromoCodesManagement from '../components/admin/PromoCodesManagement';
 import { MenuIcon } from '../components/icons/MenuIcon';
 
-type AdminView = 'dashboard' | 'users' | 'templates' | 'playbooks';
+type AdminView = 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes';
 
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
@@ -89,7 +91,8 @@ const AdminPage: React.FC = () => {
   }, [accessToken]);
 
   const handleBackToApp = () => {
-    window.location.href = '/';
+    window.history.pushState({}, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   const handleOpenGrantModal = (user: AdminUser) => {
@@ -200,6 +203,14 @@ const AdminPage: React.FC = () => {
         />
       );
     }
+
+    if (currentView === 'referrals') {
+      return <ReferralDashboard />;
+    }
+
+    if (currentView === 'promo_codes') {
+      return <PromoCodesManagement />;
+    }
   };
 
   return (
@@ -224,7 +235,7 @@ const AdminPage: React.FC = () => {
               <MenuIcon className="w-6 h-6" />
             </button>
             <span className="font-orbitron text-lg text-secondary">
-              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : currentView === 'templates' ? 'Templates' : 'Playbooks'}
+              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : currentView === 'templates' ? 'Templates' : currentView === 'playbooks' ? 'Playbooks' : currentView === 'referrals' ? 'Referrals' : 'Promo Codes'}
             </span>
           </div>
           <div className="flex items-center gap-4">

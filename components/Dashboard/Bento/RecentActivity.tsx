@@ -47,11 +47,11 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ trades }) => {
             <div className="p-2 mb-2">
                 <h3 className="text-secondary text-xs font-orbitron uppercase tracking-widest">Recent Activity</h3>
             </div>
-            <div className="flex-1 overflow-y-auto pr-1 sidebar-scrollbar flex flex-col gap-1">
+            <div className="flex flex-col gap-1">
                 {sortedTrades.length > 0 ? (
                     sortedTrades.map(trade => <ActivityRow key={trade.id} trade={trade} />)
                 ) : (
-                    <div className="h-full flex items-center justify-center text-secondary text-xs">
+                    <div className="py-8 flex items-center justify-center text-secondary text-xs">
                         No recent trades recorded.
                     </div>
                 )}

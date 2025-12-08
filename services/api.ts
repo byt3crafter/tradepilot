@@ -76,7 +76,7 @@ export interface ApiService {
 
   // Billing
   getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
-  createCheckoutTransaction(token: string): Promise<{ transactionId: string }>;
+  createCheckoutTransaction(token: string, promoCode?: string): Promise<{ transactionId: string }>;
 
   // Admin
   getAdminStats(token: string): Promise<AdminStats>;
@@ -84,6 +84,19 @@ export interface ApiService {
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
   revokeProAccess(userId: string, token: string): Promise<AdminUser>;
   deleteUser(userId: string, token: string): Promise<{ message: string }>;
+  getReferralStats(token: string): Promise<any>;
+  grantLifetimeAccess(userId: string, token: string): Promise<AdminUser>;
+  extendTrial(userId: string, days: number, token: string): Promise<AdminUser>;
+  generateInvite(type: 'TRIAL' | 'LIFETIME', duration: number | undefined, token: string): Promise<any>;
+  getInvites(token: string): Promise<any[]>;
+  validateInvite(code: string): Promise<any>;
+  claimInvite(code: string, token: string): Promise<any>;
+
+  // Promo Codes
+  createPromoCode(data: any, token: string): Promise<any>;
+  getPromoCodes(token: string): Promise<any[]>;
+  deletePromoCode(id: string, token: string): Promise<any>;
+  validatePromoCode(code: string, token: string): Promise<any>;
 
   // Assets
   getAssetSpecs(token: string): Promise<AssetSpecification[]>;
@@ -234,7 +247,7 @@ const api: ApiService = {
 
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> { return this.get('/api/billing/config', token); },
-  createCheckoutTransaction(token: string): Promise<{ transactionId: string }> { return this.post('/api/billing/checkout', {}, token); },
+  createCheckoutTransaction(token: string, promoCode?: string): Promise<{ transactionId: string }> { return this.post('/api/billing/checkout', { promoCode }, token); },
 
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> { return this.get('/api/admin/stats', token); },
@@ -242,6 +255,19 @@ const api: ApiService = {
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/grant-pro`, data, token); },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> { return this.delete(`/api/admin/users/${userId}/grant-pro`, token); },
   deleteUser(userId: string, token: string): Promise<{ message: string }> { return this.delete(`/api/admin/users/${userId}`, token); },
+  getReferralStats(token: string): Promise<any> { return this.get('/api/admin/referrals/stats', token); },
+  grantLifetimeAccess(userId: string, token: string): Promise<AdminUser> { return this.post(`/api/admin/users/${userId}/lifetime`, {}, token); },
+  extendTrial(userId: string, days: number, token: string): Promise<AdminUser> { return this.post(`/api/admin/users/${userId}/extend-trial`, { days }, token); },
+  generateInvite(type: 'TRIAL' | 'LIFETIME', duration: number | undefined, token: string): Promise<any> { return this.post('/api/admin/invites/generate', { type, duration }, token); },
+  getInvites(token: string): Promise<any[]> { return this.get('/api/admin/invites', token); },
+  validateInvite(code: string): Promise<any> { return this.get(`/api/invites/validate/${code}`); },
+  claimInvite(code: string, token: string): Promise<any> { return this.post('/api/invites/claim', { code }, token); },
+
+  // Promo Codes
+  createPromoCode(data: any, token: string): Promise<any> { return this.post('/api/promo-codes', data, token); },
+  getPromoCodes(token: string): Promise<any[]> { return this.get('/api/promo-codes', token); },
+  deletePromoCode(id: string, token: string): Promise<any> { return this.delete(`/api/promo-codes/${id}`, token); },
+  validatePromoCode(code: string, token: string): Promise<any> { return this.post('/api/promo-codes/validate', { code }, token); },
 
   // Prop Firm Template Methods (Admin)
   getAllPropFirmTemplates(token: string): Promise<import('../types').PropFirmTemplate[]> { return this.get('/api/admin/templates', token); },

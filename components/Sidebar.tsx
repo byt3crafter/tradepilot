@@ -312,7 +312,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             label="Refer & Earn"
             isActive={window.location.pathname === '/referral'}
             onClick={() => {
-              window.location.href = '/referral';
+              if (window.location.pathname !== '/referral') {
+                window.history.pushState({}, '', '/referral');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }
               onClose();
             }}
             isCollapsed={isSidebarCollapsed}

@@ -8,7 +8,7 @@ import { UpdatePropFirmTemplateDto } from './dtos/update-prop-firm-template.dto'
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Get('stats')
   getStats() {
@@ -35,6 +35,31 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   deleteUser(@Param('id') id: string) {
     return this.adminService.deleteUser(id);
+  }
+
+  @Get('referrals/stats')
+  getReferralStats() {
+    return this.adminService.getReferralStats();
+  }
+
+  @Post('users/:id/lifetime')
+  grantLifetimeAccess(@Param('id') id: string) {
+    return this.adminService.grantLifetimeAccess(id);
+  }
+
+  @Post('users/:id/extend-trial')
+  extendTrial(@Param('id') userId: string, @Body('days') days: number) {
+    return this.adminService.extendTrial(userId, days);
+  }
+
+  @Post('invites/generate')
+  generateInvite(@Body() body: { type: 'TRIAL' | 'LIFETIME'; duration?: number }) {
+    return this.adminService.generateInvite(body.type, body.duration);
+  }
+
+  @Get('invites')
+  getInvites() {
+    return this.adminService.getInvites();
   }
 
   // Prop Firm Templates Endpoints

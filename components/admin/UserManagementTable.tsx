@@ -98,8 +98,8 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
                   </td>
                   <td className="p-3">
                     <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${isAdmin
-                        ? 'bg-photonic-blue/10 text-photonic-blue border border-photonic-blue/20'
-                        : 'bg-white/5 text-secondary border border-white/10'
+                      ? 'bg-photonic-blue/10 text-photonic-blue border border-photonic-blue/20'
+                      : 'bg-white/5 text-secondary border border-white/10'
                       }`}>
                       {user.role || 'USER'}
                     </span>
@@ -138,6 +138,37 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
                     <DropdownMenu>
                       <DropdownMenuItem onSelect={() => onGrantPro(user)}>
                         Grant Pro Access
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={async () => {
+                        if (window.confirm(`Are you sure you want to grant LIFETIME access to ${user.fullName}?`)) {
+                          if (!accessToken) return;
+                          try {
+                            await api.grantLifetimeAccess(user.id, accessToken);
+                            onRefresh();
+                            alert('Lifetime access granted.');
+                          } catch (err: any) {
+                            alert(`Failed: ${err.message}`);
+                          }
+                        }
+                      }}>
+                        Grant Lifetime Access
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={async () => {
+                        const daysStr = window.prompt("Enter number of days to extend trial:", "30");
+                        if (daysStr) {
+                          const days = parseInt(daysStr);
+                          if (isNaN(days)) return alert("Invalid number");
+                          if (!accessToken) return;
+                          try {
+                            await api.extendTrial(user.id, days, accessToken);
+                            onRefresh();
+                            alert(`Trial extended by ${days} days.`);
+                          } catch (err: any) {
+                            alert(`Failed: ${err.message}`);
+                          }
+                        }
+                      }}>
+                        Extend Trial
                       </DropdownMenuItem>
                       {user.proAccessExpiresAt !== undefined && (
                         <DropdownMenuItem onSelect={() => handleRevoke(user.id)} className="text-risk-high hover:bg-risk-high/10">

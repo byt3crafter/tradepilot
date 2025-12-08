@@ -39,4 +39,16 @@ export class AdminUserDto {
 
   @Expose()
   lastApiUsage: Date;
+
+  @Expose()
+  isLifetimeAccess: boolean;
+
+  @Expose()
+  referredByUserId: string;
+
+  @Expose()
+  hasRewardedReferrer: boolean;
+
+  @Expose()
+  referralCount: number;
 }

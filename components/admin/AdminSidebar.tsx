@@ -5,10 +5,13 @@ import { AdminIcon } from '../icons/AdminIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { SettingsIcon } from '../icons/SettingsIcon';
 import { PlaybookIcon } from '../icons/PlaybookIcon';
+import { UsersIcon } from '../icons/UsersIcon';
+import { SparklesIcon } from '../icons/SparklesIcon';
+import { CreditCardIcon } from '../icons/CreditCardIcon';
 
 interface AdminSidebarProps {
-    currentView: 'dashboard' | 'users' | 'templates' | 'playbooks';
-    onNavigate: (view: 'dashboard' | 'users' | 'templates' | 'playbooks') => void;
+    currentView: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes';
+    onNavigate: (view: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes') => void;
     isCollapsed: boolean;
     isOpen?: boolean;
     onClose?: () => void;
@@ -102,6 +105,20 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
                         label="Playbooks"
                         isActive={currentView === 'playbooks'}
                         onClick={() => { onNavigate('playbooks'); onClose?.(); }}
+                        isCollapsed={isCollapsed}
+                    />
+                    <AdminNavItem
+                        icon={<SparklesIcon className="w-4 h-4" />}
+                        label="Referrals"
+                        isActive={currentView === 'referrals'}
+                        onClick={() => { onNavigate('referrals'); onClose?.(); }}
+                        isCollapsed={isCollapsed}
+                    />
+                    <AdminNavItem
+                        icon={<CreditCardIcon className="w-4 h-4" />}
+                        label="Promo Codes"
+                        isActive={currentView === 'promo_codes'}
+                        onClick={() => { onNavigate('promo_codes'); onClose?.(); }}
                         isCollapsed={isCollapsed}
                     />
                 </div>

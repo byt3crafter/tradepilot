@@ -50,7 +50,7 @@ export class BillingService {
     this.logger.log(`✓ Paddle SDK initialized in "${paddleEnv}" mode.`);
   }
 
-  async createCheckoutTransaction(userId: string, frontendEmail?: string) {
+  async createCheckoutTransaction(userId: string, frontendEmail?: string, promoCode?: string) {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
@@ -147,9 +147,27 @@ export class BillingService {
 
         this.logger.log(`Creating transaction with priceId: ${priceId}, customerId: ${customerId}`);
 
+        let discountId: string | undefined;
+
+        if (promoCode) {
+          const promo = await this.prisma.promoCode.findUnique({ where: { code: promoCode } });
+          if (promo && promo.isActive && promo.paddleDiscountId) {
+            // Check expiry and usage
+            if (promo.expiresAt && new Date() > promo.expiresAt) {
+              this.logger.warn(`Promo code ${promoCode} expired.`);
+            } else if (promo.maxUses && promo.usedCount >= promo.maxUses) {
+              this.logger.warn(`Promo code ${promoCode} usage limit reached.`);
+            } else {
+              discountId = promo.paddleDiscountId;
+              this.logger.log(`Applying discount ${discountId} for code ${promoCode}`);
+            }
+          }
+        }
+
         const transaction = await this.paddle.transactions.create({
           items: [{ priceId, quantity: 1 }],
           customerId: customerId as string,
+          discountId: discountId,
           customData: { internal_user_id: userId },
         });
 
@@ -241,21 +259,34 @@ export class BillingService {
           // 'subscription.activated' usually means payment success.
 
           if (event_type === 'subscription.activated' && (user as any).referredByUserId) {
-            const referrer = await this.prisma.user.findUnique({ where: { id: (user as any).referredByUserId } });
-            if (referrer) {
-              this.logger.log(`Processing Referral Reward: User ${user.id} paid. Rewarding Referrer ${referrer.id}`);
+            // Refresh user to check hasRewardedReferrer
+            const freshUser = await this.prisma.user.findUnique({ where: { id: user.id } });
 
-              // Add 30 days to referrer's proAccessExpiresAt
-              const currentExpiry = referrer.proAccessExpiresAt ? new Date(referrer.proAccessExpiresAt) : new Date();
-              // If expired, start from now. If active, add to existing.
-              const basisDate = currentExpiry > new Date() ? currentExpiry : new Date();
-              basisDate.setDate(basisDate.getDate() + 30);
+            if (freshUser && !freshUser.hasRewardedReferrer) {
+              const referrer = await this.prisma.user.findUnique({ where: { id: freshUser.referredByUserId } });
 
-              await this.prisma.user.update({
-                where: { id: referrer.id },
-                data: { proAccessExpiresAt: basisDate }
-              });
-              this.logger.log(`✓ Added 30 days to Referrer ${referrer.id}. New Expiry: ${basisDate.toISOString()}`);
+              if (referrer) {
+                this.logger.log(`Processing Referral Reward: User ${user.id} paid. Rewarding Referrer ${referrer.id}`);
+
+                // Add 30 days to referrer's proAccessExpiresAt
+                const currentExpiry = referrer.proAccessExpiresAt ? new Date(referrer.proAccessExpiresAt) : new Date();
+                // If expired, start from now. If active, add to existing.
+                const basisDate = currentExpiry > new Date() ? currentExpiry : new Date();
+                basisDate.setDate(basisDate.getDate() + 30);
+
+                await this.prisma.user.update({
+                  where: { id: referrer.id },
+                  data: { proAccessExpiresAt: basisDate }
+                });
+
+                // Mark user as having rewarded their referrer
+                await this.prisma.user.update({
+                  where: { id: user.id },
+                  data: { hasRewardedReferrer: true }
+                });
+
+                this.logger.log(`✓ Added 30 days to Referrer ${referrer.id}. New Expiry: ${basisDate.toISOString()}`);
+              }
             }
           }
         }
@@ -278,6 +309,21 @@ export class BillingService {
 
       default:
         this.logger.log(`Unhandled Paddle webhook event type: ${event_type}`);
+    }
+  }
+
+  async createDiscount(code: string, type: 'percentage' | 'flat', amount: number) {
+    try {
+      const discount = await this.paddle.discounts.create({
+        description: `Promo Code: ${code}`,
+        type: type,
+        amount: amount.toString(),
+        code: code,
+      });
+      return discount;
+    } catch (err: any) {
+      this.logger.error(`Failed to create Paddle discount: ${err.message}`);
+      throw new InternalServerErrorException('Failed to create discount in payment provider');
     }
   }
 

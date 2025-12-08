@@ -29,6 +29,10 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
       // The JWKS signature validation is sufficient for security
       issuer: undefined,
       algorithms: ['RS256'],
+      // Add clock tolerance to handle minor server time differences
+      jsonWebTokenOptions: {
+        clockTolerance: 30,
+      },
     });
 
     this.logger.log(`JWT Strategy initialized with JWKS from: ${issuer}/.well-known/jwks.json`);
@@ -38,8 +42,8 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
     this.logger.log(`🔍 JWT PAYLOAD RECEIVED: ${JSON.stringify(payload)}`);
 
     if (!payload || !payload.sub) {
-        this.logger.warn('Invalid JWT payload received: missing sub claim');
-        throw new UnauthorizedException('Invalid token: missing required claims');
+      this.logger.warn('Invalid JWT payload received: missing sub claim');
+      throw new UnauthorizedException('Invalid token: missing required claims');
     }
 
     try {
@@ -47,9 +51,9 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
       this.logger.log(`📞 Calling validateClerkUser with public_metadata: ${JSON.stringify(payload.public_metadata)}`);
 
       const user = await this.authService.validateClerkUser({
-          sub: payload.sub,
-          email: payload.email, // Email may be undefined if not in JWT template
-          public_metadata: payload.public_metadata // Pass Clerk's public_metadata (contains role)
+        sub: payload.sub,
+        email: payload.email, // Email may be undefined if not in JWT template
+        public_metadata: payload.public_metadata // Pass Clerk's public_metadata (contains role)
       });
 
       if (!user) {

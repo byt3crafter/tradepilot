@@ -20,6 +20,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
 import { JoiValidationSchema } from './config/config.schema';
 import { PdfModule } from './pdf/pdf.module';
+import { InvitesModule } from './invites/invites.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 
 
 @Module({
@@ -59,7 +61,10 @@ import { PdfModule } from './pdf/pdf.module';
     AnalyticsModule,
     NotificationsModule,
     TasksModule,
+    TasksModule,
     PdfModule,
+    InvitesModule,
+    PromoCodesModule,
   ],
   controllers: [],
   providers: [

@@ -28,6 +28,8 @@ model User {
   // Referral System
   isEarlySupporter   Boolean   @default(false)
   referredByUserId   String?
+  hasRewardedReferrer Boolean   @default(false)
+  isLifetimeAccess    Boolean   @default(false)
   referrer           User?     @relation("Referrals", fields: [referredByUserId], references: [id])
   referrals          User[]    @relation("Referrals")
 
@@ -40,6 +42,7 @@ model User {
 
   notifications      Notification[]
   apiUsage           ApiUsage[]
+  usedInviteCodes    InviteCode[]
 }
 
 model BrokerAccount {
@@ -308,4 +311,41 @@ model ApiUsage {
   
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InviteCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  type      InviteType
+  duration  Int?     // Days for trial
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  
+  usedByUserId String?
+  usedByUser   User?   @relation(fields: [usedByUserId], references: [id])
+}
+
+enum InviteType {
+  TRIAL
+  LIFETIME
+}
+
+model PromoCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  paddleDiscountId String?
+  type      PromoType
+  value     Float
+  maxUses   Int?
+  usedCount Int      @default(0)
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PromoType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }

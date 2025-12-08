@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
 import Card from '../Card';
 import Button from '../ui/Button';
 
 const ProfileSettings: React.FC = () => {
   const { user, updateUserPreferences } = useAuth();
+  const { lowPerformanceMode, setLowPerformanceMode } = useSettings();
   const [useGravatar, setUseGravatar] = useState(user?.preferences?.useGravatar || false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,6 +47,25 @@ const ProfileSettings: React.FC = () => {
                 <p className="text-sm text-future-gray mb-2">Email</p>
                 <p className="text-future-light font-medium">{user?.email}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Performance Settings */}
+          <div className="pb-6 border-b border-white/10">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-future-light mb-2">Performance Mode</h3>
+                <p className="text-xs text-future-gray mb-4">
+                  Enable this if you are experiencing lag or have a slower device. This will disable background animations and other resource-intensive effects.
+                </p>
+              </div>
+              <Button
+                onClick={() => setLowPerformanceMode(!lowPerformanceMode)}
+                variant={lowPerformanceMode ? 'primary' : 'secondary'}
+                className="whitespace-nowrap"
+              >
+                {lowPerformanceMode ? 'Low Performance: ON' : 'Low Performance: OFF'}
+              </Button>
             </div>
           </div>
 
