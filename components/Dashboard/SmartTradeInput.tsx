@@ -20,25 +20,19 @@ const SmartTradeInput: React.FC = () => {
     const getNextHint = (input: string): string => {
         if (!input.trim()) return "Direction (Long/Short)";
 
-        const lower = input.toLowerCase();
-
-        // Check what's been entered
+        // Detect entered parts
         const hasDirection = /\b(long|short|buy|sell)\b/i.test(input);
         const hasAsset = /\b(us30|btc|eurusd|gold|[a-z]{3,6})\b/i.test(input);
-        const hasRisk = /risk\s*:?\s*\d+(\.\d+)?%?/i.test(input);
         const hasEntry = /entry\s*:?\s*\d+(\.\d+)?/i.test(input);
         const hasStop = /stop\s*:?\s*\d+(\.\d+)?/i.test(input);
         const hasTP = /tp\s*:?\s*\d+(\.\d+)?/i.test(input);
 
-        // Return next expected field
         if (!hasDirection) return "Direction (Long/Short)";
         if (!hasAsset) return "Asset (e.g., US30, EURUSD, BTC)";
-        if (!hasRisk) return "risk X%";
         if (!hasEntry) return "entry XXXX";
         if (!hasStop) return "stop XXXX";
         if (!hasTP) return "TP XXXX";
 
-        // All fields entered
         return "Press Enter to log ✓";
     };
 
