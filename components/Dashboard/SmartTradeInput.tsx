@@ -16,12 +16,45 @@ const SmartTradeInput: React.FC = () => {
     const { playbooks } = usePlaybook();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Parse input to determine what's been entered
+    const getNextHint = (input: string): string => {
+        if (!input.trim()) return "Direction (Long/Short)";
+
+        const lower = input.toLowerCase();
+
+        // Check what's been entered
+        const hasDirection = /\b(long|short|buy|sell)\b/i.test(input);
+        const hasAsset = /\b(us30|btc|eurusd|gold|[a-z]{3,6})\b/i.test(input);
+        const hasRisk = /risk\s*:?\s*\d+(\.\d+)?%?/i.test(input);
+        const hasEntry = /entry\s*:?\s*\d+(\.\d+)?/i.test(input);
+        const hasStop = /stop\s*:?\s*\d+(\.\d+)?/i.test(input);
+        const hasTP = /tp\s*:?\s*\d+(\.\d+)?/i.test(input);
+
+        // Return next expected field
+        if (!hasDirection) return "Direction (Long/Short)";
+        if (!hasAsset) return "Asset (e.g., US30, EURUSD, BTC)";
+        if (!hasRisk) return "risk X%";
+        if (!hasEntry) return "entry XXXX";
+        if (!hasStop) return "stop XXXX";
+        if (!hasTP) return "TP XXXX";
+
+        // All fields entered
+        return "Press Enter to log ✓";
+    };
+
+    const [hint, setHint] = useState(getNextHint(''));
+
     // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
         }
+    }, [text]);
+
+    // Update hint when text changes
+    useEffect(() => {
+        setHint(getNextHint(text));
     }, [text]);
 
     const handleKeyDown = async (e: React.KeyboardEvent) => {
@@ -119,20 +152,27 @@ const SmartTradeInput: React.FC = () => {
                     </div>
                 )}
 
-                {/* Error Message */}
-                {error && (
-                    <div className="absolute left-0 -bottom-6 text-xs text-red-400 animate-fade-in">
-                        {error}
-                    </div>
-                )}
-
-                {/* Enter Hint */}
-                {text.length > 0 && !isLoading && !isSuccess && !error && (
-                    <div className="absolute right-3 top-3 text-[10px] text-gray-500 border border-gray-700 rounded px-1.5 py-0.5 hidden sm:block">
+                {/* Enter Hint - Only when ready to submit */}
+                {text.length > 0 && !isLoading && !isSuccess && !error && hint === "Press Enter to log ✓" && (
+                    <div className="absolute right-3 top-3 text-[10px] text-momentum-green border border-momentum-green/50 rounded px-1.5 py-0.5 hidden sm:block animate-pulse">
                         ↵ Enter
                     </div>
                 )}
             </div>
+
+            {/* Dynamic Hint - Below the input */}
+            {text.length > 0 && !isLoading && !isSuccess && !error && hint !== "Press Enter to log ✓" && (
+                <div className="text-xs text-photonic-blue/70 ml-1 animate-fade-in">
+                    💡 <span className="font-medium">{hint}</span>
+                </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+                <div className="text-xs text-red-400 ml-1 animate-fade-in">
+                    ⚠️ {error}
+                </div>
+            )}
         </div>
     );
 };
