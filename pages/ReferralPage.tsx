@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/Card';
 import { useUI } from '../context/UIContext';
 import { useClerk } from '@clerk/clerk-react';
+import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 
 const ReferralPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -24,7 +25,7 @@ const ReferralPage: React.FC = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-[#08090A] text-white font-sans">
+        <div className="flex h-screen bg-[#08090A] text-white font-sans overflow-hidden">
             <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
             <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
@@ -35,35 +36,14 @@ const ReferralPage: React.FC = () => {
                         <span className="font-orbitron font-bold text-sm">JTradePilot</span>
                     </a>
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => openUserProfile()}
-                            className="hover:opacity-80 transition-opacity"
-                        >
-                            {user?.preferences?.useGravatar && user?.gravatarUrl ? (
-                                <img
-                                    src={user.gravatarUrl}
-                                    alt={user.fullName}
-                                    className="w-8 h-8 rounded-full border border-white/10"
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                    }}
-                                />
-                            ) : (
-                                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
-                                    <span className="text-xs font-bold text-white">
-                                        {user?.fullName?.substring(0, 2).toUpperCase()}
-                                    </span>
-                                </div>
-                            )}
-                        </button>
+                        <MobileProfileMenu />
                         <button onClick={() => setIsSidebarOpen(true)} className="text-secondary">
                             <MenuIcon className="w-6 h-6" />
                         </button>
                     </div>
                 </header>
 
-                <main className="flex-1 p-6 md:p-12 lg:p-16 pb-24">
+                <main className="flex-1 p-6 md:p-12 lg:p-16 pb-24 overflow-y-auto">
                     <div className="max-w-6xl mx-auto space-y-8">
 
                         {/* Header */}

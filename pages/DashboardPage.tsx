@@ -17,6 +17,7 @@ import AnalyticsPage from './AnalyticsPage';
 import AnalysisPage from './AnalysisPage';
 import { UserButton, useClerk } from '@clerk/clerk-react';
 import { dark } from '@clerk/themes';
+import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 
 export type DashboardView = 'dashboard' | 'journal' | 'playbooks' | 'analytics' | 'personalisation' | 'settings' | 'subscription' | 'analysis-tracker' | 'pricing';
 export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
@@ -71,28 +72,7 @@ const DashboardPage: React.FC = () => {
             <span className="font-orbitron font-bold text-sm">JTradePilot</span>
           </a>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => openUserProfile()}
-              className="hover:opacity-80 transition-opacity"
-            >
-              {user?.preferences?.useGravatar && user?.gravatarUrl ? (
-                <img
-                  src={user.gravatarUrl}
-                  alt={user.fullName}
-                  className="w-8 h-8 rounded-full border border-white/10"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                  }}
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">
-                    {user?.fullName?.substring(0, 2).toUpperCase()}
-                  </span>
-                </div>
-              )}
-            </button>
+            <MobileProfileMenu />
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="p-1 rounded-md text-secondary hover:bg-white/5 hover:text-white"
@@ -104,7 +84,7 @@ const DashboardPage: React.FC = () => {
         </header>
 
         {/* Scrollable content area */}
-        <main className="flex-1 overflow-y-auto border-l border-white/5 bg-[#08090A]/40 backdrop-blur-[2px]">
+        <main className="flex-1 overflow-y-auto border-l border-white/5 bg-[#08090A]/95">
           <div className="p-4 md:p-12 lg:p-16 max-w-[1600px] mx-auto">
             {renderView()}
           </div>

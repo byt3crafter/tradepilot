@@ -42,27 +42,23 @@ const AnalyticsPage: React.FC = () => {
         <p className="text-future-gray">A deep dive into your trading habits and results.</p>
       </div>
 
-      <div className="border-b border-photonic-blue/20 mb-4">
-        <nav className="flex space-x-4 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-          <button
-            onClick={() => setActiveTab('summary')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'summary' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
-          >
-            Overall Summary
-          </button>
-          <button
-            onClick={() => setActiveTab('byAsset')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'byAsset' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
-          >
-            By Asset
-          </button>
-          <button
-            onClick={() => setActiveTab('byTime')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'byTime' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
-          >
-            By Time
-          </button>
-        </nav>
+      {/* Dropdown Selector */}
+      <div className="relative mb-6">
+        <select
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as AnalyticsTab)}
+          className="w-full md:w-auto px-4 py-3 bg-[#0C0D0E] border border-white/10 rounded-lg text-white font-semibold cursor-pointer hover:border-photonic-blue/50 transition-colors appearance-none pr-10"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 0.75rem center',
+            backgroundSize: '1.25rem'
+          }}
+        >
+          <option value="summary">Overall Summary</option>
+          <option value="byAsset">Performance by Asset</option>
+          <option value="byTime">Performance by Time</option>
+        </select>
       </div>
 
       <Card>
