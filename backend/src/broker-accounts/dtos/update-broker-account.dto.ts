@@ -14,7 +14,7 @@ class TradingObjectiveDto {
   @IsNumber()
   @IsOptional()
   minTradingDays?: number;
-  
+
   @IsNumber()
   @IsOptional()
   @Min(0)
@@ -30,6 +30,10 @@ class SmartLimitDto {
   @IsBoolean()
   @IsOptional()
   isEnabled?: boolean;
+
+  @IsString()
+  @IsOptional()
+  severity?: 'SOFT' | 'HARD';
 
   @IsNumber()
   @IsOptional()

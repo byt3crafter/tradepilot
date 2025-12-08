@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import { SparklesIcon } from '../icons/SparklesIcon';
@@ -14,16 +14,36 @@ interface LogWithAIProps {
   initialExpanded?: boolean;
 }
 
-const EXAMPLE_TRADES = [
-  "Long US30, risk 1%, entry 47383, stop 47283, TP 47481, still open.",
-  "Short EURUSD, risk $50, entry 1.0875, stop 1.0910, TP 1.0820.",
-  "Long BTCUSD, risk 0.5%, market entry now, stop 47000, TP 49000."
-];
+const EXAMPLE_TRADE = "Long US30, entry 47383, stop 47283, TP 47481";
 
 const LogWithAI: React.FC<LogWithAIProps> = ({ onParsedData, isLoading, onParseText, error, onQuickSubmit, canQuickSubmit, isSubmitting, initialExpanded = false }) => {
   const [tradeText, setTradeText] = useState('');
   const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
+  const [hint, setHint] = useState('');
+
+  // Dynamic hints - same logic as SmartTradeInput
+  const getNextHint = (input: string): string => {
+    if (!input.trim()) return "";
+
+    const hasDirection = /\b(long|short|buy|sell)\b/i.test(input);
+    const hasAsset = /\b(us30|btc|eurusd|gold)\b/i.test(input);
+    const hasEntry = /entry\s*:?\s*\d+(\.\d+)?/i.test(input);
+    const hasStop = /stop\s*:?\s*\d+(\.\d+)?/i.test(input);
+    const hasTP = /tp\s*:?\s*\d+(\.\d+)?/i.test(input);
+
+    if (!hasDirection) return "Direction (Long/Short)";
+    if (!hasAsset) return "Asset (e.g., US30, EURUSD, BTC)";
+    if (!hasEntry) return "entry XXXX";
+    if (!hasStop) return "stop XXXX";
+    if (!hasTP) return "TP XXXX";
+
+    return "Ready! Click 'Fill Form' ✓";
+  };
+
+  useEffect(() => {
+    setHint(getNextHint(tradeText));
+  }, [tradeText]);
 
   const handleFillForm = async () => {
     if (tradeText.trim()) {
@@ -31,8 +51,8 @@ const LogWithAI: React.FC<LogWithAIProps> = ({ onParsedData, isLoading, onParseT
     }
   };
 
-  const handleExampleClick = (example: string) => {
-    setTradeText(example);
+  const handleExampleClick = () => {
+    setTradeText(EXAMPLE_TRADE);
   };
 
   // Collapsed state - just show a button
@@ -74,17 +94,28 @@ const LogWithAI: React.FC<LogWithAIProps> = ({ onParsedData, isLoading, onParseT
         Describe your trade in one sentence. We'll fill the form for you.
       </p>
 
-      <div className="mb-4">
+      <div className="mb-2">
         <textarea
           id="ai-trade-input"
           value={tradeText}
           onChange={(e) => setTradeText(e.target.value)}
-          placeholder="Format: [Direction] [Asset], risk [X% or $X], entry [price], stop [price], TP [price], [open/closed].
-Example: Long US30, risk 1%, entry 47383, stop 47283, TP 47481, still open."
-          className="w-full bg-[#0C0D0E] border border-white/10 rounded px-3 py-2 text-future-light placeholder-future-gray/40 focus:outline-none focus:ring-1 focus:ring-photonic-blue/50 focus:border-photonic-blue/50 transition-all duration-200 text-xs leading-relaxed min-h-[70px] resize-none"
-          rows={3}
+          placeholder="Long US30, entry 47383, stop 47283, TP 47481"
+          className="w-full bg-[#0C0D0E] border border-white/10 rounded px-3 py-2 text-future-light placeholder-future-gray/40 focus:outline-none focus:ring-1 focus:ring-photonic-blue/50 focus:border-photonic-blue/50 transition-all duration-200 text-xs leading-relaxed min-h-[50px] resize-none"
+          rows={2}
         />
       </div>
+
+      {/* Dynamic Hint - Below the input */}
+      {tradeText.length > 0 && hint && hint !== "Ready! Click 'Fill Form' ✓" && (
+        <div className="text-xs text-photonic-blue/70 mb-3 animate-fade-in">
+          💡 <span className="font-medium">Next: {hint}</span>
+        </div>
+      )}
+      {hint === "Ready! Click 'Fill Form' ✓" && (
+        <div className="text-xs text-momentum-green/70 mb-3 animate-fade-in">
+          ✓ <span className="font-medium">{hint}</span>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-4">
         <div className="flex gap-2">
@@ -135,45 +166,39 @@ Example: Long US30, risk 1%, entry 47383, stop 47283, TP 47481, still open."
         </button>
       </div>
 
-      {/* Example Chips */}
+      {/* Example Button */}
       <div className="mb-4">
-        <p className="text-[10px] text-future-gray/60 mb-2 uppercase tracking-wider">Examples (click to try):</p>
-        <div className="flex flex-wrap gap-2">
-          {EXAMPLE_TRADES.map((example, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleExampleClick(example)}
-              className="text-[10px] bg-photonic-blue/10 hover:bg-photonic-blue/20 text-photonic-blue border border-photonic-blue/30 rounded-full px-3 py-1 transition-colors"
-            >
-              Example {idx + 1}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={handleExampleClick}
+          className="text-[10px] bg-photonic-blue/10 hover:bg-photonic-blue/20 text-photonic-blue border border-photonic-blue/30 rounded-full px-3 py-1 transition-colors"
+        >
+          📝 Try Example
+        </button>
       </div>
 
       {/* Cheat Sheet */}
       {showCheatSheet && (
         <div className="animate-fade-in-up bg-[#0C0D0E] border border-white/10 rounded p-3 text-[11px] space-y-1.5 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-            <span className="text-photonic-blue font-semibold">Direction + Asset:</span>
-            <span className="text-future-gray/70">"Long US30", "Short EURUSD"</span>
+            <span className="text-photonic-blue font-semibold">1. Direction:</span>
+            <span className="text-future-gray/70">"Long" or "Short"</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-            <span className="text-photonic-blue font-semibold">Risk:</span>
-            <span className="text-future-gray/70">"risk 1%" or "risk $50"</span>
+            <span className="text-photonic-blue font-semibold">2. Asset:</span>
+            <span className="text-future-gray/70">"US30", "EURUSD", "BTC", etc.</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-            <span className="text-photonic-blue font-semibold">Entry:</span>
-            <span className="text-future-gray/70">"entry 47383" or "market entry now"</span>
+            <span className="text-photonic-blue font-semibold">3. Entry:</span>
+            <span className="text-future-gray/70">"entry 47383"</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-            <span className="text-photonic-blue font-semibold">Stop / TP:</span>
-            <span className="text-future-gray/70">"stop 47283, TP 47481"</span>
+            <span className="text-photonic-blue font-semibold">4. Stop:</span>
+            <span className="text-future-gray/70">"stop 47283"</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-            <span className="text-photonic-blue font-semibold">Status (optional):</span>
-            <span className="text-future-gray/70">"still open" or "closed at 47481"</span>
+            <span className="text-photonic-blue font-semibold">5. Take Profit:</span>
+            <span className="text-future-gray/70">"TP 47481"</span>
           </div>
         </div>
       )}
@@ -196,3 +221,4 @@ Example: Long US30, risk 1%, entry 47383, stop 47283, TP 47481, still open."
 };
 
 export default LogWithAI;
+

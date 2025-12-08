@@ -70,14 +70,28 @@ const DashboardHeader: React.FC = () => {
                 )}
 
                 {/* Add Trade Button */}
-                <Tooltip text="Log Trade" position="bottom">
-                    <button
-                        onClick={handleQuickLogTrade}
-                        className="p-2.5 rounded-lg bg-white text-black hover:bg-gray-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all active:scale-95"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                    </button>
-                </Tooltip>
+                {smartLimitsProgress?.isTradeCreationBlocked && activeAccount?.smartLimits?.severity === 'HARD' ? (
+                    <div className="relative group">
+                        <button
+                            disabled
+                            className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 cursor-not-allowed shadow-[0_0_15px_rgba(255,0,0,0.1)]"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                        </button>
+                        <div className="absolute top-full right-0 mt-2 w-48 p-2 bg-black border border-red-500/30 rounded shadow-xl text-xs text-red-400 z-50 hidden group-hover:block">
+                            🚫 {smartLimitsProgress.blockReason}
+                        </div>
+                    </div>
+                ) : (
+                    <Tooltip text="Log Trade" position="bottom">
+                        <button
+                            onClick={handleQuickLogTrade}
+                            className="p-2.5 rounded-lg bg-white text-black hover:bg-gray-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all active:scale-95"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                        </button>
+                    </Tooltip>
+                )}
             </div>
 
             {/* Export Modal */}

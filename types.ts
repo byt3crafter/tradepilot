@@ -44,6 +44,7 @@ export interface TradingObjective {
 export interface SmartLimit {
   id: string;
   isEnabled: boolean;
+  severity: 'SOFT' | 'HARD';
   maxRiskPerTrade?: number | null;
   maxTradesPerDay?: number | null;
   maxLossesPerDay?: number | null;

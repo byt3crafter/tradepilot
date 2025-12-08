@@ -117,14 +117,20 @@ enum DrawdownType {
 }
 
 model SmartLimit {
-  id              String        @id @default(uuid())
-  isEnabled       Boolean       @default(false)
+  id              String             @id @default(uuid())
+  isEnabled       Boolean            @default(false)
+  severity        SmartLimitSeverity @default(HARD)
   maxRiskPerTrade Float?
   maxTradesPerDay Int?
   maxLossesPerDay Int?
 
   brokerAccountId String        @unique
   brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+}
+
+enum SmartLimitSeverity {
+  SOFT
+  HARD
 }
 
 model Playbook {

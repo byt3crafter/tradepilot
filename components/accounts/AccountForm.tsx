@@ -35,6 +35,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const [maxDailyLoss, setMaxDailyLoss] = useState(account?.objectives?.maxDailyLoss ?? '');
 
   const [smartLimitsEnabled, setSmartLimitsEnabled] = useState(account?.smartLimits?.isEnabled || false);
+  const [smartLimitSeverity, setSmartLimitSeverity] = useState<'SOFT' | 'HARD'>(account?.smartLimits?.severity || 'HARD');
   const [maxRiskPerTrade, setMaxRiskPerTrade] = useState(account?.smartLimits?.maxRiskPerTrade ?? '');
   const [maxTradesPerDay, setMaxTradesPerDay] = useState(account?.smartLimits?.maxTradesPerDay ?? '');
   const [maxLossesPerDay, setMaxLossesPerDay] = useState(account?.smartLimits?.maxLossesPerDay ?? '');
@@ -93,6 +94,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
     };
 
     const baseSmartLimitsPayload = {
+      severity: smartLimitSeverity,
       maxRiskPerTrade: maxRiskPerTrade ? parseFloat(maxRiskPerTrade as string) : null,
       maxTradesPerDay: maxTradesPerDay ? parseInt(maxTradesPerDay as string, 10) : null,
       maxLossesPerDay: maxLossesPerDay ? parseInt(maxLossesPerDay as string, 10) : null,
@@ -236,10 +238,22 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
           onChange={setSmartLimitsEnabled}
         />
         {smartLimitsEnabled && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
-            <Input label="Max Risk per Trade (%)" id="maxRiskPerTrade" type="number" step="0.1" placeholder="e.g., 1" value={maxRiskPerTrade} onChange={e => setMaxRiskPerTrade(e.target.value)} />
-            <Input label="Max Trades per Day" id="maxTradesPerDay" type="number" placeholder="e.g., 3" value={maxTradesPerDay} onChange={e => setMaxTradesPerDay(e.target.value)} />
-            <Input label="Max Losses per Day" id="maxLossesPerDay" type="number" placeholder="e.g., 2" value={maxLossesPerDay} onChange={e => setMaxLossesPerDay(e.target.value)} />
+          <div className="mt-4 space-y-4 animate-fade-in-up">
+            <SelectInput
+              label="Limit Severity"
+              id="smartLimitSeverity"
+              value={smartLimitSeverity}
+              onChange={(e) => setSmartLimitSeverity(e.target.value as 'SOFT' | 'HARD')}
+              options={[
+                { value: 'SOFT', label: '⚠️ Soft (Warn only, allow trade)' },
+                { value: 'HARD', label: '🚫 Hard (Block trade completely)' },
+              ]}
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="Max Risk per Trade (%)" id="maxRiskPerTrade" type="number" step="0.1" placeholder="e.g., 1" value={maxRiskPerTrade} onChange={e => setMaxRiskPerTrade(e.target.value)} />
+              <Input label="Max Trades per Day" id="maxTradesPerDay" type="number" placeholder="e.g., 3" value={maxTradesPerDay} onChange={e => setMaxTradesPerDay(e.target.value)} />
+              <Input label="Max Losses per Day" id="maxLossesPerDay" type="number" placeholder="e.g., 2" value={maxLossesPerDay} onChange={e => setMaxLossesPerDay(e.target.value)} />
+            </div>
           </div>
         )}
       </div>

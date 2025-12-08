@@ -313,12 +313,28 @@ const TradeJournal: React.FC = () => {
                 <span className="hidden sm:inline">Import</span>
               </Button>
 
-              <Button onClick={handleOpenAddTrade} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
-                <PlusIcon className="w-5 h-5" />
-                <span className="hidden sm:inline">Log Trade</span>
-              </Button>
+              {/* Log Trade Button - Blocked if HARD limit reached */}
+              {smartLimitsProgress?.isTradeCreationBlocked && activeAccount?.smartLimits?.severity === 'HARD' ? (
+                <div className="relative group">
+                  <Button
+                    disabled
+                    className="w-auto flex items-center gap-2 px-3 py-2 text-sm bg-red-500/10 border border-red-500/30 text-red-400 cursor-not-allowed hover:bg-red-500/10"
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                    <span className="hidden sm:inline">Log Trade</span>
+                  </Button>
+                  <div className="absolute top-full right-0 mt-2 w-48 p-2 bg-black border border-red-500/30 rounded shadow-xl text-xs text-red-400 z-50 hidden group-hover:block">
+                    🚫 {smartLimitsProgress.blockReason}
+                  </div>
+                </div>
+              ) : (
+                <Button onClick={handleOpenAddTrade} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
+                  <PlusIcon className="w-5 h-5" />
+                  <span className="hidden sm:inline">Log Trade</span>
+                </Button>
+              )}
 
-              {(isObjectiveBlocked || isSmartLimitBlocked) && (
+              {(isObjectiveBlocked || (isSmartLimitBlocked && activeAccount?.smartLimits?.severity !== 'HARD')) && (
                 <div className="absolute -top-10 right-0 text-xs bg-risk-medium text-white px-2 py-1 rounded-md shadow-lg w-max max-w-xs text-center">
                   Warning: {blockReason}
                 </div>

@@ -10,7 +10,7 @@ class TradingObjectiveDto {
   @IsNumber()
   @IsOptional()
   minTradingDays?: number;
-  
+
   @IsNumber()
   @IsOptional()
   @Min(0)
@@ -23,20 +23,24 @@ class TradingObjectiveDto {
 }
 
 class SmartLimitDto {
-    @IsNumber()
-    @IsOptional()
-    @Min(0)
-    maxRiskPerTrade?: number;
+  @IsString()
+  @IsOptional()
+  severity?: 'SOFT' | 'HARD';
 
-    @IsNumber()
-    @IsOptional()
-    @Min(0)
-    maxTradesPerDay?: number;
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxRiskPerTrade?: number;
 
-    @IsNumber()
-    @IsOptional()
-    @Min(0)
-    maxLossesPerDay?: number;
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxTradesPerDay?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxLossesPerDay?: number;
 }
 
 export class CreateBrokerAccountDto {
@@ -51,7 +55,7 @@ export class CreateBrokerAccountDto {
   @IsNumber()
   @Min(0)
   initialBalance: number;
-  
+
   @IsString()
   @IsOptional()
   currency?: string;

@@ -31,14 +31,27 @@ export class TradesService {
 
     // --- Smart Limits Enforcement ---
     if (brokerAccount.smartLimits?.isEnabled) {
-      const { maxRiskPerTrade } = brokerAccount.smartLimits;
+      const { maxRiskPerTrade, severity } = brokerAccount.smartLimits;
+      const isHardLimit = severity === 'HARD';
+
+      // Check risk per trade limit
       if (maxRiskPerTrade && riskPercentage > maxRiskPerTrade) {
-        throw new ForbiddenException(`Trade risk of ${riskPercentage}% exceeds your Smart Limit of ${maxRiskPerTrade}%.`);
+        if (isHardLimit) {
+          throw new ForbiddenException(`Trade risk of ${riskPercentage}% exceeds your Smart Limit of ${maxRiskPerTrade}%.`);
+        }
+        // Soft limit - just log warning, allow trade
+        const logger = new Logger(TradesService.name);
+        logger.warn(`[SOFT LIMIT] User ${userId} exceeded risk limit: ${riskPercentage}% > ${maxRiskPerTrade}%`);
       }
 
       const progress = await this.accountsService.getSmartLimitsProgress(brokerAccountId, userId);
       if (progress.isTradeCreationBlocked) {
-        throw new ForbiddenException(progress.blockReason);
+        if (isHardLimit) {
+          throw new ForbiddenException(progress.blockReason);
+        }
+        // Soft limit - just log warning, allow trade
+        const logger = new Logger(TradesService.name);
+        logger.warn(`[SOFT LIMIT] User ${userId} blocked reason ignored: ${progress.blockReason}`);
       }
     }
     // --- End of Enforcement ---

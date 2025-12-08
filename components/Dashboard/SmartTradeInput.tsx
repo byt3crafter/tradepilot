@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTrade } from '../../context/TradeContext';
 import { useAuth } from '../../context/AuthContext';
 import { usePlaybook } from '../../context/PlaybookContext';
+import { useAccount } from '../../context/AccountContext';
 import api from '../../services/api';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import Spinner from '../Spinner';
@@ -14,7 +15,15 @@ const SmartTradeInput: React.FC = () => {
     const { createTrade } = useTrade();
     const { getToken } = useAuth();
     const { playbooks } = usePlaybook();
+    const { activeAccount, smartLimitsProgress } = useAccount();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Check if trading is blocked by HARD smart limits
+    const isHardLimitReached = activeAccount?.smartLimits?.isEnabled
+        && activeAccount?.smartLimits?.severity === 'HARD'
+        && smartLimitsProgress?.isTradeCreationBlocked;
+
+    const blockReason = smartLimitsProgress?.blockReason || 'Smart limit reached';
 
     // Parse input to determine what's been entered
     const getNextHint = (input: string): string => {
@@ -61,6 +70,7 @@ const SmartTradeInput: React.FC = () => {
     const handleLogTrade = async (e?: React.MouseEvent) => {
         if (e) e.preventDefault();
         if (!text.trim()) return;
+        if (isHardLimitReached) return; // Block if hard limit reached
 
         setIsLoading(true);
         setIsSuccess(false);
@@ -119,6 +129,24 @@ const SmartTradeInput: React.FC = () => {
         }
     };
 
+    // Show blocked state when HARD limit is reached
+    if (isHardLimitReached) {
+        return (
+            <div className="flex-1 max-w-2xl mx-0 sm:mx-6 relative">
+                <div className="relative w-full">
+                    <div className="absolute left-3 top-3 text-red-400/70">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                    <div className="w-full bg-red-500/10 border border-red-500/30 rounded-xl pl-10 pr-4 py-2.5 text-sm text-red-400/70 cursor-not-allowed">
+                        🚫 Quick log disabled - {blockReason}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex-1 max-w-2xl mx-0 sm:mx-6 relative group flex flex-col gap-2">
             <div className="relative w-full">
@@ -131,7 +159,7 @@ const SmartTradeInput: React.FC = () => {
                     value={text}
                     onChange={e => setText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Long US30, risk 1%, entry 47383, stop 47283, TP 47481"
+                    placeholder="Long US30, entry 47383, stop 47283, TP 47481"
                     className={`w-full bg-[#0C0D0E]/50 border ${error ? 'border-red-500/50' : 'border-white/5 hover:border-white/10'} focus:border-photonic-blue/50 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-photonic-blue/20 transition-all resize-none overflow-hidden min-h-[44px]`}
                     rows={1}
                     disabled={isLoading}
@@ -172,3 +200,4 @@ const SmartTradeInput: React.FC = () => {
 };
 
 export default SmartTradeInput;
+
