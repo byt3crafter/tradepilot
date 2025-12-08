@@ -22,7 +22,7 @@ const SmartTradeInput: React.FC = () => {
 
         // Detect entered parts
         const hasDirection = /\b(long|short|buy|sell)\b/i.test(input);
-        const hasAsset = /\b(us30|btc|eurusd|gold|[a-z]{3,6})\b/i.test(input);
+        const hasAsset = /\b(us30|btc|eurusd|gold)\b/i.test(input);
         const hasEntry = /entry\s*:?\s*\d+(\.\d+)?/i.test(input);
         const hasStop = /stop\s*:?\s*\d+(\.\d+)?/i.test(input);
         const hasTP = /tp\s*:?\s*\d+(\.\d+)?/i.test(input);
