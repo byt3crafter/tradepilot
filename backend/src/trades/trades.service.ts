@@ -75,70 +75,98 @@ export class TradesService {
     const { brokerAccountId, playbookId, trades } = bulkImportDto;
     const logger = new Logger(TradesService.name);
 
+    logger.log(`Starting bulk import for user ${userId} on account ${brokerAccountId}`);
+    logger.log(`Playbook ID: ${playbookId}, Number of trades: ${trades.length}`);
+
     // Authorization checks
-    await this.accountsService.findOne(brokerAccountId, userId);
+    try {
+      await this.accountsService.findOne(brokerAccountId, userId);
+    } catch (error) {
+      logger.error(`Broker account not found: ${brokerAccountId}`, error);
+      throw new ForbiddenException('Broker account not found or does not belong to user.');
+    }
+
     const playbook = await this.prisma.playbook.findFirst({ where: { id: playbookId, userId } });
     if (!playbook) {
+      logger.error(`Playbook not found or invalid: ${playbookId} for user ${userId}`);
       throw new ForbiddenException('Playbook not found or does not belong to user.');
     }
+
+    logger.log(`Authorization passed. Starting transaction...`);
 
     let importedCount = 0;
     let skippedCount = 0;
 
     // We use a transaction to ensure all trades are imported or none are.
-    await this.prisma.$transaction(async (tx) => {
-      for (const trade of trades) {
-        // Check for duplicates within this transaction scope
-        // A trade is considered duplicate if it has the same asset, entry/exit dates, and entry/exit prices
-        const existingTrade = await tx.trade.findFirst({
-          where: {
-            brokerAccountId,
-            userId,
-            asset: trade.asset,
-            entryDate: trade.entryDate,
-            exitDate: trade.exitDate,
-            entryPrice: trade.entryPrice,
-            exitPrice: trade.exitPrice,
-          },
-        });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        for (const trade of trades) {
+          // Check for duplicates within this transaction scope
+          const existingTrade = await tx.trade.findFirst({
+            where: {
+              brokerAccountId,
+              userId,
+              asset: trade.asset,
+              entryDate: trade.entryDate,
+              exitDate: trade.exitDate,
+              entryPrice: trade.entryPrice,
+              exitPrice: trade.exitPrice,
+            },
+          });
 
-        if (existingTrade) {
-          skippedCount++;
-          continue;
+          if (existingTrade) {
+            skippedCount++;
+            continue;
+          }
+
+          let result: TradeResult;
+          const pl = trade.profitLoss ?? 0;
+          if (Math.abs(pl) < 0.01) result = TradeResult.Breakeven;
+          else if (pl > 0) result = TradeResult.Win;
+          else result = TradeResult.Loss;
+
+
+          await tx.trade.create({
+            data: {
+              // Explicitly map fields from import
+              asset: trade.asset,
+              direction: trade.direction,
+              entryDate: trade.entryDate,
+              exitDate: trade.exitDate,
+              entryPrice: trade.entryPrice,
+              exitPrice: trade.exitPrice,
+              lotSize: trade.lotSize,
+              profitLoss: trade.profitLoss,
+              commission: trade.commission,
+              swap: trade.swap,
+              result,
+              // These are required fields, but not in the import data, so we need defaults.
+              riskPercentage: 0, // Defaulting to 0 as it's not in the CSV
+              isPendingOrder: false,
+              // Use relations for safety
+              user: { connect: { id: userId } },
+              brokerAccount: { connect: { id: brokerAccountId } },
+              playbook: { connect: { id: playbookId } },
+              // playbookSetupId is now optional, so we don't set it for bulk imports
+            },
+          });
+          importedCount++;
         }
+      }, {
+        maxWait: 60000, // 60 seconds wait time for large imports
+        timeout: 120000, // 120 seconds total timeout for large imports
+      });
 
-        let result: TradeResult;
-        const pl = trade.profitLoss ?? 0;
-        if (Math.abs(pl) < 0.01) result = TradeResult.Breakeven;
-        else if (pl > 0) result = TradeResult.Win;
-        else result = TradeResult.Loss;
+      logger.log(`Transaction complete: ${importedCount} imported, ${skippedCount} skipped.`);
 
-        await tx.trade.create({
-          data: {
-            ...trade,
-            result,
-            // These are required fields, but not in the import data, so we need defaults.
-            riskPercentage: 0, // Defaulting to 0 as it's not in the CSV
-            isPendingOrder: false,
-            // Use relations for safety
-            user: { connect: { id: userId } },
-            brokerAccount: { connect: { id: brokerAccountId } },
-            playbook: { connect: { id: playbookId } },
-          },
-        });
-        importedCount++;
-      }
-    }, {
-      maxWait: 10000, // default: 2000
-      timeout: 20000, // default: 5000
-    });
+      // Recalculate account balance after successful transaction
+      await this.accountsService.recalculateBalance(brokerAccountId, userId);
 
-    logger.log(`Bulk import for user ${userId} on account ${brokerAccountId}: ${importedCount} imported, ${skippedCount} skipped.`);
-
-    // Recalculate account balance after successful transaction
-    await this.accountsService.recalculateBalance(brokerAccountId, userId);
-
-    return { imported: importedCount, skipped: skippedCount };
+      return { imported: importedCount, skipped: skippedCount };
+    } catch (error) {
+      logger.error(`Error during bulk import transaction:`, error.stack || error);
+      throw new BadRequestException(`Failed to import trades: ${error.message || 'Unknown error'}`);
+    }
   }
 
   async findAllByAccount(userId: string, brokerAccountId: string) {
