@@ -334,7 +334,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`flex items-center gap-3 w-full hover:bg-white/5 p-2 rounded-lg transition-colors text-left group ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              className={`hidden md:flex items-center gap-3 w-full hover:bg-white/5 p-2 rounded-lg transition-colors text-left group ${isSidebarCollapsed ? 'justify-center' : ''}`}
             >
               <div className="relative">
                 {user.preferences?.useGravatar ? (

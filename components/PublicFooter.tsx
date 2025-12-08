@@ -1,6 +1,7 @@
 import React from 'react';
 
 import PublicLink from './PublicLink';
+import { XIcon } from './icons/XIcon';
 
 const PublicFooter: React.FC = () => {
     return (
@@ -10,7 +11,10 @@ const PublicFooter: React.FC = () => {
                     <div className="text-future-gray text-sm">
                         © 2024 JTradeJournal. Master your trading with intelligent insights.
                     </div>
-                    <div className="flex flex-wrap justify-center gap-6 text-sm">
+                    <div className="flex flex-wrap justify-center gap-6 text-sm items-center">
+                        <a href="https://x.com/jtradepilot" target="_blank" rel="noopener noreferrer" className="text-future-gray hover:text-white transition-colors">
+                            <XIcon className="w-5 h-5" />
+                        </a>
 
                         <PublicLink href="/privacy" className="text-future-gray hover:text-white transition-colors">
                             Privacy
