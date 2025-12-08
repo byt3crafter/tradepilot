@@ -22,8 +22,35 @@
 
   <!-- UnicornStudio Animated Background - Landing Page Only (Loaded by React) -->
   <script type="text/javascript">
+    // Performance detection and adaptive loading
+    window.isHighPerformanceDevice = function () {
+      // Check hardware concurrency (CPU cores)
+      const cores = navigator.hardwareConcurrency || 2;
+
+      // Check device memory if available (in GB)
+      const memory = navigator.deviceMemory || 4;
+
+      // High performance: 4+ cores and 4GB+ RAM
+      return cores >= 4 && memory >= 4;
+    };
+
     // Global function for React to load UnicornStudio when on landing page
     window.loadUnicornStudio = function () {
+      // Check for reduced motion preference or low power mode
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const isLowPerformance = localStorage.getItem('lowPerformanceMode') === 'true';
+
+      if (prefersReducedMotion || isLowPerformance) {
+        console.log('[JTradePilot] Animations disabled due to performance/accessibility settings.');
+        return;
+      }
+
+      // Performance check - only load heavy animation on capable devices
+      if (!window.isHighPerformanceDevice()) {
+        console.log('[JTradePilot] Using lightweight animation for better performance on this device.');
+        return;
+      }
+
       if (window.UnicornStudio && window.UnicornStudio.isInitialized) {
         return; // Already loaded
       }
@@ -48,84 +75,92 @@
       const bgContainer = document.getElementById('animated-background-container');
       if (!bgContainer) return;
 
-      if (show) {
+      // Check preferences again
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const isLowPerformance = localStorage.getItem('lowPerformanceMode') === 'true';
+
+      if (show && !prefersReducedMotion && !isLowPerformance) {
+        // Check if device can handle full animation
+        const useFullAnimation = window.isHighPerformanceDevice();
+
         // Only create background if it doesn't exist
         if (bgContainer.children.length === 0) {
-          bgContainer.innerHTML = `
-            <div class="aura-background-component fixed top-0 w-full h-screen z-0 pointer-events-none" data-alpha-mask="80"
-              style="mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);">
-              <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0"></div>
-            </div>
+          if (useFullAnimation) {
+            // Full UnicornStudio animation for high-performance devices
+            bgContainer.innerHTML = `
+              <div class="aura-background-component fixed top-0 w-full h-screen z-0 pointer-events-none" data-alpha-mask="80"
+                style="mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%); will-change: transform;">
+                <div data-us-project="0WrRbFIPaKoWVkiQWBG0" class="absolute w-full h-full left-0 top-0"></div>
+              </div>
 
-            <div class="fixed inset-0 z-0 pointer-events-none" style="
-              background-image:
-                linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-              background-size: 60px 60px;
-              background-attachment: fixed;
-              mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
-              -webkit-mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
-            "></div>
+              <div class="fixed inset-0 z-0 pointer-events-none" style="
+                background-image:
+                  linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+                background-size: 60px 60px;
+                background-attachment: fixed;
+                mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
+                -webkit-mask-image: radial-gradient(ellipse 100% 50% at 50% 50%, black 30%, transparent 100%);
+              "></div>
 
-            <div class="fixed inset-0 z-10 pointer-events-none" style="
-              background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
-              opacity: 0.8;
-            "></div>
-          `;
+              <div class="fixed inset-0 z-10 pointer-events-none" style="
+                background: radial-gradient(circle at center, transparent 0%, #08090A 100%);
+                opacity: 0.8;
+              "></div>
+            `;
+
+            // Re-init if script is already loaded but content was removed
+            if (window.UnicornStudio && window.UnicornStudio.isInitialized && window.UnicornStudio.init) {
+              // Small timeout to ensure DOM is ready
+              setTimeout(() => window.UnicornStudio.init(), 100);
+            }
+          } else {
+            // Lightweight CSS-only animation for lower-end devices
+            bgContainer.innerHTML = `
+              <div class="fixed inset-0 z-0 pointer-events-none" style="
+                background: radial-gradient(ellipse 80% 50% at 50% 20%, rgba(37, 99, 235, 0.15), transparent 50%),
+                            radial-gradient(ellipse 60% 50% at 80% 60%, rgba(139, 92, 246, 0.1), transparent 50%),
+                            radial-gradient(ellipse 60% 50% at 20% 80%, rgba(6, 182, 212, 0.1), transparent 50%);
+                animation: gradient-shift 15s ease infinite;
+                will-change: transform;
+              "></div>
+
+              <div class="fixed inset-0 z-0 pointer-events-none" style="
+                background-image:
+                  linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+                background-size: 60px 60px;
+                background-attachment: fixed;
+                opacity: 0.5;
+              "></div>
+
+              <style>
+                @keyframes gradient-shift {
+                  0%, 100% { transform: translateY(0) scale(1); }
+                  50% { transform: translateY(-20px) scale(1.05); }
+                }
+              </style>
+            `;
+          }
         }
       } else {
         // Remove background content
-        bgContainer.innerHTML = '';
+        if (bgContainer.children.length > 0) {
+          bgContainer.innerHTML = '';
+
+          // Attempt to cleanup UnicornStudio if it has a destroy method
+          if (window.UnicornStudio && window.UnicornStudio.destroy) {
+            try {
+              window.UnicornStudio.destroy();
+            } catch (e) { console.warn('Failed to destroy UnicornStudio', e); }
+          }
+        }
       }
     };
   </script>
 
   <!-- Add Charting Libraries -->
   <script src="https://unpkg.com/d3@7.8.5/dist/d3.min.js"></script>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "express": "https://aistudiocdn.com/express@^5.1.0",
-    "rxjs": "https://aistudiocdn.com/rxjs@^7.8.2",
-    "rxjs/": "https://aistudiocdn.com/rxjs@^7.8.2/",
-    "supertest": "https://aistudiocdn.com/supertest@^7.1.4",
-    "joi": "https://aistudiocdn.com/joi@^18.0.1",
-    "nodemailer": "https://aistudiocdn.com/nodemailer@^7.0.6",
-    "class-validator": "https://aistudiocdn.com/class-validator@^0.14.2",
-    "@nestjs/core": "https://aistudiocdn.com/@nestjs/core@^11.1.6",
-    "class-transformer": "https://aistudiocdn.com/class-transformer@^0.5.1",
-    "@nestjs/testing": "https://aistudiocdn.com/@nestjs/testing@^11.1.6",
-    "passport-jwt": "https://aistudiocdn.com/passport-jwt@^4.0.1",
-    "@nestjs/common": "https://aistudiocdn.com/@nestjs/common@^11.1.6",
-    "@jest/globals": "https://aistudiocdn.com/@jest/globals@^30.1.2",
-    "@nestjs/config": "https://aistudiocdn.com/@nestjs/config@^4.0.2",
-    "cookie-parser": "https://aistudiocdn.com/cookie-parser@^1.4.7",
-    "compression": "https://aistudiocdn.com/compression@^1.8.1",
-    "@prisma/client": "https://aistudiocdn.com/@prisma/client@^6.16.2",
-    "helmet": "https://aistudiocdn.com/helmet@^8.1.0",
-    "@nestjs/jwt": "https://aistudiocdn.com/@nestjs/jwt@^11.0.0",
-    "child_process": "https://aistudiocdn.com/child_process@^1.0.2",
-    "@nestjs/passport": "https://aistudiocdn.com/@nestjs/passport@^11.0.5",
-    "@nestjs/throttler": "https://aistudiocdn.com/@nestjs/throttler@^6.4.0",
-    "md5": "https://aistudiocdn.com/md5@^2.3.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
-    "@paddle/paddle-node-sdk": "https://aistudiocdn.com/@paddle/paddle-node-sdk@^3.2.1",
-    "src/": "https://aistudiocdn.com/src@^1.1.2/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.2.1",
-    "lightweight-charts": "https://aistudiocdn.com/lightweight-charts@^5.0.8",
-    "@nestjs/schedule": "https://aistudiocdn.com/@nestjs/schedule@^6.0.1",
-    "bcryptjs": "https://aistudiocdn.com/bcryptjs@^3.0.2",
-    "@clerk/clerk-react": "https://esm.sh/@clerk/clerk-react@5.2.0?external=react,react-dom",
-    "@clerk/themes": "https://esm.sh/@clerk/themes@2.1.0",
-    "jwks-rsa": "https://aistudiocdn.com/jwks-rsa@^3.2.0"
-  }
-}
-</script>
 </head>
 
 <body class="font-sans text-primary antialiased selection:bg-zinc-800 selection:text-white bg-[#08090A]">
