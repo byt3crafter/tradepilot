@@ -29,6 +29,7 @@ import RefundPolicyPage from './pages/RefundPolicyPage';
 import ReferralPage from './pages/ReferralPage';
 import PricingPage from './pages/PricingPage';
 import InviteLandingPage from './pages/InviteLandingPage';
+import FeaturesPage from './pages/FeaturesPage';
 
 // NOTE: using import.meta.env for Vite. Cast to any to avoid TS error if types are missing.
 const CLERK_PUBLISHABLE_KEY = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
@@ -123,6 +124,9 @@ const UnauthenticatedApp: React.FC = () => {
   }
   if (currentPath === '/refund-policy') {
     return <RefundPolicyPage />;
+  }
+  if (currentPath === '/features') {
+    return <FeaturesPage />;
   }
 
   // Handle Referral Invite Links

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { MenuIcon } from './icons/MenuIcon';
 import { XIcon } from './icons/XIcon';
-import Button from './ui/Button';
-
 import PublicLink from './PublicLink';
 
 const PublicNavbar: React.FC = () => {
@@ -22,6 +20,9 @@ const PublicNavbar: React.FC = () => {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-6">
+                    <PublicLink href="/features" className="text-future-gray hover:text-white transition-colors text-sm font-medium">
+                        Features
+                    </PublicLink>
                     <PublicLink href="/pricing" className="text-future-gray hover:text-white transition-colors text-sm font-medium">
                         Pricing
                     </PublicLink>
@@ -71,6 +72,13 @@ const PublicNavbar: React.FC = () => {
                     </div>
                     <div className="px-4 py-6 space-y-4">
                         <PublicLink
+                            href="/features"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block px-2 py-2 text-future-gray hover:text-white transition-colors"
+                        >
+                            Features
+                        </PublicLink>
+                        <PublicLink
                             href="/pricing"
                             onClick={() => setIsMobileMenuOpen(false)}
                             className="block px-2 py-2 text-future-gray hover:text-white transition-colors"
@@ -84,6 +92,22 @@ const PublicNavbar: React.FC = () => {
                         >
                             About
                         </PublicLink>
+                        <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
+                            <PublicLink
+                                href="/login"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="block w-full text-center px-4 py-2 text-future-gray hover:text-white border border-white/10 rounded-lg transition-colors"
+                            >
+                                Log In
+                            </PublicLink>
+                            <PublicLink
+                                href="/signup"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="block w-full text-center px-4 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                Sign Up
+                            </PublicLink>
+                        </div>
                     </div>
                 </div>
             )}
