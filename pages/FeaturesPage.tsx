@@ -9,15 +9,15 @@ import { BrainIcon } from '../components/icons/BrainIcon';
 
 const FeaturesPage: React.FC = () => {
     return (
-        <div className="min-h-screen bg-void text-white font-sans selection:bg-photonic-blue/30">
+        <div className="flex flex-col h-screen bg-void text-white font-sans selection:bg-photonic-blue/30">
             <PublicNavbar />
 
-            <main className="pt-24 pb-16">
+            <main className="flex-1 overflow-y-auto pt-24 pb-16">
                 {/* Hero Section */}
                 <section className="relative px-6 lg:px-8 max-w-7xl mx-auto text-center mb-24">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-photonic-blue/20 rounded-full blur-[120px] -z-10 opacity-50 pointer-events-none" />
 
-                    <h1 className="text-4xl md:text-6xl font-bold font-orbitron tracking-wider mb-6 bg-gradient-to-r from-white via-photonic-blue to-white bg-clip-text text-transparent animate-gradient-x">
+                    <h1 className="text-4xl md:text-6xl font-bold font-orbitron tracking-wider mb-6 bg-gradient-to-r from-white via-photonic-blue to-white bg-clip-text text-transparent">
                         ADVANCED TRADING TOOLS
                     </h1>
                     <p className="text-lg md:text-xl text-secondary max-w-2xl mx-auto leading-relaxed">
@@ -134,9 +134,8 @@ const FeaturesPage: React.FC = () => {
                         </a>
                     </div>
                 </section>
+                <PublicFooter />
             </main>
-
-            <PublicFooter />
         </div>
     );
 };
