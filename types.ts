@@ -490,6 +490,7 @@ export interface PropFirmTemplate {
   dailyDrawdown: number;
   maxDrawdown: number;
   drawdownType: DrawdownType;
+  consistencyRule?: number | null;
   minTradingDays: number;
   isActive: boolean;
   createdAt: string;
@@ -505,5 +506,6 @@ export interface CreatePropFirmTemplateDto {
   maxDrawdown: number;
   drawdownType: 'TRAILING' | 'STATIC';
   minTradingDays: number;
+  consistencyRule?: number;
   isActive?: boolean;
 }

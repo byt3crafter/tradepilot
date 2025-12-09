@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlaybookDto } from './dtos/create-playbook.dto';
 import { UpdatePlaybookDto } from './dtos/update-playbook.dto';
@@ -223,6 +223,14 @@ export class PlaybooksService {
       throw new ForbiddenException('You are not authorized to delete this playbook.');
     }
 
+    const tradeCount = await this.prisma.trade.count({
+      where: { playbookId: id },
+    });
+
+    if (tradeCount > 0) {
+      throw new BadRequestException('Cannot delete playbook with existing trades. Please delete the trades first.');
+    }
+
     await this.prisma.playbook.delete({ where: { id } });
     return { message: 'Playbook deleted successfully.' };
   }
@@ -377,6 +385,18 @@ export class PlaybooksService {
     const playbook = await this.findOne(id, userId, true);
     const setupStats = playbook.setups.map((setup: any) => {
       const setupTrades = closedTrades.filter(t => t.playbookSetupId === setup.id);
+      const total = setupTrades.length;
+      const wins = setupTrades.filter(t => t.result === 'Win').length;
+      const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+      const netPL = setupTrades.reduce((sum, t) => sum + (t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0), 0);
+
+      return {
+        setupId: setup.id,
+        setupName: setup.name,
+        winRate,
+        totalTrades: total,
+        netPL,
+      };
     });
 
     // Add "Unassigned" category for existing trades or general trades

@@ -24,7 +24,7 @@ import { TrashIcon } from './icons/TrashIcon';
 import ImportTradesModal from './accounts/ImportTradesModal';
 import { ImportIcon } from './icons/ImportIcon';
 
-type TradeView = 'live' | 'pending' | 'history';
+type TradeView = 'live' | 'pending' | 'history' | 'calendar';
 type AddTradeStep = 'closed' | 'checklist' | 'form';
 type DateFilter = 'all-time' | 'today' | 'yesterday' | 'this-week' | 'this-month' | 'custom-range';
 
@@ -44,6 +44,7 @@ const TradeJournal: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [customStartDate, setCustomStartDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [customEndDate, setCustomEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
 
   // State for bulk actions
   const [selectedTradeIds, setSelectedTradeIds] = useState<string[]>([]);
@@ -54,6 +55,7 @@ const TradeJournal: React.FC = () => {
     live: ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'SL / TP', 'Actions'],
     history: ['', '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Pips', 'Net P/L', 'Actions'],
     pending: ['', 'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Playbook', 'Actions'],
+    calendar: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   };
 
   const dailyLossRule = objectivesProgress?.find(obj => obj.key === 'maxDailyLoss');
@@ -231,6 +233,53 @@ const TradeJournal: React.FC = () => {
             onSelect={handleToggleSelect}
           />
         ));
+      case 'calendar':
+        return (
+          <tr>
+            <td colSpan={headers.history.length} className="p-4">
+              <div className="grid grid-cols-7 gap-1">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center text-xs text-future-gray uppercase py-2">{day}</div>
+                ))}
+                {/* Calendar Days Logic */}
+                {(() => {
+                  const year = calendarDate.getFullYear();
+                  const month = calendarDate.getMonth();
+                  const firstDay = new Date(year, month, 1).getDay();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                  const days = [];
+                  for (let i = 0; i < firstDay; i++) {
+                    days.push(<div key={`empty-${i}`} className="h-24 bg-white/5 rounded-md"></div>);
+                  }
+
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayTrades = closedTrades.filter(t => t.exitDate?.startsWith(dateStr));
+                    const dayPL = dayTrades.reduce((sum, t) => sum + (t.profitLoss ?? 0), 0);
+                    const isProfitable = dayPL > 0;
+                    const isLoss = dayPL < 0;
+
+                    days.push(
+                      <div key={day} className={`h-24 bg-white/5 rounded-md p-2 flex flex-col justify-between hover:bg-white/10 transition-colors ${isProfitable ? 'bg-momentum-green/5' : isLoss ? 'bg-risk-high/5' : ''}`}>
+                        <span className="text-xs text-future-gray">{day}</span>
+                        {dayTrades.length > 0 && (
+                          <div className="text-right">
+                            <div className={`text-sm font-bold ${isProfitable ? 'text-momentum-green' : isLoss ? 'text-risk-high' : 'text-future-light'}`}>
+                              {dayPL >= 0 ? '+' : '-'}${Math.abs(dayPL).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-future-gray">{dayTrades.length} trades</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return days;
+                })()};
+              </div>
+            </td>
+          </tr>
+        );
       default:
         return null;
     }
@@ -363,7 +412,26 @@ const TradeJournal: React.FC = () => {
             >
               Trading History ({filteredClosedTrades.length})
             </button>
+            <button
+              onClick={() => setCurrentView('calendar')}
+              className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${currentView === 'calendar' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+            >
+              Calendar View
+            </button>
           </nav>
+          {currentView === 'calendar' && (
+            <div className="flex items-center gap-2 text-sm">
+              <button onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))} className="text-future-gray hover:text-future-light p-1">
+                &lt;
+              </button>
+              <span className="font-orbitron text-future-light min-w-[100px] text-center">
+                {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </span>
+              <button onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))} className="text-future-gray hover:text-future-light p-1">
+                &gt;
+              </button>
+            </div>
+          )}
           {currentView === 'history' && filteredClosedTrades.length > 0 && (
             <div className="pb-2 text-sm whitespace-nowrap">
               <span className="text-future-gray">Total P/L: </span>

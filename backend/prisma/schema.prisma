@@ -54,6 +54,8 @@ model BrokerAccount {
   currency       String            @default("USD")
   leverage       Int?
   feeModel       FeeModel          @default(SPREAD_ONLY)
+  consistencyRule Float?           // e.g., 30 (for 30%)
+  consistencyScore Float?          // Calculated score
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -66,7 +68,13 @@ model BrokerAccount {
   objectives     TradingObjective?
   smartLimits    SmartLimit?
   trades         Trade[]
+  status         AccountStatus     @default(ACTIVE)
+}
 
+enum AccountStatus {
+  ACTIVE
+  FAILED
+  PASSED
 }
 
 enum BrokerAccountType {
@@ -102,6 +110,7 @@ model PropFirmTemplate {
   dailyDrawdown     Float           // e.g., 5000
   maxDrawdown       Float           // e.g., 10000
   drawdownType      DrawdownType    @default(TRAILING)
+  consistencyRule   Float?          // e.g., 30 (for 30%)
   minTradingDays    Int             // e.g., 10
   isActive          Boolean         @default(true)
   createdAt         DateTime        @default(now())

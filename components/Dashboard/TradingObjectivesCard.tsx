@@ -33,7 +33,11 @@ const TradingObjectivesCard: React.FC<TradingObjectivesCardProps> = ({ objective
       )}
 
       {objectives.map((obj) => (
-        <ObjectiveItem key={obj.key} objective={obj} />
+        <ObjectiveItem
+          key={obj.key}
+          objective={obj}
+          className={obj.status === 'Failed' ? 'border-risk-high/50 bg-risk-high/10' : ''}
+        />
       ))}
     </div>
   );

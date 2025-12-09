@@ -4,6 +4,7 @@ import Card from '../Card';
 
 interface ObjectiveItemProps {
   objective: ObjectiveProgress;
+  className?: string;
 }
 
 const StatusPill: React.FC<{ status: ObjectiveProgress['status'] }> = ({ status }) => {
@@ -48,7 +49,7 @@ const CountdownTimer: React.FC = () => {
 };
 
 
-const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
+const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective, className }) => {
   const { title, status, currentValue, targetValue, type, key, format = 'currency' } = objective;
 
   const progressPercentage = targetValue > 0 ? (currentValue / targetValue) * 100 : 0;
@@ -83,7 +84,7 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective }) => {
 
 
   return (
-    <Card className={`p-3 flex flex-col h-full ${isFailed ? 'border-risk-high/30' : ''} ${isSuccess ? 'border-momentum-green/30' : ''}`}>
+    <Card className={`p-3 flex flex-col h-full ${isFailed ? 'border-risk-high/30' : ''} ${isSuccess ? 'border-momentum-green/30' : ''} ${className || ''}`}>
       <div className="flex justify-between items-start">
         <h4 className="text-xs text-future-gray uppercase tracking-wider font-semibold">{title}</h4>
         {status === 'Failed' && key === 'maxDailyLoss' ? (

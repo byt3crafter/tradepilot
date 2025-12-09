@@ -4,6 +4,7 @@ import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
 import { Trade, TradeResult } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
+import { DrawdownService } from './drawdown.service';
 
 interface Mistake { mistake: string; reasoning: string; }
 interface GoodPoint { point: string; reasoning: string; }
@@ -13,7 +14,8 @@ export class BrokerAccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-  ) {}
+    private readonly drawdownService: DrawdownService, // Injected DrawdownService
+  ) { }
 
   async create(userId: string, createBrokerAccountDto: CreateBrokerAccountDto) {
     const { objectives, smartLimits, ...accountData } = createBrokerAccountDto;
@@ -30,10 +32,10 @@ export class BrokerAccountsService {
           }
         } : undefined,
         smartLimits: smartLimits ? {
-            create: {
-                ...smartLimits,
-                isEnabled: true,
-            }
+          create: {
+            ...smartLimits,
+            isEnabled: true,
+          }
         } : undefined,
       },
     });
@@ -96,11 +98,11 @@ export class BrokerAccountsService {
 
   async remove(id: string, userId: string) {
     await this.findOne(id, userId); // Authorization check
-    
+
     await this.prisma.brokerAccount.delete({
       where: { id },
     });
-    
+
     return { message: 'Account deleted successfully.' };
   }
 
@@ -116,12 +118,32 @@ export class BrokerAccountsService {
 
     // Summing only the net profit/loss of each trade
     const totalNetPL = trades.reduce((sum, trade) => sum + (trade.profitLoss ?? 0), 0);
-    
+
     const newCurrentBalance = account.initialBalance + totalNetPL;
+
+    // Calculate drawdown and status
+    // We need to inject DrawdownService or use it if available. 
+    // Since we are in BrokerAccountsService, we can use this.drawdownService if injected.
+    // Assuming it is injected in constructor.
+
+    // Note: We need to update the balance first or pass it to calculation?
+    // The calculateDrawdown fetches the account again. 
+    // Let's update balance first, then calculate status.
 
     await this.prisma.brokerAccount.update({
       where: { id: accountId },
       data: { currentBalance: newCurrentBalance },
+    });
+
+    // Now calculate status and consistency
+    const drawdownStats = await this.drawdownService.calculateDrawdown(accountId, userId);
+
+    await this.prisma.brokerAccount.update({
+      where: { id: accountId },
+      data: {
+        status: drawdownStats.status,
+        consistencyScore: drawdownStats.consistencyScore
+      },
     });
   }
 
@@ -135,7 +157,7 @@ export class BrokerAccountsService {
       where: { brokerAccountId: id, result: { not: null } },
       orderBy: { exitDate: 'asc' }, // Order by exit date to calculate equity curve correctly
     });
-    
+
     const results = [];
     const { profitTarget, minTradingDays, maxLoss, maxDailyLoss } = account.objectives;
     const initialBalance = account.initialBalance;
@@ -146,19 +168,19 @@ export class BrokerAccountsService {
     const uniqueTradingDaysSet = new Set<string>();
 
     for (const trade of trades) {
-        const tradeNetPL = trade.profitLoss ?? 0;
-        cumulativePL += tradeNetPL;
-        const currentEquity = initialBalance + cumulativePL;
+      const tradeNetPL = trade.profitLoss ?? 0;
+      cumulativePL += tradeNetPL;
+      const currentEquity = initialBalance + cumulativePL;
 
-        if (currentEquity > highWaterMark) {
-            highWaterMark = currentEquity;
-        }
-        
-        if (trade.entryDate) {
-            uniqueTradingDaysSet.add(new Date(trade.entryDate).toDateString());
-        }
+      if (currentEquity > highWaterMark) {
+        highWaterMark = currentEquity;
+      }
+
+      if (trade.entryDate) {
+        uniqueTradingDaysSet.add(new Date(trade.entryDate).toDateString());
+      }
     }
-    
+
     // FIX: Max loss is now calculated as High-Water Mark - Current Balance
     const maxDrawdownSoFar = Math.max(0, highWaterMark - account.currentBalance);
 
@@ -261,40 +283,40 @@ export class BrokerAccountsService {
     tomorrow.setUTCDate(today.getUTCDate() + 1);
 
     const dailyTrades = await this.prisma.trade.findMany({
-      where: { 
-        brokerAccountId: id, 
+      where: {
+        brokerAccountId: id,
         userId,
         entryDate: {
-            gte: today,
-            lt: tomorrow,
+          gte: today,
+          lt: tomorrow,
         }
       },
     });
-    
+
     const tradesToday = dailyTrades.length;
     const lossesToday = dailyTrades.filter((t: Trade) => t.result === 'Loss').length;
-    
+
     let isTradeCreationBlocked = false;
     let blockReason: string | null = null;
-    
+
     if (maxTradesPerDay && tradesToday >= maxTradesPerDay) {
-        isTradeCreationBlocked = true;
-        blockReason = `Daily trade limit of ${maxTradesPerDay} reached.`;
+      isTradeCreationBlocked = true;
+      blockReason = `Daily trade limit of ${maxTradesPerDay} reached.`;
     } else if (maxLossesPerDay && lossesToday >= maxLossesPerDay) {
-        isTradeCreationBlocked = true;
-        blockReason = `Daily loss limit of ${maxLossesPerDay} reached.`;
+      isTradeCreationBlocked = true;
+      blockReason = `Daily loss limit of ${maxLossesPerDay} reached.`;
     }
 
     return {
-        tradesToday,
-        lossesToday,
-        maxTradesPerDay,
-        maxLossesPerDay,
-        isTradeCreationBlocked,
-        blockReason,
+      tradesToday,
+      lossesToday,
+      maxTradesPerDay,
+      maxLossesPerDay,
+      isTradeCreationBlocked,
+      blockReason,
     };
   }
-  
+
   async generateWeeklyDebrief(accountId: string, userId: string) {
     await this.findOne(accountId, userId); // Authorization
 
@@ -329,10 +351,10 @@ export class BrokerAccountsService {
       netPL += trade.profitLoss ?? 0;
       if (trade.result === TradeResult.Win) wins++;
       if (trade.result === TradeResult.Loss) losses++;
-      
+
       if (trade.aiAnalysis) {
         const analysis = trade.aiAnalysis as any;
-        
+
         if (Array.isArray(analysis.mistakes)) {
           (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));
         }
@@ -345,7 +367,7 @@ export class BrokerAccountsService {
 
     const totalTrades = weeklyTrades.length;
     const winRate = totalTrades > 0 ? (wins / (wins + losses)) * 100 : 0;
-    
+
     // --- Create Prompt Context ---
     const context = `
       Weekly Performance Data:
@@ -357,7 +379,7 @@ export class BrokerAccountsService {
       - Recurring good points from AI analysis: ${[...new Set(goodPoints)].join(', ')}
       - Recurring mistakes from AI analysis: ${[...new Set(mistakes)].join(', ')}
     `;
-    
+
     const debrief = await this.aiService.getWeeklyDebrief(context);
     return { debrief };
   }
@@ -403,10 +425,10 @@ export class BrokerAccountsService {
         if (Array.isArray(analysis.goodPoints)) (analysis.goodPoints as unknown as GoodPoint[]).forEach(p => goodPoints.push(p.point));
       }
     });
-    
+
     const totalTrades = dailyTrades.length;
     const winRate = totalTrades > 0 && (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
-    
+
     const context = `
       Today's Performance Data:
       - Total Trades Today: ${totalTrades}
@@ -417,7 +439,7 @@ export class BrokerAccountsService {
       - Good points from today's AI analysis: ${[...new Set(goodPoints)].join(', ')}
       - Mistakes from today's AI analysis: ${[...new Set(mistakes)].join(', ')}
     `;
-    
+
     const debrief = await this.aiService.getDailyDebrief(context);
     return { debrief };
   }

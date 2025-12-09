@@ -41,6 +41,9 @@ export interface DrawdownCalculation {
 
   // Drawdown Type
   drawdownType?: DrawdownType | null;
+  status: 'ACTIVE' | 'FAILED' | 'PASSED';
+  consistencyScore?: number | null;
+  consistencyRule?: number | null;
 }
 
 @Injectable()
@@ -112,6 +115,15 @@ export class DrawdownService {
       daysTradedProgress = Math.min((daysTradedCount / minTradingDays) * 100, 100);
     }
 
+    // Calculate Consistency Score
+    const consistencyRule = (account as any).consistencyRule ?? (account.template as any)?.consistencyRule ?? null;
+    let consistencyScore: number | null = null;
+
+    if (consistencyRule && totalProfitLoss > 0) {
+      const maxProfitTrade = Math.max(...account.trades.map(t => t.profitLoss ?? 0));
+      consistencyScore = (maxProfitTrade / totalProfitLoss) * 100;
+    }
+
     // Check compliance
     const violations: string[] = [];
     if (maxDrawdownLimit && Math.abs(currentMaxDrawdown) > maxDrawdownLimit) {
@@ -119,6 +131,9 @@ export class DrawdownService {
     }
     if (dailyDrawdownLimit && Math.abs(currentDailyDrawdown) > dailyDrawdownLimit) {
       violations.push(`Daily drawdown exceeded: $${Math.abs(currentDailyDrawdown).toFixed(2)} > $${dailyDrawdownLimit}`);
+    }
+    if (consistencyRule && consistencyScore !== null && consistencyScore > consistencyRule) {
+      violations.push(`Consistency rule violated: Single trade profit ${consistencyScore.toFixed(1)}% > ${consistencyRule}% of total profit`);
     }
     const isCompliant = violations.length === 0;
 
@@ -146,6 +161,9 @@ export class DrawdownService {
       isCompliant,
       violations,
       drawdownType,
+      status: isCompliant ? 'ACTIVE' : 'FAILED',
+      consistencyScore,
+      consistencyRule,
     };
   }
 
