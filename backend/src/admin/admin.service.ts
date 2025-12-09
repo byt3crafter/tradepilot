@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminStatsDto } from './dtos/admin-stats.dto';
@@ -10,11 +10,16 @@ import { CreatePropFirmTemplateDto } from './dtos/create-prop-firm-template.dto'
 import { UpdatePropFirmTemplateDto } from './dtos/update-prop-firm-template.dto';
 import { PropFirmTemplateDto } from './dtos/prop-firm-template.dto';
 
+import { ConfigService } from '@nestjs/config';
+
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
+    private readonly configService: ConfigService,
   ) { }
 
   async getStats(): Promise<AdminStatsDto> {
@@ -47,6 +52,38 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Sync names from Clerk if missing (lazy sync for Admin view)
+    const secretKey = this.configService.get<string>('CLERK_SECRET_KEY');
+    if (secretKey) {
+      await Promise.all(users.map(async (user) => {
+        if (user.fullName === 'Trader' || !user.fullName) {
+          try {
+            const response = await fetch(`https://api.clerk.com/v1/users/${user.id}`, {
+              headers: { 'Authorization': `Bearer ${secretKey}` }
+            });
+            if (response.ok) {
+              const clerkUser = await response.json();
+              const first = clerkUser.first_name || '';
+              const last = clerkUser.last_name || '';
+              const realName = `${first} ${last}`.trim();
+
+              if (realName && realName !== 'Trader') {
+                // Update in DB
+                await this.prisma.user.update({
+                  where: { id: user.id },
+                  data: { fullName: realName }
+                });
+                // Update local object for return
+                user.fullName = realName;
+              }
+            }
+          } catch (e) {
+            this.logger.warn(`Failed to sync name for user ${user.id}: ${e.message}`);
+          }
+        }
+      }));
+    }
 
     return users.map((user: any) => {
       const apiUsageCost = user.apiUsage?.reduce((sum, usage) => sum + (usage.cost || 0), 0) || 0;

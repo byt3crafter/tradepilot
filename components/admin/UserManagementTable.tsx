@@ -93,7 +93,7 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
               return (
                 <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="p-3">
-                    <p className="font-semibold text-white">{user.fullName}</p>
+                    <p className="font-semibold text-white">{user.fullName || 'Unknown'}</p>
                     <p className="text-xs text-secondary">{user.email}</p>
                   </td>
                   <td className="p-3">

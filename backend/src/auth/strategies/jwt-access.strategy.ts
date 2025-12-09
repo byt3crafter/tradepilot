@@ -53,6 +53,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
       const user = await this.authService.validateClerkUser({
         sub: payload.sub,
         email: payload.email, // Email may be undefined if not in JWT template
+        name: payload.name, // Extract name from JWT template
         public_metadata: payload.public_metadata // Pass Clerk's public_metadata (contains role)
       });
 
