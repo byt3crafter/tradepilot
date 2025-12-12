@@ -28,6 +28,15 @@ const DashboardPage: React.FC = () => {
   const { currentView } = useView();
   const { isSidebarCollapsed } = useUI();
   const { openUserProfile } = useClerk();
+  const { setView } = useView();
+
+  React.useEffect(() => {
+    const intendedPlan = localStorage.getItem('intendedPlan');
+    if (intendedPlan && (intendedPlan === 'monthly' || intendedPlan === 'yearly')) {
+      // Don't clear it here, let the PricingPage handle it to know which plan to select
+      setView('pricing');
+    }
+  }, [setView]);
 
   const renderView = () => {
     switch (currentView) {

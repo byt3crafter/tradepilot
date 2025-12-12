@@ -58,12 +58,15 @@ const PublicPricingPage: React.FC = () => {
               <p className="text-sm text-future-gray mt-2">Flexible, cancel anytime.</p>
             </div>
 
-            <a
-              href="/signup"
+            <button
+              onClick={() => {
+                localStorage.setItem('intendedPlan', 'monthly');
+                window.location.href = '/signup';
+              }}
               className={`block w-full py-3 rounded-md font-bold mb-6 text-center transition-colors ${billingCycle === 'monthly' ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
             >
               {billingCycle === 'monthly' ? 'Choose Monthly' : 'Switch to Monthly'}
-            </a>
+            </button>
 
             <ul className="space-y-3">
               <li className="flex items-center gap-3 text-sm text-future-gray">
@@ -95,12 +98,15 @@ const PublicPricingPage: React.FC = () => {
               <p className="text-sm text-momentum-green mt-2 font-bold">Save $11.88 per year</p>
             </div>
 
-            <a
-              href="/signup"
+            <button
+              onClick={() => {
+                localStorage.setItem('intendedPlan', 'yearly');
+                window.location.href = '/signup';
+              }}
               className={`block w-full py-3 rounded-md font-bold mb-6 text-center transition-colors ${billingCycle === 'yearly' ? 'bg-momentum-green text-black hover:bg-momentum-green-hover' : 'bg-white/10 text-white hover:bg-white/20'}`}
             >
               {billingCycle === 'yearly' ? 'Choose Yearly' : 'Switch to Yearly'}
-            </a>
+            </button>
 
             <ul className="space-y-3">
               <li className="flex items-center gap-3 text-sm text-white">

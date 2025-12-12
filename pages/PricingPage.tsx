@@ -18,6 +18,21 @@ const PricingPage: React.FC = () => {
     const [error, setError] = useState<string>('');
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
 
+    const hasRunAutoCheckout = React.useRef(false);
+
+    React.useEffect(() => {
+        const intendedPlan = localStorage.getItem('intendedPlan');
+        if (intendedPlan && (intendedPlan === 'monthly' || intendedPlan === 'yearly') && !hasRunAutoCheckout.current && paddle && accessToken) {
+            hasRunAutoCheckout.current = true;
+            setBillingCycle(intendedPlan as BillingCycle);
+            // Small delay to ensure state updates and UX smoothness
+            setTimeout(() => {
+                openCheckout();
+                localStorage.removeItem('intendedPlan');
+            }, 500);
+        }
+    }, [paddle, accessToken]);
+
     // TODO: Add these to your .env file
     const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
     const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01kc918kmzeepr3sg7cc74q8zs';
