@@ -19,8 +19,8 @@ const PricingPage: React.FC = () => {
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
 
     // TODO: Add these to your .env file
-    const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || (import.meta as any).env.VITE_PADDLE_PRICE_ID;
-    const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01jk4...'; // Placeholder
+    const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
+    const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01kc918kmzeepr3sg7cc74q8zs';
 
     const [promoCode, setPromoCode] = useState('');
     const [promoError, setPromoError] = useState('');
@@ -58,7 +58,8 @@ const PricingPage: React.FC = () => {
         setUiStage('opening');
 
         try {
-            const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code);
+            const priceId = billingCycle === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
+            const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code, priceId);
             console.log('[PricingPage] Open Paddle checkout for txn:', transactionId);
 
             paddle.Checkout.open({ transactionId });
@@ -162,7 +163,7 @@ const PricingPage: React.FC = () => {
                     <div className="mb-6">
                         <h3 className="text-xl font-bold text-white mb-2">Monthly</h3>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">$5.00</span>
+                            <span className="text-3xl font-bold text-white">$5.99</span>
                             <span className="text-future-gray">/month</span>
                         </div>
                         <p className="text-sm text-future-gray mt-2">Flexible, cancel anytime.</p>
@@ -197,10 +198,10 @@ const PricingPage: React.FC = () => {
                     <div className="mb-6">
                         <h3 className="text-xl font-bold text-white mb-2">Yearly</h3>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">$50.00</span>
+                            <span className="text-3xl font-bold text-white">$60.00</span>
                             <span className="text-future-gray">/year</span>
                         </div>
-                        <p className="text-sm text-momentum-green mt-2 font-bold">Save $10 per year</p>
+                        <p className="text-sm text-momentum-green mt-2 font-bold">Save $11.88 per year</p>
                     </div>
 
                     <Button

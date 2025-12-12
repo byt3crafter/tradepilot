@@ -52,7 +52,7 @@ const PublicPricingPage: React.FC = () => {
             <div className="mb-6">
               <h3 className="text-xl font-bold text-white mb-2">Monthly</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-white">$5.00</span>
+                <span className="text-3xl font-bold text-white">$5.99</span>
                 <span className="text-future-gray">/month</span>
               </div>
               <p className="text-sm text-future-gray mt-2">Flexible, cancel anytime.</p>
@@ -89,10 +89,10 @@ const PublicPricingPage: React.FC = () => {
             <div className="mb-6">
               <h3 className="text-xl font-bold text-white mb-2">Yearly</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-white">$50.00</span>
+                <span className="text-3xl font-bold text-white">$60.00</span>
                 <span className="text-future-gray">/year</span>
               </div>
-              <p className="text-sm text-momentum-green mt-2 font-bold">Save $10 per year</p>
+              <p className="text-sm text-momentum-green mt-2 font-bold">Save $11.88 per year</p>
             </div>
 
             <a
