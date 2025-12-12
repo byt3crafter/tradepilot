@@ -15,6 +15,11 @@ const SubscriptionPage: React.FC = () => {
 
   const [uiStage, setUiStage] = useState<UiStage>('idle');
   const [error, setError] = useState<string>('');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+  // Helper constants
+  const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
+  const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01kc918kmzeepr3sg7cc74q8zs';
 
   const hasGiftedAccess = useMemo(() =>
     user?.isLifetimeAccess ||
@@ -48,7 +53,8 @@ const SubscriptionPage: React.FC = () => {
     setUiStage('opening');
 
     try {
-      const { transactionId } = await api.createCheckoutTransaction(accessToken);
+      const priceId = billingCycle === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
+      const { transactionId } = await api.createCheckoutTransaction(accessToken, undefined, priceId);
       console.log('[SubscriptionPage] Open Paddle checkout for txn:', transactionId);
 
       // Important: events are globally handled in Paddle.Initialize(eventCallback).
@@ -162,24 +168,53 @@ const SubscriptionPage: React.FC = () => {
       </div>
 
       <Card>
-        <div className="bg-future-dark/50 p-4 rounded-lg border border-photonic-blue/10 space-y-3">
+        <div className="bg-future-dark/50 p-4 rounded-lg border border-photonic-blue/10 space-y-3 mb-8">
           <div className="flex justify-between items-center">
             <span className="text-future-gray">Current Status</span>
             {renderStatusPill()}
           </div>
         </div>
 
-        <div className="mt-6 text-center">
+        <div className="text-center">
           <h3 className="text-lg font-semibold text-future-light">Upgrade to JTradePilot Pro</h3>
-          <p className="text-future-gray mt-2 mb-4">Unlock unlimited trade logging, AI insights, and all future updates.</p>
+          <p className="text-future-gray mt-2 mb-6">Unlock unlimited trade logging, AI insights, and all future updates.</p>
+
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <span className={`text-sm font-bold transition-colors ${billingCycle === 'monthly' ? 'text-white' : 'text-future-gray'}`}>Monthly</span>
+            <button
+              onClick={() => setBillingCycle(prev => prev === 'monthly' ? 'yearly' : 'monthly')}
+              className="w-12 h-6 bg-white/10 rounded-full p-1 relative transition-colors hover:bg-white/20"
+            >
+              <div className={`w-4 h-4 bg-momentum-green rounded-full shadow-sm transform transition-transform duration-200 ${billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+            <span className={`text-sm font-bold transition-colors ${billingCycle === 'yearly' ? 'text-white' : 'text-future-gray'}`}>
+              Yearly <span className="text-momentum-green text-xs ml-1">(Save 17%)</span>
+            </span>
+          </div>
+
+          {/* Price Display */}
+          <div className="mb-8">
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-3xl font-bold text-white">
+                {billingCycle === 'monthly' ? '$5.99' : '$60.00'}
+              </span>
+              <span className="text-future-gray">
+                /{billingCycle === 'monthly' ? 'month' : 'year'}
+              </span>
+            </div>
+            {billingCycle === 'yearly' && (
+              <p className="text-sm text-momentum-green mt-2 font-bold">Save $11.88 per year</p>
+            )}
+          </div>
 
           {/* Button content changes by stage */}
-          <Button onClick={openCheckout} disabled={isButtonDisabled} className="w-full sm:w-auto">
+          <Button onClick={openCheckout} disabled={isButtonDisabled} className="w-full sm:w-auto min-w-[200px]">
             {uiStage === 'opening' && <Spinner />}
-            {uiStage === 'idle' && 'Upgrade to Pro – $19/month'}
+            {uiStage === 'idle' && (billingCycle === 'monthly' ? 'Subscribe Monthly' : 'Subscribe Yearly')}
             {uiStage === 'paid' && (
               <span className="inline-flex items-center gap-2">
-                <Spinner /> Payment received — finalizing…
+                <Spinner /> Finalizing...
               </span>
             )}
             {uiStage === 'error' && 'Try again'}
