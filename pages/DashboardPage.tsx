@@ -24,18 +24,17 @@ export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' 
 const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, isTrialing } = useAuth();
-  const { currentView } = useView();
+  const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed } = useUI();
   const { openUserProfile } = useClerk();
-  const { setView } = useView();
 
   React.useEffect(() => {
     const intendedPlan = localStorage.getItem('intendedPlan');
     if (intendedPlan && (intendedPlan === 'monthly' || intendedPlan === 'yearly')) {
       // Don't clear it here, let the PricingPage handle it to know which plan to select
-      setView('pricing');
+      navigateTo('pricing');
     }
-  }, [setView]);
+  }, [navigateTo]);
 
   const renderView = () => {
     switch (currentView) {
