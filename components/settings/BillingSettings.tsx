@@ -99,43 +99,7 @@ const BillingSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* Trial Information */}
-          {isTrialing && user?.trialEndsAt && (
-            <div className="pb-6 border-b border-white/10">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-future-gray mb-2">Trial Ends</p>
-                  <p className="text-future-light">
-                    {new Date(user.trialEndsAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
 
-                {daysRemaining !== null && (
-                  <div>
-                    <p className={`text-sm font-semibold ${
-                      showTrialWarning ? 'text-risk-high' : 'text-future-gray'
-                    }`}>
-                      {daysRemaining === 0
-                        ? 'Trial expired - upgrade now to keep trading'
-                        : `${daysRemaining} days remaining`}
-                    </p>
-                  </div>
-                )}
-
-                {showTrialWarning && daysRemaining !== 0 && (
-                  <div className="mt-3 p-3 bg-risk-high/10 border border-risk-high/20 rounded-md">
-                    <p className="text-sm text-risk-high">
-                      Your trial is ending soon. Upgrade now to maintain access to your account.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Pro Access Expiration */}
           {user?.proAccessExpiresAt && user?.subscriptionStatus === 'ACTIVE' && (
@@ -168,7 +132,7 @@ const BillingSettings: React.FC = () => {
                   disabled={isPaddleLoading}
                   className="w-full"
                 >
-                  {isPaddleLoading ? 'Loading...' : isTrialing ? 'Upgrade to Pro' : 'Renew Subscription'}
+                  {isPaddleLoading ? 'Loading...' : 'Renew Subscription'}
                 </Button>
               </div>
             ) : user?.subscriptionStatus === 'ACTIVE' ? (

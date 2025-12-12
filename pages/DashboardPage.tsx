@@ -5,7 +5,6 @@ import PersonalisationPage from './PersonalisationPage';
 import SettingsPage from './SettingsPage';
 import PlaybooksPage from './PlaybooksPage';
 import { MenuIcon } from '../components/icons/MenuIcon';
-import TrialBanner from '../components/billing/TrialBanner';
 import { useAuth } from '../context/AuthContext';
 import UpgradeModal from '../components/billing/UpgradeModal';
 import { useView } from '../context/ViewContext';
@@ -71,8 +70,6 @@ const DashboardPage: React.FC = () => {
 
       {/* Main content area with proper flex layout */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
-        {/* Trial Banner - fixed height, no scroll */}
-        {isTrialing && <TrialBanner />}
 
         {/* Mobile header - fixed height, no scroll */}
         <header className="flex-shrink-0 p-4 md:hidden border-b border-white/10 flex items-center justify-between bg-[#08090A]">

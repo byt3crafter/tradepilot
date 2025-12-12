@@ -127,7 +127,7 @@ const ReferralPage: React.FC = () => {
                                             <div>
                                                 <h4 className="text-white font-bold mb-1">They get the VIP Deal</h4>
                                                 <p className="text-sm text-future-gray leading-relaxed">
-                                                    Your friends unlock a <span className="text-white">30-day free trial</span> and lock in the <span className="text-white">$5/mo price</span> for life.
+                                                    Your friends lock in the <span className="text-white">$5.99/mo (or $60/yr) price</span> for life.
                                                 </p>
                                                 <div className="mt-2 inline-block px-2 py-0.5 bg-momentum-green/10 rounded border border-momentum-green/20 text-[10px] font-bold text-momentum-green uppercase tracking-wider">
                                                     Early Supporter Status

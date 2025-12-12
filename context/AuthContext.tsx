@@ -107,30 +107,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // hasGiftedAccess = true ONLY if proAccessExpiresAt is set AND in the future
     const hasGiftedAccess = appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date();
     const isSubscribed = appUser?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
-    const isTrialing = appUser?.subscriptionStatus === 'TRIALING' && !hasGiftedAccess;
 
-    // Calculate trial days remaining from trialEndsAt (from Clerk JWT public_metadata)
-    let trialDaysRemaining = 14;
-    let isTrialExpired = false;
-
-    if (appUser?.trialEndsAt) {
-      try {
-        const now = new Date();
-        const trialEnd = new Date(appUser.trialEndsAt);
-
-        // Only calculate if trialEndsAt is a valid date
-        if (!isNaN(trialEnd.getTime())) {
-          const diffMs = trialEnd.getTime() - now.getTime();
-          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-          trialDaysRemaining = Math.max(0, diffDays);
-          isTrialExpired = diffDays <= 0;
-        }
-      } catch (e) {
-        // If date parsing fails, use defaults
-        console.warn('Failed to parse trialEndsAt:', appUser.trialEndsAt);
-      }
-    }
+    // Trial is completely disabled now.
+    const isTrialing = false;
+    const trialDaysRemaining = 0;
+    const isTrialExpired = false;
 
     return { isTrialing, isSubscribed, trialDaysRemaining, isTrialExpired };
   }, [appUser]);

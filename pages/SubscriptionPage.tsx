@@ -15,7 +15,7 @@ const SubscriptionPage: React.FC = () => {
 
   const [uiStage, setUiStage] = useState<UiStage>('idle');
   const [error, setError] = useState<string>('');
-  
+
   const hasGiftedAccess = useMemo(() => user?.proAccessExpiresAt === null || (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date()), [user]);
 
 
@@ -91,7 +91,7 @@ const SubscriptionPage: React.FC = () => {
   // ——— Render helpers ———
   const renderStatusPill = () => {
     if (hasGiftedAccess) {
-       return (
+      return (
         <div className="bg-purple-500/10 text-purple-400 text-sm font-semibold px-3 py-1 rounded-full inline-block">
           Pro (Gifted)
         </div>
@@ -104,13 +104,6 @@ const SubscriptionPage: React.FC = () => {
         </div>
       );
     }
-    if (isTrialing) {
-      return (
-        <div className="bg-photonic-blue/10 text-photonic-blue text-sm font-semibold px-3 py-1 rounded-full inline-block">
-          Trial Period
-        </div>
-      );
-    }
     return (
       <div className="bg-future-gray/10 text-future-gray text-sm font-semibold px-3 py-1 rounded-full inline-block">
         No Active Subscription
@@ -119,7 +112,7 @@ const SubscriptionPage: React.FC = () => {
   };
 
   if (hasGiftedAccess) {
-     return (
+    return (
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
         <div className="mb-8">
           <h1 className="text-3xl font-orbitron text-future-light">Subscription</h1>
@@ -170,13 +163,6 @@ const SubscriptionPage: React.FC = () => {
             <span className="text-future-gray">Current Status</span>
             {renderStatusPill()}
           </div>
-
-          {isTrialing && (
-            <div className="flex justify-between items-center">
-              <span className="text-future-gray">Trial Ends</span>
-              <span className="text-future-light font-semibold">{trialDaysRemaining} days remaining</span>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 text-center">
