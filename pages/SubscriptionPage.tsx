@@ -16,7 +16,11 @@ const SubscriptionPage: React.FC = () => {
   const [uiStage, setUiStage] = useState<UiStage>('idle');
   const [error, setError] = useState<string>('');
 
-  const hasGiftedAccess = useMemo(() => user?.proAccessExpiresAt === null || (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date()), [user]);
+  const hasGiftedAccess = useMemo(() =>
+    user?.isLifetimeAccess ||
+    user?.role === 'ADMIN' ||
+    (user?.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date()),
+    [user]);
 
 
   // Debug

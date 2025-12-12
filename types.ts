@@ -18,6 +18,7 @@ export interface User {
   preferences?: {
     useGravatar?: boolean;
   };
+  isLifetimeAccess?: boolean;
 }
 
 export enum BrokerAccountType {

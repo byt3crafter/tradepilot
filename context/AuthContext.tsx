@@ -74,7 +74,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         analysisTrackerEnabled: true
       },
       gravatarUrl: `https://www.gravatar.com/avatar/${md5(email.toLowerCase().trim())}?d=mp`,
-      preferences: (clerkUser.unsafeMetadata?.preferences as any) || { useGravatar: false }
+      preferences: (clerkUser.unsafeMetadata?.preferences as any) || { useGravatar: false },
+      isLifetimeAccess: (clerkUser.publicMetadata?.isLifetimeAccess as boolean) || false
     };
   }, [clerkUser]);
 
@@ -106,7 +107,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const subscriptionState = useMemo(() => {
     // hasGiftedAccess = true ONLY if proAccessExpiresAt is set AND in the future
     const hasGiftedAccess = appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date();
-    const isSubscribed = appUser?.subscriptionStatus === 'ACTIVE' || hasGiftedAccess;
+
+    // Grant access if: Active Sub OR Gifted Time OR Admin Role OR Lifetime Flag
+    const isSubscribed =
+      appUser?.subscriptionStatus === 'ACTIVE' ||
+      hasGiftedAccess ||
+      appUser?.role === 'ADMIN' ||
+      appUser?.isLifetimeAccess;
 
     // Trial is completely disabled now.
     const isTrialing = false;
