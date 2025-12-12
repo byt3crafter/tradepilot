@@ -94,14 +94,17 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
       .toUpperCase()
     : '';
 
+  const { isSubscribed } = useAuth();
+
   if (!activeAccount) {
     if (isCollapsed) {
       return (
-        <Tooltip text="Create an account">
+        <Tooltip text={isSubscribed ? "Create an account" : "Upgrade to create account"}>
           <Button
             variant="link"
-            onClick={() => navigateTo('settings', 'accounts')}
-            className="w-full h-8 flex items-center justify-center text-secondary border border-dashed border-white/10 rounded hover:bg-white/5 hover:text-white"
+            disabled={!isSubscribed}
+            onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('subscription')}
+            className={`w-full h-8 flex items-center justify-center border border-dashed border-white/10 rounded ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
           >
             <PlusIcon className="w-4 h-4" />
           </Button>
@@ -111,8 +114,9 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
     return (
       <Button
         variant="link"
-        onClick={() => navigateTo('settings', 'accounts')}
-        className="w-full text-xs text-center text-secondary border border-dashed border-white/10 rounded hover:bg-white/5 hover:text-white py-2 uppercase tracking-wide"
+        disabled={!isSubscribed}
+        onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('subscription')}
+        className={`w-full text-xs text-center border border-dashed border-white/10 rounded py-2 uppercase tracking-wide ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
       >
         + Add Account
       </Button>
@@ -168,11 +172,17 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
           </div>
           <div className="border-t border-white/10 mt-1 pt-1">
             <button
+              disabled={!isSubscribed}
               onClick={() => {
-                navigateTo('settings', 'accounts');
-                setIsOpen(false);
+                if (isSubscribed) {
+                  navigateTo('settings', 'accounts');
+                  setIsOpen(false);
+                } else {
+                  navigateTo('subscription');
+                  setIsOpen(false);
+                }
               }}
-              className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wide"
+              className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 uppercase tracking-wide ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
             >
               <PlusIcon className="w-3 h-3" /> Create Account
             </button>
@@ -269,34 +279,39 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className={`flex-1 flex flex-col py-4 gap-1 ${!isSidebarCollapsed ? 'overflow-y-auto' : 'overflow-hidden'}`}>
-          <NavItem
-            icon={<DashboardIcon className="w-4 h-4" />}
-            label="Dashboard"
-            isActive={currentView === 'dashboard'}
-            onClick={() => handleSetView('dashboard')}
-            isCollapsed={isSidebarCollapsed}
-          />
-          <NavItem
-            icon={<JournalIcon className="w-4 h-4" />}
-            label="Journal"
-            isActive={currentView === 'journal'}
-            onClick={() => handleSetView('journal')}
-            isCollapsed={isSidebarCollapsed}
-          />
-          <NavItem
-            icon={<PlaybookIcon className="w-4 h-4" />}
-            label="Playbooks"
-            isActive={currentView === 'playbooks'}
-            onClick={() => handleSetView('playbooks')}
-            isCollapsed={isSidebarCollapsed}
-          />
-          <NavItem
-            icon={<AnalyticsIcon className="w-4 h-4" />}
-            label="Analytics"
-            isActive={currentView === 'analytics'}
-            onClick={() => handleSetView('analytics')}
-            isCollapsed={isSidebarCollapsed}
-          />
+          {isSubscribed && (
+            <>
+              <NavItem
+                icon={<DashboardIcon className="w-4 h-4" />}
+                label="Dashboard"
+                isActive={currentView === 'dashboard'}
+                onClick={() => handleSetView('dashboard')}
+                isCollapsed={isSidebarCollapsed}
+              />
+              <NavItem
+                icon={<JournalIcon className="w-4 h-4" />}
+                label="Journal"
+                isActive={currentView === 'journal'}
+                onClick={() => handleSetView('journal')}
+                isCollapsed={isSidebarCollapsed}
+              />
+              <NavItem
+                icon={<PlaybookIcon className="w-4 h-4" />}
+                label="Playbooks"
+                isActive={currentView === 'playbooks'}
+                onClick={() => handleSetView('playbooks')}
+                isCollapsed={isSidebarCollapsed}
+              />
+              <NavItem
+                icon={<AnalyticsIcon className="w-4 h-4" />}
+                label="Analytics"
+                isActive={currentView === 'analytics'}
+                onClick={() => handleSetView('analytics')}
+                isCollapsed={isSidebarCollapsed}
+              />
+            </>
+          )}
+
           <NavItem
             icon={<SettingsIcon className="w-4 h-4" />}
             label="Settings"
@@ -307,19 +322,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           <div className="my-2 border-t border-white/10 mx-4" />
 
-          <NavItem
-            icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
-            label="Refer & Earn"
-            isActive={window.location.pathname === '/referral'}
-            onClick={() => {
-              if (window.location.pathname !== '/referral') {
-                window.history.pushState({}, '', '/referral');
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              }
-              onClose();
-            }}
-            isCollapsed={isSidebarCollapsed}
-          />
+          {isSubscribed && (
+            <NavItem
+              icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
+              label="Refer & Earn"
+              isActive={window.location.pathname === '/referral'}
+              onClick={() => {
+                if (window.location.pathname !== '/referral') {
+                  window.history.pushState({}, '', '/referral');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }
+                onClose();
+              }}
+              isCollapsed={isSidebarCollapsed}
+            />
+          )}
+
+          {!isSubscribed && (
+            // Show Upgrade button or prompt if not subscribed
+            <NavItem
+              icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
+              label="Upgrade to Pro"
+              isActive={currentView === 'subscription' || currentView === 'pricing'}
+              onClick={() => handleSetView('subscription')}
+              isCollapsed={isSidebarCollapsed}
+            />
+          )}
         </div>
 
         <div className="mt-auto p-4 border-t border-white/10 pb-8 md:pb-4">

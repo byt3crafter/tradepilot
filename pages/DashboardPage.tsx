@@ -23,7 +23,7 @@ export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' 
 
 const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user, isTrialing } = useAuth();
+  const { user, isTrialing, isSubscribed } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed } = useUI();
   const { openUserProfile } = useClerk();
@@ -36,7 +36,21 @@ const DashboardPage: React.FC = () => {
     }
   }, [navigateTo]);
 
+
+
+  // Protected Views: 'journal', 'playbooks', 'analytics', 'analysis-tracker', 'dashboard'
+  // Allowed Views: 'pricing', 'subscription', 'settings' (limited)
+
   const renderView = () => {
+    // strict paywall check
+    if (!isSubscribed) {
+      if (currentView === 'pricing') return <PricingPage />;
+      // settings is allowed, but maybe we want to limit it? For now allow settings to manage billing.
+      if (currentView === 'settings') return <SettingsPage />;
+      // Default fallback for any other view is SubscriptionPage (Paywall)
+      return <SubscriptionPage />;
+    }
+
     switch (currentView) {
       case 'journal':
         return <TradeJournal />;
