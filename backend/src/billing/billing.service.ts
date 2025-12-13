@@ -187,7 +187,7 @@ export class BillingService {
         // Log the full error for debugging
         this.logger.error(`Full error object: ${JSON.stringify(err)}`);
         throw new InternalServerErrorException(
-          'Could not create checkout session. Please try again later.',
+          `Paddle Error: ${errorMsg}`
         );
       }
     } catch (error) {
@@ -196,7 +196,8 @@ export class BillingService {
       }
       // Already logged above; rethrow a safe message.
       throw new InternalServerErrorException(
-        'Could not create checkout session. Please try again later.',
+        // @ts-ignore
+        `Checkout Error: ${error?.message || 'Unknown error'}`
       );
     }
   }
