@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import { usePaddle } from '../context/PaddleContext';
 import api from '../services/api';
 import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
+import { usePublicRouter } from '../context/PublicRouterContext';
 
 type UiStage = 'idle' | 'opening' | 'paid' | 'activated' | 'error';
 type BillingCycle = 'monthly' | 'yearly';
@@ -16,8 +17,9 @@ type BillingCycle = 'monthly' | 'yearly';
 const PricingPage: React.FC = () => {
     const { user, accessToken, refreshUser, isAuthenticated } = useAuth();
     const { paddle, isLoading: isPaddleLoading } = usePaddle();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { replace } = usePublicRouter();
+    // Use window.location directly since we aren't in react-router
+    const searchParams = window.location.search;
 
     const [uiStage, setUiStage] = useState<UiStage>('idle');
     const [error, setError] = useState<string>('');
@@ -27,7 +29,7 @@ const PricingPage: React.FC = () => {
 
     React.useEffect(() => {
         // Check URL params for auto-checkout plan
-        const params = new URLSearchParams(location.search);
+        const params = new URLSearchParams(searchParams);
         const planParam = params.get('plan');
 
         if (planParam && (planParam === 'monthly' || planParam === 'yearly') && !hasRunAutoCheckout.current && paddle && accessToken) {
@@ -35,14 +37,14 @@ const PricingPage: React.FC = () => {
             setBillingCycle(planParam as BillingCycle);
 
             // Remove the param from URL without refreshing to keep it clean
-            navigate(location.pathname, { replace: true });
+            replace(window.location.pathname);
 
             // Trigger checkout
             setTimeout(() => {
                 openCheckout(planParam as BillingCycle);
             }, 500);
         }
-    }, [paddle, accessToken, location.search]);
+    }, [paddle, accessToken, searchParams]);
 
     // TODO: Add these to your .env file
     const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
