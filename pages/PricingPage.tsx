@@ -77,7 +77,7 @@ const PricingPage: React.FC = () => {
             const targetCycle = cycleOverride || billingCycle;
             const priceId = targetCycle === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
 
-            const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code, priceId);
+            const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code, priceId, user?.email);
             console.log('[PricingPage] Open Paddle checkout for txn:', transactionId);
 
             paddle.Checkout.open({

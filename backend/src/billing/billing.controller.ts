@@ -33,10 +33,15 @@ export class BillingController {
   async createCheckoutSession(
     @Req() req: AuthenticatedRequest,
     @Body('promoCode') promoCode?: string,
-    @Body('priceId') priceId?: string
+    @Body('priceId') priceId?: string,
+    @Body('customerEmail') customerEmail?: string
   ) {
     const userId = req.user.sub;
-    const email = (req.user as any).email;
+    // Prefer explicitly provided email from frontend (Clerk SDK data), fallback to JWT email
+    const email = customerEmail || (req.user as any).email;
+
+    this.logger.log(`Creating checkout for ${userId}. Using email: ${email}`);
+
     return this.billingService.createCheckoutTransaction(userId, email, promoCode, priceId);
   }
 
