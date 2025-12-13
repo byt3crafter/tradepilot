@@ -36,8 +36,9 @@ const PricingPage: React.FC = () => {
             hasRunAutoCheckout.current = true;
             setBillingCycle(planParam as BillingCycle);
 
-            // Remove the param from URL without refreshing to keep it clean
-            replace(window.location.pathname);
+            // Remove the param from URL without refreshing and WITHOUT triggering a React re-render
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
 
             // Trigger checkout
             setTimeout(() => {
