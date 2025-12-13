@@ -128,6 +128,15 @@ export class AuthService {
       }
 
       await this.usersService.update(user.id, updateData);
+
+      // Fix corrupted email from previous bug (remove space)
+      if (user.email && user.email.includes(" @clerk.user")) {
+        const fixedEmail = user.email.replace(" @clerk.user", "@clerk.user");
+        this.logger.log(`Fixing corrupted email for ${user.id}: ${user.email} -> ${fixedEmail}`);
+
+        await this.usersService.update(user.id, { email: fixedEmail });
+        user.email = fixedEmail; // Update local object
+      }
     }
 
     return user;
