@@ -52,7 +52,7 @@ export class BillingService {
     this.logger.log(`✓ Paddle SDK initialized in "${paddleEnv}" mode.`);
   }
 
-  async createCheckoutTransaction(userId: string, frontendEmail?: string, promoCode?: string) {
+  async createCheckoutTransaction(userId: string, frontendEmail?: string, promoCode?: string, priceId?: string) {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
@@ -139,15 +139,15 @@ export class BillingService {
       );
 
       try {
-        const priceId = this.configService.get<string>('PADDLE_PRICE_ID');
-        if (!priceId) {
-          this.logger.error('PADDLE_PRICE_ID is missing. Set it in your environment.');
+        const finalPriceId = priceId || this.configService.get<string>('PADDLE_PRICE_ID');
+        if (!finalPriceId) {
+          this.logger.error('PADDLE_PRICE_ID is missing and no priceId provided. Set it in your environment or pass it in.');
           throw new InternalServerErrorException(
             'Billing is misconfigured (missing price). Please contact support.',
           );
         }
 
-        this.logger.log(`Creating transaction with priceId: ${priceId}, customerId: ${customerId}`);
+        this.logger.log(`Creating transaction with priceId: ${finalPriceId}, customerId: ${customerId}`);
 
         let discountId: string | undefined;
 
@@ -167,7 +167,7 @@ export class BillingService {
         }
 
         const transaction = await this.paddle.transactions.create({
-          items: [{ priceId, quantity: 1 }],
+          items: [{ priceId: finalPriceId, quantity: 1 }],
           customerId: customerId as string,
           discountId: discountId,
           customData: { internal_user_id: userId },
