@@ -27,7 +27,7 @@ const PricingPage: React.FC = () => {
             setBillingCycle(intendedPlan as BillingCycle);
             // Small delay to ensure state updates and UX smoothness
             setTimeout(() => {
-                openCheckout();
+                openCheckout(intendedPlan as BillingCycle);
                 localStorage.removeItem('intendedPlan');
             }, 500);
         }
@@ -63,7 +63,7 @@ const PricingPage: React.FC = () => {
         [isPaddleLoading, uiStage, paddle]
     );
 
-    const openCheckout = async () => {
+    const openCheckout = async (cycleOverride?: BillingCycle) => {
         if (!paddle || !accessToken) {
             setError('Billing is not available at the moment. Please try again later.');
             return;
@@ -73,7 +73,10 @@ const PricingPage: React.FC = () => {
         setUiStage('opening');
 
         try {
-            const priceId = billingCycle === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
+            // Use override if provided (state updates are async), otherwise fallback to current state
+            const targetCycle = cycleOverride || billingCycle;
+            const priceId = targetCycle === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
+
             const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code, priceId);
             console.log('[PricingPage] Open Paddle checkout for txn:', transactionId);
 
@@ -185,7 +188,7 @@ const PricingPage: React.FC = () => {
                     </div>
 
                     <Button
-                        onClick={() => { setBillingCycle('monthly'); openCheckout(); }}
+                        onClick={() => { setBillingCycle('monthly'); openCheckout('monthly'); }}
                         disabled={isButtonDisabled}
                         className={`w-full mb-6 ${billingCycle === 'monthly' ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
@@ -229,7 +232,7 @@ const PricingPage: React.FC = () => {
                     </div>
 
                     <Button
-                        onClick={() => { setBillingCycle('yearly'); openCheckout(); }}
+                        onClick={() => { setBillingCycle('yearly'); openCheckout('yearly'); }}
                         disabled={isButtonDisabled}
                         className={`w-full mb-6 ${billingCycle === 'yearly' ? 'bg-momentum-green text-black hover:bg-momentum-green-hover' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
