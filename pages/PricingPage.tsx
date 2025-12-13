@@ -80,7 +80,12 @@ const PricingPage: React.FC = () => {
             const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code, priceId);
             console.log('[PricingPage] Open Paddle checkout for txn:', transactionId);
 
-            paddle.Checkout.open({ transactionId });
+            paddle.Checkout.open({
+                transactionId,
+                settings: {
+                    theme: 'dark'
+                }
+            });
 
             const startPolling = async () => {
                 setUiStage('paid');
