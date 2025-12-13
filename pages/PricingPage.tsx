@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/ui/Button';
@@ -10,9 +11,13 @@ import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
 type UiStage = 'idle' | 'opening' | 'paid' | 'activated' | 'error';
 type BillingCycle = 'monthly' | 'yearly';
 
+
+
 const PricingPage: React.FC = () => {
-    const { user, accessToken, refreshUser } = useAuth();
+    const { user, accessToken, refreshUser, isAuthenticated } = useAuth();
     const { paddle, isLoading: isPaddleLoading } = usePaddle();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const [uiStage, setUiStage] = useState<UiStage>('idle');
     const [error, setError] = useState<string>('');
@@ -21,17 +26,23 @@ const PricingPage: React.FC = () => {
     const hasRunAutoCheckout = React.useRef(false);
 
     React.useEffect(() => {
-        const intendedPlan = localStorage.getItem('intendedPlan');
-        if (intendedPlan && (intendedPlan === 'monthly' || intendedPlan === 'yearly') && !hasRunAutoCheckout.current && paddle && accessToken) {
+        // Check URL params for auto-checkout plan
+        const params = new URLSearchParams(location.search);
+        const planParam = params.get('plan');
+
+        if (planParam && (planParam === 'monthly' || planParam === 'yearly') && !hasRunAutoCheckout.current && paddle && accessToken) {
             hasRunAutoCheckout.current = true;
-            setBillingCycle(intendedPlan as BillingCycle);
-            // Small delay to ensure state updates and UX smoothness
+            setBillingCycle(planParam as BillingCycle);
+
+            // Remove the param from URL without refreshing to keep it clean
+            navigate(location.pathname, { replace: true });
+
+            // Trigger checkout
             setTimeout(() => {
-                openCheckout(intendedPlan as BillingCycle);
-                localStorage.removeItem('intendedPlan');
+                openCheckout(planParam as BillingCycle);
             }, 500);
         }
-    }, [paddle, accessToken]);
+    }, [paddle, accessToken, location.search]);
 
     // TODO: Add these to your .env file
     const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
@@ -193,8 +204,16 @@ const PricingPage: React.FC = () => {
                     </div>
 
                     <Button
-                        onClick={() => { setBillingCycle('monthly'); openCheckout('monthly'); }}
-                        disabled={isButtonDisabled}
+                        onClick={() => {
+                            if (!isAuthenticated) {
+                                // Redirect to sign-in with return URL
+                                window.location.href = `/sign-in?redirect_url=${encodeURIComponent('/pricing?plan=monthly')}`;
+                                return;
+                            }
+                            setBillingCycle('monthly');
+                            openCheckout('monthly');
+                        }}
+                        disabled={isButtonDisabled && isAuthenticated} // Don't disable if just needs login
                         className={`w-full mb-6 ${billingCycle === 'monthly' ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
                         {uiStage === 'opening' && billingCycle === 'monthly' ? <Spinner /> : (billingCycle === 'monthly' ? 'Choose Monthly' : 'Switch to Monthly')}
@@ -237,8 +256,15 @@ const PricingPage: React.FC = () => {
                     </div>
 
                     <Button
-                        onClick={() => { setBillingCycle('yearly'); openCheckout('yearly'); }}
-                        disabled={isButtonDisabled}
+                        onClick={() => {
+                            if (!isAuthenticated) {
+                                window.location.href = `/sign-in?redirect_url=${encodeURIComponent('/pricing?plan=yearly')}`;
+                                return;
+                            }
+                            setBillingCycle('yearly');
+                            openCheckout('yearly');
+                        }}
+                        disabled={isButtonDisabled && isAuthenticated}
                         className={`w-full mb-6 ${billingCycle === 'yearly' ? 'bg-momentum-green text-black hover:bg-momentum-green-hover' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
                         {uiStage === 'opening' && billingCycle === 'yearly' ? <Spinner /> : (billingCycle === 'yearly' ? 'Choose Yearly' : 'Switch to Yearly')}
