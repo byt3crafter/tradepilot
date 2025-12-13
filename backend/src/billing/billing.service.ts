@@ -85,10 +85,12 @@ export class BillingService {
           const errorMsg = typeof body === 'string' ? body : JSON.stringify(body);
 
           // Handle 409 Conflict - customer already exists in Paddle with this email
-          if (status === 409 && errorMsg.includes('customer email conflicts')) {
+          // Log shows status might be undefined, so rely on message content primarily.
+          if ((status === 409 || !status) && errorMsg.toLowerCase().includes('customer email conflicts')) {
             // Extract the existing customer ID from the error message
             // Format: "customer email conflicts with customer of id ctm_01kbm13zhpvrazqvesc3peeh8a"
-            const match = errorMsg.match(/id\s+(ctm_\w+)/);
+            // Using a broader regex to catch 'id' followed by the ctm_ string
+            const match = errorMsg.match(/id\s+(ctm_[a-zA-Z0-9]+)/);
             if (match && match[1]) {
               const existingCustomerId = match[1];
               this.logger.log(`⚠️ Customer already exists in Paddle: ${existingCustomerId}. Syncing to database.`);
@@ -101,7 +103,7 @@ export class BillingService {
               });
             } else {
               this.logger.error(
-                `✗ 409 error but couldn't extract customer ID from: ${errorMsg}`,
+                `✗ Conflict error detected but couldn't extract customer ID from: ${errorMsg}`,
               );
               throw new InternalServerErrorException(
                 'Could not create checkout session. Please try again later.',
