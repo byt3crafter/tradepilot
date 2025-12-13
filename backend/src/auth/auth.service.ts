@@ -21,7 +21,7 @@ export class AuthService {
   async validateClerkUser(payload: { sub: string; email?: string; name?: string; public_metadata?: any; unsafe_metadata?: any }) {
     const clerkId = payload.sub;
     // Fallback email if not in token (depends on Clerk JWT template settings)
-    const email = payload.email || `${clerkId} @clerk.user`;
+    const email = payload.email || `${clerkId}@clerk.user`;
     // Extract role from Clerk's public_metadata (if present in JWT)
     const clerkRole = payload.public_metadata?.role;
 
