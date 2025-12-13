@@ -80,13 +80,9 @@ export class AuthService {
       }
 
       // Set Trial Duration
-      if (isEarlySupporter) {
-        // 30 Days Free Trial for Early Supporters
-        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
-      } else {
-        // No Trial for regular users (expire immediately/yesterday to be safe)
-        trialEndsAt.setHours(trialEndsAt.getHours() - 1);
-      }
+      // STRICT PAYWALL: No free trial for anyone on signup. 
+      // Users must pay or use an Invite Code (handled separately) to get access.
+      trialEndsAt.setHours(trialEndsAt.getHours() - 1); // Expire immediately
 
       user = await this.usersService.create({
         id: clerkId, // Use Clerk ID as Primary Key
