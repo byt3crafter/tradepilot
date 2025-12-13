@@ -9,7 +9,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   const configService = app.get(ConfigService);
 
   const port = configService.get<number>('PORT', 8080);
