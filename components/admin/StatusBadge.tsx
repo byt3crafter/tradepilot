@@ -6,17 +6,27 @@ interface StatusBadgeProps {
 }
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ user }) => {
-  const hasGiftedAccess = user.proAccessExpiresAt === null || (user.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date());
+  const status = user.subscriptionStatus;
+
+  if (status === 'ACTIVE') {
+    return (
+      <div className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-momentum-green/10 text-momentum-green border-momentum-green/30">
+        ACTIVE
+      </div>
+    );
+  }
+
+  const hasGiftedAccess = user.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date();
 
   if (hasGiftedAccess) {
     return (
-       <div className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-purple-500/10 text-purple-400 border-purple-400/30`}>
+      <div className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-purple-500/10 text-purple-400 border-purple-400/30`}>
         PRO (GIFTED)
       </div>
     );
   }
 
-  const status = user.subscriptionStatus;
+
   const styles: Record<AdminUser['subscriptionStatus'], string> = {
     TRIALING: 'bg-photonic-blue/10 text-photonic-blue border-photonic-blue/30',
     ACTIVE: 'bg-momentum-green/10 text-momentum-green border-momentum-green/30',
