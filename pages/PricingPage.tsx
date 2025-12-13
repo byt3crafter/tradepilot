@@ -189,15 +189,24 @@ const PricingPage: React.FC = () => {
                         disabled={isButtonDisabled}
                         className={`w-full mb-6 ${billingCycle === 'monthly' ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
-                        {billingCycle === 'monthly' ? 'Choose Monthly' : 'Switch to Monthly'}
+                        {uiStage === 'opening' && billingCycle === 'monthly' ? <Spinner /> : (billingCycle === 'monthly' ? 'Choose Monthly' : 'Switch to Monthly')}
                     </Button>
 
                     <ul className="space-y-3">
                         <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> Unlimited Journaling
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> Live Trade Journaling
                         </li>
                         <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> Basic Analytics
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> AI-Powered Edge Analysis
+                        </li>
+                        <li className="flex items-center gap-3 text-sm text-future-gray">
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> Unlimited Playbooks
+                        </li>
+                        <li className="flex items-center gap-3 text-sm text-future-gray">
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> Advanced Risk Analytics
+                        </li>
+                        <li className="flex items-center gap-3 text-sm text-future-gray">
+                            <CheckCircleIcon className="w-4 h-4 text-white" /> Multi-Account Support
                         </li>
                     </ul>
                 </Card >
@@ -224,7 +233,7 @@ const PricingPage: React.FC = () => {
                         disabled={isButtonDisabled}
                         className={`w-full mb-6 ${billingCycle === 'yearly' ? 'bg-momentum-green text-black hover:bg-momentum-green-hover' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
-                        {billingCycle === 'yearly' ? 'Choose Yearly' : 'Switch to Yearly'}
+                        {uiStage === 'opening' && billingCycle === 'yearly' ? <Spinner /> : (billingCycle === 'yearly' ? 'Choose Yearly' : 'Switch to Yearly')}
                     </Button>
 
                     <ul className="space-y-3">
@@ -232,10 +241,10 @@ const PricingPage: React.FC = () => {
                             <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> All Monthly Features
                         </li>
                         <li className="flex items-center gap-3 text-sm text-white">
-                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Priority Support
+                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Priority Feature Access
                         </li>
                         <li className="flex items-center gap-3 text-sm text-white">
-                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Early Access to Features
+                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Exclusive Beta Testing
                         </li>
                     </ul>
                 </Card >

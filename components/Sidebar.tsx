@@ -312,13 +312,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </>
           )}
 
-          <NavItem
-            icon={<SettingsIcon className="w-4 h-4" />}
-            label="Settings"
-            isActive={currentView === 'settings'}
-            onClick={() => handleSetView('settings')}
-            isCollapsed={isSidebarCollapsed}
-          />
+          {isSubscribed && (
+            <NavItem
+              icon={<SettingsIcon className="w-4 h-4" />}
+              label="Settings"
+              isActive={currentView === 'settings'}
+              onClick={() => handleSetView('settings')}
+              isCollapsed={isSidebarCollapsed}
+            />
+          )}
 
           <div className="my-2 border-t border-white/10 mx-4" />
 
