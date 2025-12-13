@@ -152,7 +152,13 @@ export class AuthService {
         }
       }
 
-      await this.usersService.update(user.id, updateData);
+      try {
+        await this.usersService.update(user.id, updateData);
+      } catch (err) {
+        this.logger.error(`Failed to update user ${user.id}: ${err.message}. Conflict likely. Returning user anyway.`);
+        // If update fails (e.g. email collision), we mostly care that we return the valid user object so they can login.
+        // We might want to try updating WITHOUT the email if that was the issue, but for now just proceed.
+      }
     }
 
     return user;
