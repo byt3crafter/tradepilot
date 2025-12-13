@@ -29,12 +29,15 @@ const DashboardPage: React.FC = () => {
   const { openUserProfile } = useClerk();
 
   React.useEffect(() => {
-    const intendedPlan = localStorage.getItem('intendedPlan');
-    if (intendedPlan && (intendedPlan === 'monthly' || intendedPlan === 'yearly')) {
-      // Don't clear it here, let the PricingPage handle it to know which plan to select
-      navigateTo('pricing');
+    // Only redirect to pricing flow if NOT subscribed
+    if (!isSubscribed) {
+      const intendedPlan = localStorage.getItem('intendedPlan');
+      if (intendedPlan && (intendedPlan === 'monthly' || intendedPlan === 'yearly')) {
+        // Don't clear it here, let the PricingPage handle it to know which plan to select
+        navigateTo('pricing');
+      }
     }
-  }, [navigateTo]);
+  }, [navigateTo, isSubscribed]);
 
 
 
