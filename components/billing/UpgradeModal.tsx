@@ -10,10 +10,10 @@ const UpgradeModal: React.FC = () => {
 
   const handleUpgrade = () => {
     console.log('[UpgradeModal] Navigating to standalone subscription page...');
-    navigateTo('subscription');
+    navigateTo('pricing');
     hideUpgradeModal();
   };
-  
+
   if (!isUpgradeModalOpen) {
     return null;
   }

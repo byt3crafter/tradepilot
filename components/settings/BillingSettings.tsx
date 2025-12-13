@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usePaddle } from '../../context/PaddleContext';
+import { useView } from '../../context/ViewContext';
 import Card from '../Card';
 import Button from '../ui/Button';
 import api from '../../services/api';
@@ -8,6 +9,7 @@ import api from '../../services/api';
 const BillingSettings: React.FC = () => {
   const { user, isTrialing, accessToken } = useAuth();
   const { paddle, isLoading: isPaddleLoading } = usePaddle();
+  const { navigateTo } = useView();
   const [isLoading, setIsLoading] = useState(false);
 
   const calculateDaysRemaining = (endDate: string | null): number | null => {
@@ -19,34 +21,7 @@ const BillingSettings: React.FC = () => {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const handleUpgrade = async () => {
-    setIsLoading(true);
-    try {
-      if (!paddle) {
-        console.error('Paddle not initialized');
-        throw new Error('Payment system is not ready. Please refresh the page and try again.');
-      }
 
-      // Create checkout transaction on backend, passing the correct Clerk email
-      const { transactionId } = await api.post('/api/billing/checkout', {
-        email: user?.email, // Send Clerk's verified email to ensure correct billing email
-      }, accessToken!);
-
-      // Open Paddle checkout with the transaction ID
-      paddle.Checkout.open({
-        transactionId,
-        settings: {
-          allowLogout: false,
-          displayMode: 'modal',
-        },
-      });
-    } catch (err: any) {
-      console.error('Upgrade error:', err);
-      alert(err.message || 'Failed to initiate checkout. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getStatusColor = (): string => {
     switch (user?.subscriptionStatus) {
@@ -127,12 +102,12 @@ const BillingSettings: React.FC = () => {
                     : 'Your subscription has expired. Upgrade now to restore access.'}
                 </p>
                 <Button
-                  onClick={handleUpgrade}
+                  onClick={() => navigateTo('pricing')}
                   isLoading={isLoading || isPaddleLoading}
                   disabled={isPaddleLoading}
                   className="w-full"
                 >
-                  {isPaddleLoading ? 'Loading...' : 'Renew Subscription'}
+                  {isPaddleLoading ? 'Loading...' : 'View Plans & Upgrade'}
                 </Button>
               </div>
             ) : user?.subscriptionStatus === 'ACTIVE' ? (

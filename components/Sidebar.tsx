@@ -103,7 +103,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
           <Button
             variant="link"
             disabled={!isSubscribed}
-            onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('subscription')}
+            onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('pricing')}
             className={`w-full h-8 flex items-center justify-center border border-dashed border-white/10 rounded ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
           >
             <PlusIcon className="w-4 h-4" />
@@ -115,7 +115,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
       <Button
         variant="link"
         disabled={!isSubscribed}
-        onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('subscription')}
+        onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('pricing')}
         className={`w-full text-xs text-center border border-dashed border-white/10 rounded py-2 uppercase tracking-wide ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
       >
         + Add Account
@@ -178,7 +178,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
                   navigateTo('settings', 'accounts');
                   setIsOpen(false);
                 } else {
-                  navigateTo('subscription');
+                  navigateTo('pricing');
                   setIsOpen(false);
                 }
               }}
@@ -344,7 +344,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
               label="Upgrade to Pro"
               isActive={currentView === 'subscription' || currentView === 'pricing'}
-              onClick={() => handleSetView('subscription')}
+              onClick={() => handleSetView('pricing')}
               isCollapsed={isSidebarCollapsed}
             />
           )}

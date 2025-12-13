@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, Req, HttpCode, HttpStatus, Logger, UseGuards, Get, RawBodyRequest } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Req, HttpCode, HttpStatus, Logger, UseGuards, Get, RawBodyRequest, InternalServerErrorException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -53,16 +53,29 @@ export class BillingController {
   @HttpCode(HttpStatus.OK)
   async handlePaddleWebhook(
     @Headers('paddle-signature') signature: string,
-    @Body() body: any,
     @Req() req: Request
   ) {
-    // SECURITY: In production, it's CRITICAL to verify the webhook signature.
-    this.logger.log(`✓ Received Paddle webhook: ${body.event_type}`);
+    const rawBody = (req as any).rawBody;
+    if (!rawBody) {
+      this.logger.error('Missing raw body for webhook verification');
+      // If rawBody is missing, it might be because the middleware didn't run or payload is empty.
+      // We can't verify signature without it.
+      throw new InternalServerErrorException('Webhook processing failed: No body');
+    }
+
     try {
-      await this.billingService.handleWebhookEvent(body);
-      this.logger.log(`✓ Successfully processed webhook: ${body.event_type}`);
+      // Verify signature and parse event
+      const event = await this.billingService.unmarshalWebhook(rawBody.toString(), signature);
+
+      if (event) {
+        this.logger.log(`✓ Verified Paddle webhook: ${event.eventType}`);
+        await this.billingService.handleWebhookEvent(event);
+        this.logger.log(`✓ Successfully processed webhook: ${event.eventType}`);
+      }
     } catch (err: any) {
       this.logger.error(`✗ Error processing webhook: ${err.message}`);
+      // We return 200 OK even on error to prevent Paddle from retrying indefinitely if it's a logic error
+      // In a real scenario, you might want to return 500 for temporary errors.
     }
     return { success: true };
   }

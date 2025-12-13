@@ -28,7 +28,7 @@ This document describes the Real-Time Drawdown Calculator and Compliance PDF Exp
    - Tracks equity, profit targets, and drawdown limits in real-time.
    - Visual progress bars for quick status checks.
 
-2. **Compliance PDF Export**:
+2. **git **:
    - Generates a professional PDF report for prop firm challenges.
    - Includes trade history, compliance checklist, and executive summary.
    - Accessible via the "Export Report" button in the dashboard header.

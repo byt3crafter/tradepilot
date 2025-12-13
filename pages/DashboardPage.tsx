@@ -48,7 +48,7 @@ const DashboardPage: React.FC = () => {
       // settings is allowed, but maybe we want to limit it? For now allow settings to manage billing.
       if (currentView === 'settings') return <SettingsPage />;
       // Default fallback for any other view is SubscriptionPage (Paywall)
-      return <SubscriptionPage />;
+      return <PricingPage />;
     }
 
     switch (currentView) {

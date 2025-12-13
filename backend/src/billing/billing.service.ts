@@ -29,12 +29,14 @@ export class BillingService {
     const paddleEnv = (this.configService.get<string>('PADDLE_ENV') || 'production').toLowerCase();
     const priceId = this.configService.get<string>('PADDLE_PRICE_ID');
     const clientToken = this.configService.get<string>('PADDLE_CLIENT_SIDE_TOKEN');
+    const webhookSecret = this.configService.get<string>('PADDLE_WEBHOOK_SECRET_KEY');
 
     // Log all config on startup for debugging
     this.logger.log(`[Config] PADDLE_ENV: ${paddleEnv}`);
     this.logger.log(`[Config] PADDLE_API_KEY: ${apiKey ? '✓ Set' : '✗ MISSING'}`);
     this.logger.log(`[Config] PADDLE_PRICE_ID: ${priceId ? '✓ Set' : '✗ MISSING'}`);
     this.logger.log(`[Config] PADDLE_CLIENT_SIDE_TOKEN: ${clientToken ? '✓ Set' : '✗ MISSING'}`);
+    this.logger.log(`[Config] PADDLE_WEBHOOK_SECRET_KEY: ${webhookSecret ? '✓ Set' : '✗ MISSING'}`);
 
     if (!apiKey) {
       this.logger.error('PADDLE_API_KEY is missing. Set it in your environment.');
@@ -199,11 +201,26 @@ export class BillingService {
     }
   }
 
+  async unmarshalWebhook(rawBody: string, signature: string) {
+    const secret = this.configService.get<string>('PADDLE_WEBHOOK_SECRET_KEY');
+    if (!secret) {
+      this.logger.error('PADDLE_WEBHOOK_SECRET_KEY is missing. Cannot verify webhook.');
+      throw new InternalServerErrorException('Webhook secret is missing');
+    }
+    try {
+      return this.paddle.webhooks.unmarshal(rawBody, secret, signature);
+    } catch (e: any) {
+      this.logger.error(`Webhook signature verification failed: ${e.message}`);
+      throw new InternalServerErrorException('Invalid webhook signature');
+    }
+  }
+
   async handleWebhookEvent(event: any) {
-    const { event_type, data } = event;
+    const eventType = event.eventType || event.event_type;
+    const data = event.data;
 
     if (!data) {
-      this.logger.warn(`Webhook event ${event_type} is missing data.`);
+      this.logger.warn(`Webhook event ${eventType} is missing data.`);
       return;
     }
 
@@ -211,7 +228,7 @@ export class BillingService {
     const subscriptionId = data.id;
 
     if (!customerId) {
-      this.logger.warn(`Webhook event ${event_type} is missing customer_id.`);
+      this.logger.warn(`Webhook event ${eventType} is missing customer_id.`);
       return;
     }
 
@@ -227,7 +244,7 @@ export class BillingService {
     // Cast mapped status to any to satisfy Prisma input if generated types are strict
     const newStatus = this.mapPaddleStatus(data.status) as any;
 
-    switch (event_type) {
+    switch (eventType) {
       case 'subscription.created':
       case 'subscription.updated':
       case 'subscription.resumed':
@@ -258,7 +275,7 @@ export class BillingService {
           // We want to reward when the referred user PAYS.
           // 'subscription.activated' usually means payment success.
 
-          if (event_type === 'subscription.activated' && (user as any).referredByUserId) {
+          if (eventType === 'subscription.activated' && (user as any).referredByUserId) {
             // Refresh user to check hasRewardedReferrer
             const freshUser = await this.prisma.user.findUnique({ where: { id: user.id } });
 
@@ -308,7 +325,7 @@ export class BillingService {
         break;
 
       default:
-        this.logger.log(`Unhandled Paddle webhook event type: ${event_type}`);
+        this.logger.log(`Unhandled Paddle webhook event type: ${eventType}`);
     }
   }
 

@@ -11,7 +11,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  
+
   const port = configService.get<number>('PORT', 8080);
   const frontendUrls = configService.get<string>('FRONTEND_URL') || '';
   const nodeEnv = configService.get<string>('NODE_ENV');
@@ -24,7 +24,12 @@ async function bootstrap() {
   }
 
   // Increase payload size limit for JSON and URL-encoded requests
-  app.use(express.json({ limit: '50mb' }));
+  app.use(express.json({
+    limit: '50mb',
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf;
+    },
+  }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Security Middleware
@@ -98,7 +103,7 @@ async function bootstrap() {
   // Global Filters
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new PrismaExceptionFilter(httpAdapterHost.httpAdapter));
-  
+
   // Global Interceptors
   app.useGlobalInterceptors(new ResponseInterceptor());
 
