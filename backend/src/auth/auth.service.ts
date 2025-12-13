@@ -119,24 +119,38 @@ export class AuthService {
       }
 
       if (clerkRole) {
-        // If Clerk provides role in JWT, sync it
         updateData.role = clerkRole;
         this.logger.log(`User ${clerkId} logged in.Role synced from Clerk: ${clerkRole} `);
       } else {
-        // If no role in JWT, keep existing role from database
         this.logger.log(`User ${clerkId} logged in.Keeping existing role: ${user.role} `);
       }
 
-      await this.usersService.update(user.id, updateData);
+      // Sync Real Email if we have a placeholder
+      if (user.email.includes('@clerk.user')) {
+        this.logger.log(`User ${clerkId} has placeholder email (${user.email}). Attempting to fetch real email from Clerk...`);
+        try {
+          const clerkUser = await this.getClerkUserDetails(clerkId);
+          if (clerkUser && clerkUser.email_addresses?.length > 0) {
+            const primaryId = clerkUser.primary_email_address_id;
+            const primary = clerkUser.email_addresses.find((e: any) => e.id === primaryId);
+            const realEmail = primary ? primary.email_address : clerkUser.email_addresses[0].email_address;
 
-      // Fix corrupted email from previous bug (remove space)
-      if (user.email && user.email.includes(" @clerk.user")) {
-        const fixedEmail = user.email.replace(" @clerk.user", "@clerk.user");
-        this.logger.log(`Fixing corrupted email for ${user.id}: ${user.email} -> ${fixedEmail}`);
-
-        await this.usersService.update(user.id, { email: fixedEmail });
-        user.email = fixedEmail; // Update local object
+            if (realEmail) {
+              updateData.email = realEmail;
+              user.email = realEmail; // Update local
+              this.logger.log(`Successfully synced real email: ${realEmail}`);
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`Could not sync real email: ${err.message}`);
+          // Fallback: Fix the space issue if it still exists and we couldn't get real email
+          if (user.email.includes(" @clerk.user")) {
+            updateData.email = user.email.replace(" @clerk.user", "@clerk.user");
+          }
+        }
       }
+
+      await this.usersService.update(user.id, updateData);
     }
 
     return user;
