@@ -130,6 +130,8 @@ export class AuthService {
         this.logger.log(`User ${clerkId} has placeholder email (${user.email}). Attempting to fetch real email from Clerk...`);
         try {
           const clerkUser = await this.getClerkUserDetails(clerkId);
+          console.log(`[DEBUG] Clerk User Response for ${clerkId}:`, JSON.stringify(clerkUser));
+
           if (clerkUser && clerkUser.email_addresses?.length > 0) {
             const primaryId = clerkUser.primary_email_address_id;
             const primary = clerkUser.email_addresses.find((e: any) => e.id === primaryId);
@@ -139,7 +141,11 @@ export class AuthService {
               updateData.email = realEmail;
               user.email = realEmail; // Update local
               this.logger.log(`Successfully synced real email: ${realEmail}`);
+            } else {
+              this.logger.warn(`[DEBUG] No email address found in Clerk response for ${clerkId}`);
             }
+          } else {
+            this.logger.warn(`[DEBUG] Clerk user not found or no email addresses. keys: ${Object.keys(clerkUser || {})}`);
           }
         } catch (err) {
           this.logger.warn(`Could not sync real email: ${err.message}`);
