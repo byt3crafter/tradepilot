@@ -233,12 +233,35 @@ export class BillingService {
       return;
     }
 
-    const user = await this.prisma.user.findFirst({
+    let user = await this.prisma.user.findFirst({
       where: { paddleCustomerId: customerId },
     });
 
+    // Fallback: If user not found by ID, try to find by Email
     if (!user) {
-      this.logger.warn(`Received webhook for unknown paddle customer: ${customerId}`);
+      this.logger.warn(`User not found by paddleCustomerId: ${customerId}. Attempting fallback lookup by email...`);
+      try {
+        const paddleCustomer = await this.paddle.customers.get(customerId);
+        if (paddleCustomer && paddleCustomer.email) {
+          user = await this.prisma.user.findUnique({
+            where: { email: paddleCustomer.email },
+          });
+
+          if (user) {
+            this.logger.log(`✓ Found user via email fallback: ${user.email}. Updating paddleCustomerId linkage.`);
+            await this.prisma.user.update({
+              where: { id: user.id },
+              data: { paddleCustomerId: customerId },
+            });
+          }
+        }
+      } catch (err) {
+        this.logger.error(`Failed to fetch customer details from Paddle for fallback lookup: ${err.message}`);
+      }
+    }
+
+    if (!user) {
+      this.logger.warn(`Received webhook for unknown paddle customer: ${customerId} (Email lookup also failed)`);
       return;
     }
 
@@ -263,7 +286,12 @@ export class BillingService {
 
         // If subscription is now active, clear/update trial end date
         if (newStatus === SubscriptionStatus.ACTIVE) {
-          this.logger.log(`User ${user.id} subscription activated - no longer in trial`);
+          this.logger.log(`User ${user.id} subscription activated.`);
+
+          // ACTIVATION LOGIC
+          updateData.isEarlySupporter = true; // Mark as early supporter
+          updateData.trialEndsAt = null; // Clear trial if active
+
           // Trial is over when subscription activates
           if (!updateData.proAccessExpiresAt && data.next_billed_at) {
             updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
