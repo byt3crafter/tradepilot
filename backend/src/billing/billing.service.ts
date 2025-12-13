@@ -344,6 +344,13 @@ export class BillingService {
           data: updateData,
         });
         this.logger.log(`Updated subscription for user ${user.id} to ${data.status}`);
+
+        // FIX: Sync to Clerk Metadata so frontend sees the update immediately
+        await this.updateClerkMetadata(user.id, {
+          subscriptionStatus: newStatus,
+          proAccessExpiresAt: updateData.proAccessExpiresAt,
+          isEarlySupporter: updateData.isEarlySupporter
+        });
         break;
 
       case 'subscription.paused':
@@ -353,10 +360,46 @@ export class BillingService {
           data: { subscriptionStatus: SubscriptionStatus.CANCELED as any },
         });
         this.logger.log(`Canceled subscription for user ${user.id}`);
+
+        // FIX: Sync to Clerk Metadata
+        await this.updateClerkMetadata(user.id, {
+          subscriptionStatus: SubscriptionStatus.CANCELED
+        });
         break;
 
       default:
         this.logger.log(`Unhandled Paddle webhook event type: ${eventType}`);
+    }
+  }
+
+  private async updateClerkMetadata(userId: string, metadata: any) {
+    const secretKey = this.configService.get<string>('CLERK_SECRET_KEY');
+    if (!secretKey) {
+      this.logger.warn('CLERK_SECRET_KEY missing. Cannot sync subscription status to Clerk.');
+      return;
+    }
+
+    try {
+      this.logger.log(`Syncing subscription metadata to Clerk for user ${userId}...`);
+      const response = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${secretKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          public_metadata: metadata
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        this.logger.error(`Failed to update Clerk metadata: ${response.status} ${errText}`);
+      } else {
+        this.logger.log(`✓ Successfully synced Clerk metadata for ${userId}`);
+      }
+    } catch (e: any) {
+      this.logger.error(`Error updating Clerk metadata: ${e.message}`);
     }
   }
 
