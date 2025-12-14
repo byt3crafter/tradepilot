@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-
 import { useAuth } from '../context/AuthContext';
+
 import Card from '../components/Card';
 import Button from '../components/ui/Button';
 import Spinner from '../components/Spinner';
@@ -25,6 +25,34 @@ const PricingPage: React.FC = () => {
     const [uiStage, setUiStage] = useState<UiStage>('idle');
     const [error, setError] = useState<string>('');
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+    const [plans, setPlans] = useState<any[]>([]);
+    const [arePlansLoading, setArePlansLoading] = useState(true);
+
+    useEffect(() => {
+        const loadPlans = async () => {
+            try {
+                const data = await api.getPublicPlans();
+                setPlans(data);
+            } catch (e) {
+                console.error("Failed to load plans", e);
+            } finally {
+                setArePlansLoading(false);
+            }
+        };
+        loadPlans();
+    }, []);
+
+    const monthlyPlan = plans.find(p => p.interval === 'month') || {
+        amount: 5.99,
+        paddlePriceId: (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc',
+        currency: 'USD'
+    };
+
+    const yearlyPlan = plans.find(p => p.interval === 'year') || {
+        amount: 60.00,
+        paddlePriceId: (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01kc918kmzeepr3sg7cc74q8zs',
+        currency: 'USD'
+    };
 
     const hasRunAutoCheckout = React.useRef(false);
 
@@ -33,7 +61,7 @@ const PricingPage: React.FC = () => {
         const params = new URLSearchParams(searchParams);
         const planParam = params.get('plan');
 
-        if (planParam && (planParam === 'monthly' || planParam === 'yearly') && !hasRunAutoCheckout.current && paddle && accessToken) {
+        if (planParam && (planParam === 'monthly' || planParam === 'yearly') && !hasRunAutoCheckout.current && paddle && accessToken && !arePlansLoading) {
             hasRunAutoCheckout.current = true;
             setBillingCycle(planParam as BillingCycle);
 
@@ -46,7 +74,7 @@ const PricingPage: React.FC = () => {
                 openCheckout(planParam as BillingCycle);
             }, 500);
         }
-    }, [paddle, accessToken]);
+    }, [paddle, accessToken, arePlansLoading]);
 
     const { navigateTo } = useView();
 
@@ -74,9 +102,6 @@ const PricingPage: React.FC = () => {
         return () => window.removeEventListener('payment_success', handlePaymentSuccess);
     }, [refreshUser, accessToken]);
 
-    // TODO: Add these to your .env file
-    const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
-    const PRICE_ID_YEARLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_YEARLY || 'pri_01kc918kmzeepr3sg7cc74q8zs';
 
     const [promoCode, setPromoCode] = useState('');
     const [promoError, setPromoError] = useState('');
@@ -116,7 +141,7 @@ const PricingPage: React.FC = () => {
         try {
             // Use override if provided (state updates are async), otherwise fallback to current state
             const targetCycle = cycleOverride || billingCycle;
-            const priceId = targetCycle === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
+            const priceId = targetCycle === 'monthly' ? monthlyPlan.paddlePriceId : yearlyPlan.paddlePriceId;
 
             const { transactionId } = await api.createCheckoutTransaction(accessToken, appliedPromo?.code, priceId, user?.email);
             console.log('[PricingPage] Open Paddle checkout for txn:', transactionId);
@@ -199,6 +224,9 @@ const PricingPage: React.FC = () => {
         );
     }
 
+    const savingsPercent = monthlyPlan.amount > 0 ? Math.round((1 - (yearlyPlan.amount / (monthlyPlan.amount * 12))) * 100) : 0;
+    const savingsAmount = ((monthlyPlan.amount * 12) - yearlyPlan.amount).toFixed(2);
+
     return (
         <div className="max-w-6xl mx-auto p-6 md:p-12 lg:p-16 space-y-12">
 
@@ -221,7 +249,7 @@ const PricingPage: React.FC = () => {
                         <div className={`w-4 h-4 bg-momentum-green rounded-full shadow-sm transform transition-transform duration-200 ${billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                     <span className={`text-sm font-bold transition-colors ${billingCycle === 'yearly' ? 'text-white' : 'text-future-gray'}`}>
-                        Yearly <span className="text-momentum-green text-xs ml-1">(Save 17%)</span>
+                        Yearly <span className="text-momentum-green text-xs ml-1">(Save {savingsPercent}%)</span>
                     </span>
                 </div>
             </div>
@@ -260,7 +288,7 @@ const PricingPage: React.FC = () => {
                     <div className="mb-6">
                         <h3 className="text-xl font-bold text-white mb-2">Monthly</h3>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">$5.99</span>
+                            <span className="text-3xl font-bold text-white">{monthlyPlan.currency === 'USD' ? '$' : monthlyPlan.currency}{monthlyPlan.amount.toFixed(2)}</span>
                             <span className="text-future-gray">/month</span>
                         </div>
                         <p className="text-sm text-future-gray mt-2">Flexible, cancel anytime.</p>
@@ -312,10 +340,10 @@ const PricingPage: React.FC = () => {
                     <div className="mb-6">
                         <h3 className="text-xl font-bold text-white mb-2">Yearly</h3>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">$60.00</span>
+                            <span className="text-3xl font-bold text-white">{yearlyPlan.currency === 'USD' ? '$' : yearlyPlan.currency}{yearlyPlan.amount.toFixed(2)}</span>
                             <span className="text-future-gray">/year</span>
                         </div>
-                        <p className="text-sm text-momentum-green mt-2 font-bold">Save $11.88 per year</p>
+                        <p className="text-sm text-momentum-green mt-2 font-bold">Save ${savingsAmount} per year</p>
                     </div>
 
                     <Button
