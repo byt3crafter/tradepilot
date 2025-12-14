@@ -187,6 +187,13 @@ const PricingPage: React.FC = () => {
                     <div className="w-full bg-white/10 h-1 mt-4 rounded-full overflow-hidden">
                         <div className="bg-momentum-green h-full animate-progress-indeterminate origin-left"></div>
                     </div>
+
+                    <button
+                        onClick={() => window.location.href = '/dashboard'}
+                        className="mt-6 text-sm text-future-gray hover:text-white underline decoration-dotted underline-offset-4 transition-colors"
+                    >
+                        Taking too long? Click here to continue
+                    </button>
                 </Card>
             </div>
         );
