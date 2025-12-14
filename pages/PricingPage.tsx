@@ -156,13 +156,19 @@ const PricingPage: React.FC = () => {
         }
     }, [uiStage]);
 
-    if (uiStage === 'activated') {
+    if (uiStage === 'activated' || uiStage === 'paid') {
         return (
             <div className="h-full flex items-center justify-center p-6 animate-fade-in">
                 <Card className="max-w-md w-full text-center border-momentum-green/50">
                     <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green animate-bounce-slow" />
-                    <h3 className="text-2xl font-orbitron font-bold text-momentum-green mt-6">Welcome to Pro!</h3>
-                    <p className="text-future-gray mt-2 mb-4">Your subscription is now active. Unlocking full access...</p>
+                    <h3 className="text-2xl font-orbitron font-bold text-momentum-green mt-6">
+                        {uiStage === 'activated' ? 'Welcome to Pro!' : 'Payment Received!'}
+                    </h3>
+                    <p className="text-future-gray mt-2 mb-4">
+                        {uiStage === 'activated'
+                            ? 'Your subscription is now active. Unlocking full access...'
+                            : 'Finalizing your account setup...'}
+                    </p>
                     <div className="w-full bg-white/10 h-1 mt-4 rounded-full overflow-hidden">
                         <div className="bg-momentum-green h-full animate-progress-indeterminate origin-left"></div>
                     </div>

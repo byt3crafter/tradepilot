@@ -38,6 +38,7 @@ const SignupPage: React.FC = () => {
         },
         signInUrl: "/login",
         unsafeMetadata: referralCode ? { referralCode } : undefined,
+        forceRedirectUrl: "/dashboard",
       });
     }
 

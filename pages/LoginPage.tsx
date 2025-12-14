@@ -4,6 +4,11 @@ import { dark } from '@clerk/themes';
 import AuthLogo from '../components/auth/AuthLogo';
 
 const LoginPage: React.FC = () => {
+  // If we're already signed in, we shouldn't be here. The <SignedOut> wrapper *usually* handles this,
+  // but direct navigation to /login might bypass it depending on how the router loads.
+  // However, App.tsx renders UnauthenticatedApp only inside SignedOut.
+  // If you are seeing this page while logged in, it means Clerk thinks you are SignedOut.
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8 bg-void">
       <div className="w-full max-w-md flex flex-col items-center">
@@ -36,6 +41,7 @@ const LoginPage: React.FC = () => {
             }
           }}
           signUpUrl="/signup"
+          forceRedirectUrl="/dashboard"
         />
       </div>
     </div>

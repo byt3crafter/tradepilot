@@ -17,7 +17,7 @@ import { useAuth } from "./AuthContext";
 type PaddleV2 = {
   Initialize: (opts: { token: string; eventCallback?: (e: unknown) => void }) => void; // sync, returns void
   Environment: { set: (env: "sandbox" | "production") => void };
-  Checkout: { open: (opts: any) => void };
+  Checkout: { open: (opts: any) => void; close: () => void };
 };
 
 declare global {
@@ -118,6 +118,7 @@ export const PaddleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
           if (event?.name === 'checkout.completed') {
             console.log('✅ Checkout completed! Syncing subscription...');
+            p.Checkout.close(); // Auto-close the overlay
             try {
               await api.syncSubscription(accessToken);
               window.dispatchEvent(new Event('payment_success'));
