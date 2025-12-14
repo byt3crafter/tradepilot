@@ -86,7 +86,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
         <div className="py-12 md:py-20 px-4 max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-orbitron font-bold text-white mb-4">
-              Built for Prop Traders
+              Built for Prop Firms & New Traders
             </h2>
           </div>
 
