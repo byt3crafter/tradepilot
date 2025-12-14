@@ -61,7 +61,7 @@ export class AuthService {
 
       let isEarlySupporter = false;
       let referredByUserId: string | null = null;
-      let trialEndsAt = new Date(); // Default: Trial ends NOW (immediate payment required)
+      let trialEndsAt = new Date(0); // Trial ends at Epoch (expired immediately)
       trialEndsAt.setHours(trialEndsAt.getHours() - 1);
 
       // Try to get referral code from API if missing from JWT to avoid race conditions
