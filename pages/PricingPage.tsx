@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/ui/Button';
@@ -8,6 +8,7 @@ import { usePaddle } from '../context/PaddleContext';
 import api from '../services/api';
 import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
 import { usePublicRouter } from '../context/PublicRouterContext';
+import { useView } from '../context/ViewContext';
 
 type UiStage = 'idle' | 'opening' | 'paid' | 'activated' | 'error';
 type BillingCycle = 'monthly' | 'yearly';
@@ -47,12 +48,22 @@ const PricingPage: React.FC = () => {
         }
     }, [paddle, accessToken]);
 
+    const { navigateTo } = useView();
+
     // Listen for global payment success event (from PaddleContext)
     useEffect(() => {
-        const handlePaymentSuccess = () => {
-            console.log('[PricingPage] Payment success event received!');
+        const handlePaymentSuccess = async () => {
+            console.log('[PricingPage] Payment success event received! Starting sync...');
             setUiStage('paid');
-            // Trigger immediate refresh, the sync endpoint should have already run
+
+            // Force immediate sync with Paddle to bypass webhook latency
+            try {
+                if (accessToken) await api.syncSubscription(accessToken);
+            } catch (e) {
+                console.error('Sync failed', e);
+            }
+
+            // Trigger immediate refresh
             refreshUser().then((updated) => {
                 if (updated?.subscriptionStatus === 'ACTIVE') {
                     setUiStage('activated');
@@ -61,7 +72,7 @@ const PricingPage: React.FC = () => {
         };
         window.addEventListener('payment_success', handlePaymentSuccess);
         return () => window.removeEventListener('payment_success', handlePaymentSuccess);
-    }, [refreshUser]);
+    }, [refreshUser, accessToken]);
 
     // TODO: Add these to your .env file
     const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
@@ -120,6 +131,11 @@ const PricingPage: React.FC = () => {
             const startPolling = async () => {
                 setUiStage('paid');
 
+                // Force a sync at start of polling (in case webhook is slow)
+                if (accessToken) {
+                    await api.syncSubscription(accessToken).catch(() => null);
+                }
+
                 const waits = [2000, 3000, 5000, 8000, 13000, 21000, 34000];
                 for (let i = 0; i < waits.length; i++) {
                     const updated = await refreshUser();
@@ -147,14 +163,13 @@ const PricingPage: React.FC = () => {
     React.useEffect(() => {
         if (uiStage === 'activated') {
             const timer = setTimeout(() => {
-                // Determine where to go - default to dashboard, but if they came from somewhere else we could handle that.
-                // For now, simple redirect to home/dashboard.
-                window.location.hash = ''; // Clear hash if any
-                window.location.pathname = '/dashboard';
+                // Determine where to go - default to dashboard
+                navigateTo('dashboard');
+                // Also force reload if needed, but navigateTo handles ViewContext state which controls DashboardPage render
             }, 3000); // 3 second delay to read the success message
             return () => clearTimeout(timer);
         }
-    }, [uiStage]);
+    }, [uiStage, navigateTo]);
 
     if (uiStage === 'activated' || uiStage === 'paid') {
         return (
