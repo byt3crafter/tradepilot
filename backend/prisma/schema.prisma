@@ -16,6 +16,7 @@ model User {
   role               String    @default("USER") // USER or ADMIN
   createdAt          DateTime  @default(now())
   lastLoginAt        DateTime?
+  lastActiveAt       DateTime?
 
   // Subscription / Billing
   subscriptionStatus String    @default("INACTIVE")
@@ -381,4 +382,12 @@ model PricingPlan {
   features        String[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model SystemConfig {
+  id                String   @id @default(uuid())
+  key               String   @unique // e.g., 'main'
+  isMaintenanceMode Boolean  @default(false)
+  maintenanceMessage String?
+  updatedAt         DateTime @updatedAt
 }
