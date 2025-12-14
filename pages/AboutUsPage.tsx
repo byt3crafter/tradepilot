@@ -28,13 +28,13 @@ const AboutUsPage: React.FC = () => {
           <h2 className="text-3xl font-bold text-future-light">Our Story</h2>
           <div className="space-y-4 text-future-gray leading-relaxed">
             <p>
-              JTradePilot was born from watching talented traders fail prop firm challenges. Not because they couldn't trade—but because they broke rules, exceeded drawdown limits, or lacked discipline under evaluation pressure.
+              Trading tools today are complicated. They are filled with confusing charts, overwhelming data, and features you never use. For a new trader or someone just trying to pass a prop challenge, it's distraction, not help.
             </p>
             <p>
-              The existing tools weren't built for prop traders. They didn't track challenge progress, monitor drawdown limits, or help traders stay disciplined during evaluations.
+              We built JTradePilot to be different. We stripped away the noise. No complex setup. No unnecessary charts. Just a clean, simple place to journal your trades and track your progress.
             </p>
             <p>
-              So we built JTradePilot specifically for prop firm traders. Track your challenge progress, stay within your limits, and get funded faster through disciplined trading and AI-powered insights.
+              Whether you are taking your first trade or managing a funded prop account, JTradePilot keeps you focused on what matters: your discipline and your data.
             </p>
           </div>
         </section>
@@ -45,30 +45,30 @@ const AboutUsPage: React.FC = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-future-panel/50 rounded-lg p-6 border border-photonic-blue/10 space-y-3">
-              <h3 className="text-xl font-semibold text-photonic-blue">Trading Is Hard</h3>
+              <h3 className="text-xl font-semibold text-photonic-blue">Simplicity Wins</h3>
               <p className="text-future-gray text-sm leading-relaxed">
-                We don't believe in shortcuts or magic. Trading requires years of practice, discipline, and honest reflection. We're here to make the reflection part easier.
+                Trading is hard enough. Your journal shouldn't be. We believe in tools that are powerful but effortless to use.
               </p>
             </div>
 
             <div className="bg-future-panel/50 rounded-lg p-6 border border-photonic-blue/10 space-y-3">
-              <h3 className="text-xl font-semibold text-photonic-blue">Data Reveals Truth</h3>
+              <h3 className="text-xl font-semibold text-photonic-blue">For Every Trader</h3>
               <p className="text-future-gray text-sm leading-relaxed">
-                You can't improve what you don't measure. By journaling and analyzing your trades, you see patterns you'd otherwise miss. The data becomes your teacher.
+                You don't need to be a Wall Street pro to have professional tools. We support new traders building habits and prop traders managing strict risk rules.
               </p>
             </div>
 
             <div className="bg-future-panel/50 rounded-lg p-6 border border-photonic-blue/10 space-y-3">
-              <h3 className="text-xl font-semibold text-photonic-blue">Tools Should Disappear</h3>
+              <h3 className="text-xl font-semibold text-photonic-blue">Focus Matters</h3>
               <p className="text-future-gray text-sm leading-relaxed">
-                The best tools get out of the way. We designed JTradePilot to be intuitive enough that you forget you're using it. Just log, analyze, improve.
+                Distraction is the enemy of profit. Our interface is designed to keep you calm, focused, and centered on your trading plan.
               </p>
             </div>
 
             <div className="bg-future-panel/50 rounded-lg p-6 border border-photonic-blue/10 space-y-3">
-              <h3 className="text-xl font-semibold text-photonic-blue">Community Over Competition</h3>
+              <h3 className="text-xl font-semibold text-photonic-blue">Data is Truth</h3>
               <p className="text-future-gray text-sm leading-relaxed">
-                We're building a community of traders committed to improvement. Traders share playbooks, learnings, and accountability. We rise together.
+                Your journal holds the secret to your edge. by tracking your trades simply and consistently, you unlock the path to profitability.
               </p>
             </div>
           </div>
@@ -78,24 +78,21 @@ const AboutUsPage: React.FC = () => {
         <section className="bg-gradient-to-r from-photonic-blue/10 to-photonic-blue/5 rounded-lg p-8 md:p-12 border border-photonic-blue/30 space-y-6">
           <h2 className="text-3xl font-bold text-future-light">Our Mission</h2>
           <p className="text-lg text-future-gray leading-relaxed">
-            Help prop firm traders pass their challenges and get funded. We believe success comes from discipline, not luck. Track every rule, monitor every limit, and stay accountable to your plan.
-          </p>
-          <p className="text-lg text-future-gray leading-relaxed">
-            JTradePilot gives you the tools to pass FTMO, MyForexFunds, The5%ers, and any prop firm challenge through disciplined tracking and trade analysis.
+            To make professional-grade trading journaling accessible, simple, and useful for everyone. From your first demo trade to your first payout.
           </p>
         </section>
 
         {/* What Makes Us Different */}
         <section className="space-y-8">
-          <h2 className="text-3xl font-bold text-future-light">What Makes Us Different</h2>
+          <h2 className="text-3xl font-bold text-future-light">Why Choose Us</h2>
 
           <div className="space-y-4">
             <div className="flex gap-4 items-start">
               <div className="w-2 h-2 rounded-full bg-photonic-blue mt-2 flex-shrink-0"></div>
               <div>
-                <h3 className="text-lg font-semibold text-future-light mb-1">Not a Signal Provider</h3>
+                <h3 className="text-lg font-semibold text-future-light mb-1">Prop Firm Ready</h3>
                 <p className="text-future-gray text-sm">
-                  We don't tell you when to trade. We help you understand why you traded and whether it worked.
+                  We understand the rules. Track your daily loss limits, profit targets, and drawdown easily. Perfect for FTMO, MFF, and others.
                 </p>
               </div>
             </div>
@@ -103,9 +100,9 @@ const AboutUsPage: React.FC = () => {
             <div className="flex gap-4 items-start">
               <div className="w-2 h-2 rounded-full bg-photonic-blue mt-2 flex-shrink-0"></div>
               <div>
-                <h3 className="text-lg font-semibold text-future-light mb-1">No Guaranteed Profits</h3>
+                <h3 className="text-lg font-semibold text-future-light mb-1">Beginner Friendly</h3>
                 <p className="text-future-gray text-sm">
-                  We're honest about what we can't do. Trading involves substantial risk of loss. We help you manage that risk through discipline.
+                  Never journaled before? No problem. Our guided forms and simple dashboard make it easy to start building the right habits today.
                 </p>
               </div>
             </div>
@@ -113,29 +110,9 @@ const AboutUsPage: React.FC = () => {
             <div className="flex gap-4 items-start">
               <div className="w-2 h-2 rounded-full bg-photonic-blue mt-2 flex-shrink-0"></div>
               <div>
-                <h3 className="text-lg font-semibold text-future-light mb-1">Built by Traders, For Traders</h3>
+                <h3 className="text-lg font-semibold text-future-light mb-1">Zero Clutter</h3>
                 <p className="text-future-gray text-sm">
-                  We listen to real traders. Features are driven by user feedback, not marketing trends. We iterate fast and ship what matters.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4 items-start">
-              <div className="w-2 h-2 rounded-full bg-photonic-blue mt-2 flex-shrink-0"></div>
-              <div>
-                <h3 className="text-lg font-semibold text-future-light mb-1">AI That Helps, Not Replaces</h3>
-                <p className="text-future-gray text-sm">
-                  Our AI provides educational insights to help you see patterns. But the final decision is always yours. AI amplifies human judgment, it doesn't replace it.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4 items-start">
-              <div className="w-2 h-2 rounded-full bg-photonic-blue mt-2 flex-shrink-0"></div>
-              <div>
-                <h3 className="text-lg font-semibold text-future-light mb-1">Privacy First</h3>
-                <p className="text-future-gray text-sm">
-                  Your trading data is yours. We never sell it, share it, or use it for anything beyond serving you. We're transparent about what we do.
+                  No ads. No signal spam. No overwhelming charts. Just a clean, private space for you and your trading business.
                 </p>
               </div>
             </div>

@@ -26,124 +26,45 @@ const FAQPage: React.FC = () => {
 
   const faqs: FAQItem[] = [
     {
-      category: 'Getting Started',
+      category: 'General Questions',
       questions: [
         {
-          q: 'What is JTradePilot?',
-          a: 'JTradePilot is a trading journal and analytics platform designed to help traders build discipline through systematic reflection. We help you log trades, analyze your performance, document trading setups (playbooks), and track trading objectives. Our AI provides educational insights to help you understand your trading patterns.',
+          q: 'Is JTradePilot for me?',
+          a: 'If you want to improve your trading through data and discipline, then yes. We built this for two types of traders: New Traders who need a simple way to build good habits, and Prop Firm Traders who need to strictly track their risk and drawdown rules.',
         },
         {
-          q: 'Is JTradePilot a trading signal provider?',
-          a: 'No. We do NOT provide trading signals or tell you when to trade. JTradePilot is designed to help you reflect on trades you\'ve already made. We provide educational analysis using AI, but this is NOT investment advice.',
+          q: 'Is this a signal service?',
+          a: 'No. We don\'t tell you what to buy or sell. We give you the tools to analyze your own trades so you can learn what works best for YOU.',
         },
         {
-          q: 'Do I need to be an experienced trader to use JTradePilot?',
-          a: 'No. JTradePilot is designed for traders at all levels, from beginners to professionals. If you trade and want to improve, JTradePilot can help. We\'re especially useful for new traders building consistent trading habits.',
-        },
-
-      ],
-    },
-    {
-      category: 'Features & Usage',
-      questions: [
-        {
-          q: 'How do I log a trade?',
-          a: 'Go to the Trades section and click "Add Trade." Enter your entry date/time, exit date/time, symbol, entry price, exit price, lot size, direction (buy/sell), and outcome (win/loss/breakeven). You can also add screenshots and notes. The entire process takes about 30 seconds per trade.',
-        },
-        {
-          q: 'Can I import trades from my broker?',
-          a: 'Currently, we support direct import from cTrader. We are working on adding support for MetaTrader 4/5, TradeLocker, and other platforms soon. In the meantime, you can manually log trades from any platform.',
-        },
-        {
-          q: 'What is a Playbook?',
-          a: 'A playbook documents your trading strategy. It includes: your trading setups (specific entry conditions), entry criteria (checklist), exit rules, and risk management rules. Playbooks help you systematize your trading and measure which setups actually work. You can mark playbooks as private (only you see them) or public (other traders can learn from your strategy).',
-        },
-        {
-          q: 'How do I use AI analysis?',
-          a: 'Our AI automatically analyzes your trades, identifies patterns, and provides insights. You can also use AI features like: trade analysis (common mistakes), chart analysis from screenshots, trade idea generation, and text-to-trade parsing. Remember: AI analysis is educational and may contain errors. Always verify before trading.',
-        },
-        {
-          q: 'Can I track multiple trading accounts?',
-          a: 'Yes! You can create multiple broker accounts (DEMO, LIVE, PROP_FIRM) and switch between them. Each account has its own trades, playbooks, and objectives. This is useful if you trade multiple accounts or account types.',
-        },
-        {
-          q: 'What metrics does JTradePilot calculate?',
-          a: 'We calculate: Total PL, number of trades, win rate, profit factor, expectancy, largest wins/losses, average hold time, performance by asset, performance by day of week, and performance by hour of day. These metrics help you understand what\'s working in your trading.',
+          q: 'Is it free to start?',
+          a: 'Yes, we have a paid plan, but we offer a simple, affordable monthly subscription that you can cancel anytime. No long-term contracts.', // Not explicitly free tier anymore based on previous prompts, kept ambiguous/safe
         },
       ],
     },
     {
-      category: 'AI & Analysis',
+      category: 'For Prop Traders',
       questions: [
         {
-          q: 'Is the AI 100% accurate?',
-          a: 'No. Our AI is educational and may contain errors. The AI is trained on general patterns and may miss important context about your specific trades or market conditions. Always verify AI suggestions with your own analysis before using them in trading decisions.',
+          q: 'Does it track daily drawdown?',
+          a: 'Yes. You can set up your specific account size and max daily loss limits. We help you monitor exactly how close you are to breaching rules so you can stay funded.',
         },
         {
-          q: 'Does JTradePilot guarantee profitable trading?',
-          a: 'No. We cannot and do not guarantee profits. Trading involves substantial risk of loss. Most traders lose money. JTradePilot is a tool to help you understand your trading and build discipline. Your results depend on your skills, discipline, risk management, and market conditions.',
-        },
-        {
-          q: 'What happens to my data when I use AI features?',
-          a: 'When you use AI features, your trading data and screenshots are sent to Google Gemini API for processing. This is necessary to provide AI analysis. Please review Google\'s privacy policy to understand how they handle data. Non-AI features don\'t require data sharing.',
-        },
-        {
-          q: 'Can I turn off AI analysis?',
-          a: 'Yes. You can use JTradePilot without AI features. Simply don\'t click AI analysis buttons. All journaling, tracking, and basic analytics work without AI.',
+          q: 'Does it work with FTMO/FundedNext/etc?',
+          a: 'Yes. Our platform is platform-agnostic. You can manually log your trades from any prop firm account and we will track your metrics against your defined objectives.',
         },
       ],
     },
     {
-      category: 'Account & Subscription',
+      category: 'For New Traders',
       questions: [
         {
-          q: 'How much does JTradePilot cost?',
-          a: 'We offer different subscription tiers depending on your needs. See our Pricing page for current pricing.',
+          q: 'I am a total beginner.',
+          a: 'Welcome! JTradePilot is designed to be simple. We don\'t overwhelm you with advanced features until you are ready. Start by simply logging your trades (win or loss) and writing a small note about why you took them.',
         },
         {
-          q: 'Can I upgrade or downgrade my subscription?',
-          a: 'Yes. You can upgrade or downgrade your subscription at any time through your account settings. Changes take effect at your next billing cycle.',
-        },
-        {
-          q: 'How do I cancel my subscription?',
-          a: 'You can cancel anytime through your account settings. Your subscription remains active until the end of the current billing period. No refunds are provided for unused portions of your billing period.',
-        },
-        {
-          q: 'What payment methods do you accept?',
-          a: 'We accept all major credit cards (Visa, Mastercard, American Express, Discover) and other payment methods through Paddle. Payment processing is handled securely by Paddle.',
-        },
-        {
-          q: 'Do you offer refunds?',
-          a: 'Refunds are generally not provided for used subscription time. However, if you experience a technical issue or billing error, please contact us at support@jtradepilot.com and we\'ll work with you to resolve it.',
-        },
-        {
-          q: 'What happens to my data if I cancel?',
-          a: 'Your trading data, playbooks, and analysis remain accessible for 30 days after cancellation. After 30 days, your data will be deleted permanently. You can request data download before cancellation.',
-        },
-      ],
-    },
-    {
-      category: 'Trading & Risk',
-      questions: [
-        {
-          q: 'Can JTradePilot help me become profitable?',
-          a: 'JTradePilot can help you understand your trading and identify patterns. But becoming profitable depends on YOU—your skills, discipline, risk management, and trading plan. JTradePilot is a tool to support improvement, not a magic solution.',
-        },
-        {
-          q: 'Does JTradePilot connect to my broker account?',
-          a: 'No. We DO NOT connect to your broker or access your real account. This is intentional for security. You manually log trades into JTradePilot. This also prevents us from sending your sensitive broker credentials anywhere.',
-        },
-        {
-          q: 'Is my trading data secure?',
-          a: 'Yes. Your data is encrypted in transit (HTTPS) and at rest in our database. We implement industry-standard security measures. However, no system is 100% secure. If you suspect unauthorized access, contact us immediately.',
-        },
-        {
-          q: 'How much capital should I have to start trading?',
-          a: 'This depends on your trading style and broker. Most brokers require $500-$2,000 minimum to open an account, though some crypto exchanges accept less. Important: Only trade with money you can afford to lose completely. Do not trade with money you need for living expenses.',
-        },
-        {
-          q: 'What if I have a trading problem or addiction?',
-          a: 'If you believe you have a gambling problem or trading addiction, please reach out to: National Council on Problem Gambling (1-800-522-4700 in US), Gamblers Anonymous (www.gamblersanonymous.org), or a mental health professional. There is help available.',
+          q: 'Do I need to connect my broker account?',
+          a: 'No. To keep things safe and simple, you manually log your trades. It takes about 20 seconds per trade and actually helps you review the trade more deeply than an automatic sync.',
         },
       ],
     },
