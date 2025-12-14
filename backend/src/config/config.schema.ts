@@ -33,7 +33,7 @@ export const JoiValidationSchema = Joi.object({
   PADDLE_API_KEY: Joi.string().required(),
   PADDLE_CLIENT_SIDE_TOKEN: Joi.string().required(),
   PADDLE_WEBHOOK_SECRET_KEY: Joi.string().required(),
-  PADDLE_PRICE_ID: Joi.string().required(),
+  PADDLE_PRICE_ID: Joi.string().optional().allow(''),
   PADDLE_ENV: Joi.string().valid('sandbox', 'production').default('sandbox'),
 
   // Feature Flags
