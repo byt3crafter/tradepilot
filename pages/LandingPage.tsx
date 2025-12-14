@@ -63,10 +63,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
         <div className="py-20 md:py-32 px-4">
           <div className="text-center max-w-4xl mx-auto animate-fade-in-up">
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold font-orbitron text-white mb-6 tracking-tight">
-              Pass Your Prop Firm Challenge
+              Trading Journal Simplified.
             </h1>
             <p className="text-xl sm:text-2xl text-photonic-blue font-semibold mb-8">
-              Track Your Progress. Stay Disciplined. Get Funded.
+              No noise. Just clean data, simple journaling, and clear insights.
             </p>
             <p className="text-base sm:text-lg font-medium text-primary/80 mb-10">
               $5/month • Cancel anytime
