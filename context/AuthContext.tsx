@@ -104,6 +104,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Retroactive Referral Sync:
+  // If user is signed in, has a referral code in localStorage, but NOT in their metadata,
+  // we update it now. This handles the "Login with Google" flow where metadata was missed.
+  useEffect(() => {
+    const syncReferralCode = async () => {
+      if (!clerkUser || !isUserLoaded) return;
+
+      const storedRef = localStorage.getItem('referralCode');
+      const existingRef = clerkUser.unsafeMetadata?.referralCode;
+
+      if (storedRef && !existingRef) {
+        console.log('[AuthContext] Syncing missing referral code from storage:', storedRef);
+        try {
+          await clerkUser.update({
+            unsafeMetadata: {
+              ...clerkUser.unsafeMetadata,
+              referralCode: storedRef
+            }
+          });
+          // Clear it so we don't try again repeatedly (though the check above handles that)
+          localStorage.removeItem('referralCode');
+        } catch (err) {
+          console.error('[AuthContext] Failed to sync referral code:', err);
+        }
+      }
+    };
+
+    syncReferralCode();
+  }, [clerkUser, isUserLoaded]);
+
   const subscriptionState = useMemo(() => {
     // hasGiftedAccess = true ONLY if proAccessExpiresAt is set AND in the future
     const hasGiftedAccess = appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date();
