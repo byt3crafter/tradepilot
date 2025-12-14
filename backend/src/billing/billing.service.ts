@@ -527,4 +527,10 @@ export class BillingService {
         return SubscriptionStatus.TRIALING;
     }
   }
+  async getPricingPlans() {
+    return this.prisma.pricingPlan.findMany({
+      where: { isActive: true },
+      orderBy: { amount: 'asc' }
+    });
+  }
 }

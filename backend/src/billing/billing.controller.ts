@@ -28,6 +28,11 @@ export class BillingController {
     };
   }
 
+  @Get('plans')
+  getPlans() {
+    return this.billingService.getPricingPlans();
+  }
+
   @UseGuards(JwtAccessGuard)
   @Post('checkout')
   async createCheckoutSession(
