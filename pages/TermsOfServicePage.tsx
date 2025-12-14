@@ -468,7 +468,7 @@ const TermsOfServicePage: React.FC = () => {
                 <strong>Legal Business Name:</strong> Ludovic Micinthe
               </p>
               <p className="text-future-gray">
-                <strong>Email:</strong> legal@jtradepilot.com
+                <strong>Email:</strong> support@jtradepilot.com
               </p>
             </div>
           </section>

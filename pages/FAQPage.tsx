@@ -38,7 +38,7 @@ const FAQPage: React.FC = () => {
         },
         {
           q: 'Is it free to start?',
-          a: 'Yes, we have a paid plan, but we offer a simple, affordable monthly subscription that you can cancel anytime. No long-term contracts.', // Not explicitly free tier anymore based on previous prompts, kept ambiguous/safe
+          a: 'JTradePilot is a premium tool for serious traders. We offer a simple, affordable monthly subscription that you can cancel anytime. There are no long-term contracts.',
         },
       ],
     },

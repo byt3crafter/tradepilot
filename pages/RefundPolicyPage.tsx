@@ -136,7 +136,7 @@ const RefundPolicyPage: React.FC = () => {
                                 If you have any questions about this Refund Policy, please contact us:
                             </p>
                             <p className="text-future-gray">
-                                <strong>Email:</strong> legal@jtradepilot.com
+                                <strong>Email:</strong> support@jtradepilot.com
                             </p>
                         </div>
                     </section>

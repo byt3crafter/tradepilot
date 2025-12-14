@@ -349,7 +349,7 @@ const PrivacyPolicyPage: React.FC = () => {
                 please contact us at:
               </p>
               <p className="text-future-gray">
-                <strong>Email:</strong> privacy@jtradepilot.com
+                <strong>Email:</strong> support@jtradepilot.com
               </p>
               <p className="text-future-gray">
                 <strong>Website:</strong> www.jtradepilot.com
