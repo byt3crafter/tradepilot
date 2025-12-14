@@ -3,8 +3,10 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
+import MaintenancePage from './pages/MaintenancePage'; // Import
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Spinner from './components/Spinner';
+import api from './services/api'; // Import
 import { ViewProvider } from './context/ViewContext';
 import { PaddleProvider } from './context/PaddleContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
@@ -142,15 +144,39 @@ const UnauthenticatedApp: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
+  const { user } = useAuth();
+  const { currentPath } = usePublicRouter();
+  const [maintenance, setMaintenance] = useState(false);
   const [locationHash, setLocationHash] = useState(window.location.hash);
 
   useEffect(() => {
+    // Check maintenance status
+    const checkStatus = () => {
+      api.getSystemStatus()
+        .then(res => setMaintenance(res.maintenance))
+        .catch(() => { });
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 30000);
+
     const handleHashChange = () => {
       setLocationHash(window.location.hash);
     };
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      clearInterval(interval);
+    };
   }, []);
+
+  // Maintenance Check
+  if (maintenance && user?.role !== 'ADMIN') {
+    // Allow login page so admins can sign in
+    // also allow admin panel hash (which redirects to login if needed)
+    if (currentPath !== '/login' && !locationHash.includes('admin')) {
+      return <MaintenancePage />;
+    }
+  }
 
   // Handle Admin Route specially (though ideally this is protected by Clerk too)
   if (locationHash.startsWith('#/admin-panel')) {

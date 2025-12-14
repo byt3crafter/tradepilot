@@ -533,4 +533,11 @@ export class BillingService {
       orderBy: { amount: 'asc' }
     });
   }
+  async getSystemStatus() {
+    const config = await this.prisma.systemConfig.findUnique({ where: { key: 'main' } });
+    return {
+      maintenance: config?.isMaintenanceMode || false,
+      message: config?.maintenanceMessage
+    };
+  }
 }

@@ -243,6 +243,13 @@ export interface AdminStats {
   activeSubscriptions: number;
   trialUsers: number;
   mrr: number;
+  onlineUsers?: number;
+}
+
+export interface SystemConfig {
+  id: string;
+  isMaintenanceMode: boolean;
+  maintenanceMessage?: string | null;
 }
 
 export interface AdminUser {

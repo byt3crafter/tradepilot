@@ -33,6 +33,11 @@ export class BillingController {
     return this.billingService.getPricingPlans();
   }
 
+  @Get('status')
+  getSystemStatus() {
+    return this.billingService.getSystemStatus();
+  }
+
   @UseGuards(JwtAccessGuard)
   @Post('checkout')
   async createCheckoutSession(

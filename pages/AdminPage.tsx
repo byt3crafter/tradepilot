@@ -3,7 +3,7 @@ import StatCard from '../components/admin/StatCard';
 import UserManagementTable from '../components/admin/UserManagementTable';
 import AdminSidebar from '../components/admin/AdminSidebar';
 import { useAuth } from '../context/AuthContext';
-import { AdminStats, AdminUser, PropFirmTemplate } from '../types';
+import { AdminStats, AdminUser, PropFirmTemplate, SystemConfig } from '../types';
 import api from '../services/api';
 import Spinner from '../components/Spinner';
 import Button from '../components/ui/Button';
@@ -24,10 +24,12 @@ const AdminPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [templates, setTemplates] = useState<PropFirmTemplate[]>([]);
   const [playbooks, setPlaybooks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
   const [error, setError] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,16 +74,18 @@ const AdminPage: React.FC = () => {
       setIsLoading(true);
       setError('');
       try {
-        const [statsData, usersData, templatesData, playbooksData] = await Promise.all([
+        const [statsData, usersData, templatesData, playbooksData, configData] = await Promise.all([
           api.getAdminStats(accessToken),
           api.getAdminUsers(accessToken),
           api.getAllPropFirmTemplates(accessToken),
           api.getCommunityPlaybooks(accessToken),
+          api.getSystemConfig(accessToken),
         ]);
         setStats(statsData);
         setUsers(usersData);
         setTemplates(templatesData);
         setPlaybooks(playbooksData);
+        setSystemConfig(configData);
       } catch (err: any) {
         setError(err.message || 'Failed to load admin data.');
       } finally {
@@ -94,6 +98,19 @@ const AdminPage: React.FC = () => {
   const handleBackToApp = () => {
     window.history.pushState({}, '', '/');
     window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
+  const handleToggleMaintenance = async () => {
+    if (!accessToken || !systemConfig) return;
+    setIsToggling(true);
+    try {
+      const newConfig = await api.toggleMaintenance(!systemConfig.isMaintenanceMode, accessToken);
+      setSystemConfig(newConfig);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   const handleOpenGrantModal = (user: AdminUser) => {
@@ -160,9 +177,29 @@ const AdminPage: React.FC = () => {
           <h1 className="text-2xl font-orbitron text-white mb-6">Admin Dashboard</h1>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Total Users" value={stats?.totalUsers ?? 0} />
+            <StatCard title="Online Users" value={stats?.onlineUsers ?? 0} />
             <StatCard title="Active Subscriptions" value={stats?.activeSubscriptions ?? 0} />
-            <StatCard title="Users in Trial" value={stats?.trialUsers ?? 0} />
             <StatCard title="MRR" value={`$${stats?.mrr.toFixed(2) ?? '0.00'}`} />
+          </div>
+
+          <div className="mt-8 p-6 bg-white/5 border border-white/10 rounded-xl">
+            <h2 className="text-xl font-orbitron text-white mb-4">System Controls</h2>
+            <div className="flex items-center justify-between max-w-md">
+              <span className="text-gray-400">Maintenance Mode</span>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm ${systemConfig?.isMaintenanceMode ? 'text-red-500' : 'text-green-500'}`}>
+                  {systemConfig?.isMaintenanceMode ? 'Enabled' : 'Disabled'}
+                </span>
+                <Button
+                  onClick={handleToggleMaintenance}
+                  variant={systemConfig?.isMaintenanceMode ? 'danger' : 'secondary'}
+                  isLoading={isToggling}
+                  className="w-auto h-8 text-sm"
+                >
+                  {systemConfig?.isMaintenanceMode ? 'Disable' : 'Enable'}
+                </Button>
+              </div>
+            </div>
           </div>
         </>
       );

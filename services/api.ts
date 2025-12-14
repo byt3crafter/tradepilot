@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics, Notification } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics, Notification, SystemConfig } from "../types";
 
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
 
@@ -77,11 +77,14 @@ export interface ApiService {
   // Billing
   getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
   getPublicPlans(): Promise<any[]>;
+  getSystemStatus(): Promise<{ maintenance: boolean; message?: string }>;
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }>;
   syncSubscription(token: string): Promise<{ status: string }>;
 
   // Admin
   getAdminStats(token: string): Promise<AdminStats>;
+  getSystemConfig(token: string): Promise<SystemConfig>;
+  toggleMaintenance(enabled: boolean, token: string): Promise<SystemConfig>;
   getAdminUsers(token: string): Promise<AdminUser[]>;
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
   revokeProAccess(userId: string, token: string): Promise<AdminUser>;
@@ -254,9 +257,12 @@ const api: ApiService = {
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }> { return this.post('/api/billing/checkout', { promoCode, priceId, customerEmail }, token); },
   syncSubscription(token: string): Promise<{ status: string }> { return this.post('/api/billing/sync', {}, token); },
   getPublicPlans(): Promise<any[]> { return this.get('/api/billing/plans'); },
+  getSystemStatus(): Promise<{ maintenance: boolean; message?: string }> { return this.get('/api/billing/status'); },
 
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> { return this.get('/api/admin/stats', token); },
+  getSystemConfig(token: string): Promise<SystemConfig> { return this.get('/api/admin/system/config', token); },
+  toggleMaintenance(enabled: boolean, token: string): Promise<SystemConfig> { return this.post('/api/admin/system/maintenance', { enabled }, token); },
   getAdminUsers(token: string): Promise<AdminUser[]> { return this.get('/api/admin/users', token); },
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/grant-pro`, data, token); },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> { return this.delete(`/api/admin/users/${userId}/grant-pro`, token); },
