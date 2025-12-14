@@ -32,7 +32,7 @@ export class AdminService {
     });
     // Placeholder for MRR - this would be a more complex calculation
     // typically derived from Paddle/Stripe data or synced transactions.
-    const mrr = activeSubscriptions * 19.0;
+    const mrr = activeSubscriptions * 5.99;
 
     return plainToInstance(AdminStatsDto, {
       totalUsers,
