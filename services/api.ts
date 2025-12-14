@@ -111,6 +111,8 @@ export interface ApiService {
   createPropFirmTemplate(token: string, data: import('../types').CreatePropFirmTemplateDto): Promise<import('../types').PropFirmTemplate>;
   updatePropFirmTemplate(token: string, id: string, data: Partial<import('../types').CreatePropFirmTemplateDto>): Promise<import('../types').PropFirmTemplate>;
   deletePropFirmTemplate(token: string, id: string): Promise<{ message: string }>;
+  getPricingPlans(token: string): Promise<any[]>;
+  updatePricingPlan(id: string, data: any, token: string): Promise<any>;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {
@@ -277,6 +279,10 @@ const api: ApiService = {
   createPropFirmTemplate(token: string, data: import('../types').CreatePropFirmTemplateDto): Promise<import('../types').PropFirmTemplate> { return this.post('/api/admin/templates', data, token); },
   updatePropFirmTemplate(token: string, id: string, data: Partial<import('../types').CreatePropFirmTemplateDto>): Promise<import('../types').PropFirmTemplate> { return this.patch(`/api/admin/templates/${id}`, data, token); },
   deletePropFirmTemplate(token: string, id: string): Promise<{ message: string }> { return this.delete(`/api/admin/templates/${id}`, token); },
+
+  // Pricing Plans (Admin)
+  getPricingPlans(token: string): Promise<any[]> { return this.get('/api/admin/pricing-plans', token); },
+  updatePricingPlan(id: string, data: any, token: string): Promise<any> { return this.patch(`/api/admin/pricing-plans/${id}`, data, token); },
 
   // Asset Methods
   getAssetSpecs(token: string): Promise<AssetSpecification[]> { return this.get('/api/assets/specs', token); },

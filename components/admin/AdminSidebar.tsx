@@ -10,8 +10,8 @@ import { SparklesIcon } from '../icons/SparklesIcon';
 import { CreditCardIcon } from '../icons/CreditCardIcon';
 
 interface AdminSidebarProps {
-    currentView: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes';
-    onNavigate: (view: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes') => void;
+    currentView: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes' | 'pricing_plans';
+    onNavigate: (view: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes' | 'pricing_plans') => void;
     isCollapsed: boolean;
     isOpen?: boolean;
     onClose?: () => void;
@@ -108,7 +108,20 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
                         isCollapsed={isCollapsed}
                     />
                     <AdminNavItem
-                        icon={<SparklesIcon className="w-4 h-4" />}
+                        icon={<PlaybookIcon className="w-4 h-4" />}
+                        label="Playbooks"
+                        isActive={currentView === 'playbooks'}
+                        onClick={() => { onNavigate('playbooks'); onClose?.(); }}
+                        isCollapsed={isCollapsed}
+                    />
+                    <AdminNavItem
+                        icon={<CreditCardIcon className="w-4 h-4" />}
+                        label="Pricing"
+                        isActive={currentView === 'pricing_plans'}
+                        onClick={() => { onNavigate('pricing_plans'); onClose?.(); }}
+                        isCollapsed={isCollapsed}
+                    />
+                    <AdminNavItem
                         label="Referrals"
                         isActive={currentView === 'referrals'}
                         onClick={() => { onNavigate('referrals'); onClose?.(); }}

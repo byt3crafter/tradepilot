@@ -14,9 +14,10 @@ import TemplateFormModal from '../components/admin/TemplateFormModal';
 import PlaybooksManagement from '../components/admin/PlaybooksManagement';
 import ReferralDashboard from '../components/admin/ReferralDashboard';
 import PromoCodesManagement from '../components/admin/PromoCodesManagement';
+import AdminPricingPlans from '../components/admin/AdminPricingPlans';
 import { MenuIcon } from '../components/icons/MenuIcon';
 
-type AdminView = 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes';
+type AdminView = 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes' | 'pricing_plans';
 
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
@@ -211,6 +212,10 @@ const AdminPage: React.FC = () => {
     if (currentView === 'promo_codes') {
       return <PromoCodesManagement />;
     }
+
+    if (currentView === 'pricing_plans') {
+      return <AdminPricingPlans />;
+    }
   };
 
   return (
@@ -235,7 +240,7 @@ const AdminPage: React.FC = () => {
               <MenuIcon className="w-6 h-6" />
             </button>
             <span className="font-orbitron text-lg text-secondary">
-              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : currentView === 'templates' ? 'Templates' : currentView === 'playbooks' ? 'Playbooks' : currentView === 'referrals' ? 'Referrals' : 'Promo Codes'}
+              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : currentView === 'templates' ? 'Templates' : currentView === 'playbooks' ? 'Playbooks' : currentView === 'referrals' ? 'Referrals' : currentView === 'promo_codes' ? 'Promo Codes' : 'Pricing Plans'}
             </span>
           </div>
           <div className="flex items-center gap-4">
