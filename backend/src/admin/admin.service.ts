@@ -29,18 +29,28 @@ export class AdminService {
       where: { subscriptionStatus: 'TRIALING' },
     });
 
-    // Calculate MRR based on actual plan interval
+    // Calculate MRR based on actual plan interval and price
     const activeUsers = await this.prisma.user.findMany({
       where: { subscriptionStatus: 'ACTIVE' },
-      select: { planInterval: true }
+      select: {
+        planInterval: true,
+        subscriptionPrice: true
+      }
     });
 
     const activeSubscriptions = activeUsers.length;
 
     const mrr = activeUsers.reduce((acc, user) => {
-      // Yearly plan ($60/yr) contributes $5/mo to MRR
+      // If we have accurate stored price
+      if (user.subscriptionPrice) {
+        if (user.planInterval === 'year') {
+          return acc + (user.subscriptionPrice / 12);
+        }
+        return acc + user.subscriptionPrice;
+      }
+
+      // Fallback for legacy records without stored price
       if (user.planInterval === 'year') return acc + 5.00;
-      // Monthly plan ($5.99/mo)
       return acc + 5.99;
     }, 0);
 

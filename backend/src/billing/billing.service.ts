@@ -254,6 +254,15 @@ export class BillingService {
         updateData.planInterval = latestSub.billingCycle.interval;
       }
 
+      // Capture Price
+      if (latestSub.items && latestSub.items.length > 0) {
+        const item = latestSub.items[0];
+        if (item.price && item.price.unitPrice) {
+          updateData.subscriptionPrice = parseFloat(item.price.unitPrice.amount);
+          updateData.subscriptionCurrency = item.price.unitPrice.currencyCode;
+        }
+      }
+
       this.logger.log(`Sync found subscription ${latestSub.id} [${latestSub.status}]. Updating DB.`);
 
       await this.prisma.user.update({
@@ -359,6 +368,15 @@ export class BillingService {
 
         if (data.billing_cycle) {
           updateData.planInterval = data.billing_cycle.interval;
+        }
+
+        // Capture Price (Webhook data is usually snake_case)
+        if (data.items && data.items.length > 0) {
+          const item = data.items[0];
+          if (item.price && item.price.unit_price) {
+            updateData.subscriptionPrice = parseFloat(item.price.unit_price.amount);
+            updateData.subscriptionCurrency = item.price.unit_price.currency_code;
+          }
         }
 
         // If subscription is now active, clear/update trial end date
