@@ -85,7 +85,7 @@ const FAQPage: React.FC = () => {
         },
         {
           q: 'How can I suggest a feature?',
-          a: 'We love feedback! Submit feature requests to feedback@jtradepilot.com or use the feedback form in your account. Since we\'re in beta, your suggestions directly influence what we build next.',
+          a: 'We love feedback! Submit feature requests to support@jtradepilot.com or use the feedback form in your account. Since we\'re in beta, your suggestions directly influence what we build next.',
         },
         {
           q: 'What if I forget my password?',
