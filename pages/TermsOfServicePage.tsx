@@ -50,7 +50,7 @@ const TermsOfServicePage: React.FC = () => {
           <section className="bg-future-panel/50 rounded-lg p-6 border border-photonic-blue/10">
             <div className="mb-4 text-future-gray">
               <p className="font-semibold text-future-light mb-2">Service Operator:</p>
-              <p>JTradePilot</p>
+              <p>JTradePilot (Sole Proprietorship)</p>
               <p>Contact: support@jtradepilot.com</p>
             </div>
             <p className="text-future-gray mb-4">
@@ -464,7 +464,7 @@ const TermsOfServicePage: React.FC = () => {
                 For questions about these Terms, please contact:
               </p>
               <p className="text-future-gray">
-                <strong>Legal Business Name:</strong> JTradePilot
+                <strong>Legal Business Name:</strong> JTradePilot (Sole Proprietorship)
               </p>
               <p className="text-future-gray">
                 <strong>Email:</strong> support@jtradepilot.com
