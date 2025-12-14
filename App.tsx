@@ -83,16 +83,7 @@ const UnauthenticatedApp: React.FC = () => {
   const { currentPath, navigate, replace } = usePublicRouter();
 
   // Load animated background only on landing page
-  useEffect(() => {
-    if (currentPath === '/') {
-      // Landing page - load UnicornStudio
-      (window as any).loadUnicornStudio?.();
-      (window as any).showAnimatedBackground?.(true);
-    } else {
-      // Other pages - hide background
-      (window as any).showAnimatedBackground?.(false);
-    }
-  }, [currentPath]);
+
 
   if (currentPath === '/login') {
     return <LoginPage />;
