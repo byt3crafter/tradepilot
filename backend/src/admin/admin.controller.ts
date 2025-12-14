@@ -98,4 +98,15 @@ export class AdminController {
   updatePricingPlan(@Param('id') id: string, @Body() dto: any) {
     return this.adminService.updatePricingPlan(id, dto);
   }
+
+  // System Configuration
+  @Get('system/config')
+  getSystemConfig() {
+    return this.adminService.getSystemConfig();
+  }
+
+  @Post('system/maintenance')
+  toggleMaintenance(@Body('enabled') enabled: boolean) {
+    return this.adminService.toggleMaintenance(enabled);
+  }
 }

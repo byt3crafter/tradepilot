@@ -54,13 +54,45 @@ export class AdminService {
       return acc + 5.99;
     }, 0);
 
-    return plainToInstance(AdminStatsDto, {
+    const onlineUsers = await this.prisma.user.count({
+      where: { lastActiveAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } }
+    });
+
+    return {
       totalUsers,
       activeSubscriptions,
       trialUsers,
       mrr,
+      onlineUsers
+    } as any; // Cast to any until DTO is updated
+  }
+
+  // System Config
+  async getSystemConfig() {
+    let config = await this.prisma.systemConfig.findUnique({ where: { key: 'main' } });
+    if (!config) {
+      config = await this.prisma.systemConfig.create({
+        data: { key: 'main', isMaintenanceMode: false }
+      });
+    }
+    return config;
+  }
+
+  async toggleMaintenance(enabled: boolean) {
+    const config = await this.getSystemConfig(); // ensure exists
+    return this.prisma.systemConfig.update({
+      where: { id: config.id },
+      data: { isMaintenanceMode: enabled }
     });
   }
+
+  async getPlayingUsersCount() {
+    // Alias for online users if needed separately
+    return this.prisma.user.count({
+      where: { lastActiveAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } }
+    });
+  }
+
 
   async getUsers(): Promise<AdminUserDto[]> {
     const users = await this.prisma.user.findMany({

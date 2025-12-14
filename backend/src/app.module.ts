@@ -4,8 +4,10 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ThrottlerGuard, ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BrokerAccountsModule } from './broker-accounts/broker-accounts.module';
+import { UserActivityInterceptor } from './common/interceptors/user-activity.interceptor';
+
 import { PlaybooksModule } from './playbooks/playbooks.module';
 import { ChecklistRulesModule } from './checklist-rules/checklist-rules.module';
 import { TradesModule } from './trades/trades.module';
@@ -71,6 +73,10 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UserActivityInterceptor,
     }
   ],
 })
