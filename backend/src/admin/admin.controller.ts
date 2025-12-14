@@ -88,4 +88,14 @@ export class AdminController {
   deleteTemplate(@Param('id') id: string) {
     return this.adminService.deleteTemplate(id);
   }
+
+  @Get('pricing-plans')
+  getPricingPlans() {
+    return this.adminService.getPricingPlans();
+  }
+
+  @Patch('pricing-plans/:id')
+  updatePricingPlan(@Param('id') id: string, @Body() dto: any) {
+    return this.adminService.updatePricingPlan(id, dto);
+  }
 }

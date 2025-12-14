@@ -308,4 +308,18 @@ export class AdminService {
     });
     return { message: `Template ${template.name} deleted successfully.` };
   }
+
+  // Pricing Plans
+  async getPricingPlans() {
+    return this.prisma.pricingPlan.findMany({
+      orderBy: { amount: 'asc' },
+    });
+  }
+
+  async updatePricingPlan(id: string, dto: any) {
+    return this.prisma.pricingPlan.update({
+      where: { id },
+      data: dto
+    });
+  }
 }
