@@ -62,15 +62,42 @@ export class AuthService {
       let isEarlySupporter = false;
       let referredByUserId: string | null = null;
       let trialEndsAt = new Date(); // Default: Trial ends NOW (immediate payment required)
+      trialEndsAt.setHours(trialEndsAt.getHours() - 1);
 
-      // Check Referral Code
-      if (referralCode) {
-        if (referralCode === 'beta2025') {
+      // Try to get referral code from API if missing from JWT to avoid race conditions
+      let finalReferralCode = referralCode;
+
+      if (!finalReferralCode) {
+        try {
+          // Fetch full details since JWT might be missing unsafe_metadata
+          const clerkDetails = await this.getClerkUserDetails(clerkId);
+
+          // 1. Sync real name if needed
+          if (clerkDetails) {
+            const first = clerkDetails.first_name || '';
+            const last = clerkDetails.last_name || '';
+            const realName = `${first} ${last} `.trim();
+            if (realName && fullName === 'Trader') {
+              fullName = realName;
+            }
+          }
+
+          // 2. Get referral code
+          if (clerkDetails?.unsafe_metadata?.referralCode) {
+            finalReferralCode = clerkDetails.unsafe_metadata.referralCode;
+            this.logger.log(`Retrieved referral code from Clerk API: ${finalReferralCode}`);
+          }
+        } catch (e) {
+          this.logger.warn(`Failed to fetch extra Clerk details during creation: ${e.message}`);
+        }
+      }
+
+      if (finalReferralCode) {
+        if (finalReferralCode === 'beta2025') {
           isEarlySupporter = true;
-          this.logger.log(`User ${clerkId} used beta code.Granting Early Supporter status.`);
+          this.logger.log(`User ${clerkId} used beta code. Granting Early Supporter status.`);
         } else {
-          // Check if it's a valid User ID
-          const referrer = await this.usersService.findById(referralCode).catch(() => null);
+          const referrer = await this.usersService.findById(finalReferralCode).catch(() => null);
           if (referrer) {
             isEarlySupporter = true;
             referredByUserId = referrer.id;
@@ -78,11 +105,6 @@ export class AuthService {
           }
         }
       }
-
-      // Set Trial Duration
-      // STRICT PAYWALL: No free trial for anyone on signup. 
-      // Users must pay or use an Invite Code (handled separately) to get access.
-      trialEndsAt.setHours(trialEndsAt.getHours() - 1); // Expire immediately
 
       user = await this.usersService.create({
         id: clerkId, // Use Clerk ID as Primary Key
