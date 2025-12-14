@@ -36,8 +36,11 @@ const DashboardPage: React.FC = () => {
         // Don't clear it here, let the PricingPage handle it to know which plan to select
         navigateTo('pricing');
       }
+    } else if (currentView === 'pricing') {
+      // If subscribed but stuck on pricing view, go to dashboard
+      navigateTo('dashboard');
     }
-  }, [navigateTo, isSubscribed]);
+  }, [navigateTo, isSubscribed, currentView]);
 
 
 
