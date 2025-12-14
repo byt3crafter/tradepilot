@@ -24,15 +24,25 @@ export class AdminService {
 
   async getStats(): Promise<AdminStatsDto> {
     const totalUsers = await this.prisma.user.count();
-    const activeSubscriptions = await this.prisma.user.count({
-      where: { subscriptionStatus: 'ACTIVE' },
-    });
+
     const trialUsers = await this.prisma.user.count({
       where: { subscriptionStatus: 'TRIALING' },
     });
-    // Placeholder for MRR - this would be a more complex calculation
-    // typically derived from Paddle/Stripe data or synced transactions.
-    const mrr = activeSubscriptions * 5.99;
+
+    // Calculate MRR based on actual plan interval
+    const activeUsers = await this.prisma.user.findMany({
+      where: { subscriptionStatus: 'ACTIVE' },
+      select: { planInterval: true }
+    });
+
+    const activeSubscriptions = activeUsers.length;
+
+    const mrr = activeUsers.reduce((acc, user) => {
+      // Yearly plan ($60/yr) contributes $5/mo to MRR
+      if (user.planInterval === 'year') return acc + 5.00;
+      // Monthly plan ($5.99/mo)
+      return acc + 5.99;
+    }, 0);
 
     return plainToInstance(AdminStatsDto, {
       totalUsers,

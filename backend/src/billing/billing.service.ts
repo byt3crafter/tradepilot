@@ -250,6 +250,10 @@ export class BillingService {
         updateData.proAccessExpiresAt = new Date(latestSub.nextBilledAt).toISOString();
       }
 
+      if (latestSub.billingCycle) {
+        updateData.planInterval = latestSub.billingCycle.interval;
+      }
+
       this.logger.log(`Sync found subscription ${latestSub.id} [${latestSub.status}]. Updating DB.`);
 
       await this.prisma.user.update({
@@ -351,6 +355,10 @@ export class BillingService {
         // Update pro access expiration if available
         if (data.next_billed_at) {
           updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
+        }
+
+        if (data.billing_cycle) {
+          updateData.planInterval = data.billing_cycle.interval;
         }
 
         // If subscription is now active, clear/update trial end date
