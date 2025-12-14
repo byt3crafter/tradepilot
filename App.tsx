@@ -19,6 +19,7 @@ import { AssetProvider } from './context/AssetContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { PublicRouterProvider, usePublicRouter } from './context/PublicRouterContext';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
+import { dark } from '@clerk/themes';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import RiskDisclaimerPage from './pages/RiskDisclaimerPage';
@@ -178,7 +179,22 @@ const App: React.FC = () => {
   }
 
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+
+    <ClerkProvider
+      publishableKey={CLERK_PUBLISHABLE_KEY}
+      appearance={{
+        baseTheme: dark,
+        variables: {
+          colorPrimary: '#00D1FF', // Photonic Blue match
+          colorBackground: '#08090A', // Future Dark match
+          colorText: '#FFFFFF',
+          colorTextSecondary: '#888888',
+          colorInputBackground: '#141414',
+          colorInputText: '#FFFFFF',
+          borderRadius: '0.5rem',
+        }
+      }}
+    >
       <AuthProvider>
         <PublicRouterProvider>
           <AppContent />
