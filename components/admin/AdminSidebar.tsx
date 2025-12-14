@@ -108,13 +108,6 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
                         isCollapsed={isCollapsed}
                     />
                     <AdminNavItem
-                        icon={<PlaybookIcon className="w-4 h-4" />}
-                        label="Playbooks"
-                        isActive={currentView === 'playbooks'}
-                        onClick={() => { onNavigate('playbooks'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
                         icon={<CreditCardIcon className="w-4 h-4" />}
                         label="Pricing"
                         isActive={currentView === 'pricing_plans'}
@@ -122,13 +115,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, is
                         isCollapsed={isCollapsed}
                     />
                     <AdminNavItem
+                        icon={<UsersIcon className="w-4 h-4" />}
                         label="Referrals"
                         isActive={currentView === 'referrals'}
                         onClick={() => { onNavigate('referrals'); onClose?.(); }}
                         isCollapsed={isCollapsed}
                     />
                     <AdminNavItem
-                        icon={<CreditCardIcon className="w-4 h-4" />}
+                        icon={<SparklesIcon className="w-4 h-4" />}
                         label="Promo Codes"
                         isActive={currentView === 'promo_codes'}
                         onClick={() => { onNavigate('promo_codes'); onClose?.(); }}
