@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
@@ -45,7 +45,23 @@ const PricingPage: React.FC = () => {
                 openCheckout(planParam as BillingCycle);
             }, 500);
         }
-    }, [paddle, accessToken, searchParams]);
+    }, [paddle, accessToken]);
+
+    // Listen for global payment success event (from PaddleContext)
+    useEffect(() => {
+        const handlePaymentSuccess = () => {
+            console.log('[PricingPage] Payment success event received!');
+            setUiStage('paid');
+            // Trigger immediate refresh, the sync endpoint should have already run
+            refreshUser().then((updated) => {
+                if (updated?.subscriptionStatus === 'ACTIVE') {
+                    setUiStage('activated');
+                }
+            });
+        };
+        window.addEventListener('payment_success', handlePaymentSuccess);
+        return () => window.removeEventListener('payment_success', handlePaymentSuccess);
+    }, [refreshUser]);
 
     // TODO: Add these to your .env file
     const PRICE_ID_MONTHLY = (import.meta as any).env.VITE_PADDLE_PRICE_ID_MONTHLY || 'pri_01k5kb3jt97f5x5708vcrg14hc';
@@ -127,13 +143,29 @@ const PricingPage: React.FC = () => {
         }
     };
 
+    // Auto-redirect when activated
+    React.useEffect(() => {
+        if (uiStage === 'activated') {
+            const timer = setTimeout(() => {
+                // Determine where to go - default to dashboard, but if they came from somewhere else we could handle that.
+                // For now, simple redirect to home/dashboard.
+                window.location.hash = ''; // Clear hash if any
+                window.location.pathname = '/dashboard';
+            }, 3000); // 3 second delay to read the success message
+            return () => clearTimeout(timer);
+        }
+    }, [uiStage]);
+
     if (uiStage === 'activated') {
         return (
-            <div className="h-full flex items-center justify-center p-6">
-                <Card className="max-w-md w-full text-center">
-                    <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green" />
-                    <h3 className="text-xl font-semibold text-momentum-green mt-4">Welcome Back to JTradePilot Pro!</h3>
-                    <p className="text-future-gray mt-2">Your subscription is now active. Redirecting to dashboard...</p>
+            <div className="h-full flex items-center justify-center p-6 animate-fade-in">
+                <Card className="max-w-md w-full text-center border-momentum-green/50">
+                    <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green animate-bounce-slow" />
+                    <h3 className="text-2xl font-orbitron font-bold text-momentum-green mt-6">Welcome to Pro!</h3>
+                    <p className="text-future-gray mt-2 mb-4">Your subscription is now active. Unlocking full access...</p>
+                    <div className="w-full bg-white/10 h-1 mt-4 rounded-full overflow-hidden">
+                        <div className="bg-momentum-green h-full animate-progress-indeterminate origin-left"></div>
+                    </div>
                 </Card>
             </div>
         );

@@ -111,7 +111,22 @@ export const PaddleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       p.Environment.set("sandbox");
 
       // 4) Initialize (sync, do NOT await)
-      p.Initialize({ token: clientSideToken });
+      p.Initialize({
+        token: clientSideToken,
+        eventCallback: async (event: any) => {
+          console.log('[Paddle] Event received:', event);
+
+          if (event?.name === 'checkout.completed') {
+            console.log('✅ Checkout completed! Syncing subscription...');
+            try {
+              await api.syncSubscription(accessToken);
+              window.dispatchEvent(new Event('payment_success'));
+            } catch (err) {
+              console.error('Manual sync failed:', err);
+            }
+          }
+        }
+      });
 
       setPaddle(p);
       initOnceRef.current = true;

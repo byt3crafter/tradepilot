@@ -77,6 +77,7 @@ export interface ApiService {
   // Billing
   getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }>;
+  syncSubscription(token: string): Promise<{ status: string }>;
 
   // Admin
   getAdminStats(token: string): Promise<AdminStats>;
@@ -248,6 +249,7 @@ const api: ApiService = {
   // Billing Methods
   getBillingConfig(token: string): Promise<{ clientSideToken: string }> { return this.get('/api/billing/config', token); },
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }> { return this.post('/api/billing/checkout', { promoCode, priceId, customerEmail }, token); },
+  syncSubscription(token: string): Promise<{ status: string }> { return this.post('/api/billing/sync', {}, token); },
 
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> { return this.get('/api/admin/stats', token); },

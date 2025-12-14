@@ -45,6 +45,14 @@ export class BillingController {
     return this.billingService.createCheckoutTransaction(userId, email, promoCode, priceId);
   }
 
+  @UseGuards(JwtAccessGuard)
+  @Post('sync')
+  async syncSubscription(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    this.logger.log(`Manual subscription sync requested for user ${userId}`);
+    return this.billingService.syncSubscription(userId);
+  }
+
   @SkipThrottle()
   @Post('webhook')
   @HttpCode(HttpStatus.OK)

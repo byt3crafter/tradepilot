@@ -196,11 +196,78 @@ export class BillingService {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      // Already logged above; rethrow a safe message.
       throw new InternalServerErrorException(
         // @ts-ignore
         `Checkout Error: ${error?.message || 'Unknown error'}`
       );
+    }
+  }
+
+  async syncSubscription(userId: string) {
+    this.logger.log(`Syncing subscription for user ${userId}...`);
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.paddleCustomerId) {
+      this.logger.warn(`User ${userId} has no paddleCustomerId. Cannot sync.`);
+      return { status: user?.subscriptionStatus || SubscriptionStatus.TRIALING };
+    }
+
+    try {
+      // 1. Fetch active subscriptions for this customer from Paddle
+      const subs = await this.paddle.subscriptions.list({
+        customerId: [user.paddleCustomerId],
+        status: ['active', 'trialing', 'past_due'],
+        perPage: 1
+      });
+
+      // 2. If no active/trialing/past_due subscription found, mark as canceled/inactive
+      // Use 'next' iterator result. value is array of items.
+      const subscriptions = await subs.next();
+
+      if (!subscriptions.length) {
+        this.logger.log(`No active subscription found for user ${userId}.`);
+        // Only update if it was previously active? Or always ensure it matches?
+        // Let's safe-cancel if they had one.
+        if (user.subscriptionStatus === SubscriptionStatus.ACTIVE) {
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { subscriptionStatus: SubscriptionStatus.CANCELED as any }
+          });
+          await this.updateClerkMetadata(user.id, { subscriptionStatus: SubscriptionStatus.CANCELED });
+        }
+        return { status: SubscriptionStatus.CANCELED };
+      }
+
+      // 3. We have a subscription. Update local DB.
+      const latestSub = subscriptions[0];
+      const newStatus = this.mapPaddleStatus(latestSub.status);
+
+      const updateData: any = {
+        subscriptionStatus: newStatus as any,
+        paddleSubscriptionId: latestSub.id,
+      };
+
+      if (latestSub.nextBilledAt) {
+        updateData.proAccessExpiresAt = new Date(latestSub.nextBilledAt).toISOString();
+      }
+
+      this.logger.log(`Sync found subscription ${latestSub.id} [${latestSub.status}]. Updating DB.`);
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: updateData
+      });
+
+      // Sync to Clerk
+      await this.updateClerkMetadata(userId, {
+        subscriptionStatus: newStatus,
+        proAccessExpiresAt: updateData.proAccessExpiresAt
+      });
+
+      return { status: newStatus };
+
+    } catch (err: any) {
+      this.logger.error(`Failed to sync subscription for user ${userId}: ${err.message}`);
+      throw new InternalServerErrorException('Failed to sync subscription status');
     }
   }
 
