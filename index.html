@@ -4,8 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy"
-    content="frame-ancestors 'self' https://sandbox-buy.paddle.com https://buy.paddle.com https://*.paddle.com;">
+
   <title>JTradePilot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,6 +56,20 @@
     })();
 
 
+
+    // Global function to control animated background visibility
+    window.showAnimatedBackground = function (isVisible) {
+      const container = document.getElementById('animated-background-container');
+      const isLowPerf = localStorage.getItem('lowPerformanceMode') === 'true';
+
+      if (container) {
+        if (isVisible && !isLowPerf) {
+          container.style.display = 'block';
+        } else {
+          container.style.display = 'none';
+        }
+      }
+    };
 
     // Check current route immediately (before React loads)
     function initializeBackgroundForCurrentRoute() {
