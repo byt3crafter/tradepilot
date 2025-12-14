@@ -37,12 +37,6 @@ const MaintenancePage: React.FC = () => {
                     </div>
                 )}
 
-                {!user && (
-                    <div className="mt-8">
-                        <a href="/login" className="text-sm text-future-gray hover:text-white transition-colors underline decoration-dotted">Admin Login</a>
-                    </div>
-                )}
-
                 {/* <button onClick={logout} className="mt-8 text-sm text-future-gray hover:text-white transition-colors">
                     Logout
                 </button> */}
