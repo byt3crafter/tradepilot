@@ -351,6 +351,32 @@ export class BillingService {
     const newStatus = this.mapPaddleStatus(data.status) as any;
 
     switch (eventType) {
+      case 'transaction.completed':
+      case 'transaction.paid':
+        this.logger.log(`Processing transaction payment for customer ${customerId}`);
+
+        // Transaction completed means payment was successful
+        // We need to sync the subscription status immediately
+        try {
+          // Force sync subscription from Paddle to get the latest status
+          const syncResult = await this.syncSubscription(user.id);
+          this.logger.log(`✓ Synced subscription after transaction completion: ${syncResult.status}`);
+
+          // If sync shows active subscription, update Clerk metadata immediately
+          const freshUser = await this.prisma.user.findUnique({ where: { id: user.id } });
+          if (freshUser && freshUser.subscriptionStatus === 'ACTIVE') {
+            await this.updateClerkMetadata(user.id, {
+              subscriptionStatus: freshUser.subscriptionStatus,
+              proAccessExpiresAt: freshUser.proAccessExpiresAt?.toISOString(),
+              isEarlySupporter: freshUser.isEarlySupporter
+            });
+            this.logger.log(`✓ Updated Clerk metadata after transaction completion`);
+          }
+        } catch (err: any) {
+          this.logger.error(`Failed to sync subscription after transaction: ${err.message}`);
+        }
+        break;
+
       case 'subscription.created':
       case 'subscription.updated':
       case 'subscription.resumed':
