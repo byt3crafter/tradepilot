@@ -23,8 +23,10 @@ export class BillingController {
   @UseGuards(JwtAccessGuard)
   @Get('config')
   getConfig() {
+    const environment = this.configService.get<string>('PADDLE_ENV') || 'production';
     return {
       clientSideToken: this.configService.get<string>('PADDLE_CLIENT_SIDE_TOKEN'),
+      environment: environment.toLowerCase() === 'sandbox' ? 'sandbox' : 'production',
     };
   }
 

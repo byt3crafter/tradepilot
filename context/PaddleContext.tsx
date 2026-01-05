@@ -34,10 +34,10 @@ interface PaddleContextType {
 const PaddleContext = createContext<PaddleContextType | undefined>(undefined);
 
 /**
- * Load the Paddle v2 script from the sandbox CDN and resolve once the v2 API is present.
+ * Load the Paddle v2 script from the correct CDN (production or sandbox) and resolve once the v2 API is present.
  * We explicitly check for Initialize + Checkout.open to ensure we're NOT on Classic.
  */
-function loadPaddleV2Script(): Promise<PaddleV2> {
+function loadPaddleV2Script(environment: 'sandbox' | 'production'): Promise<PaddleV2> {
   return new Promise((resolve, reject) => {
     // If already loaded and looks like v2, resolve immediately
     if (window.Paddle?.Initialize && window.Paddle?.Checkout?.open) {
@@ -50,9 +50,14 @@ function loadPaddleV2Script(): Promise<PaddleV2> {
     );
     if (classic) classic.remove();
 
+    // Determine the correct CDN URL based on environment
+    const cdnUrl = environment === 'production'
+      ? "https://cdn.paddle.com/paddle/v2/paddle.js"
+      : "https://sandbox-cdn.paddle.com/paddle/v2/paddle.js";
+
     // Avoid injecting multiple copies
     const existingV2 = document.querySelector<HTMLScriptElement>(
-      "script[src='https://sandbox-cdn.paddle.com/paddle/v2/paddle.js']"
+      `script[src='${cdnUrl}']`
     );
     if (existingV2) {
       existingV2.addEventListener("load", () => {
@@ -68,7 +73,7 @@ function loadPaddleV2Script(): Promise<PaddleV2> {
 
     // Inject v2 script
     const s = document.createElement("script");
-    s.src = "https://sandbox-cdn.paddle.com/paddle/v2/paddle.js";
+    s.src = cdnUrl;
     s.async = true;
     s.onload = () => {
       const p = window.Paddle;
@@ -101,14 +106,15 @@ export const PaddleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     setIsLoading(true);
     try {
-      // 1) Load the correct script and verify v2 API surface
-      const p = await loadPaddleV2Script();
+      // 1) Fetch client-side token and environment from your backend
+      const { clientSideToken, environment } = await api.getBillingConfig(accessToken);
+      const paddleEnv = environment === 'production' ? 'production' : 'sandbox';
 
-      // 2) Fetch client-side token from your backend
-      const { clientSideToken } = await api.getBillingConfig(accessToken);
+      // 2) Load the correct script and verify v2 API surface
+      const p = await loadPaddleV2Script(paddleEnv);
 
-      // 3) Sandbox must be set BEFORE Initialize
-      p.Environment.set("sandbox");
+      // 3) Set environment BEFORE Initialize
+      p.Environment.set(paddleEnv);
 
       // 4) Initialize (sync, do NOT await)
       p.Initialize({
@@ -132,7 +138,7 @@ export const PaddleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setPaddle(p);
       initOnceRef.current = true;
       // eslint-disable-next-line no-console
-      console.log("%c[Paddle] v2 initialized", "color:#39FF14");
+      console.log(`%c[Paddle] v2 initialized (${paddleEnv})`, "color:#39FF14");
     } catch (err) {
       console.error("[Paddle] initialization failed:", err);
       setPaddle(null);

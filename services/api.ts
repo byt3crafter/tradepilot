@@ -75,7 +75,7 @@ export interface ApiService {
   verifyEmail(token: string): Promise<{ message: string }>;
 
   // Billing
-  getBillingConfig(token: string): Promise<{ clientSideToken: string }>;
+  getBillingConfig(token: string): Promise<{ clientSideToken: string; environment: 'production' | 'sandbox' }>;
   getPublicPlans(): Promise<any[]>;
   getSystemStatus(): Promise<{ maintenance: boolean; message?: string }>;
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }>;
@@ -253,7 +253,7 @@ const api: ApiService = {
   verifyEmail(token: string): Promise<{ message: string }> { return this.post('/api/auth/verify-email', { token }, null); },
 
   // Billing Methods
-  getBillingConfig(token: string): Promise<{ clientSideToken: string }> { return this.get('/api/billing/config', token); },
+  getBillingConfig(token: string): Promise<{ clientSideToken: string; environment: 'production' | 'sandbox' }> { return this.get('/api/billing/config', token); },
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }> { return this.post('/api/billing/checkout', { promoCode, priceId, customerEmail }, token); },
   syncSubscription(token: string): Promise<{ status: string }> { return this.post('/api/billing/sync', {}, token); },
   getPublicPlans(): Promise<any[]> { return this.get('/api/billing/plans'); },
