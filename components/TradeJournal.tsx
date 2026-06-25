@@ -18,6 +18,7 @@ import Modal from './ui/Modal';
 import Button from './ui/Button';
 import Checkbox from './ui/Checkbox';
 import JtpHistoryRow from './journal/JtpHistoryRow';
+import CalendarHeatmap from './journal/CalendarHeatmap';
 
 type TradeView = 'live' | 'pending' | 'history' | 'calendar';
 type AddTradeStep = 'closed' | 'form';
@@ -131,8 +132,6 @@ const TradeJournal: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState<string>(
     () => new Date().toISOString().split('T')[0]
   );
-  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
-
   // ── History toolbar state ─────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSetup, setFilterSetup] = useState('all');
@@ -429,143 +428,6 @@ const TradeJournal: React.FC = () => {
     ));
   };
 
-  // ── Calendar view ──────────────────────────────────────────────────────────
-  const renderCalendar = () => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const monthPL = closedTrades
-      .filter(t => {
-        if (!t.exitDate) return false;
-        const d = new Date(t.exitDate);
-        return d.getFullYear() === year && d.getMonth() === month;
-      })
-      .reduce((s, t) => s + (t.profitLoss ?? 0), 0);
-    const monthTrades = closedTrades.filter(t => {
-      if (!t.exitDate) return false;
-      const d = new Date(t.exitDate);
-      return d.getFullYear() === year && d.getMonth() === month;
-    });
-    const greenDays = new Set<number>();
-    monthTrades.forEach(t => {
-      if ((t.profitLoss ?? 0) > 0 && t.exitDate)
-        greenDays.add(new Date(t.exitDate).getDate());
-    });
-
-    const cells: React.ReactNode[] = [];
-    for (let i = 0; i < firstDay; i++) {
-      cells.push(
-        <div
-          key={`e-${i}`}
-          style={{ aspectRatio: '1.15' }}
-          className="rounded-jtp-2xl border border-jtp-border opacity-20"
-        />
-      );
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayTrades = closedTrades.filter(t => t.exitDate?.startsWith(dateStr));
-      const dayPL = dayTrades.reduce((s, t) => s + (t.profitLoss ?? 0), 0);
-      const isProfit = dayPL > 0;
-      const isLoss = dayPL < 0;
-      const borderColor = isProfit
-        ? 'border-jtp-profit/30'
-        : isLoss
-        ? 'border-jtp-loss/30'
-        : 'border-jtp-border';
-      const bgColor = isProfit
-        ? 'bg-jtp-profit/5'
-        : isLoss
-        ? 'bg-jtp-loss/5'
-        : 'bg-jtp-panel';
-      cells.push(
-        <div
-          key={day}
-          style={{ aspectRatio: '1.15' }}
-          className={`rounded-jtp-2xl border ${borderColor} ${bgColor} p-2 flex flex-col`}
-        >
-          <div className="font-mono text-jtp-sm text-jtp-textFaint">{day}</div>
-          {dayTrades.length > 0 && (
-            <div className="mt-auto">
-              <div
-                className={`font-mono font-semibold text-jtp-base-minus ${
-                  isProfit ? 'text-jtp-profit' : isLoss ? 'text-jtp-loss' : 'text-jtp-text'
-                }`}
-              >
-                {fmtPL(dayPL)}
-              </div>
-              <div className="text-jtp-2xs text-jtp-textMuted">
-                {dayTrades.length} trade{dayTrades.length !== 1 ? 's' : ''}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    const netColor = monthPL >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
-
-    return (
-      <div className="py-[18px]">
-        {/* Calendar header */}
-        <div className="flex items-center gap-3 mb-4">
-          <button
-            onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-            className="w-[30px] h-[30px] rounded-jtp-xl bg-jtp-control border border-jtp-borderStrong text-jtp-textSoft cursor-pointer text-jtp-lg flex items-center justify-center hover:border-jtp-borderHover"
-          >
-            ‹
-          </button>
-          <div className="text-jtp-xl font-semibold min-w-[150px]">
-            {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-          </div>
-          <button
-            onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-            className="w-[30px] h-[30px] rounded-jtp-xl bg-jtp-control border border-jtp-borderStrong text-jtp-textSoft cursor-pointer text-jtp-lg flex items-center justify-center hover:border-jtp-borderHover"
-          >
-            ›
-          </button>
-          <div className="flex-1" />
-          <div className="flex gap-5">
-            <div>
-              <div className="text-jtp-xs uppercase tracking-wider text-jtp-textDim">Month P&L</div>
-              <div className={`font-mono font-semibold text-jtp-xl ${netColor}`}>
-                {fmtPL(monthPL)}
-              </div>
-            </div>
-            <div>
-              <div className="text-jtp-xs uppercase tracking-wider text-jtp-textDim">Trades</div>
-              <div className="font-mono font-semibold text-jtp-xl text-jtp-text">
-                {monthTrades.length}
-              </div>
-            </div>
-            <div>
-              <div className="text-jtp-xs uppercase tracking-wider text-jtp-textDim">Green days</div>
-              <div className="font-mono font-semibold text-jtp-xl text-jtp-text">
-                {greenDays.size}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Day-of-week labels */}
-        <div className="grid grid-cols-7 gap-1.5 mb-1.5">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div
-              key={d}
-              className="text-center text-jtp-xs font-semibold tracking-wider uppercase text-jtp-textFaint pb-0.5"
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1.5">{cells}</div>
-      </div>
-    );
-  };
-
   return (
     <>
       {/* Sub-tab bar — escapes the parent px-5 py-[18px] padding */}
@@ -810,7 +672,7 @@ const TradeJournal: React.FC = () => {
       )}
 
       {/* ── CALENDAR VIEW ────────────────────────────────────────────────── */}
-      {currentView === 'calendar' && renderCalendar()}
+      {currentView === 'calendar' && <CalendarHeatmap closedTrades={closedTrades} />}
 
       {/* ── LIVE / PENDING VIEW ──────────────────────────────────────────── */}
       {(currentView === 'live' || currentView === 'pending') && (
