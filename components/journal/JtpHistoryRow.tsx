@@ -1,56 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Trade, Direction } from '../../types';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { useAssets } from '../../context/AssetContext';
 import { usePriceFormatter } from '../../hooks/usePriceFormatter';
 import { useTrade } from '../../context/TradeContext';
-import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { PencilIcon } from '../icons/PencilIcon';
 import { TrashIcon } from '../icons/TrashIcon';
-import { PlusIcon } from '../icons/PlusIcon';
 import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
-import Button from '../ui/Button';
-import JournalEntry from './JournalEntry';
-import JournalForm from './JournalForm';
-import Modal from '../ui/Modal';
 import Checkbox from '../ui/Checkbox';
 
 interface JtpHistoryRowProps {
   trade: Trade;
-  onEdit: () => void;
+  onViewDetail: (trade: Trade, startInEditMode?: boolean) => void;
   isSelected: boolean;
   onSelect: (tradeId: string) => void;
 }
 
-// Total columns: checkbox(1) + DATE(2) + ASSET(3) + DIR(4) + SETUP(5) + ENTRY→EXIT(6)
-//                + SIZE(7) + PLAN R(8) + REAL R(9) + NET P&L(10) + ADH(11) + MISTAKES(12) + ACTIONS(13)
-const TOTAL_COLS = 13;
-
 const fmtPL = (v: number) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
 
-const calculateDuration = (start?: string | null, end?: string | null): string => {
-  if (!start || !end) return '—';
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (ms < 0) return '—';
-  const d = Math.floor(ms / 86400000);
-  const h = Math.floor((ms % 86400000) / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const parts: string[] = [];
-  if (d) parts.push(`${d}d`);
-  if (h) parts.push(`${h}h`);
-  if (m) parts.push(`${m}m`);
-  return parts.length ? parts.join(' ') : '<1m';
-};
-
-const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected, onSelect }) => {
+const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSelected, onSelect }) => {
   const { deleteTrade } = useTrade();
   const { playbooks } = usePlaybook();
   const { findSpec } = useAssets();
   const { formatPrice } = usePriceFormatter(trade.asset);
-
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>(null);
 
   // Setup name: playbookSetupId → setup.name, else playbookId → playbook.name, else "—"
   const setupName = useMemo(() => {
@@ -103,7 +75,7 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest('.checkbox-cell') || target.closest('[data-dropdown-menu]')) return;
-    setIsExpanded(prev => !prev);
+    onViewDetail(trade, false);
   };
 
   const handleDelete = async () => {
@@ -115,22 +87,6 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
         alert('Could not delete the trade. Please try again.');
       }
     }
-  };
-
-  const toggleSection = (key: string) => {
-    setOpenSection(prev => (prev === key ? null : key));
-  };
-
-  const formatDateTime = (d?: string | null) => {
-    if (!d) return '—';
-    return new Date(d).toLocaleString(undefined, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
   };
 
   return (
@@ -247,7 +203,7 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
         {/* ACTIONS */}
         <td className="px-3" data-dropdown-menu>
           <DropdownMenu>
-            <DropdownMenuItem onSelect={onEdit}>
+            <DropdownMenuItem onSelect={() => onViewDetail(trade, true)}>
               <PencilIcon className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
@@ -262,140 +218,6 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
         </td>
       </tr>
 
-      {/* Expanded detail panel */}
-      {isExpanded && (
-        <tr className="bg-jtp-raised">
-          <td />
-          <td colSpan={TOTAL_COLS - 1} className="px-4 py-4">
-            <div className="relative">
-              <Button
-                onClick={onEdit}
-                variant="link"
-                className="absolute top-0 right-0 flex items-center gap-1 text-sm p-0"
-              >
-                <PencilIcon className="w-4 h-4 mr-1" />
-                Edit
-              </Button>
-
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-5 text-sm pr-16 mb-4">
-                {(
-                  [
-                    ['ENTRY TIME', formatDateTime(trade.entryDate)],
-                    ['EXIT TIME', formatDateTime(trade.exitDate)],
-                    ['DURATION', calculateDuration(trade.entryDate, trade.exitDate)],
-                    ['ENTRY PRICE', formatPrice(trade.entryPrice)],
-                    ['EXIT PRICE', formatPrice(trade.exitPrice)],
-                    ['STOP LOSS', formatPrice(trade.stopLoss)],
-                    ['TAKE PROFIT', formatPrice(trade.takeProfit)],
-                    ['LOT SIZE', trade.lotSize ?? '—'],
-                    ['RISK %', `${trade.riskPercentage?.toFixed(2) ?? '—'}%`],
-                    ['PLAN R', planR != null ? `${planR.toFixed(2)} R` : '—'],
-                    [
-                      'REAL R',
-                      realisedR != null
-                        ? `${realisedR >= 0 ? '+' : ''}${realisedR.toFixed(2)} R`
-                        : '—',
-                    ],
-                    ['NET P&L', fmtPL(netPL)],
-                    ['COMMISSION', trade.commission ? `-$${trade.commission.toFixed(2)}` : '—'],
-                    ['SWAP', trade.swap ? `-$${trade.swap.toFixed(2)}` : '—'],
-                  ] as [string, React.ReactNode][]
-                ).map(([label, value]) => (
-                  <div key={label}>
-                    <div className="text-jtp-xs uppercase tracking-wider text-jtp-textDim font-semibold">
-                      {label}
-                    </div>
-                    <div className="mt-0.5 font-mono text-jtp-textSoft text-jtp-base-minus">
-                      {value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Screenshots */}
-              <div className="border-t border-jtp-border">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between py-2"
-                  onClick={() => toggleSection('screenshots')}
-                >
-                  <span className="text-jtp-sm font-semibold text-jtp-blue">Screenshots</span>
-                  <ChevronDownIcon
-                    className={`w-4 h-4 text-jtp-blue transition-transform ${
-                      openSection === 'screenshots' ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                {openSection === 'screenshots' && (
-                  <div className="flex flex-col md:flex-row gap-4 mb-4">
-                    {(['Before Entry', 'After Exit'] as const).map((label, i) => {
-                      const url = i === 0 ? trade.screenshotBeforeUrl : trade.screenshotAfterUrl;
-                      return (
-                        <div key={label} className="w-full md:w-1/2">
-                          <span className="text-jtp-xs text-jtp-textFaint">{label}</span>
-                          {url ? (
-                            <img
-                              src={url}
-                              alt={label}
-                              className="mt-1 rounded-jtp-2xl border border-jtp-border"
-                            />
-                          ) : (
-                            <div className="mt-1 h-24 bg-jtp-panel rounded-jtp-2xl flex items-center justify-center text-jtp-xs text-jtp-textFaint">
-                              Not provided
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Journal */}
-              <div className="border-t border-jtp-border">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between py-2"
-                  onClick={() => toggleSection('journal')}
-                >
-                  <span className="text-jtp-sm font-semibold text-jtp-blue">My Journal</span>
-                  <ChevronDownIcon
-                    className={`w-4 h-4 text-jtp-blue transition-transform ${
-                      openSection === 'journal' ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                {openSection === 'journal' && (
-                  <div className="mb-4">
-                    {trade.tradeJournal ? (
-                      <JournalEntry journal={trade.tradeJournal} />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center bg-jtp-panel p-4 rounded-jtp-panel">
-                        <p className="text-jtp-sm text-jtp-textMuted mb-3">
-                          No journal entry yet. What did you learn?
-                        </p>
-                        <Button
-                          onClick={() => setIsJournalModalOpen(true)}
-                          className="w-auto flex items-center gap-2"
-                        >
-                          <PlusIcon className="w-4 h-4" /> Add Journal Entry
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </td>
-        </tr>
-      )}
-
-      {isJournalModalOpen && (
-        <Modal title="Add Journal Entry" onClose={() => setIsJournalModalOpen(false)}>
-          <JournalForm trade={trade} onSuccess={() => setIsJournalModalOpen(false)} />
-        </Modal>
-      )}
     </>
   );
 };
