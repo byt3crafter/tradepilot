@@ -1,4 +1,4 @@
-import { mapSymbol } from './symbol-map';
+import { mapSymbol, yahooIndexSymbol } from './symbol-map';
 
 describe('mapSymbol', () => {
   it('inserts a slash into 6-char forex/metal/crypto pairs', () => {
@@ -27,5 +27,20 @@ describe('mapSymbol', () => {
   it('handles empty/whitespace input', () => {
     expect(mapSymbol('')).toBeNull();
     expect(mapSymbol(' nas100 ')).toBe('NDX');
+  });
+});
+
+describe('yahooIndexSymbol', () => {
+  it('maps index aliases to Yahoo symbols', () => {
+    expect(yahooIndexSymbol('NAS100')).toBe('^NDX');
+    expect(yahooIndexSymbol('US30')).toBe('^DJI');
+    expect(yahooIndexSymbol('SPX500')).toBe('^GSPC');
+    expect(yahooIndexSymbol('DAX30')).toBe('^GDAXI');
+  });
+
+  it('returns null for non-indices (forex/metal handled by Twelve Data)', () => {
+    expect(yahooIndexSymbol('EURUSD')).toBeNull();
+    expect(yahooIndexSymbol('XAUUSD')).toBeNull();
+    expect(yahooIndexSymbol('')).toBeNull();
   });
 });
