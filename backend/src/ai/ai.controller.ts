@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { EntitlementGuard } from '../auth/guards/entitlement.guard';
 import { GenerateIdeaDto } from './dtos/generate-idea.dto';
 import { ParseTradeTextDto } from './dtos/parse-trade-text.dto';
 import { Request } from 'express';
@@ -11,7 +12,10 @@ interface AuthenticatedRequest extends Request {
   }
 }
 
-@UseGuards(JwtAccessGuard)
+// These endpoints call the Gemini LLM (real per-request cost), so they require
+// an active subscription — not just authentication. EntitlementGuard runs after
+// JwtAccessGuard, which populates req.user.
+@UseGuards(JwtAccessGuard, EntitlementGuard)
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) { }
