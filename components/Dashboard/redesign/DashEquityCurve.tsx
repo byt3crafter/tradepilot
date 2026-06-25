@@ -147,7 +147,13 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
         ? { type: 'custom', formatter: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}R`, minMove: 0.1 }
         : { type: 'custom', formatter: (v: number) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v.toFixed(0)}`), minMove: 1 },
     });
-    chartRef.current?.timeScale().fitContent();
+    // Pin the visible range exactly to the data so the series fills the full
+    // width even with only a few points (lightweight-charts otherwise pads edges).
+    if (points.length > 1) {
+      chartRef.current?.timeScale().setVisibleLogicalRange({ from: 0, to: points.length - 1 });
+    } else {
+      chartRef.current?.timeScale().fitContent();
+    }
   }, [points, isR]);
 
   return (
