@@ -9,12 +9,8 @@ import { ChecklistIcon } from '../icons/ChecklistIcon';
 import ChecklistForm from './ChecklistForm';
 import { TrashIcon } from '../icons/TrashIcon';
 import { PencilIcon } from '../icons/PencilIcon';
-import { useSettings } from '../../context/SettingsContext';
-import ToggleSwitch from '../ui/ToggleSwitch';
-
 const ChecklistManager: React.FC = () => {
   const { rules, isLoading, deleteRule } = useChecklist();
-  const { enforceChecklist, setEnforceChecklist } = useSettings();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<ChecklistRule | null>(null);
 
@@ -44,23 +40,15 @@ const ChecklistManager: React.FC = () => {
       <div className="flex justify-between items-center mb-5">
         <div>
           <h2 className="text-jtp-xl font-semibold text-jtp-text">Pre-Trade Checklist</h2>
-          <p className="text-jtp-sm text-jtp-textDim mt-0.5">Define the rules you must follow before every trade.</p>
+          <p className="text-jtp-sm text-jtp-textDim mt-0.5">
+            Optional pre-trade checklist. These prompts are shown (optionally) when you log a trade; your adherence is tracked in Analytics.
+          </p>
         </div>
         <Button onClick={openAddModal} className="w-auto flex items-center gap-1.5 px-3 py-1.5 text-jtp-sm">
           <PlusIcon className="w-4 h-4" />
           <span>Add Rule</span>
         </Button>
       </div>
-
-      {rules.length > 0 && (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-md p-3 mb-4">
-          <ToggleSwitch
-            label="Enforce checklist before logging a trade"
-            checked={enforceChecklist}
-            onChange={setEnforceChecklist}
-          />
-        </div>
-      )}
 
       <div>
         {isLoading ? (
