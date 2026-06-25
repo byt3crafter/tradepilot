@@ -43,7 +43,6 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch templates on mount
   useEffect(() => {
     const fetchTemplates = async () => {
       if (!accessToken) return;
@@ -57,15 +56,11 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
     fetchTemplates();
   }, [accessToken]);
 
-  // Handle template selection - auto-fill fields
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplateId(templateId);
     if (!templateId) return;
-
     const template = templates.find(t => t.id === templateId);
     if (!template) return;
-
-    // Auto-fill all fields from template
     setInitialBalance(template.accountSize.toString());
     setObjectivesEnabled(true);
     setProfitTarget(template.profitTarget.toString());
@@ -107,7 +102,6 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
       currency,
       leverage: leverage ? parseInt(leverage as string, 10) : null,
       templateId: selectedTemplateId || null,
-      // Note: feeModel is not sent to the API - it's stored locally only
     };
 
     try {
@@ -215,7 +209,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         ]}
       />
 
-      <div className="my-4 pt-4 border-t border-white/10">
+      <div className="my-4 pt-4 border-t border-jtp-border">
         <ToggleSwitch
           label="Enable Trading Objectives (for Prop Firms)"
           checked={objectivesEnabled}
@@ -231,7 +225,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         )}
       </div>
 
-      <div className="my-4 pt-4 border-t border-white/10">
+      <div className="my-4 pt-4 border-t border-jtp-border">
         <ToggleSwitch
           label="Enable Smart Limits (Personal Rules)"
           checked={smartLimitsEnabled}
@@ -245,8 +239,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
               value={smartLimitSeverity}
               onChange={(e) => setSmartLimitSeverity(e.target.value as 'SOFT' | 'HARD')}
               options={[
-                { value: 'SOFT', label: '⚠️ Soft (Warn only, allow trade)' },
-                { value: 'HARD', label: '🚫 Hard (Block trade completely)' },
+                { value: 'SOFT', label: 'Soft (Warn only, allow trade)' },
+                { value: 'HARD', label: 'Hard (Block trade completely)' },
               ]}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -258,9 +252,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSuccess }) => {
         )}
       </div>
 
-
-      {error && <p className="text-risk-high text-sm text-center my-4">{error}</p>}
-      <div className="mt-6">
+      {error && <p className="text-jtp-loss text-jtp-sm text-center my-4">{error}</p>}
+      <div className="mt-5">
         <Button type="submit" isLoading={isLoading} className="w-full">
           {account ? 'Save Changes' : 'Create Account'}
         </Button>

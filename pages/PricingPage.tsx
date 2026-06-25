@@ -199,23 +199,23 @@ const PricingPage: React.FC = () => {
     if (uiStage === 'activated' || uiStage === 'paid') {
         return (
             <div className="h-full flex items-center justify-center p-6 animate-fade-in">
-                <Card className="max-w-md w-full text-center border-momentum-green/50">
-                    <CheckCircleIcon className="w-16 h-16 mx-auto text-momentum-green animate-bounce-slow" />
-                    <h3 className="text-2xl font-orbitron font-bold text-momentum-green mt-6">
+                <Card className="max-w-md w-full text-center border-jtp-profit/50">
+                    <CheckCircleIcon className="w-16 h-16 mx-auto text-jtp-profit animate-bounce-slow" />
+                    <h3 className="text-2xl font-sans font-bold text-jtp-profit mt-6">
                         {uiStage === 'activated' ? 'Welcome to Pro!' : 'Payment Received!'}
                     </h3>
-                    <p className="text-future-gray mt-2 mb-4">
+                    <p className="text-jtp-textMuted mt-2 mb-4">
                         {uiStage === 'activated'
                             ? 'Your subscription is now active. Unlocking full access...'
                             : 'Finalizing your account setup...'}
                     </p>
-                    <div className="w-full bg-white/10 h-1 mt-4 rounded-full overflow-hidden">
-                        <div className="bg-momentum-green h-full animate-progress-indeterminate origin-left"></div>
+                    <div className="w-full bg-jtp-control h-1 mt-4 rounded-full overflow-hidden">
+                        <div className="bg-jtp-profit h-full animate-progress-indeterminate origin-left"></div>
                     </div>
 
                     <button
                         onClick={() => window.location.href = '/dashboard'}
-                        className="mt-6 text-sm text-future-gray hover:text-white underline decoration-dotted underline-offset-4 transition-colors"
+                        className="mt-6 text-sm text-jtp-textMuted hover:text-jtp-text underline decoration-dotted underline-offset-4 transition-colors"
                     >
                         Taking too long? Click here to continue
                     </button>
@@ -232,24 +232,24 @@ const PricingPage: React.FC = () => {
 
             {/* Header */}
             <div className="text-center space-y-4">
-                <h1 className="text-3xl font-orbitron font-bold text-white">
+                <h1 className="text-3xl font-sans font-bold text-jtp-text">
                     Upgrade to Pro
                 </h1>
-                <p className="text-future-gray max-w-2xl mx-auto">
+                <p className="text-jtp-textMuted max-w-2xl mx-auto">
                     Unlock the full potential of your trading with advanced analytics, AI insights, and unlimited journaling.
                 </p>
 
                 {/* Billing Toggle */}
                 <div className="flex items-center justify-center gap-4 mt-8">
-                    <span className={`text-sm font-bold transition-colors ${billingCycle === 'monthly' ? 'text-white' : 'text-future-gray'}`}>Monthly</span>
+                    <span className={`text-sm font-bold transition-colors ${billingCycle === 'monthly' ? 'text-jtp-text' : 'text-jtp-textMuted'}`}>Monthly</span>
                     <button
                         onClick={() => setBillingCycle(prev => prev === 'monthly' ? 'yearly' : 'monthly')}
-                        className="w-12 h-6 bg-white/10 rounded-full p-1 relative transition-colors hover:bg-white/20"
+                        className="w-12 h-6 bg-jtp-control border border-jtp-borderStrong rounded-full p-1 relative transition-colors hover:bg-jtp-active"
                     >
-                        <div className={`w-4 h-4 bg-momentum-green rounded-full shadow-sm transform transition-transform duration-200 ${billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
+                        <div className={`w-4 h-4 bg-jtp-profit rounded-full shadow-sm transform transition-transform duration-200 ${billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
-                    <span className={`text-sm font-bold transition-colors ${billingCycle === 'yearly' ? 'text-white' : 'text-future-gray'}`}>
-                        Yearly <span className="text-momentum-green text-xs ml-1">(Save {savingsPercent}%)</span>
+                    <span className={`text-sm font-bold transition-colors ${billingCycle === 'yearly' ? 'text-jtp-text' : 'text-jtp-textMuted'}`}>
+                        Yearly <span className="text-jtp-profit text-xs ml-1">(Save {savingsPercent}%)</span>
                     </span>
                 </div>
             </div>
@@ -259,7 +259,7 @@ const PricingPage: React.FC = () => {
                     <input
                         type="text"
                         placeholder="Have a promo code?"
-                        className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-future-gray focus:outline-none focus:border-momentum-green"
+                        className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-4 py-2 text-jtp-text placeholder-jtp-textMuted focus:outline-none focus:border-jtp-blue transition-colors"
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     />
@@ -272,9 +272,9 @@ const PricingPage: React.FC = () => {
                         {isValidatingPromo ? 'Checking...' : 'Apply'}
                     </Button>
                 </div>
-                {promoError && <p className="text-risk-high text-sm mt-1">{promoError}</p>}
+                {promoError && <p className="text-jtp-loss text-sm mt-1">{promoError}</p>}
                 {appliedPromo && (
-                    <p className="text-momentum-green text-sm mt-1">
+                    <p className="text-jtp-profit text-sm mt-1">
                         Code applied! {appliedPromo.type === 'PERCENTAGE' ? `${appliedPromo.value}%` : `$${appliedPromo.value}`} discount will be applied at checkout.
                     </p>
                 )}
@@ -286,12 +286,12 @@ const PricingPage: React.FC = () => {
                 {/* Standard Plan */}
                 <Card className={`!p-5 md:!p-6 transition-opacity duration-200 ${billingCycle === 'monthly' ? 'opacity-100' : 'opacity-60'}`}>
                     <div className="mb-6">
-                        <h3 className="text-xl font-bold text-white mb-2">Monthly</h3>
+                        <h3 className="text-xl font-bold text-jtp-text mb-2">Monthly</h3>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">{monthlyPlan.currency === 'USD' ? '$' : monthlyPlan.currency}{monthlyPlan.amount.toFixed(2)}</span>
-                            <span className="text-future-gray">/month</span>
+                            <span className="text-3xl font-bold text-jtp-text">{monthlyPlan.currency === 'USD' ? '$' : monthlyPlan.currency}{monthlyPlan.amount.toFixed(2)}</span>
+                            <span className="text-jtp-textMuted">/month</span>
                         </div>
-                        <p className="text-sm text-future-gray mt-2">Flexible, cancel anytime.</p>
+                        <p className="text-sm text-jtp-textMuted mt-2">Flexible, cancel anytime.</p>
                     </div>
 
                     <Button
@@ -305,45 +305,45 @@ const PricingPage: React.FC = () => {
                             openCheckout('monthly');
                         }}
                         disabled={isButtonDisabled && isAuthenticated} // Don't disable if just needs login
-                        className={`w-full mb-6 ${billingCycle === 'monthly' ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                        className={`w-full mb-6 ${billingCycle === 'monthly' ? 'bg-jtp-blue text-white hover:bg-jtp-blueHover' : 'bg-jtp-control text-jtp-textMuted hover:bg-jtp-active'}`}
                     >
                         {uiStage === 'opening' && billingCycle === 'monthly' ? <Spinner /> : (billingCycle === 'monthly' ? 'Choose Monthly' : 'Switch to Monthly')}
                     </Button>
 
                     <ul className="space-y-3">
-                        <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> Live Trade Journaling
+                        <li className="flex items-center gap-3 text-sm text-jtp-textMuted">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-text shrink-0" /> Live Trade Journaling
                         </li>
-                        <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> AI-Powered Edge Analysis
+                        <li className="flex items-center gap-3 text-sm text-jtp-textMuted">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-text shrink-0" /> AI-Powered Edge Analysis
                         </li>
-                        <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> Unlimited Playbooks
+                        <li className="flex items-center gap-3 text-sm text-jtp-textMuted">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-text shrink-0" /> Unlimited Playbooks
                         </li>
-                        <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> Advanced Risk Analytics
+                        <li className="flex items-center gap-3 text-sm text-jtp-textMuted">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-text shrink-0" /> Advanced Risk Analytics
                         </li>
-                        <li className="flex items-center gap-3 text-sm text-future-gray">
-                            <CheckCircleIcon className="w-4 h-4 text-white" /> Multi-Account Support
+                        <li className="flex items-center gap-3 text-sm text-jtp-textMuted">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-text shrink-0" /> Multi-Account Support
                         </li>
                     </ul>
                 </Card >
 
                 {/* Annual Plan (Highlighted) */}
-                < Card className={`!p-5 md:!p-6 relative overflow-hidden ${billingCycle === 'yearly' ? 'border-momentum-green/50' : ''}`}>
+                < Card className={`!p-5 md:!p-6 relative overflow-hidden ${billingCycle === 'yearly' ? 'border-jtp-profit/50' : ''}`}>
                     {billingCycle === 'yearly' && (
-                        <div className="absolute top-0 right-0 bg-momentum-green text-black text-xs font-bold px-3 py-1 rounded-bl-md">
+                        <div className="absolute top-0 right-0 bg-jtp-profit text-jtp-bg text-xs font-bold px-3 py-1 rounded-bl-jtp-md">
                             BEST VALUE
                         </div>
                     )}
 
                     <div className="mb-6">
-                        <h3 className="text-xl font-bold text-white mb-2">Yearly</h3>
+                        <h3 className="text-xl font-bold text-jtp-text mb-2">Yearly</h3>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">{yearlyPlan.currency === 'USD' ? '$' : yearlyPlan.currency}{yearlyPlan.amount.toFixed(2)}</span>
-                            <span className="text-future-gray">/year</span>
+                            <span className="text-3xl font-bold text-jtp-text">{yearlyPlan.currency === 'USD' ? '$' : yearlyPlan.currency}{yearlyPlan.amount.toFixed(2)}</span>
+                            <span className="text-jtp-textMuted">/year</span>
                         </div>
-                        <p className="text-sm text-momentum-green mt-2 font-bold">Save ${savingsAmount} per year</p>
+                        <p className="text-sm text-jtp-profit mt-2 font-bold">Save ${savingsAmount} per year</p>
                     </div>
 
                     <Button
@@ -356,20 +356,20 @@ const PricingPage: React.FC = () => {
                             openCheckout('yearly');
                         }}
                         disabled={isButtonDisabled && isAuthenticated}
-                        className={`w-full mb-6 ${billingCycle === 'yearly' ? 'bg-momentum-green text-black hover:bg-momentum-green-hover' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                        className={`w-full mb-6 ${billingCycle === 'yearly' ? 'bg-jtp-profit text-jtp-bg hover:opacity-90' : 'bg-jtp-control text-jtp-textMuted hover:bg-jtp-active'}`}
                     >
                         {uiStage === 'opening' && billingCycle === 'yearly' ? <Spinner /> : (billingCycle === 'yearly' ? 'Choose Yearly' : 'Switch to Yearly')}
                     </Button>
 
                     <ul className="space-y-3">
-                        <li className="flex items-center gap-3 text-sm text-white">
-                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> All Monthly Features
+                        <li className="flex items-center gap-3 text-sm text-jtp-text">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-profit shrink-0" /> All Monthly Features
                         </li>
-                        <li className="flex items-center gap-3 text-sm text-white">
-                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Priority Feature Access
+                        <li className="flex items-center gap-3 text-sm text-jtp-text">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-profit shrink-0" /> Priority Feature Access
                         </li>
-                        <li className="flex items-center gap-3 text-sm text-white">
-                            <CheckCircleIcon className="w-4 h-4 text-momentum-green" /> Exclusive Beta Testing
+                        <li className="flex items-center gap-3 text-sm text-jtp-text">
+                            <CheckCircleIcon className="w-4 h-4 text-jtp-profit shrink-0" /> Exclusive Beta Testing
                         </li>
                     </ul>
                 </Card >
@@ -378,19 +378,19 @@ const PricingPage: React.FC = () => {
 
             {/* FAQ Section */}
             < div className="max-w-3xl mx-auto space-y-8" >
-                <h3 className="text-xl font-orbitron font-bold text-center text-white">
+                <h3 className="text-xl font-sans font-bold text-center text-jtp-text">
                     Frequently Asked Questions
                 </h3>
                 <div className="grid gap-6">
                     <Card>
-                        <h4 className="font-bold text-white mb-2">Can I cancel anytime?</h4>
-                        <p className="text-sm text-future-gray">
+                        <h4 className="font-bold text-jtp-text mb-2">Can I cancel anytime?</h4>
+                        <p className="text-sm text-jtp-textMuted">
                             Yes! You can cancel your subscription at any time from your account settings. No strings attached.
                         </p>
                     </Card>
                     <Card>
-                        <h4 className="font-bold text-white mb-2">What happens to my data if I cancel?</h4>
-                        <p className="text-sm text-future-gray">
+                        <h4 className="font-bold text-jtp-text mb-2">What happens to my data if I cancel?</h4>
+                        <p className="text-sm text-jtp-textMuted">
                             Your data is safe and will be preserved. You can reactivate anytime and pick up right where you left off.
                         </p>
                     </Card>

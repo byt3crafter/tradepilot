@@ -15,21 +15,23 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ label, checked, onChange, d
   };
 
   return (
-    <label className={`flex items-center justify-between ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-      <span className="text-sm text-future-light">{label}</span>
+    <label className={`flex items-center justify-between ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+      <span className="text-jtp-md text-jtp-text">{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={handleToggle}
         disabled={disabled}
-        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-future-panel focus:ring-photonic-blue ${checked ? 'bg-photonic-blue' : 'bg-future-dark border border-future-gray/50'
-          }`}
+        className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-jtp-panel focus:ring-jtp-blue ${
+          checked ? 'bg-jtp-blue' : 'bg-jtp-control border border-jtp-borderStrong'
+        }`}
       >
         <span className="sr-only">{checked ? 'On' : 'Off'}</span>
         <span
-          className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'
-            }`}
+          className={`inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform shadow-sm ${
+            checked ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
         />
       </button>
     </label>

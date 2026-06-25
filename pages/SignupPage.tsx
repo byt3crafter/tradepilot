@@ -1,5 +1,5 @@
 import React from 'react';
-import { SignUp, useClerk } from '@clerk/clerk-react';
+import { useClerk } from '@clerk/clerk-react';
 import { dark } from '@clerk/themes';
 import AuthLogo from '../components/auth/AuthLogo';
 
@@ -15,25 +15,26 @@ const SignupPage: React.FC = () => {
         appearance: {
           baseTheme: dark,
           variables: {
-            colorPrimary: '#FFFFFF',
-            colorBackground: '#0A0A0A',
-            colorText: '#FFFFFF',
-            colorTextSecondary: '#888888',
-            colorInputBackground: '#141414',
-            colorInputText: '#FFFFFF',
-            borderRadius: '0.75rem',
+            colorPrimary: '#5b8def',
+            colorBackground: '#0b0c0e',
+            colorText: '#e8eaed',
+            colorTextSecondary: '#9aa1ab',
+            colorInputBackground: '#0f1216',
+            colorInputText: '#e8eaed',
+            borderRadius: '4px',
+            fontFamily: 'Inter, "IBM Plex Sans", system-ui, sans-serif',
           },
           elements: {
             rootBox: "w-full max-w-md",
-            card: "bg-surface border border-white/5 shadow-surface",
-            headerTitle: "text-white font-orbitron !text-center",
-            headerSubtitle: "text-secondary !text-center",
-            socialButtonsBlockButton: "bg-white/5 border border-white/10 text-white hover:bg-white/10",
-            formFieldLabel: "text-secondary",
-            formFieldInput: "bg-surface-highlight border border-white/10 text-white focus:border-white/30 transition-colors",
-            footerActionText: "text-secondary",
-            footerActionLink: "text-white hover:underline",
-            formButtonPrimary: "bg-white text-black hover:bg-gray-200 shadow-glow font-bold",
+            card: "bg-jtp-panel border border-jtp-border shadow-jtp-drawer",
+            headerTitle: "text-jtp-text font-sans font-bold !text-center",
+            headerSubtitle: "text-jtp-textMuted !text-center",
+            socialButtonsBlockButton: "bg-jtp-control border border-jtp-borderStrong text-jtp-text hover:bg-jtp-active",
+            formFieldLabel: "text-jtp-textMuted",
+            formFieldInput: "bg-jtp-active border border-jtp-borderStrong text-jtp-text focus:border-jtp-blue transition-colors",
+            footerActionText: "text-jtp-textMuted",
+            footerActionLink: "text-jtp-blue hover:underline",
+            formButtonPrimary: "bg-jtp-blue text-white hover:bg-jtp-blueHover font-bold",
           }
         },
         signInUrl: "/login",
@@ -54,7 +55,7 @@ const SignupPage: React.FC = () => {
   }, [clerk]);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8 bg-void">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8 bg-jtp-bg">
       <div className="w-full max-w-md flex flex-col items-center">
         <div className="mb-8 w-full flex justify-center">
           <AuthLogo />

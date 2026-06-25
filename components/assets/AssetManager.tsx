@@ -21,55 +21,55 @@ const AssetManager: React.FC = () => {
     setEditingSpec(spec);
     setIsModalOpen(true);
   };
-  
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this asset? This cannot be undone.')) {
-        try {
-            await deleteAsset(id);
-        } catch(err) {
-            console.error(err);
-            alert('Failed to delete asset.');
-        }
+      try {
+        await deleteAsset(id);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete asset.');
+      }
     }
   };
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-5">
         <div>
-          <h2 className="text-xl font-orbitron text-photonic-blue">Asset Specifications</h2>
-          <p className="text-future-gray text-sm mt-1">Manage the instruments you trade for accurate calculations.</p>
+          <h2 className="text-jtp-xl font-semibold text-jtp-text">Asset Specifications</h2>
+          <p className="text-jtp-sm text-jtp-textDim mt-0.5">Manage the instruments you trade for accurate calculations.</p>
         </div>
-        <Button onClick={openAddModal} className="w-auto flex items-center gap-2 px-3 py-2 text-sm">
-          <PlusIcon className="w-5 h-5" />
-          <span>Add New Asset</span>
+        <Button onClick={openAddModal} className="w-auto flex items-center gap-1.5 px-3 py-1.5 text-jtp-sm">
+          <PlusIcon className="w-4 h-4" />
+          <span>Add Asset</span>
         </Button>
       </div>
 
       <div>
         {isLoading ? (
-          <div className="flex justify-center p-8">
+          <div className="flex justify-center p-10">
             <Spinner />
           </div>
         ) : (
           <div className="overflow-x-auto table-scrollbar">
-            <table className="w-full text-sm">
-              <thead className="border-b border-photonic-blue/30">
+            <table className="w-full text-jtp-sm">
+              <thead className="border-b border-jtp-border">
                 <tr>
-                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Symbol</th>
-                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Name</th>
-                  <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Actions</th>
+                  <th className="px-3 py-2.5 text-left text-jtp-xs uppercase tracking-wider font-medium text-jtp-textDim">Symbol</th>
+                  <th className="px-3 py-2.5 text-left text-jtp-xs uppercase tracking-wider font-medium text-jtp-textDim">Name</th>
+                  <th className="px-3 py-2.5 text-left text-jtp-xs uppercase tracking-wider font-medium text-jtp-textDim">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {specs.map(spec => (
-                  <tr key={spec.id} className="border-b border-future-panel/50">
-                    <td className="p-3 font-semibold font-tech-mono text-future-light">{spec.symbol}</td>
-                    <td className="p-3 text-future-gray">{spec.name}</td>
-                    <td className="p-3">
+                  <tr key={spec.id} className="border-b border-jtp-borderSubtle hover:bg-jtp-hover/40 transition-colors">
+                    <td className="px-3 py-3 font-semibold font-mono text-jtp-text">{spec.symbol}</td>
+                    <td className="px-3 py-3 text-jtp-textMuted">{spec.name}</td>
+                    <td className="px-3 py-3">
                       <div className="flex gap-2">
-                        <Button variant="link" className="text-sm p-1" onClick={() => openEditModal(spec)}>Edit</Button>
-                        <Button variant="link" className="text-sm text-risk-high p-1" onClick={() => handleDelete(spec.id)}>Delete</Button>
+                        <Button variant="link" className="text-jtp-sm p-1 text-jtp-blue" onClick={() => openEditModal(spec)}>Edit</Button>
+                        <Button variant="link" className="text-jtp-sm p-1 text-jtp-loss" onClick={() => handleDelete(spec.id)}>Delete</Button>
                       </div>
                     </td>
                   </tr>
@@ -81,15 +81,15 @@ const AssetManager: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <Modal 
-            title={editingSpec ? "Edit Asset" : "Add New Asset"} 
-            onClose={() => setIsModalOpen(false)}
-            size="lg"
+        <Modal
+          title={editingSpec ? 'Edit Asset' : 'Add New Asset'}
+          onClose={() => setIsModalOpen(false)}
+          size="lg"
         >
-            <AssetForm
-                spec={editingSpec} 
-                onSuccess={() => setIsModalOpen(false)} 
-            />
+          <AssetForm
+            spec={editingSpec}
+            onSuccess={() => setIsModalOpen(false)}
+          />
         </Modal>
       )}
     </>

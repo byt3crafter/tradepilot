@@ -13,26 +13,23 @@ const NotificationBell: React.FC = () => {
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const { navigateTo } = useView();
 
-  // Calculate dropdown position based on button position and viewport
   useEffect(() => {
     if (!isOpen || !buttonRef.current) return;
 
     const calculatePosition = () => {
       const rect = buttonRef.current!.getBoundingClientRect();
-      const dropdownWidth = 320; // w-80 = 20rem = 320px
-      const dropdownHeight = 400; // max-h-80 approximate
-      const space = 8; // gap between button and dropdown
-      const viewportPadding = 16; // 1rem padding from viewport edges
+      const dropdownWidth = 320;
+      const dropdownHeight = 400;
+      const space = 8;
+      const viewportPadding = 16;
 
       let top = rect.bottom + space;
       let right = window.innerWidth - rect.right;
 
-      // Check if dropdown would overflow bottom
       if (top + dropdownHeight > window.innerHeight - viewportPadding) {
         top = rect.top - dropdownHeight - space;
       }
 
-      // Check if dropdown would overflow right
       if (window.innerWidth - right + dropdownWidth > window.innerWidth - viewportPadding) {
         right = viewportPadding;
       }
@@ -45,10 +42,8 @@ const NotificationBell: React.FC = () => {
       });
     };
 
-    // Calculate position immediately
     calculatePosition();
 
-    // Recalculate on scroll or resize
     const handleScroll = () => calculatePosition();
     const handleResize = () => calculatePosition();
 
@@ -61,7 +56,6 @@ const NotificationBell: React.FC = () => {
     };
   }, [isOpen]);
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -100,10 +94,10 @@ const NotificationBell: React.FC = () => {
     <div
       ref={dropdownRef}
       style={dropdownStyle}
-      className="w-80 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-2xl animate-fade-in-up"
+      className="w-80 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-panel shadow-jtp-drawer animate-fade-in-up"
     >
-      <div className="p-3 border-b border-white/5">
-        <h3 className="text-sm font-semibold text-future-light">Notifications</h3>
+      <div className="px-4 py-3 border-b border-jtp-border">
+        <h3 className="text-jtp-md font-semibold text-jtp-text">Notifications</h3>
       </div>
       <div className="max-h-80 overflow-y-auto sidebar-scrollbar">
         {isLoading ? (
@@ -111,28 +105,24 @@ const NotificationBell: React.FC = () => {
             <Spinner />
           </div>
         ) : notifications.length === 0 ? (
-          <p className="p-4 text-xs text-center text-future-gray">You have no notifications.</p>
+          <p className="px-4 py-6 text-jtp-sm text-center text-jtp-textDim">No notifications.</p>
         ) : (
           <ul>
             {notifications.map((notification) => (
               <li
                 key={notification.id}
-                className={`border-b border-white/5 last:border-0 ${
-                  !notification.isRead ? 'bg-white/[0.02]' : ''
+                className={`border-b border-jtp-border last:border-0 ${
+                  !notification.isRead ? 'bg-jtp-raised' : ''
                 }`}
               >
                 <button
                   onClick={() => handleNotificationClick(notification.id, notification.analysisId)}
-                  className="w-full text-left p-3 hover:bg-white/[0.03] transition-colors"
+                  className="w-full text-left px-4 py-3 hover:bg-jtp-hover transition-colors"
                 >
-                  <p
-                    className={`text-xs ${
-                      notification.isRead ? 'text-future-gray' : 'text-future-light'
-                    }`}
-                  >
+                  <p className={`text-jtp-sm ${notification.isRead ? 'text-jtp-textDim' : 'text-jtp-text'}`}>
                     {notification.message}
                   </p>
-                  <p className="text-xs text-future-gray/70 mt-1">
+                  <p className="text-jtp-xs text-jtp-textFaint mt-0.5">
                     {new Date(notification.createdAt).toLocaleString()}
                   </p>
                 </button>
@@ -149,16 +139,16 @@ const NotificationBell: React.FC = () => {
       <button
         ref={buttonRef}
         onClick={toggle}
-        className="relative p-2 rounded-lg bg-future-panel/50 text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors cursor-pointer"
+        className="relative p-2 rounded-jtp-md bg-jtp-control text-jtp-textDim hover:bg-jtp-hover hover:text-jtp-text transition-colors cursor-pointer"
         aria-label="Notifications"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <BellIcon className="w-6 h-6" />
+        <BellIcon className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-photonic-blue opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-photonic-blue items-center justify-center text-xs font-bold text-future-dark">
+          <span className="absolute top-1 right-1 flex h-3.5 w-3.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jtp-blue opacity-60"></span>
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-jtp-blue items-center justify-center text-[9px] font-bold text-white">
               {unreadCount}
             </span>
           </span>

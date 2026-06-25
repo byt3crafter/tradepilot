@@ -10,21 +10,21 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', className = '', isLoading = false, ...props }) => {
-  const baseClasses = "font-medium rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-void focus:ring-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
+  const baseClasses = "font-medium rounded-jtp-md text-jtp-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-jtp-bg focus:ring-jtp-blue/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
 
   const variantClasses = {
-    primary: "bg-white text-black hover:bg-gray-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]",
-    secondary: "bg-white/5 border border-white/10 text-primary hover:bg-white/10 hover:border-white/20 active:scale-[0.98]",
-    danger: "bg-loss/10 text-loss border border-loss/20 hover:bg-loss/20 hover:border-loss/40 active:scale-[0.98]",
-    link: "text-secondary hover:text-white p-0 h-auto font-normal hover:underline justify-start",
+    primary: "bg-jtp-blue text-white hover:bg-jtp-blueHover active:scale-[0.98] shadow-none",
+    secondary: "bg-jtp-control border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover hover:border-jtp-borderHover active:scale-[0.98]",
+    danger: "bg-jtp-loss/10 text-jtp-loss border border-jtp-loss/20 hover:bg-jtp-loss/20 hover:border-jtp-loss/40 active:scale-[0.98]",
+    link: "text-jtp-textMuted hover:text-jtp-text p-0 h-auto font-normal hover:underline justify-start",
   };
-  
+
   // Default padding if not link
-  const paddingClasses = variant === 'link' ? '' : 'px-4 py-2.5';
+  const paddingClasses = variant === 'link' ? '' : 'px-4 py-2';
 
   return (
-    <button 
-      className={`${baseClasses} ${variantClasses[variant]} ${paddingClasses} ${className}`} 
+    <button
+      className={`${baseClasses} ${variantClasses[variant]} ${paddingClasses} ${className}`}
       disabled={isLoading || props.disabled}
       {...props}
     >
