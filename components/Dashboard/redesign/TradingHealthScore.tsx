@@ -105,8 +105,10 @@ function computeHealth(trades: Trade[]): ComputedHealth {
       if (dd > maxDDPct) maxDDPct = dd;
     }
   }
+  // Clamp display to 100% — values above 100% are artefacts of a tiny early peak
+  const displayDDPct = Math.min(maxDDPct, 100);
   // 0% DD → 100, 30%+ DD → 0
-  const ddScore = Math.round(clamp(100 - (maxDDPct / 30) * 100));
+  const ddScore = Math.round(clamp(100 - (displayDDPct / 30) * 100));
 
   // ── 6. Avg Realised R ──────────────────────────────────────────────────
   const tradesWithR = trades.filter(t => t.realisedR != null);
@@ -136,7 +138,7 @@ function computeHealth(trades: Trade[]): ComputedHealth {
       { key: 'pf',          label: 'Profit Factor',     score: pfScore,          display: pfDisplay },
       { key: 'wl',          label: 'Avg Win / Avg Loss', score: wlScore,         display: wlDisplay },
       { key: 'consistency', label: 'Consistency',       score: consistencyScore, display: `${consistencyScore}/100` },
-      { key: 'maxDD',       label: 'Max Drawdown',      score: ddScore,          display: `${maxDDPct.toFixed(1)}%` },
+      { key: 'maxDD',       label: 'Max Drawdown',      score: ddScore,          display: `${displayDDPct.toFixed(1)}%` },
       { key: 'avgR',        label: 'Avg Realised R',    score: avgRScore,        display: avgRDisplay },
     ],
   };
