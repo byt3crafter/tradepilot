@@ -73,12 +73,12 @@ export default {
         },
       },
       fontFamily: {
-        // New JTP fonts (IBM Plex takes priority)
-        sans:        ['"IBM Plex Sans"', 'Inter', 'system-ui', 'sans-serif'],
-        mono:        ['"IBM Plex Mono"', '"JetBrains Mono"', 'monospace'],
-        // Aliases for legacy classes
-        orbitron:    ['"IBM Plex Sans"', 'Inter', 'sans-serif'],
-        'tech-mono': ['"IBM Plex Mono"', '"JetBrains Mono"', 'monospace'],
+        // Inter = the trading-journal/fintech standard (TradeZella, Tradervue, etc.)
+        sans:        ['Inter', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        mono:        ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
+        // Aliases for legacy classes — also map to Inter so legacy pages match
+        orbitron:    ['Inter', '"IBM Plex Sans"', 'sans-serif'],
+        'tech-mono': ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
       },
       fontSize: {
         // JTP type scale

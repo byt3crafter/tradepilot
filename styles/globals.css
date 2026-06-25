@@ -16,7 +16,7 @@ html {
 }
 
 body {
-  font-family: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 13px;
   background-color: #0b0c0e;
   color: #e8eaed;
