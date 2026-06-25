@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, Req, HttpCode, HttpStatus, Logger, UseGuards, Get, RawBodyRequest, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Req, HttpCode, HttpStatus, Logger, UseGuards, Get, RawBodyRequest, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -80,20 +80,32 @@ export class BillingController {
       throw new InternalServerErrorException('Webhook processing failed: No body');
     }
 
+    // 1. Verify signature. A bad/forged signature is permanent — return 400 so
+    //    Paddle does NOT retry (retrying a forged payload is pointless/abusive).
+    let event;
     try {
-      // Verify signature and parse event
-      const event = await this.billingService.unmarshalWebhook(rawBody.toString(), signature);
-
-      if (event) {
-        this.logger.log(`✓ Verified Paddle webhook: ${event.eventType}`);
-        await this.billingService.handleWebhookEvent(event);
-        this.logger.log(`✓ Successfully processed webhook: ${event.eventType}`);
-      }
+      event = await this.billingService.unmarshalWebhook(rawBody.toString(), signature);
     } catch (err: any) {
-      this.logger.error(`✗ Error processing webhook: ${err.message}`);
-      // We return 200 OK even on error to prevent Paddle from retrying indefinitely if it's a logic error
-      // In a real scenario, you might want to return 500 for temporary errors.
+      this.logger.error(`✗ Webhook signature verification failed: ${err.message}`);
+      throw new BadRequestException('Invalid webhook signature');
     }
+
+    if (!event) {
+      return { success: true };
+    }
+
+    // 2. Process the verified event. If processing fails (e.g. transient DB error)
+    //    we MUST surface a non-2xx so Paddle retries — silently returning 200 here
+    //    is how paid users previously slipped through with no access granted.
+    try {
+      this.logger.log(`✓ Verified Paddle webhook: ${event.eventType}`);
+      await this.billingService.handleWebhookEvent(event);
+      this.logger.log(`✓ Successfully processed webhook: ${event.eventType}`);
+    } catch (err: any) {
+      this.logger.error(`✗ Error processing webhook ${event.eventType}: ${err.message}`);
+      throw new InternalServerErrorException('Webhook processing failed; Paddle should retry');
+    }
+
     return { success: true };
   }
 }

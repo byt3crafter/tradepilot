@@ -14,6 +14,8 @@ export class InvitesController {
     @UseGuards(JwtAccessGuard)
     @Post('claim')
     claim(@Body('code') code: string, @Request() req) {
-        return this.invitesService.claimInvite(code, req.user.id);
+        // The JWT strategy returns { sub, email, role } — there is no `.id`.
+        // Using req.user.id (undefined) silently broke every invite claim.
+        return this.invitesService.claimInvite(code, req.user.sub);
     }
 }

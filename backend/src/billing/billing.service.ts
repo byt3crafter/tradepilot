@@ -307,11 +307,15 @@ export class BillingService {
       return;
     }
 
-    const customerId = data.customer_id;
+    // NOTE: paddle.webhooks.unmarshal() returns the SDK's typed EventEntity whose
+    // `data` is camelCase (customerId, nextBilledAt, billingCycle, unitPrice...).
+    // The previous code read snake_case (data.customer_id etc.) which was always
+    // undefined, so EVERY event early-returned and no user was ever updated.
+    const customerId = data.customerId;
     const subscriptionId = data.id;
 
     if (!customerId) {
-      this.logger.warn(`Webhook event ${eventType} is missing customer_id.`);
+      this.logger.warn(`Webhook event ${eventType} is missing customerId.`);
       return;
     }
 
@@ -388,20 +392,20 @@ export class BillingService {
         };
 
         // Update pro access expiration if available
-        if (data.next_billed_at) {
-          updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
+        if (data.nextBilledAt) {
+          updateData.proAccessExpiresAt = new Date(data.nextBilledAt).toISOString();
         }
 
-        if (data.billing_cycle) {
-          updateData.planInterval = data.billing_cycle.interval;
+        if (data.billingCycle) {
+          updateData.planInterval = data.billingCycle.interval;
         }
 
-        // Capture Price (Webhook data is usually snake_case)
+        // Capture Price (SDK EventEntity data is camelCase)
         if (data.items && data.items.length > 0) {
           const item = data.items[0];
-          if (item.price && item.price.unit_price) {
-            updateData.subscriptionPrice = parseFloat(item.price.unit_price.amount);
-            updateData.subscriptionCurrency = item.price.unit_price.currency_code;
+          if (item.price && item.price.unitPrice) {
+            updateData.subscriptionPrice = parseFloat(item.price.unitPrice.amount);
+            updateData.subscriptionCurrency = item.price.unitPrice.currencyCode;
           }
         }
 
@@ -414,8 +418,8 @@ export class BillingService {
           updateData.trialEndsAt = null; // Clear trial if active
 
           // Trial is over when subscription activates
-          if (!updateData.proAccessExpiresAt && data.next_billed_at) {
-            updateData.proAccessExpiresAt = new Date(data.next_billed_at).toISOString();
+          if (!updateData.proAccessExpiresAt && data.nextBilledAt) {
+            updateData.proAccessExpiresAt = new Date(data.nextBilledAt).toISOString();
           }
 
           // REFERRAL REWARD LOGIC
@@ -426,33 +430,40 @@ export class BillingService {
           // 'subscription.activated' usually means payment success.
 
           if (eventType === 'subscription.activated' && (user as any).referredByUserId) {
-            // Refresh user to check hasRewardedReferrer
-            const freshUser = await this.prisma.user.findUnique({ where: { id: user.id } });
+            // Atomically claim the reward flag FIRST: updateMany only flips the row
+            // when hasRewardedReferrer is still false, so two concurrent webhook
+            // deliveries can never both pass the guard (prevents double +30d grants).
+            const claim = await this.prisma.user.updateMany({
+              where: { id: user.id, hasRewardedReferrer: false },
+              data: { hasRewardedReferrer: true },
+            });
 
-            if (freshUser && !freshUser.hasRewardedReferrer) {
-              const referrer = await this.prisma.user.findUnique({ where: { id: freshUser.referredByUserId } });
+            if (claim.count === 1) {
+              const referrer = await this.prisma.user.findUnique({
+                where: { id: (user as any).referredByUserId },
+              });
 
               if (referrer) {
                 this.logger.log(`Processing Referral Reward: User ${user.id} paid. Rewarding Referrer ${referrer.id}`);
 
-                // Add 30 days to referrer's proAccessExpiresAt
+                // Add 30 days to referrer's proAccessExpiresAt.
+                // If expired, start from now; if still active, extend from current expiry.
                 const currentExpiry = referrer.proAccessExpiresAt ? new Date(referrer.proAccessExpiresAt) : new Date();
-                // If expired, start from now. If active, add to existing.
                 const basisDate = currentExpiry > new Date() ? currentExpiry : new Date();
                 basisDate.setDate(basisDate.getDate() + 30);
 
                 await this.prisma.user.update({
                   where: { id: referrer.id },
-                  data: { proAccessExpiresAt: basisDate }
-                });
-
-                // Mark user as having rewarded their referrer
-                await this.prisma.user.update({
-                  where: { id: user.id },
-                  data: { hasRewardedReferrer: true }
+                  data: { proAccessExpiresAt: basisDate },
                 });
 
                 this.logger.log(`✓ Added 30 days to Referrer ${referrer.id}. New Expiry: ${basisDate.toISOString()}`);
+              } else {
+                // Referrer vanished — release the claim so a valid future event can retry.
+                await this.prisma.user.update({
+                  where: { id: user.id },
+                  data: { hasRewardedReferrer: false },
+                });
               }
             }
           }
