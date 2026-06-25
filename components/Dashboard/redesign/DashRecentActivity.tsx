@@ -14,12 +14,8 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ trade }) => {
   const isProfit = pl >= 0;
   const isLong = trade.direction === Direction.Buy;
 
-  // Realized R (approximate)
-  const rValue = trade.result === TradeResult.Win
-    ? (trade.rr ?? 1)
-    : trade.result === TradeResult.Loss
-      ? -1
-      : 0;
+  // Realised R — server-computed (P&L ÷ account risk unit)
+  const rValue = trade.realisedR ?? 0;
 
   const plColor = isProfit ? 'text-jtp-profit' : 'text-jtp-loss';
   const rColor = rValue >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
