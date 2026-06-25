@@ -33,6 +33,7 @@ import ReferralPage from './pages/ReferralPage';
 import PricingPage from './pages/PricingPage';
 import InviteLandingPage from './pages/InviteLandingPage';
 import FeaturesPage from './pages/FeaturesPage';
+import { DEV_AUTH_BYPASS } from './utils/devAuth';
 
 // NOTE: using import.meta.env for Vite. Cast to any to avoid TS error if types are missing.
 const CLERK_PUBLISHABLE_KEY = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_PLACEHOLDER_KEY_HERE';
@@ -168,6 +169,12 @@ const AppContent: React.FC = () => {
       clearInterval(interval);
     };
   }, []);
+
+  // DEV-ONLY: render the authenticated app directly, skipping Clerk's SignedIn
+  // gate (see utils/devAuth). Dead-code-eliminated from production builds.
+  if (DEV_AUTH_BYPASS) {
+    return <AuthenticatedApp />;
+  }
 
   // Maintenance Check
   if (maintenance && user?.role !== 'ADMIN') {
