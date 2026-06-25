@@ -64,6 +64,7 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
         textColor: '#6b7280',
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 11,
+        attributionLogo: false, // remove the TradingView logo (we satisfy attribution)
       },
       grid: {
         vertLines: { visible: false },
@@ -74,8 +75,14 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
         vertLine: { color: 'rgba(91,141,239,0.5)', width: 1, style: LineStyle.Dashed, labelVisible: false },
         horzLine: { color: 'rgba(91,141,239,0.5)', labelBackgroundColor: '#5b8def' },
       },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.12 } },
+      timeScale: {
+        borderVisible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,            // no trailing empty space after the last point
+        lockVisibleTimeRangeOnResize: true,
+      },
       handleScroll: false,
       handleScale: false,
     });
