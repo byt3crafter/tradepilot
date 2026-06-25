@@ -1,188 +1,206 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { DashboardView, SettingsSubView } from '../pages/DashboardPage';
-import AuthLogo from './auth/AuthLogo';
-import AuthMark from './auth/AuthMark';
-import { JournalIcon } from './icons/JournalIcon';
-import { SettingsIcon } from './icons/SettingsIcon';
+import { DashboardView } from '../pages/DashboardPage';
 import { useClerk } from '@clerk/clerk-react';
 import { useAccount } from '../context/AccountContext';
-import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import { PlaybookIcon } from './icons/PlaybookIcon';
 import { useView } from '../context/ViewContext';
-import { DashboardIcon } from './icons/DashboardIcon';
-import Button from './ui/Button';
 import { useUI } from '../context/UIContext';
-import Tooltip from './ui/Tooltip';
-import { ChevronDoubleLeftIcon } from './icons/ChevronDoubleLeftIcon';
 import { PlusIcon } from './icons/PlusIcon';
-import { AnalyticsIcon } from './icons/AnalyticsIcon';
-import { UsersIcon } from './icons/UsersIcon';
-import { LogoutIcon } from './icons/LogoutIcon';
+import Button from './ui/Button';
 
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+// ─── Icon set (minimal inline SVGs matching the comp) ─────────────────────────
 
-const NavItem: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  isActive: boolean;
-  isCollapsed: boolean;
-  onClick?: () => void;
-  href?: string;
-}> = ({ icon, label, isActive, isCollapsed, onClick, href }) => {
-  const Element: any = href ? 'a' : 'button';
+const JournalSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <rect x="3" y="2" width="10" height="12" rx="1.5" />
+    <line x1="5.5" y1="5.5" x2="10.5" y2="5.5" />
+    <line x1="5.5" y1="8" x2="10.5" y2="8" />
+    <line x1="5.5" y1="10.5" x2="8.5" y2="10.5" />
+  </svg>
+);
 
-  // Aesthetic: Clean, sharp edges, distinct active state text color
-  const navItemClasses = `relative flex items-center w-full px-4 py-2 my-0.5 transition-all duration-200 group ${isActive
-    ? 'text-white bg-white/[0.03] border-r-2 border-white'
-    : 'text-secondary hover:text-white hover:bg-white/[0.02]'
-    } ${isCollapsed ? 'justify-center px-2' : ''}`;
+const DashboardSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <rect x="2" y="2" width="5" height="5" rx="1" />
+    <rect x="9" y="2" width="5" height="5" rx="1" />
+    <rect x="2" y="9" width="5" height="5" rx="1" />
+    <rect x="9" y="9" width="5" height="5" rx="1" />
+  </svg>
+);
 
-  const content = (
-    <Element href={href} onClick={onClick} className={navItemClasses}>
-      <div className={`flex-shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:opacity-80'}`}>
-        {icon}
-      </div>
+const AnalyticsSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <polyline points="2,12 5,8 8,10 11,5 14,7" />
+  </svg>
+);
 
-      <span className={`ml-3 text-xs font-normal uppercase tracking-widest ${isCollapsed ? 'hidden md:hidden' : ''} md:block`}>
-        {label}
-      </span>
-      {/* Mobile override: Always show text on mobile even if isCollapsed is true (though we try to prevent that) */}
-      <span className={`ml-3 text-xs font-normal uppercase tracking-widest md:hidden ${!isCollapsed ? 'hidden' : 'block'}`}>
-        {label}
-      </span>
-    </Element>
+const PlaybookSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <path d="M3 3h10v2H3zM3 7h7v2H3zM3 11h5v2H3z" strokeLinejoin="round" />
+  </svg>
+);
+
+const SettingsSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <circle cx="8" cy="8" r="2.5" />
+    <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M12.5 3.5l-1 1M4.5 11.5l-1 1" strokeLinecap="round" />
+  </svg>
+);
+
+const LogoutSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
+    <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3" strokeLinecap="round" />
+    <polyline points="10,5 13,8 10,11" strokeLinecap="round" strokeLinejoin="round" />
+    <line x1="7" y1="8" x2="13" y2="8" strokeLinecap="round" />
+  </svg>
+);
+
+const ManageAccountSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
+    <circle cx="8" cy="5" r="2.5" />
+    <path d="M3 13c0-2.761 2.239-5 5-5s5 2.239 5 5" strokeLinecap="round" />
+  </svg>
+);
+
+const ChevronSvg = ({ open }: { open?: boolean }) => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
+  >
+    <polyline points="4,6 8,10 12,6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// ─── Low Performance Mode toggle ────────────────────────────────────────────
+
+const useLowPerfMode = () => {
+  const [enabled, setEnabled] = useState(
+    () => localStorage.getItem('lowPerformanceMode') === 'true',
   );
 
-  if (isCollapsed) {
-    // On mobile, we don't want the tooltip, we want the text.
-    // But Tooltip wrapper might interfere.
-    // Let's rely on the parent passing the correct isCollapsed state.
-    return <Tooltip text={label}>{content}</Tooltip>;
-  }
+  const toggle = () => {
+    setEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem('lowPerformanceMode', String(next));
+      if (typeof window.showAnimatedBackground === 'function') {
+        window.showAnimatedBackground(!next);
+      }
+      return next;
+    });
+  };
 
-  return content;
+  return { enabled, toggle };
 };
+
+// ─── Account Switcher ────────────────────────────────────────────────────────
 
 const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
   const { accounts, activeAccount, switchAccount } = useAccount();
   const { navigateTo } = useView();
   const [isOpen, setIsOpen] = useState(false);
-  const switcherRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (switcherRef.current && !switcherRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const initials = activeAccount
-    ? activeAccount.name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase()
-    : '';
-
+  const ref = useRef<HTMLDivElement>(null);
   const { isSubscribed } = useAuth();
 
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const tag = activeAccount
+    ? activeAccount.name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+    : '';
+
   if (!activeAccount) {
-    if (isCollapsed) {
-      return (
-        <Tooltip text={isSubscribed ? "Create an account" : "Upgrade to create account"}>
-          <Button
-            variant="link"
-            disabled={!isSubscribed}
-            onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('pricing')}
-            className={`w-full h-8 flex items-center justify-center border border-dashed border-white/10 rounded ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
-          >
-            <PlusIcon className="w-4 h-4" />
-          </Button>
-        </Tooltip>
-      );
-    }
     return (
       <Button
         variant="link"
         disabled={!isSubscribed}
-        onClick={() => isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('pricing')}
-        className={`w-full text-xs text-center border border-dashed border-white/10 rounded py-2 uppercase tracking-wide ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
+        onClick={() => (isSubscribed ? navigateTo('settings', 'accounts') : navigateTo('pricing'))}
+        className={`w-full text-jtp-xs text-center border border-dashed border-jtp-border rounded-jtp-2xl py-2 ${
+          isSubscribed
+            ? 'text-jtp-textDim hover:border-jtp-borderFocus hover:text-jtp-textMuted'
+            : 'text-jtp-textDisabled cursor-not-allowed opacity-50'
+        }`}
       >
-        + Add Account
+        <PlusIcon className="w-3 h-3 inline mr-1" /> Add Account
       </Button>
     );
   }
 
   return (
-    <div className="relative" ref={switcherRef}>
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 border border-white/10 rounded bg-white/[0.01] hover:bg-white/[0.03] transition-colors group"
+        className="w-full flex items-center gap-[10px] px-[10px] py-[9px] bg-jtp-active border border-jtp-borderStrong rounded-jtp-2xl cursor-pointer text-left hover:bg-[#191d23] transition-colors"
       >
-        {isCollapsed ? (
-          <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center mx-auto border border-white/10">
-            <span className="font-mono text-xs font-semibold text-white">{initials}</span>
-          </div>
-        ) : (
+        {/* Account tag */}
+        <div className="w-[26px] h-[26px] rounded-jtp-lg bg-jtp-accountTag flex items-center justify-center flex-shrink-0">
+          <span className="text-jtp-sm-minus font-semibold text-jtp-textMuted">{tag}</span>
+        </div>
+
+        {!isCollapsed && (
           <>
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center border border-white/10 shrink-0">
-                <span className="font-mono text-xs font-semibold text-white">{initials}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-jtp-base-minus font-semibold text-jtp-text truncate">
+                {activeAccount.name}
               </div>
-              <div className="overflow-hidden text-left">
-                <p className="font-medium text-xs text-white truncate">{activeAccount.name}</p>
-                <p className="text-[9px] text-secondary truncate uppercase tracking-wider">{activeAccount.type.replace('_', ' ')}</p>
+              <div className="font-mono text-jtp-xs-plus text-jtp-textDim">
+                ${activeAccount.currentBalance.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}
               </div>
             </div>
-            <ChevronDownIcon
-              className={`w-3 h-3 text-secondary group-hover:text-white transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''
-                }`}
-            />
+            <ChevronSvg open={isOpen} />
           </>
         )}
       </button>
+
       {isOpen && (
         <div
-          className={`absolute top-0 mt-0 bg-[#08090A] border border-white/10 rounded shadow-2xl p-1 z-50 w-56 ${isCollapsed ? 'left-full ml-2' : 'top-full mt-2 w-full left-0'
-            }`}
+          className={`absolute z-50 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-2xl shadow-jtp-drawer p-1 w-56 ${
+            isCollapsed ? 'left-full ml-2 top-0' : 'top-full mt-1 left-0'
+          }`}
         >
-          <div className="max-h-60 overflow-y-auto custom-scrollbar">
-            {accounts.map((account) => (
+          <div className="max-h-60 overflow-y-auto">
+            {accounts.map(acc => (
               <button
-                key={account.id}
-                onClick={() => {
-                  switchAccount(account.id);
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors"
+                key={acc.id}
+                onClick={() => { switchAccount(acc.id); setIsOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-jtp-base-minus rounded-jtp-xl transition-colors ${
+                  acc.id === activeAccount.id
+                    ? 'text-jtp-blue bg-[rgba(91,141,239,0.1)]'
+                    : 'text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
+                }`}
               >
-                {account.name}
+                {acc.name}
               </button>
             ))}
           </div>
-          <div className="border-t border-white/10 mt-1 pt-1">
+          <div className="border-t border-jtp-border mt-1 pt-1">
             <button
               disabled={!isSubscribed}
               onClick={() => {
-                if (isSubscribed) {
-                  navigateTo('settings', 'accounts');
-                  setIsOpen(false);
-                } else {
-                  navigateTo('pricing');
-                  setIsOpen(false);
-                }
+                if (isSubscribed) { navigateTo('settings', 'accounts'); setIsOpen(false); }
+                else { navigateTo('pricing'); setIsOpen(false); }
               }}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 uppercase tracking-wide ${isSubscribed ? 'text-secondary hover:bg-white/5 hover:text-white' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
+              className={`w-full text-left px-3 py-2 text-jtp-xs flex items-center gap-2 rounded-jtp-xl transition-colors ${
+                isSubscribed
+                  ? 'text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
+                  : 'text-jtp-textDisabled cursor-not-allowed opacity-50'
+              }`}
             >
               <PlusIcon className="w-3 h-3" /> Create Account
             </button>
@@ -193,44 +211,68 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
   );
 };
 
+// ─── Nav item ───────────────────────────────────────────────────────────────
+
+interface NavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  badge?: string | number;
+  isActive: boolean;
+  isCollapsed: boolean;
+  onClick?: () => void;
+}
+
+const NavItem: React.FC<NavItemProps> = ({ icon, label, badge, isActive, isCollapsed, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center gap-[11px] px-[10px] py-[8px] rounded-jtp-xl border-none cursor-pointer text-left text-jtp-md font-medium transition-colors ${
+      isActive
+        ? 'bg-[rgba(91,141,239,0.12)] text-jtp-blue'
+        : 'bg-transparent text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
+    } ${isCollapsed ? 'justify-center' : ''}`}
+    title={isCollapsed ? label : undefined}
+  >
+    <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center">{icon}</span>
+    {!isCollapsed && (
+      <>
+        <span className="flex-1">{label}</span>
+        {badge !== undefined && (
+          <span className="font-mono text-jtp-xs text-jtp-textDim">{badge}</span>
+        )}
+      </>
+    )}
+  </button>
+);
+
+// ─── Main Sidebar ────────────────────────────────────────────────────────────
+
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, isTrialing, isSubscribed, logout } = useAuth();
+  const { user, isSubscribed, logout } = useAuth();
   const { currentView, navigateTo } = useView();
-  const { isSidebarCollapsed, toggleSidebar } = useUI();
+  const { isSidebarCollapsed } = useUI();
+  const { activeAccount } = useAccount();
   const { openUserProfile } = useClerk();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const { enabled: lowPerfEnabled, toggle: toggleLowPerf } = useLowPerfMode();
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+    const handleClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setIsProfileOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Determine user tier/role display
-  const getUserTierDisplay = (): { label: string; color: string } => {
-    if (user?.role === 'ADMIN') {
-      return { label: 'Admin', color: 'text-risk-high' };
-    }
-    if (isSubscribed) {
-      return { label: 'Pro', color: 'text-momentum-green' };
-    }
-    if (isTrialing) {
-      return { label: 'Trial', color: 'text-photonic-blue' };
-    }
-    return { label: 'Free', color: 'text-secondary' };
-  };
-
-  const handleSetView = (view: DashboardView) => {
+  const handleNav = (view: DashboardView) => {
     if (window.location.pathname !== '/dashboard' && window.location.pathname !== '/') {
-      // If on a standalone page (like /referral), we need to navigate back to dashboard
-      // App.tsx listens to popstate, so we push state and dispatch the event
       window.history.pushState({}, '', '/dashboard');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
@@ -238,205 +280,202 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     onClose();
   };
 
+  const initials = user?.fullName
+    ? user.fullName.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('').toUpperCase()
+    : '?';
+
+  const accountSubtitle = (() => {
+    const tier = isSubscribed ? 'Pro' : 'Free';
+    const accType = activeAccount?.type === 'PROP_FIRM' ? 'Prop' : activeAccount?.type === 'DEMO' ? 'Demo' : activeAccount ? 'Live' : null;
+    return accType ? `${accType} · ${tier}` : tier;
+  })();
+
   if (!user) return null;
+
+  const sidebarWidth = isSidebarCollapsed ? 'md:w-16' : 'md:w-[228px]';
 
   return (
     <>
+      {/* Mobile backdrop */}
       <div
-        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        className={`fixed inset-0 bg-black/60 z-30 md:hidden transition-opacity duration-200 ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
         onClick={onClose}
         aria-hidden="true"
-      ></div>
+      />
+
+      {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen bg-[#08090A] border-r border-white/10 flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] w-64 ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'
-          } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`fixed top-0 left-0 h-screen bg-jtp-shell border-r border-jtp-border flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] w-[228px] ${sidebarWidth} ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0`}
       >
-        {/* BRAND */}
-        <div className={`h-16 flex items-center border-b border-white/10 ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
-          {isSidebarCollapsed ? (
-            <AuthMark size={18} />
-          ) : (
-            <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <img src="/JTP_logo.png" alt="JTP Logo" className="h-6 w-auto" />
-              <span className="px-2 py-1 bg-photonic-blue/20 border border-photonic-blue/50 rounded text-xs font-bold text-photonic-blue uppercase tracking-wider">
-                BETA
-              </span>
-            </a>
-          )}
+        {/* ── Brand block (52 px) ── */}
+        <div
+          className="flex-shrink-0 flex items-center border-b border-jtp-border"
+          style={{ height: '52px', padding: '0 18px', gap: '9px' }}
+        >
+          {/* Gradient mark */}
+          <div
+            className="flex-shrink-0 flex items-center justify-center rounded-jtp-md"
+            style={{
+              width: '22px',
+              height: '22px',
+              background: 'linear-gradient(135deg,#5b8def,#3f6fd6)',
+            }}
+          >
+            <div
+              className="rounded-jtp-xs bg-jtp-bg"
+              style={{ width: '8px', height: '8px' }}
+            />
+          </div>
+
           {!isSidebarCollapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="hidden md:block text-secondary hover:text-white transition-colors"
+            <span
+              className="text-jtp-lg font-semibold text-jtp-text"
+              style={{ letterSpacing: '-0.2px' }}
             >
-              <ChevronDoubleLeftIcon className="w-4 h-4" />
-            </button>
+              JTradePilot
+            </span>
           )}
         </div>
 
-        <div className="p-4 border-b border-white/10">
+        {/* ── Account switcher ── */}
+        <div className="flex-shrink-0 px-3 pt-3 pb-2">
           <AccountSwitcher isCollapsed={isSidebarCollapsed} />
         </div>
 
-        <div className={`flex-1 flex flex-col py-4 gap-1 ${!isSidebarCollapsed ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        {/* ── Navigation ── */}
+        <nav className="flex-1 px-3 py-[6px] flex flex-col gap-[2px] overflow-y-auto">
           {isSubscribed && (
             <>
               <NavItem
-                icon={<DashboardIcon className="w-4 h-4" />}
-                label="Dashboard"
-                isActive={currentView === 'dashboard'}
-                onClick={() => handleSetView('dashboard')}
-                isCollapsed={isSidebarCollapsed}
-              />
-              <NavItem
-                icon={<JournalIcon className="w-4 h-4" />}
+                icon={<JournalSvg />}
                 label="Journal"
                 isActive={currentView === 'journal'}
-                onClick={() => handleSetView('journal')}
                 isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('journal')}
               />
               <NavItem
-                icon={<PlaybookIcon className="w-4 h-4" />}
-                label="Playbooks"
-                isActive={currentView === 'playbooks'}
-                onClick={() => handleSetView('playbooks')}
+                icon={<DashboardSvg />}
+                label="Dashboard"
+                isActive={currentView === 'dashboard'}
                 isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('dashboard')}
               />
               <NavItem
-                icon={<AnalyticsIcon className="w-4 h-4" />}
+                icon={<AnalyticsSvg />}
                 label="Analytics"
                 isActive={currentView === 'analytics'}
-                onClick={() => handleSetView('analytics')}
                 isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('analytics')}
+              />
+              <NavItem
+                icon={<PlaybookSvg />}
+                label="Playbooks"
+                isActive={currentView === 'playbooks'}
+                isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('playbooks')}
               />
             </>
           )}
 
-          {isSubscribed && (
-            <NavItem
-              icon={<SettingsIcon className="w-4 h-4" />}
-              label="Settings"
-              isActive={currentView === 'settings'}
-              onClick={() => handleSetView('settings')}
-              isCollapsed={isSidebarCollapsed}
-            />
-          )}
-
-          <div className="my-2 border-t border-white/10 mx-4" />
-
-          {isSubscribed && (
-            <NavItem
-              icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
-              label="Refer & Earn"
-              isActive={window.location.pathname === '/referral'}
-              onClick={() => {
-                if (window.location.pathname !== '/referral') {
-                  window.history.pushState({}, '', '/referral');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }
-                onClose();
-              }}
-              isCollapsed={isSidebarCollapsed}
-            />
-          )}
+          <NavItem
+            icon={<SettingsSvg />}
+            label="Settings"
+            isActive={currentView === 'settings'}
+            isCollapsed={isSidebarCollapsed}
+            onClick={() => handleNav('settings')}
+          />
 
           {!isSubscribed && (
-            // Show Upgrade button or prompt if not subscribed
             <NavItem
-              icon={<UsersIcon className="w-4 h-4 text-momentum-green" />}
+              icon={<span className="text-jtp-profit text-xs">↑</span>}
               label="Upgrade to Pro"
               isActive={currentView === 'subscription' || currentView === 'pricing'}
-              onClick={() => handleSetView('pricing')}
               isCollapsed={isSidebarCollapsed}
+              onClick={() => handleNav('pricing')}
             />
           )}
-        </div>
+        </nav>
 
-        <div className="mt-auto p-4 border-t border-white/10 pb-8 md:pb-4">
-          {isSidebarCollapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="w-full flex items-center justify-center p-2 mb-4 text-secondary hover:text-white transition-colors"
-            >
-              <ChevronDoubleLeftIcon
-                className="w-4 h-4 rotate-180"
-              />
-            </button>
+        {/* ── Footer ── */}
+        <div className="flex-shrink-0 border-t border-jtp-border px-[14px] py-[10px] flex flex-col gap-[10px]">
+          {/* Low performance mode toggle */}
+          {!isSidebarCollapsed && (
+            <label className="flex items-center justify-between cursor-pointer text-jtp-sm text-jtp-textMuted">
+              <span>Low performance mode</span>
+              <button
+                role="switch"
+                aria-checked={lowPerfEnabled}
+                onClick={toggleLowPerf}
+                className="relative flex-shrink-0 border-none cursor-pointer rounded-full transition-colors duration-150"
+                style={{
+                  width: '32px',
+                  height: '18px',
+                  background: lowPerfEnabled ? '#5b8def' : '#252b33',
+                }}
+              >
+                <span
+                  className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-jtp-text transition-all duration-150"
+                  style={{ left: lowPerfEnabled ? '16px' : '2px' }}
+                />
+              </button>
+            </label>
           )}
 
+          {/* User block */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`hidden md:flex items-center gap-3 w-full hover:bg-white/5 p-2 rounded-lg transition-colors text-left group ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              className={`w-full flex items-center gap-[9px] hover:bg-jtp-hover rounded-jtp-xl px-1 py-1 transition-colors text-left ${
+                isSidebarCollapsed ? 'justify-center' : ''
+              }`}
             >
-              <div className="relative flex-shrink-0">
-                {user.preferences?.useGravatar ? (
-                  <>
-                    <img
-                      src={user.gravatarUrl}
-                      alt={user.fullName}
-                      className="w-10 h-10 rounded-full border border-white/10 group-hover:border-white/30 transition-colors object-cover"
-                      onError={(e) => {
-                        // Fallback to initials if image fails
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
-                    <div className="hidden w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
-                      <span className="text-sm font-bold text-white">
-                        {user.fullName.substring(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {user.fullName.substring(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+              {/* Avatar */}
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded-full"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  background: '#222933',
+                }}
+              >
+                <span className="text-jtp-sm-minus font-semibold text-jtp-textMuted">
+                  {initials}
+                </span>
               </div>
 
               {!isSidebarCollapsed && (
-                <div className="overflow-hidden flex-1">
-                  <p className="text-xs font-medium text-white truncate">{user.fullName}</p>
-                  <p className={`text-[9px] truncate uppercase tracking-wider ${getUserTierDisplay().color}`}>
-                    JTradePilot {getUserTierDisplay().label}
-                  </p>
-                  {user.isEarlySupporter && (
-                    <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded bg-momentum-green/10 border border-momentum-green/20">
-                      <span className="text-[8px] font-bold text-momentum-green uppercase tracking-wider leading-none">
-                        Early Supporter
-                      </span>
-                    </div>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-jtp-base-minus font-medium text-jtp-text truncate">
+                    {user.fullName}
+                  </div>
+                  <div className="text-jtp-xs text-jtp-textDim truncate">{accountSubtitle}</div>
                 </div>
               )}
             </button>
 
+            {/* Profile popup */}
             {isProfileOpen && (
               <div
-                className={`absolute bottom-full mb-2 bg-[#08090A] border border-white/10 rounded shadow-2xl p-1 z-50 w-56 ${isSidebarCollapsed ? 'left-full ml-2 bottom-0' : 'left-0 w-full'
-                  }`}
+                className={`absolute z-50 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-2xl shadow-jtp-drawer p-1 w-48 ${
+                  isSidebarCollapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-2 left-0 w-full'
+                }`}
               >
                 <button
-                  onClick={() => {
-                    openUserProfile();
-                    setIsProfileOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                  onClick={() => { openUserProfile(); setIsProfileOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-jtp-xs text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text rounded-jtp-xl transition-colors flex items-center gap-2"
                 >
-                  <UsersIcon className="w-3 h-3" /> Manage Account
+                  <ManageAccountSvg /> Manage Account
                 </button>
-                <div className="border-t border-white/10 my-1"></div>
+                <div className="border-t border-jtp-border my-1" />
                 <button
-                  onClick={() => {
-                    logout();
-                    setIsProfileOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs text-risk-high hover:bg-risk-high/10 transition-colors flex items-center gap-2"
+                  onClick={() => { logout(); setIsProfileOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-jtp-xs text-jtp-loss hover:bg-[rgba(229,99,95,0.1)] rounded-jtp-xl transition-colors flex items-center gap-2"
                 >
-                  <LogoutIcon className="w-3 h-3" /> Log Out
+                  <LogoutSvg /> Log Out
                 </button>
               </div>
             )}
