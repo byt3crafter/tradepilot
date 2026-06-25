@@ -1,57 +1,139 @@
-import React, { useState } from 'react';
-import Card from '../components/Card';
-import Button from '../components/ui/Button';
+import React, { useState, useMemo } from 'react';
 import { usePlaybook } from '../context/PlaybookContext';
+import { useTrade } from '../context/TradeContext';
+import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import Button from '../components/ui/Button';
 import { PlusIcon } from '../components/icons/PlusIcon';
-import { Playbook, CommunityPlaybook } from '../types';
-import PlaybookBuilderModal from '../components/playbooks/PlaybookBuilderModal';
-import PlaybookDetailModal from '../components/playbooks/PlaybookDetailModal';
-import { DropdownMenu, DropdownMenuItem } from '../components/ui/DropdownMenu';
+import { CopyIcon } from '../components/icons/CopyIcon';
 import { EyeIcon } from '../components/icons/EyeIcon';
 import { PencilIcon } from '../components/icons/PencilIcon';
 import { TrashIcon } from '../components/icons/TrashIcon';
-import { CopyIcon } from '../components/icons/CopyIcon';
+import { DropdownMenu, DropdownMenuItem } from '../components/ui/DropdownMenu';
+import PlaybookBuilderModal from '../components/playbooks/PlaybookBuilderModal';
+import PlaybookDetailModal from '../components/playbooks/PlaybookDetailModal';
 import CommunityPlaybookDetailModal from '../components/playbooks/CommunityPlaybookDetailModal';
-import { useAuth } from '../context/AuthContext';
+import SetupsList, { SetupItem } from '../components/playbooks/SetupsList';
+import SetupDetail from '../components/playbooks/SetupDetail';
+import { Playbook, CommunityPlaybook } from '../types';
 
+// ─── Tag chip ─────────────────────────────────────────────────────────────────
 const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="bg-photonic-blue/10 text-photonic-blue text-xs font-semibold mr-1 mb-1 px-2 py-0.5 rounded-full inline-block">
+  <span className="text-jtp-xs px-2.5 py-[3px] rounded-jtp-md bg-jtp-blue/10 text-jtp-blue font-medium mr-1 mb-1 inline-block">
     {children}
   </span>
 );
 
+// ─── Community tab row ────────────────────────────────────────────────────────
+const CommunityRow: React.FC<{
+  playbook: CommunityPlaybook;
+  isOwnPlaybook: boolean;
+  onView: () => void;
+  onCopy: () => void;
+}> = ({ playbook, isOwnPlaybook, onView, onCopy }) => {
+  const allTags = [...playbook.tradingStyles, ...playbook.instruments, ...playbook.timeframes];
+  return (
+    <tr className="border-b border-jtp-borderSubtle hover:bg-jtp-hover transition-colors">
+      <td className="px-4 py-3">
+        <button
+          onClick={onView}
+          className="font-medium text-jtp-base text-jtp-textSoft hover:text-jtp-blue transition-colors text-left"
+        >
+          {playbook.name}
+        </button>
+        {playbook.coreIdea && (
+          <div className="text-jtp-xs text-jtp-textFaint mt-0.5 truncate max-w-xs">
+            {playbook.coreIdea}
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-3 font-mono text-jtp-base-minus text-jtp-profit">
+        {playbook.winRate !== undefined ? `${playbook.winRate}%` : '—'}
+      </td>
+      <td className="px-4 py-3 font-mono text-jtp-base-minus text-jtp-textSoft">
+        {playbook.tradeCount !== undefined ? playbook.tradeCount : '—'}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap">
+          {allTags.slice(0, 3).map(tag => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          {!isOwnPlaybook && (
+            <button
+              onClick={onCopy}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-jtp-md bg-jtp-raised border border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderHover text-jtp-xs font-medium transition-colors"
+            >
+              <CopyIcon className="w-3 h-3" />
+              Copy
+            </button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuItem onSelect={onView}>
+              <EyeIcon className="w-4 h-4 mr-2" />
+              View Details
+            </DropdownMenuItem>
+          </DropdownMenu>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
+// ─── Main page ─────────────────────────────────────────────────────────────────
 const PlaybooksPage: React.FC = () => {
   const { playbooks, communityPlaybooks, isLoading, deletePlaybook, createPlaybook } = usePlaybook();
+  const { closedTrades } = useTrade();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'my' | 'community'>('my');
 
+  const [activeTab, setActiveTab] = useState<'my' | 'community'>('my');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingPlaybook, setEditingPlaybook] = useState<Playbook | null>(null);
   const [viewingPlaybook, setViewingPlaybook] = useState<Playbook | null>(null);
   const [viewingCommunityPlaybook, setViewingCommunityPlaybook] = useState<CommunityPlaybook | null>(null);
+  const [selectedSetupKey, setSelectedSetupKey] = useState<string | null>(null);
 
-  const openAddModal = () => {
-    setEditingPlaybook(null);
-    setIsBuilderOpen(true);
-  };
+  // Build a flat list of setup items from all user playbooks
+  const setupItems = useMemo((): SetupItem[] => {
+    return playbooks.flatMap(playbook => {
+      if (playbook.setups.length === 0) {
+        return [
+          {
+            key: `playbook:${playbook.id}`,
+            name: playbook.name,
+            playbook,
+            setup: null,
+          },
+        ];
+      }
+      return playbook.setups.map(setup => ({
+        key: setup.id,
+        name: setup.name,
+        playbook,
+        setup,
+      }));
+    });
+  }, [playbooks]);
 
-  const openEditModal = (playbook: Playbook) => {
-    setEditingPlaybook(playbook);
-    setViewingPlaybook(null);
-    setIsBuilderOpen(true);
-  };
+  // Auto-select first item when items change
+  const effectiveKey = useMemo(() => {
+    if (selectedSetupKey && setupItems.some(i => i.key === selectedSetupKey)) {
+      return selectedSetupKey;
+    }
+    return setupItems.length > 0 ? setupItems[0].key : null;
+  }, [selectedSetupKey, setupItems]);
 
-  const openDetailModal = (playbook: Playbook) => {
-    setViewingPlaybook(playbook);
-  };
+  const selectedItem = useMemo(
+    () => setupItems.find(i => i.key === effectiveKey) ?? null,
+    [setupItems, effectiveKey]
+  );
 
-  const closeAllModals = () => {
-    setIsBuilderOpen(false);
-    setEditingPlaybook(null);
-    setViewingPlaybook(null);
-    setViewingCommunityPlaybook(null);
-  }
+  const openAddModal = () => { setEditingPlaybook(null); setIsBuilderOpen(true); };
+  const openEditModal = (pb: Playbook) => { setEditingPlaybook(pb); setViewingPlaybook(null); setIsBuilderOpen(true); };
+  const closeAllModals = () => { setIsBuilderOpen(false); setEditingPlaybook(null); setViewingPlaybook(null); setViewingCommunityPlaybook(null); };
 
   const handleDelete = async (playbookId: string) => {
     if (window.confirm('Are you sure you want to delete this playbook? This will not affect any trades already logged with it.')) {
@@ -64,90 +146,10 @@ const PlaybooksPage: React.FC = () => {
     }
   };
 
-  const renderMyPlaybooks = () => {
-    if (isLoading) {
-      return (
-        <div className="flex justify-center items-center p-8 h-64">
-          <Spinner />
-        </div>
-      );
-    }
-
-    if (playbooks.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center max-w-md">
-            <div className="border-2 border-dashed border-photonic-blue/30 rounded-xl p-12 bg-photonic-blue/5">
-              <h3 className="text-2xl font-bold text-future-light mb-3">Your Playbook is Empty</h3>
-              <p className="text-future-gray mb-8">Create your first playbook to get started building your trading strategies.</p>
-              <Button onClick={openAddModal} className="w-full">
-                <PlusIcon className="w-5 h-5 mr-2" />
-                Create a Playbook
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="overflow-x-auto table-scrollbar">
-        <table className="w-full text-sm">
-          <thead className="border-b border-photonic-blue/30">
-            <tr>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Name</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Core Idea</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Tags</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {playbooks.map(playbook => (
-              <tr key={playbook.id} className="border-b border-future-panel/50 hover:bg-photonic-blue/5">
-                <td className="p-3">
-                  <button onClick={() => openDetailModal(playbook)} className="font-semibold text-future-light hover:text-photonic-blue hover:underline text-left">
-                    {playbook.name}
-                  </button>
-                </td>
-                <td className="p-3 text-sm text-future-gray max-w-xs truncate">{playbook.coreIdea || '—'}</td>
-                <td className="p-3">
-                  <div className="flex flex-wrap">
-                    {[...playbook.tradingStyles, ...playbook.instruments, ...playbook.timeframes].slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
-                  </div>
-                </td>
-                <td className="p-3">
-                  <DropdownMenu>
-                    <DropdownMenuItem onSelect={() => openDetailModal(playbook)}>
-                      <EyeIcon className="w-4 h-4 mr-2" />
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openEditModal(playbook)}>
-                      <PencilIcon className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleDelete(playbook.id)} className="text-risk-high hover:bg-risk-high/10">
-                      <TrashIcon className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   const handleCopyPlaybook = async (playbook: CommunityPlaybook) => {
     if (window.confirm(`Do you want to copy "${playbook.name}" to your playbooks?`)) {
       try {
-        // Create a new playbook based on the community one
-        // We need to map CommunityPlaybook to the input expected by createPlaybook
-        // Since createPlaybook expects a partial Playbook or specific DTO, we'll construct it here.
-        // Note: We don't have a direct 'copy' endpoint, so we'll create a new one.
-
-        const newPlaybookData: Partial<Playbook> = {
+        await createPlaybook({
           name: `${playbook.name} (Copy)`,
           coreIdea: playbook.coreIdea,
           tradingStyles: playbook.tradingStyles,
@@ -156,7 +158,6 @@ const PlaybooksPage: React.FC = () => {
           pros: playbook.pros,
           cons: playbook.cons,
           setups: playbook.setups.map(setup => {
-            // Explicitly destructure to remove ID and ensure clean object
             const { id, ...rest } = setup;
             return {
               ...rest,
@@ -164,10 +165,8 @@ const PlaybooksPage: React.FC = () => {
               riskManagement: setup.riskManagement.map(r => ({ text: r.text, type: r.type, id: undefined as any })),
             };
           }) as any,
-          isPublic: false, // Copied playbooks should be private by default
-        };
-
-        await createPlaybook(newPlaybookData);
+          isPublic: false,
+        });
         alert('Playbook copied successfully!');
         setActiveTab('my');
       } catch (err) {
@@ -177,10 +176,107 @@ const PlaybooksPage: React.FC = () => {
     }
   };
 
+  // ── My Playbooks content ──────────────────────────────────────────────────
+  const renderMyPlaybooks = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <Spinner />
+        </div>
+      );
+    }
+
+    if (playbooks.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-24 px-6">
+          <div className="text-center max-w-sm">
+            <div className="w-12 h-12 mx-auto mb-5 rounded-jtp-panel bg-jtp-raised border border-jtp-border flex items-center justify-center">
+              <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="text-jtp-textDim">
+                <path d="M3 3h7l3 3v7H3z" />
+                <line x1="5.5" y1="7" x2="10.5" y2="7" />
+                <line x1="5.5" y1="10" x2="9" y2="10" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-jtp-lg text-jtp-text mb-2">No setups yet</h3>
+            <p className="text-jtp-sm text-jtp-textMuted mb-6 leading-relaxed">
+              Create your first playbook and define your trading setups to start measuring your edge.
+            </p>
+            <Button onClick={openAddModal} className="flex items-center gap-2 mx-auto">
+              <PlusIcon className="w-4 h-4" />
+              Create a Playbook
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Two-pane layout
+    return (
+      <div className="flex h-full min-h-0">
+        {/* Left pane: setups list */}
+        <div className="w-64 xl:w-72 shrink-0 border-r border-jtp-border flex flex-col overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-jtp-borderSubtle">
+            <span className="text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim">
+              Setups ({setupItems.length})
+            </span>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <SetupsList
+              items={setupItems}
+              closedTrades={closedTrades}
+              selectedKey={effectiveKey}
+              onSelect={setSelectedSetupKey}
+            />
+          </div>
+
+          {/* Playbook management link row */}
+          <div className="border-t border-jtp-border px-4 py-2.5 flex flex-col gap-1">
+            {playbooks.map(pb => (
+              <div
+                key={pb.id}
+                className="flex items-center justify-between group py-0.5"
+              >
+                <span className="text-jtp-xs text-jtp-textFaint truncate">{pb.name}</span>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    title="Edit"
+                    onClick={() => openEditModal(pb)}
+                    className="p-1 text-jtp-textDim hover:text-jtp-text rounded-jtp-sm"
+                  >
+                    <PencilIcon className="w-3 h-3" />
+                  </button>
+                  <button
+                    title="Delete"
+                    onClick={() => handleDelete(pb.id)}
+                    className="p-1 text-jtp-textDim hover:text-jtp-loss rounded-jtp-sm"
+                  >
+                    <TrashIcon className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right pane: setup detail */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          {selectedItem ? (
+            <SetupDetail item={selectedItem} closedTrades={closedTrades} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-jtp-textFaint text-jtp-sm">
+              Select a setup to view details.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Community tab ─────────────────────────────────────────────────────────
   const renderCommunityPlaybooks = () => {
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center p-8 h-64">
+        <div className="flex items-center justify-center h-64">
           <Spinner />
         </div>
       );
@@ -188,66 +284,36 @@ const PlaybooksPage: React.FC = () => {
 
     if (communityPlaybooks.length === 0) {
       return (
-        <div className="text-center p-16">
-          <h3 className="text-lg font-semibold text-future-light">Community Playbooks</h3>
-          <p className="text-future-gray mt-2">No public playbooks from other users are available yet. Check back later!</p>
+        <div className="flex items-center justify-center py-24 px-6">
+          <div className="text-center">
+            <p className="text-jtp-textDim text-jtp-base">No community playbooks available yet.</p>
+            <p className="text-jtp-textFaint text-jtp-sm mt-1">Check back later or make yours public to share.</p>
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="overflow-x-auto table-scrollbar">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-photonic-blue/30">
-            <tr>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Name</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Win Rate</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Trades</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Core Idea</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Tags</th>
-              <th className="p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs">Actions</th>
+          <thead>
+            <tr className="border-b border-jtp-border">
+              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Name</th>
+              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Win Rate</th>
+              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Trades</th>
+              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Tags</th>
+              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {communityPlaybooks.map(playbook => (
-              <tr key={playbook.id} className="border-b border-future-panel/50 hover:bg-photonic-blue/5">
-                <td className="p-3">
-                  <button onClick={() => setViewingCommunityPlaybook(playbook)} className="font-semibold text-future-light hover:text-photonic-blue hover:underline text-left">
-                    {playbook.name}
-                  </button>
-                </td>
-                <td className="p-3 text-sm text-momentum-green font-mono">
-                  {playbook.winRate !== undefined ? `${playbook.winRate}%` : '-'}
-                </td>
-                <td className="p-3 text-sm text-future-light font-mono">
-                  {playbook.tradeCount !== undefined ? playbook.tradeCount : '-'}
-                </td>
-                <td className="p-3 text-sm text-future-gray max-w-xs truncate">{playbook.coreIdea || '—'}</td>
-                <td className="p-3">
-                  <div className="flex flex-wrap">
-                    {[...playbook.tradingStyles, ...playbook.instruments, ...playbook.timeframes].slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
-                  </div>
-                </td>
-                <td className="p-3">
-                  <div className="flex items-center gap-2">
-                    {user?.id !== playbook.authorId && (
-                      <Button
-                        onClick={() => handleCopyPlaybook(playbook)}
-                        variant="secondary"
-                        className="py-1 px-2 text-xs flex items-center gap-1"
-                      >
-                        <CopyIcon className="w-3 h-3" /> Copy
-                      </Button>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuItem onSelect={() => setViewingCommunityPlaybook(playbook)}>
-                        <EyeIcon className="w-4 h-4 mr-2" />
-                        View Details
-                      </DropdownMenuItem>
-                    </DropdownMenu>
-                  </div>
-                </td>
-              </tr>
+            {communityPlaybooks.map(pb => (
+              <CommunityRow
+                key={pb.id}
+                playbook={pb}
+                isOwnPlaybook={user?.id === pb.authorId}
+                onView={() => setViewingCommunityPlaybook(pb)}
+                onCopy={() => handleCopyPlaybook(pb)}
+              />
             ))}
           </tbody>
         </table>
@@ -255,47 +321,64 @@ const PlaybooksPage: React.FC = () => {
     );
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 md:mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-orbitron text-future-light">Playbooks</h1>
-          <p className="text-future-gray">Define and manage your arsenal of trading playbooks.</p>
+    <div className="flex flex-col h-full animate-jtp-fade-in">
+      {/* Page header */}
+      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-jtp-border shrink-0">
+        <div className="flex items-baseline gap-3">
+          <h1 className="font-semibold text-jtp-xl text-jtp-text">Playbooks</h1>
+          <span className="text-jtp-sm text-jtp-textDim">Your setups, measured</span>
         </div>
-        <Button onClick={openAddModal} className="w-full md:w-auto flex items-center justify-center gap-2">
-          <PlusIcon className="w-5 h-5" />
-          <span>New Playbook</span>
+        <Button
+          onClick={openAddModal}
+          className="flex items-center gap-2 py-1.5 px-3 text-jtp-sm"
+        >
+          <PlusIcon className="w-4 h-4" />
+          New Playbook
         </Button>
       </div>
 
-      <div className="border-b border-photonic-blue/20 mb-4">
-        <nav className="flex space-x-4 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-          <button
-            onClick={() => setActiveTab('my')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'my' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
-          >
-            My Playbooks ({playbooks.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('community')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'community' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
-          >
-            Community ({communityPlaybooks.length})
-          </button>
-        </nav>
+      {/* Tabs */}
+      <div className="flex items-center gap-0 px-5 border-b border-jtp-border shrink-0">
+        <button
+          onClick={() => setActiveTab('my')}
+          className={`py-2.5 px-1 mr-5 text-jtp-sm font-medium border-b-2 transition-colors
+            ${activeTab === 'my'
+              ? 'border-jtp-blue text-jtp-text'
+              : 'border-transparent text-jtp-textSubtle hover:text-jtp-textMuted'}`}
+        >
+          My Playbooks
+          <span className="ml-1.5 font-mono text-jtp-xs text-jtp-textFaint">
+            {playbooks.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('community')}
+          className={`py-2.5 px-1 text-jtp-sm font-medium border-b-2 transition-colors
+            ${activeTab === 'community'
+              ? 'border-jtp-blue text-jtp-text'
+              : 'border-transparent text-jtp-textSubtle hover:text-jtp-textMuted'}`}
+        >
+          Community
+          <span className="ml-1.5 font-mono text-jtp-xs text-jtp-textFaint">
+            {communityPlaybooks.length}
+          </span>
+        </button>
       </div>
 
-      <Card>
+      {/* Content */}
+      <div className="flex-1 min-h-0 bg-jtp-panel">
         {activeTab === 'my' ? renderMyPlaybooks() : renderCommunityPlaybooks()}
-      </Card>
+      </div>
 
+      {/* Modals */}
       {isBuilderOpen && (
         <PlaybookBuilderModal
           playbookToEdit={editingPlaybook}
           onClose={closeAllModals}
         />
       )}
-
       {viewingPlaybook && (
         <PlaybookDetailModal
           playbook={viewingPlaybook}
@@ -303,7 +386,6 @@ const PlaybooksPage: React.FC = () => {
           onEdit={() => openEditModal(viewingPlaybook)}
         />
       )}
-
       {viewingCommunityPlaybook && (
         <CommunityPlaybookDetailModal
           playbook={viewingCommunityPlaybook}
