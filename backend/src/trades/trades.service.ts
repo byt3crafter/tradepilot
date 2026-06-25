@@ -183,17 +183,61 @@ export class TradesService {
   }
 
   async findAllByAccount(userId: string, brokerAccountId: string) {
-    return this.prisma.trade.findMany({
-      where: {
-        userId,
-        brokerAccountId
-      },
+    const account = await this.prisma.brokerAccount.findFirst({
+      where: { id: brokerAccountId, userId },
+      include: { smartLimits: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Broker account not found or does not belong to the user.');
+    }
+
+    const trades = await this.prisma.trade.findMany({
+      where: { userId, brokerAccountId },
       include: {
-        aiAnalysis: true, // Include the analysis data when fetching trades
-        tradeJournal: true, // Include the journal data
+        aiAnalysis: true,
+        tradeJournal: true,
+        mistakes: { include: { tag: true } },
       },
       orderBy: { entryDate: 'desc' },
     });
+
+    return trades.map((t) => this.withDerivedR(t, account));
+  }
+
+  /**
+   * Attach computed R-multiples to a trade.
+   *  - realisedR = realised P&L ÷ the account's risk unit (risk-per-trade % of
+   *    initial balance). This replaces the old ±1R placeholder.
+   *  - planR     = stored rr if present, else derived from entry/SL/TP.
+   *  - mistakeTags = flattened mistake-tag labels for the Journal.
+   * Risk unit falls back to 1% when no SmartLimit risk-per-trade is configured.
+   */
+  private withDerivedR(t: any, account: any) {
+    const riskPct =
+      account?.smartLimits?.maxRiskPerTrade && account.smartLimits.maxRiskPerTrade > 0
+        ? account.smartLimits.maxRiskPerTrade
+        : 1;
+    const riskUnit = (riskPct / 100) * (account?.initialBalance || 0);
+
+    const realisedR =
+      riskUnit > 0 && t.profitLoss != null
+        ? Math.round((t.profitLoss / riskUnit) * 100) / 100
+        : null;
+
+    let planR: number | null = t.rr ?? null;
+    if (planR == null && t.stopLoss != null && t.takeProfit != null && t.entryPrice != null) {
+      const risk = Math.abs(t.entryPrice - t.stopLoss);
+      const reward = Math.abs(t.takeProfit - t.entryPrice);
+      if (risk > 0) planR = Math.round((reward / risk) * 100) / 100;
+    }
+
+    return {
+      ...t,
+      realisedR,
+      planR,
+      riskUnit,
+      mistakeTags: (t.mistakes || []).map((m: any) => m.tag?.label).filter(Boolean),
+    };
   }
 
   async findOne(id: string, userId: string, includeRelations = false) {
