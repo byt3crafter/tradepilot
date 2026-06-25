@@ -3,15 +3,12 @@ import { createPortal } from 'react-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { BellIcon } from '../icons/BellIcon';
 import Spinner from '../Spinner';
-import { useView } from '../../context/ViewContext';
-
 const NotificationBell: React.FC = () => {
   const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  const { navigateTo } = useView();
 
   useEffect(() => {
     if (!isOpen || !buttonRef.current) return;
@@ -77,11 +74,8 @@ const NotificationBell: React.FC = () => {
     };
   }, [isOpen]);
 
-  const handleNotificationClick = async (notificationId: string, analysisId?: string | null) => {
+  const handleNotificationClick = async (notificationId: string, _analysisId?: string | null) => {
     await markAsRead(notificationId);
-    if (analysisId) {
-      navigateTo('analysis-tracker');
-    }
     setIsOpen(false);
   };
 

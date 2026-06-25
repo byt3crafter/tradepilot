@@ -17,7 +17,6 @@ interface TradeContextType {
   deleteTrade: (id: string) => Promise<void>;
   bulkDeleteTrades: (tradeIds: string[]) => Promise<void>;
   activatePendingOrder: (id: string) => Promise<void>;
-  analyzeTrade: (tradeId: string) => Promise<void>;
   createOrUpdateJournal: (tradeId: string, journalData: Omit<TradeJournal, 'id' | 'tradeId'>) => Promise<void>;
   refreshTrades: () => Promise<void>;
   bulkImportTrades: (data: { brokerAccountId: string; playbookId: string; trades: any[] }) => Promise<{ imported: number; skipped: number }>;
@@ -135,17 +134,6 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await refreshAllProgress();
   };
 
-  const analyzeTrade = async (tradeId: string) => {
-    const token = await getToken();
-    if (!token) throw new Error("Not authenticated");
-
-    // Call the secure backend endpoint to perform the analysis
-    await api.analyzeTrade(tradeId, token);
-
-    // Refresh the trades to get the new analysis data
-    await refreshTrades();
-  };
-
   const createOrUpdateJournal = async (tradeId: string, journalData: Omit<TradeJournal, 'id' | 'tradeId'>) => {
     const token = await getToken();
     if (!token) throw new Error("Not authenticated");
@@ -181,7 +169,6 @@ export const TradeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     deleteTrade,
     bulkDeleteTrades,
     activatePendingOrder,
-    analyzeTrade,
     createOrUpdateJournal,
     refreshTrades,
     bulkImportTrades,

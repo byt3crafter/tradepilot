@@ -9,8 +9,6 @@ import { useTrade } from '../context/TradeContext';
 import { usePlaybook } from '../context/PlaybookContext';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import Button from './ui/Button';
-import Spinner from './Spinner';
-import AiAnalysisDisplay from './trades/AiAnalysisDisplay';
 import JournalEntry from './journal/JournalEntry';
 import Modal from './ui/Modal';
 import JournalForm from './journal/JournalForm';
@@ -93,13 +91,12 @@ const calculateDuration = (start?: string | null, end?: string | null): string =
 
 
 const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit, isSelected, onSelect }) => {
-  const { deleteTrade, analyzeTrade } = useTrade();
+  const { deleteTrade } = useTrade();
   const { playbooks } = usePlaybook();
   const { findSpec, isLoading: isAssetsLoading } = useAssets();
   const { formatPrice } = usePriceFormatter(trade.asset);
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -151,20 +148,7 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit, isSelected, onSelect
     }
   };
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    try {
-      await analyzeTrade(trade.id);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to analyze trade. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   const playbookName = playbooks.find(s => s.id === trade.playbookId)?.name || 'Unknown';
-  const canAnalyze = trade.screenshotBeforeUrl && trade.screenshotAfterUrl && !trade.aiAnalysis;
 
   const netProfitLoss = trade.profitLoss ?? 0;
   const commission = trade.commission ?? 0;
@@ -305,27 +289,6 @@ const TradeRow: React.FC<TradeRowProps> = ({ trade, onEdit, isSelected, onSelect
                 )}
               </div>
 
-              <div className="border-t border-photonic-blue/10">
-                <SectionHeader title="AI Analysis" sectionKey="ai" isOpen={openSection === 'ai'} onClick={toggleSection} />
-                {openSection === 'ai' && (
-                  <div className="animate-fade-in-up">
-                    {trade.aiAnalysis ? (
-                      <AiAnalysisDisplay analysis={trade.aiAnalysis} />
-                    ) : canAnalyze ? (
-                      <div className="h-full flex flex-col items-center justify-center bg-future-dark/50 p-4 rounded-md">
-                        <p className="text-sm text-future-gray mb-3 text-center">Ready to analyze trade execution.</p>
-                        <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-auto">
-                          {isAnalyzing ? <Spinner /> : 'Analyze with AI'}
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="h-full flex items-center justify-center bg-future-dark/50 p-4 rounded-md">
-                        <p className="text-sm text-future-gray text-center">Upload "Before" and "After" screenshots to enable AI analysis.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </td>
         </tr>

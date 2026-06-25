@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, PreTradeCheckResult, AnalyzeChartResult, AccountAnalytics, Notification, SystemConfig } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig } from "../types";
 
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
 
@@ -52,9 +52,6 @@ export interface ApiService {
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade>;
   deleteTrade(id: string, token: string): Promise<{ message: string }>;
   bulkDeleteTrades(tradeIds: string[], token: string): Promise<{ message: string }>;
-  analyzeTrade(id: string, token: string): Promise<Trade>;
-  preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult>;
-  analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult>;
   bulkImportTrades(data: { brokerAccountId: string; playbookId: string; trades: any[] }, token: string): Promise<{ imported: number; skipped: number }>;
 
   // Trade Journals
@@ -66,10 +63,6 @@ export interface ApiService {
   // Notifications
   getNotifications(token: string): Promise<Notification[]>;
   markNotificationAsRead(id: string, token: string): Promise<Notification>;
-
-  // AI
-  generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }>;
-  parseTradeText(text: string, availableAssets: string[], token: string): Promise<Partial<Trade>>;
 
   // Auth
   verifyEmail(token: string): Promise<{ message: string }>;
@@ -230,9 +223,6 @@ const api: ApiService = {
   updateTrade(id: string, data: Partial<Trade>, token: string): Promise<Trade> { return this.patch(`/api/trades/${id}`, data, token); },
   deleteTrade(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/trades/${id}`, token); },
   bulkDeleteTrades(tradeIds: string[], token: string): Promise<{ message: string }> { return this.post('/api/trades/bulk-delete', { tradeIds }, token); },
-  analyzeTrade(id: string, token: string): Promise<Trade> { return this.post(`/api/trades/${id}/analyze`, {}, token); },
-  preTradeCheck(data: { playbookId: string; screenshotBeforeUrl: string; asset: string }, token: string): Promise<PreTradeCheckResult> { return this.post('/api/trades/pre-trade-check', data, token); },
-  analyzeChart(screenshotUrl: string, availableAssets: string[], token: string): Promise<AnalyzeChartResult> { return this.post('/api/trades/analyze-chart', { screenshotUrl, availableAssets }, token); },
   bulkImportTrades(data: { brokerAccountId: string; playbookId: string; trades: any[] }, token: string): Promise<{ imported: number; skipped: number }> { return this.post('/api/trades/bulk-import', data, token); },
 
   // Trade Journal Methods
@@ -244,10 +234,6 @@ const api: ApiService = {
   // Notification Methods
   getNotifications(token: string): Promise<Notification[]> { return this.get('/api/notifications', token); },
   markNotificationAsRead(id: string, token: string): Promise<Notification> { return this.patch(`/api/notifications/${id}/read`, {}, token); },
-
-  // AI Methods
-  generateTradeIdea(data: { asset: string; strategyType: string, screenshotUrl?: string | null }, token: string): Promise<{ idea: string }> { return this.post('/api/ai/generate-idea', data, token); },
-  parseTradeText(text: string, availableAssets: string[], token: string): Promise<Partial<Trade>> { return this.post('/api/ai/parse-trade-text', { text, availableAssets }, token); },
 
   // Auth Methods
   verifyEmail(token: string): Promise<{ message: string }> { return this.post('/api/auth/verify-email', { token }, null); },

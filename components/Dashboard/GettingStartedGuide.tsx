@@ -2,21 +2,24 @@ import React from 'react';
 import { useAccount } from '../../context/AccountContext';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { useView } from '../../context/ViewContext';
+import { useTrade } from '../../context/TradeContext';
 import StepCard from './StepCard';
 
 const GettingStartedGuide: React.FC = () => {
   const { accounts } = useAccount();
   const { playbooks } = usePlaybook();
   const { navigateTo } = useView();
+  const { closedTrades } = useTrade();
 
   const hasAccounts = accounts.length > 0;
   const hasPlaybooks = playbooks.length > 0;
+  const hasTrades = closedTrades.length > 0;
 
   return (
     <div className="max-w-5xl mx-auto">
       <div className="text-center mb-6">
-        <h2 className="text-xl font-orbitron text-photonic-blue">Your Mission Briefing</h2>
-        <p className="text-future-gray mt-1">Complete these steps to unlock your analytics dashboard.</p>
+        <h2 className="text-jtp-xl font-semibold text-jtp-text mb-1">Get started</h2>
+        <p className="text-jtp-sm text-jtp-textMuted">Three steps to unlock your analytics.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StepCard
@@ -31,18 +34,18 @@ const GettingStartedGuide: React.FC = () => {
           stepNumber={2}
           title="Define a Strategy"
           description="Document your trading strategies to analyze their performance over time."
-          ctaText="Add Strategy"
+          ctaText="Add Playbook"
           ctaAction={() => navigateTo('playbooks')}
           isComplete={hasPlaybooks}
         />
         <StepCard
           stepNumber={3}
-          title="Log Your First Trade"
-          description="Start your journal by logging your very first trade with tradePilot."
-          ctaText="Log Trade"
+          title="Import or Log Your First Trade"
+          description="Import from your broker (CSV/HTML) or add trades manually. The fastest path to insights is an import."
+          ctaText="Go to Journal"
           ctaAction={() => navigateTo('journal')}
-          isComplete={false} // This step is complete when the component disappears
-          isLocked={!hasAccounts || !hasPlaybooks}
+          isComplete={hasTrades}
+          isLocked={!hasAccounts}
         />
       </div>
     </div>
