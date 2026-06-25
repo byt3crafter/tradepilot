@@ -696,13 +696,25 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
         else if (durationMs < 60 * 86400 * 1000) interval = '4h';
         else interval = '1day';
 
-        const padding = durationMs * 0.4;
+        const padding = Math.max(durationMs * 0.4, 6 * 3600 * 1000);
         startMs = entryMs - padding;
         endMs = exitMs + padding;
       } else {
         interval = '1h';
         startMs = entryMs - 2 * 86400 * 1000;
         endMs = entryMs + 2 * 86400 * 1000;
+      }
+
+      // Intraday history (≤ 1h candles) is only available ~60 days back on free
+      // data tiers. For older trades, switch to daily candles and widen the
+      // window so the chart still renders meaningful context around the trade.
+      const refMs = exitMs ?? entryMs;
+      const daysAgo = (Date.now() - refMs) / 86400000;
+      if (daysAgo > 50 && interval !== '1day' && interval !== '1week') {
+        interval = '1day';
+        const widen = 12 * 86400 * 1000;
+        startMs = Math.min(startMs, entryMs - widen);
+        endMs = Math.max(endMs, refMs + widen);
       }
 
       try {
