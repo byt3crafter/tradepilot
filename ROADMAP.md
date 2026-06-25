@@ -34,6 +34,15 @@ the coordination board the live task state. Updated each phase.
 
 ## Phase 6 — Hardening & infra
 - Full money-correctness suite; security (#10), secrets, CORS, rate limits; resolve dual-lockfile + mixed root `package.json`; CI runs tests + lint gates. Deploy verify. ⛔
+- **Re-baseline the drifted migration history.** A fresh `prisma migrate deploy` does NOT
+  reproduce the real schema (e.g. `User.isEarlySupporter` and other billing/referral columns
+  were added to the old Supabase DB out-of-band and never captured as migrations). Local dev is
+  currently synced via `prisma db push`. Squash/baseline migrations so `migrate deploy` == schema.
+
+## Infra note — local Postgres (Supabase retired)
+- DB now runs in `backend/docker-compose.yml` (`tradepilot-postgres`, host port 5544).
+- `backend/.env` `DATABASE_URL`/`DIRECT_URL` point at it. Bring up: `cd backend && docker compose up -d`.
+- Schema applied via `prisma db push` (see drift note above); seed via `pnpm seed`.
 
 ## Parallelism note
 Phase 2/3 (Claude/backend) and Phase 4 (Codex/frontend design-system + static screens) can run
