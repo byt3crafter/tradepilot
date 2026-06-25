@@ -66,7 +66,7 @@ export const DropdownMenu: React.FC<{ children: React.ReactNode }> = ({ children
     <div
       ref={menuRef}
       style={menuStyle}
-      className="w-36 bg-future-panel border border-photonic-blue/20 rounded-md shadow-lg p-1 z-50 animate-fade-in-up"
+      className="w-36 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-md shadow-jtp-drawer p-1 z-50 animate-fade-in-up"
     >
       {children}
     </div>
@@ -79,7 +79,7 @@ export const DropdownMenu: React.FC<{ children: React.ReactNode }> = ({ children
         <button
           ref={buttonRef}
           onClick={toggle}
-          className="p-1 rounded-full text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors"
+          className="p-1 rounded-full text-jtp-textDim hover:bg-jtp-hover hover:text-jtp-text transition-colors"
           aria-haspopup="true"
           aria-expanded={isOpen}
         >
@@ -109,7 +109,7 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({ children, on
   return (
     <button
       onClick={handleClick}
-      className={`flex items-center w-full px-3 py-1.5 text-sm rounded-sm text-future-gray hover:bg-photonic-blue/10 hover:text-future-light transition-colors ${className}`}
+      className={`flex items-center w-full px-3 py-1.5 text-sm rounded-jtp-sm text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text transition-colors ${className}`}
     >
       {children}
     </button>
