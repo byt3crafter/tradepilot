@@ -234,7 +234,7 @@ const TradeJournal: React.FC = () => {
       total > 0
         ? displayedTrades.reduce((s, t) => s + (t.realisedR ?? 0), 0) / total
         : null;
-    const netPL = displayedTrades.reduce((s, t) => s + (t.profitLoss ?? 0), 0);
+    const netPL = displayedTrades.reduce((s, t) => s + ((t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0)), 0);
     return { total, winRate, avgR, netPL };
   }, [displayedTrades]);
 

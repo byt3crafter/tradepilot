@@ -71,7 +71,7 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
     : '';
 
   const isBuy = trade.direction === Direction.Buy;
-  const netPL = trade.profitLoss ?? 0;
+  const netPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
   const planR = trade.planR ?? null;
   const realisedR = trade.realisedR ?? null;
   const mistakeTags = trade.mistakeTags ?? [];
