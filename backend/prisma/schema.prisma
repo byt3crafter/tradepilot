@@ -47,6 +47,7 @@ model User {
   notifications      Notification[]
   apiUsage           ApiUsage[]
   usedInviteCodes    InviteCode[]
+  mistakeTags        MistakeTag[]
 }
 
 model BrokerAccount {
@@ -228,11 +229,19 @@ model Trade {
   swap                Float?
   result              TradeResult?
   pips                Float?
-  
+
+  // Redesign additions (Phase 2) — all nullable to preserve existing rows
+  confidence             Int?           // 1-5 confidence captured at log time
+  mae                    Float?         // max adverse excursion
+  mfe                    Float?         // max favourable excursion
+  realisedR              Float?         // realised P&L / initial risk (set on close)
+  preTradeChecklistState Json?          // captured pre-trade checklist answers
+  mistakes               TradeMistake[] // taggable post-trade mistakes
+
   // Media
   screenshotBeforeUrl String?
   screenshotAfterUrl  String?
-  
+
   // Relations
   userId              String
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -251,6 +260,34 @@ model Trade {
   
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+}
+
+// Per-user mistake taxonomy + join (drives mistake-tag analytics in the redesign)
+model MistakeTag {
+  id        String         @id @default(uuid())
+  label     String
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades    TradeMistake[]
+  createdAt DateTime       @default(now())
+
+  @@unique([userId, label])
+}
+
+model TradeMistake {
+  tradeId String
+  trade   Trade      @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  tagId   String
+  tag     MistakeTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tradeId, tagId])
+}
+
+// Paddle webhook idempotency — dedupe by event id so replays/retries are safe
+model ProcessedWebhookEvent {
+  eventId     String   @id
+  type        String
+  processedAt DateTime @default(now())
 }
 
 enum Direction {
