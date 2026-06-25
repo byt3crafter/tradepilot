@@ -22,8 +22,8 @@ export const JoiValidationSchema = Joi.object({
   JWT_ACCESS_SECRET: Joi.string().optional().allow(''),
   JWT_REFRESH_SECRET: Joi.string().optional().allow(''),
 
-  // AI
-  API_KEY: Joi.string().required(),
+  // AI (removed — Gemini integration deleted)
+  API_KEY: Joi.string().optional().allow(''),
 
   // Throttler (Rate Limiting)
   THROTTLE_TTL: Joi.number().default(60000), // 60 seconds

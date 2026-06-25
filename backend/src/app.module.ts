@@ -11,15 +11,12 @@ import { UserActivityInterceptor } from './common/interceptors/user-activity.int
 import { PlaybooksModule } from './playbooks/playbooks.module';
 import { ChecklistRulesModule } from './checklist-rules/checklist-rules.module';
 import { TradesModule } from './trades/trades.module';
-import { AiModule } from './ai/ai.module';
 import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
 import { TradeJournalsModule } from './trade-journals/trade-journals.module';
 import { AssetsModule } from './assets/assets.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { ScheduleModule } from '@nestjs/schedule';
-import { TasksModule } from './tasks/tasks.module';
 import { JoiValidationSchema } from './config/config.schema';
 import { PdfModule } from './pdf/pdf.module';
 import { InvitesModule } from './invites/invites.module';
@@ -47,7 +44,6 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
       }),
     }),
 
-    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     PrismaModule,
@@ -55,15 +51,12 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     PlaybooksModule,
     ChecklistRulesModule,
     TradesModule,
-    AiModule,
     BillingModule,
     AdminModule,
     TradeJournalsModule,
     AssetsModule,
     AnalyticsModule,
     NotificationsModule,
-    TasksModule,
-    TasksModule,
     PdfModule,
     InvitesModule,
     PromoCodesModule,

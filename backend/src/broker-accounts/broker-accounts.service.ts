@@ -2,19 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
-import { Trade, TradeResult } from '@prisma/client';
-import { AiService } from '../ai/ai.service';
+import { Trade } from '@prisma/client';
 import { DrawdownService } from './drawdown.service';
-
-interface Mistake { mistake: string; reasoning: string; }
-interface GoodPoint { point: string; reasoning: string; }
 
 @Injectable()
 export class BrokerAccountsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AiService,
-    private readonly drawdownService: DrawdownService, // Injected DrawdownService
+    private readonly drawdownService: DrawdownService,
   ) { }
 
   async create(userId: string, createBrokerAccountDto: CreateBrokerAccountDto) {
@@ -120,15 +115,6 @@ export class BrokerAccountsService {
     const totalNetPL = trades.reduce((sum, trade) => sum + (trade.profitLoss ?? 0), 0);
 
     const newCurrentBalance = account.initialBalance + totalNetPL;
-
-    // Calculate drawdown and status
-    // We need to inject DrawdownService or use it if available. 
-    // Since we are in BrokerAccountsService, we can use this.drawdownService if injected.
-    // Assuming it is injected in constructor.
-
-    // Note: We need to update the balance first or pass it to calculation?
-    // The calculateDrawdown fetches the account again. 
-    // Let's update balance first, then calculate status.
 
     await this.prisma.brokerAccount.update({
       where: { id: accountId },
@@ -315,132 +301,5 @@ export class BrokerAccountsService {
       isTradeCreationBlocked,
       blockReason,
     };
-  }
-
-  async generateWeeklyDebrief(accountId: string, userId: string) {
-    await this.findOne(accountId, userId); // Authorization
-
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    const weeklyTrades = await this.prisma.trade.findMany({
-      where: {
-        brokerAccountId: accountId,
-        userId,
-        result: { not: null },
-        exitDate: { gte: oneWeekAgo },
-      },
-      include: {
-        aiAnalysis: true,
-        tradeJournal: true,
-      },
-    });
-
-    if (weeklyTrades.length === 0) {
-      return { debrief: "No trades were logged in the last 7 days. Log some trades to get your first weekly debrief!" };
-    }
-
-    // --- Aggregate Data for AI Prompt ---
-    let netPL = 0;
-    let wins = 0;
-    let losses = 0;
-    const mistakes: string[] = [];
-    const goodPoints: string[] = [];
-
-    weeklyTrades.forEach(trade => {
-      netPL += trade.profitLoss ?? 0;
-      if (trade.result === TradeResult.Win) wins++;
-      if (trade.result === TradeResult.Loss) losses++;
-
-      if (trade.aiAnalysis) {
-        const analysis = trade.aiAnalysis as any;
-
-        if (Array.isArray(analysis.mistakes)) {
-          (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));
-        }
-
-        if (Array.isArray(analysis.goodPoints)) {
-          (analysis.goodPoints as unknown as GoodPoint[]).forEach(p => goodPoints.push(p.point));
-        }
-      }
-    });
-
-    const totalTrades = weeklyTrades.length;
-    const winRate = totalTrades > 0 ? (wins / (wins + losses)) * 100 : 0;
-
-    // --- Create Prompt Context ---
-    const context = `
-      Weekly Performance Data:
-      - Total Trades: ${totalTrades}
-      - Net P/L: $${netPL.toFixed(2)}
-      - Win Rate: ${winRate.toFixed(1)}%
-      - Wins: ${wins}
-      - Losses: ${losses}
-      - Recurring good points from AI analysis: ${[...new Set(goodPoints)].join(', ')}
-      - Recurring mistakes from AI analysis: ${[...new Set(mistakes)].join(', ')}
-    `;
-
-    const debrief = await this.aiService.getWeeklyDebrief(context);
-    return { debrief };
-  }
-
-  async generateDailyDebrief(accountId: string, userId: string) {
-    await this.findOne(accountId, userId); // Authorization
-
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(today.getUTCDate() + 1);
-
-    const dailyTrades = await this.prisma.trade.findMany({
-      where: {
-        brokerAccountId: accountId,
-        userId,
-        result: { not: null },
-        exitDate: { gte: today, lt: tomorrow },
-      },
-      include: {
-        aiAnalysis: true,
-        tradeJournal: true,
-      },
-    });
-
-    if (dailyTrades.length === 0) {
-      return { debrief: "No trades were closed today. Log a trade to get your first daily debrief!" };
-    }
-
-    let netPL = 0;
-    let wins = 0;
-    let losses = 0;
-    const mistakes: string[] = [];
-    const goodPoints: string[] = [];
-
-    dailyTrades.forEach(trade => {
-      netPL += trade.profitLoss ?? 0;
-      if (trade.result === TradeResult.Win) wins++;
-      if (trade.result === TradeResult.Loss) losses++;
-      if (trade.aiAnalysis) {
-        const analysis = trade.aiAnalysis as any;
-        if (Array.isArray(analysis.mistakes)) (analysis.mistakes as unknown as Mistake[]).forEach(m => mistakes.push(m.mistake));
-        if (Array.isArray(analysis.goodPoints)) (analysis.goodPoints as unknown as GoodPoint[]).forEach(p => goodPoints.push(p.point));
-      }
-    });
-
-    const totalTrades = dailyTrades.length;
-    const winRate = totalTrades > 0 && (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
-
-    const context = `
-      Today's Performance Data:
-      - Total Trades Today: ${totalTrades}
-      - Net P/L Today: $${netPL.toFixed(2)}
-      - Win Rate Today: ${winRate.toFixed(1)}%
-      - Wins: ${wins}
-      - Losses: ${losses}
-      - Good points from today's AI analysis: ${[...new Set(goodPoints)].join(', ')}
-      - Mistakes from today's AI analysis: ${[...new Set(mistakes)].join(', ')}
-    `;
-
-    const debrief = await this.aiService.getDailyDebrief(context);
-    return { debrief };
   }
 }

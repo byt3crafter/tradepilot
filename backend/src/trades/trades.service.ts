@@ -2,17 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
-import { AiService } from '../ai/ai.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
 import { TradeResult } from '@prisma/client';
-import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';
 
 @Injectable()
 export class TradesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AiService,
     private readonly accountsService: BrokerAccountsService,
   ) { }
 
@@ -29,29 +26,21 @@ export class TradesService {
       throw new BadRequestException('Broker account not found or does not belong to the user.');
     }
 
+    const logger = new Logger(TradesService.name);
+
     // --- Smart Limits Enforcement ---
     if (brokerAccount.smartLimits?.isEnabled) {
-      const { maxRiskPerTrade, severity } = brokerAccount.smartLimits;
-      const isHardLimit = severity === 'HARD';
+      const { maxRiskPerTrade } = brokerAccount.smartLimits;
 
-      // Check risk per trade limit
+      // Check risk per trade limit — always a warning, never blocks trade creation
       if (maxRiskPerTrade && riskPercentage > maxRiskPerTrade) {
-        if (isHardLimit) {
-          throw new ForbiddenException(`Trade risk of ${riskPercentage}% exceeds your Smart Limit of ${maxRiskPerTrade}%.`);
-        }
-        // Soft limit - just log warning, allow trade
-        const logger = new Logger(TradesService.name);
-        logger.warn(`[SOFT LIMIT] User ${userId} exceeded risk limit: ${riskPercentage}% > ${maxRiskPerTrade}%`);
+        logger.warn(`[SMART LIMIT] User ${userId} exceeded risk limit: ${riskPercentage}% > ${maxRiskPerTrade}%`);
       }
 
       const progress = await this.accountsService.getSmartLimitsProgress(brokerAccountId, userId);
       if (progress.isTradeCreationBlocked) {
-        if (isHardLimit) {
-          throw new ForbiddenException(progress.blockReason);
-        }
-        // Soft limit - just log warning, allow trade
-        const logger = new Logger(TradesService.name);
-        logger.warn(`[SOFT LIMIT] User ${userId} blocked reason ignored: ${progress.blockReason}`);
+        // Always a warning, never blocks trade creation
+        logger.warn(`[SMART LIMIT] User ${userId} limit triggered but not blocking: ${progress.blockReason}`);
       }
     }
     // --- End of Enforcement ---
@@ -343,95 +332,5 @@ export class TradesService {
     await this.accountsService.recalculateBalance(brokerAccountId, userId);
 
     return { message: `${tradeIds.length} trades deleted successfully.` };
-  }
-
-  async analyze(tradeId: string, userId: string) {
-    const trade = await this.findOne(tradeId, userId, true);
-
-    const playbook = await this.prisma.playbook.findUnique({ where: { id: trade.playbookId } });
-
-    if (!trade.screenshotBeforeUrl || !trade.screenshotAfterUrl) {
-      throw new BadRequestException('Both "Before" and "After" screenshots are required for analysis.');
-    }
-
-    if (!playbook) {
-      throw new BadRequestException('Trade playbook is missing.');
-    }
-
-    const pastTrades = await this.prisma.trade.findMany({
-      where: {
-        userId,
-        aiAnalysis: { isNot: null },
-      },
-      select: {
-        aiAnalysis: {
-          select: {
-            mistakes: true,
-          }
-        }
-      },
-    });
-
-    const pastMistakes = pastTrades
-      .filter(t =>
-        t.aiAnalysis &&
-        Array.isArray(t.aiAnalysis.mistakes) &&
-        t.aiAnalysis.mistakes.length > 0
-      )
-      .flatMap(t => (t.aiAnalysis!.mistakes as any[]).map(m => m.mistake))
-      .join(', ');
-
-    const analysisResult = await this.aiService.getTradeAnalysis(trade, playbook, pastMistakes);
-
-    const updatedTrade = await this.prisma.trade.update({
-      where: { id: tradeId },
-      data: {
-        aiAnalysis: {
-          upsert: {
-            create: {
-              summary: analysisResult.summary,
-              mistakes: analysisResult.mistakes,
-              goodPoints: analysisResult.goodPoints,
-            },
-            update: {
-              summary: analysisResult.summary,
-              mistakes: analysisResult.mistakes,
-              goodPoints: analysisResult.goodPoints,
-            },
-          },
-        },
-      },
-      include: { aiAnalysis: true, tradeJournal: true },
-    });
-
-    return updatedTrade;
-  }
-
-  async preTradeCheck(userId: string, preTradeCheckDto: PreTradeCheckDto) {
-    const { playbookId, screenshotBeforeUrl, asset } = preTradeCheckDto;
-
-    const playbook = await this.prisma.playbook.findFirst({
-      where: { id: playbookId, userId },
-      include: {
-        setups: {
-          include: {
-            checklistItems: true,
-          },
-        },
-      },
-    });
-
-    if (!playbook) {
-      throw new ForbiddenException('Playbook not found or does not belong to the user.');
-    }
-
-    return this.aiService.getPreTradeCheck(playbook, screenshotBeforeUrl, asset);
-  }
-
-  async analyzeChart(userId: string, screenshotUrl: string, availableAssets?: string[]) {
-    // This method could contain more business logic in the future,
-    // e.g., checking if the user has analysis credits.
-    // For now, it directly calls the AI service.
-    return this.aiService.getChartAnalysis(screenshotUrl, availableAssets);
   }
 }
