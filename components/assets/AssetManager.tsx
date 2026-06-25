@@ -37,12 +37,14 @@ const AssetManager: React.FC = () => {
     <>
       <div className="flex justify-between items-center mb-5">
         <div>
-          <h2 className="text-jtp-xl font-semibold text-jtp-text">Asset Specifications</h2>
-          <p className="text-jtp-sm text-jtp-textDim mt-0.5">Manage the instruments you trade for accurate calculations.</p>
+          <h2 className="text-jtp-xl font-semibold text-jtp-text">Instruments</h2>
+          <p className="text-jtp-sm text-jtp-textDim mt-0.5">
+            Common symbols (EURUSD, NAS100, BTCUSD, …) are auto-detected. Add a custom instrument only if you trade something we don't recognise, or to override its contract spec.
+          </p>
         </div>
         <Button onClick={openAddModal} className="w-auto flex items-center gap-1.5 px-3 py-1.5 text-jtp-sm">
           <PlusIcon className="w-4 h-4" />
-          <span>Add Asset</span>
+          <span>Add Custom Instrument</span>
         </Button>
       </div>
 
@@ -82,7 +84,7 @@ const AssetManager: React.FC = () => {
 
       {isModalOpen && (
         <Modal
-          title={editingSpec ? 'Edit Asset' : 'Add New Asset'}
+          title={editingSpec ? 'Edit Custom Instrument' : 'Add Custom Instrument'}
           onClose={() => setIsModalOpen(false)}
           size="lg"
         >
