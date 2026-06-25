@@ -19,6 +19,7 @@ import Button from './ui/Button';
 import Checkbox from './ui/Checkbox';
 import JtpHistoryRow from './journal/JtpHistoryRow';
 import CalendarHeatmap from './journal/CalendarHeatmap';
+import TradeDetail from './journal/TradeDetail';
 
 type TradeView = 'live' | 'pending' | 'history' | 'calendar';
 type AddTradeStep = 'closed' | 'form';
@@ -117,6 +118,10 @@ const TradeJournal: React.FC = () => {
   const { isTrialExpired } = useAuth();
   const { showUpgradeModal } = useSubscription();
   const { isAddTradeModalOpenRequest, clearAddTradeModalRequest } = useUI();
+
+  // ── Detail view state ──────────────────────────────────────────────────────
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [detailInitialEdit, setDetailInitialEdit] = useState(false);
 
   // ── Modal / step state ─────────────────────────────────────────────────────
   const [addTradeStep, setAddTradeStep] = useState<AddTradeStep>('closed');
@@ -238,9 +243,10 @@ const TradeJournal: React.FC = () => {
     return { total, winRate, avgR, netPL };
   }, [displayedTrades]);
 
-  // ── Clear selection on view/filter change ──────────────────────────────────
+  // ── Clear selection + detail on view/filter/account change ────────────────
   useEffect(() => {
     setSelectedTradeIds([]);
+    setSelectedTrade(null);
   }, [currentView, dateFilter, customStartDate, customEndDate, activeAccount]);
 
   // ── Log-trade modal ────────────────────────────────────────────────────────
@@ -263,6 +269,16 @@ const TradeJournal: React.FC = () => {
   const handleOpenEditTrade = (trade: Trade) => {
     setEditingTrade(trade);
     setAddTradeStep('form');
+  };
+
+  const handleOpenTradeDetail = (trade: Trade, startInEditMode = false) => {
+    setSelectedTrade(trade);
+    setDetailInitialEdit(startInEditMode);
+  };
+
+  const handleCloseTradeDetail = () => {
+    setSelectedTrade(null);
+    setDetailInitialEdit(false);
   };
 
   const handleOpenCloseTrade = (trade: Trade) => {
@@ -421,7 +437,7 @@ const TradeJournal: React.FC = () => {
       <JtpHistoryRow
         key={trade.id}
         trade={trade}
-        onEdit={() => handleOpenEditTrade(trade)}
+        onViewDetail={handleOpenTradeDetail}
         isSelected={selectedTradeIds.includes(trade.id)}
         onSelect={handleToggleSelect}
       />
@@ -464,8 +480,19 @@ const TradeJournal: React.FC = () => {
         </div>
       )}
 
+      {/* ── TRADE DETAIL FULL VIEW ───────────────────────────────────────── */}
+      {selectedTrade && (
+        <div className="mt-4">
+          <TradeDetail
+            trade={selectedTrade}
+            initialEditMode={detailInitialEdit}
+            onBack={handleCloseTradeDetail}
+          />
+        </div>
+      )}
+
       {/* ── HISTORY VIEW ─────────────────────────────────────────────────── */}
-      {currentView === 'history' && (
+      {currentView === 'history' && !selectedTrade && (
         <>
           {/* Toolbar */}
           <div className="flex items-center gap-2.5 flex-wrap pt-4 pb-0">
@@ -672,10 +699,10 @@ const TradeJournal: React.FC = () => {
       )}
 
       {/* ── CALENDAR VIEW ────────────────────────────────────────────────── */}
-      {currentView === 'calendar' && <CalendarHeatmap closedTrades={closedTrades} />}
+      {currentView === 'calendar' && !selectedTrade && <CalendarHeatmap closedTrades={closedTrades} />}
 
       {/* ── LIVE / PENDING VIEW ──────────────────────────────────────────── */}
-      {(currentView === 'live' || currentView === 'pending') && (
+      {(currentView === 'live' || currentView === 'pending') && !selectedTrade && (
         <>
           {!activeAccount && !isLoading && (
             <div className="mt-8 text-center text-jtp-textMuted text-jtp-sm">
