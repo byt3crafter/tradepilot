@@ -132,9 +132,9 @@ const BillingSettings: React.FC = () => {
           <div className="pt-4 border-t border-jtp-border">
             <p className="font-semibold text-jtp-textSoft mb-1">Early Adopter Pricing</p>
             <p className="text-jtp-textDim">
-              As an early adopter, you lock in $5/month pricing forever and receive all new features. Contact{' '}
-              <a href="mailto:support@tradepilot.com" className="text-jtp-blue hover:text-jtp-blueHover">
-                support@tradepilot.com
+              As an early adopter, you lock in $5.99/month pricing forever and receive all new features. Contact{' '}
+              <a href="mailto:support@jtradepilot.com" className="text-jtp-blue hover:text-jtp-blueHover">
+                support@jtradepilot.com
               </a>
               {' '}for any billing questions.
             </p>

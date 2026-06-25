@@ -107,7 +107,12 @@ export interface Trade {
   rr?: number | null;
   realisedR?: number | null;   // computed server-side: realised P&L ÷ account risk unit
   planR?: number | null;       // planned R: stored rr, or derived from entry/SL/TP
-  mistakeTags?: string[];      // flattened mistake-tag labels
+  mistakeTags?: string[];      // mistake-tag labels (set when logging/editing)
+  confidence?: number | null;  // 1-5 confidence captured at log time
+  mae?: number | null;         // max adverse excursion
+  mfe?: number | null;         // max favourable excursion
+  adherence?: boolean | null;  // derived: all captured pre-trade checklist items checked
+  preTradeChecklistState?: any; // captured checklist [{label, checked}]
   profitLoss?: number | null;
   result?: TradeResult | null;
   isPendingOrder: boolean;

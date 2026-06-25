@@ -215,10 +215,15 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
           </span>
         </td>
 
-        {/* ADH — no per-trade adherence boolean yet; show "—" until backend provides it */}
-        {/* TODO: Replace with actual adherence once Trade type exposes a boolean field */}
+        {/* ADH */}
         <td className="px-3 text-center">
-          <span className="font-mono text-jtp-textFaint text-jtp-xs">—</span>
+          {trade.adherence === true ? (
+            <span className="font-mono text-jtp-profit text-jtp-xs font-semibold">&#10003;</span>
+          ) : trade.adherence === false ? (
+            <span className="font-mono text-jtp-loss text-jtp-xs font-semibold">&#10007;</span>
+          ) : (
+            <span className="font-mono text-jtp-textFaint text-jtp-xs">—</span>
+          )}
         </td>
 
         {/* MISTAKES */}

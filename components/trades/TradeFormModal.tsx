@@ -11,6 +11,7 @@ import { useTrade } from '../../context/TradeContext';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { useAssets } from '../../context/AssetContext';
 import { useAccount } from '../../context/AccountContext';
+import { useChecklist } from '../../context/ChecklistContext';
 
 interface TradeFormModalProps {
   isOpen: boolean;
@@ -37,6 +38,10 @@ interface FormState {
   screenshotAfterUrl: string | null;
   commission: string;
   swap: string;
+  confidence: number | null;
+  mae: string;
+  mfe: string;
+  mistakeTags: string[];
 }
 
 const toDateTimeLocal = (dateString?: string | null) => {
@@ -52,15 +57,20 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
   tradeToEdit,
   onSuccess,
 }) => {
-  const { createTrade, updateTrade } = useTrade();
+  const { createTrade, updateTrade, closedTrades } = useTrade();
   const { playbooks } = usePlaybook();
   const { specs } = useAssets();
   const { activeAccount } = useAccount();
+  const { rules } = useChecklist();
 
   const isEditMode = !!tradeToEdit;
   const [showAdvanced, setShowAdvanced] = useState(isEditMode);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tagInput, setTagInput] = useState('');
+  const [preTradeChecklistState, setPreTradeChecklistState] = useState<
+    { label: string; checked: boolean }[]
+  >([]);
 
   const shouldShowCosts = useMemo(() => {
     if (!activeAccount) return false;
@@ -88,8 +98,13 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
     screenshotAfterUrl: null,
     commission: '',
     swap: '',
+    confidence: null,
+    mae: '',
+    mfe: '',
+    mistakeTags: [],
   });
 
+  // Initialize form fields from tradeToEdit or reset for new trade
   useEffect(() => {
     if (isEditMode && tradeToEdit) {
       setFormState({
@@ -110,6 +125,10 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
         screenshotAfterUrl: tradeToEdit.screenshotAfterUrl || null,
         commission: tradeToEdit.commission?.toString() ?? '',
         swap: tradeToEdit.swap?.toString() ?? '',
+        confidence: tradeToEdit.confidence ?? null,
+        mae: tradeToEdit.mae?.toString() ?? '',
+        mfe: tradeToEdit.mfe?.toString() ?? '',
+        mistakeTags: tradeToEdit.mistakeTags ?? [],
       });
     } else {
       setFormState(prev => ({
@@ -118,6 +137,15 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
       }));
     }
   }, [tradeToEdit, isEditMode, playbooks]);
+
+  // Initialize pre-trade checklist state
+  useEffect(() => {
+    if (isEditMode && tradeToEdit?.preTradeChecklistState) {
+      setPreTradeChecklistState(tradeToEdit.preTradeChecklistState);
+    } else if (rules.length > 0) {
+      setPreTradeChecklistState(rules.map(r => ({ label: r.rule, checked: false })));
+    }
+  }, [tradeToEdit, isEditMode, rules]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -129,6 +157,42 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
     dataUrl: string | null,
   ) => {
     setFormState(prev => ({ ...prev, [field]: dataUrl }));
+  };
+
+  // Mistake tag helpers
+  const allSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const t of closedTrades) {
+      for (const tag of t.mistakeTags ?? []) {
+        if (!seen.has(tag)) {
+          seen.add(tag);
+          result.push(tag);
+        }
+      }
+    }
+    return result;
+  }, [closedTrades]);
+
+  const filteredSuggestions = useMemo(() => {
+    const lc = tagInput.toLowerCase();
+    return allSuggestions.filter(
+      s => !formState.mistakeTags.includes(s) && (lc === '' || s.toLowerCase().includes(lc)),
+    ).slice(0, 8);
+  }, [allSuggestions, formState.mistakeTags, tagInput]);
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim();
+    if (!trimmed || formState.mistakeTags.includes(trimmed)) {
+      setTagInput('');
+      return;
+    }
+    setFormState(prev => ({ ...prev, mistakeTags: [...prev.mistakeTags, trimmed] }));
+    setTagInput('');
+  };
+
+  const removeTag = (tag: string) => {
+    setFormState(prev => ({ ...prev, mistakeTags: prev.mistakeTags.filter(t => t !== tag) }));
   };
 
   const canSubmit = useMemo(
@@ -158,6 +222,12 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
       takeProfit: formState.takeProfit ? Number(formState.takeProfit) : null,
       lotSize: formState.lotSize ? Number(formState.lotSize) : null,
       screenshotBeforeUrl: formState.screenshotBeforeUrl,
+      // New optional capture fields
+      confidence: formState.confidence ?? undefined,
+      mae: formState.mae ? Number(formState.mae) : undefined,
+      mfe: formState.mfe ? Number(formState.mfe) : undefined,
+      mistakeTags: formState.mistakeTags,
+      preTradeChecklistState: preTradeChecklistState.length > 0 ? preTradeChecklistState : undefined,
     };
 
     // Include exit fields if provided (logging a completed trade)
@@ -436,6 +506,165 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   />
                 )}
               </div>
+
+              {/* ── Confidence ─────────────────────────────────── */}
+              <div>
+                <label className="block text-jtp-xs font-semibold uppercase tracking-[0.4px] text-jtp-textDim mb-2">
+                  Confidence
+                </label>
+                <div className="flex gap-2">
+                  {([1, 2, 3, 4, 5] as const).map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() =>
+                        setFormState(prev => ({
+                          ...prev,
+                          confidence: prev.confidence === n ? null : n,
+                        }))
+                      }
+                      className={`w-9 h-9 rounded-jtp-md font-semibold text-jtp-sm transition-colors
+                        ${formState.confidence === n
+                          ? 'bg-jtp-blue text-white border border-jtp-blue'
+                          : 'bg-jtp-control border border-jtp-borderStrong text-jtp-textMuted hover:border-jtp-blue hover:text-jtp-text'
+                        }`}
+                      aria-label={`Confidence ${n}`}
+                      aria-pressed={formState.confidence === n}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-jtp-xs text-jtp-textFaint mt-1">
+                  Rate your conviction at entry (1 = low, 5 = high). Optional.
+                </p>
+              </div>
+
+              {/* ── MAE + MFE ──────────────────────────────────── */}
+              <div>
+                <label className="block text-jtp-xs font-semibold uppercase tracking-[0.4px] text-jtp-textDim mb-2">
+                  Max Adverse / Favourable Excursion
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="MAE (adverse)"
+                    id="mae"
+                    name="mae"
+                    type="number"
+                    step="any"
+                    value={formState.mae}
+                    onChange={handleChange}
+                    containerClassName="mb-0"
+                  />
+                  <Input
+                    label="MFE (favourable)"
+                    id="mfe"
+                    name="mfe"
+                    type="number"
+                    step="any"
+                    value={formState.mfe}
+                    onChange={handleChange}
+                    containerClassName="mb-0"
+                  />
+                </div>
+                <p className="text-jtp-xs text-jtp-textFaint mt-1">
+                  In price units (same as entry price). Optional.
+                </p>
+              </div>
+
+              {/* ── Mistake Tags ────────────────────────────────── */}
+              <div>
+                <label className="block text-jtp-xs font-semibold uppercase tracking-[0.4px] text-jtp-textDim mb-2">
+                  Mistake Tags
+                </label>
+
+                {/* Selected tag chips */}
+                {formState.mistakeTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {formState.mistakeTags.map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 text-jtp-xs px-2 py-1 rounded-jtp-md bg-jtp-loss/10 text-jtp-lossSoft border border-jtp-loss/20"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="ml-0.5 text-jtp-textFaint hover:text-jtp-loss transition-colors leading-none"
+                          aria-label={`Remove tag ${tag}`}
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Free-text input */}
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                      e.preventDefault();
+                      addTag(tagInput.trim());
+                    }
+                  }}
+                  placeholder="Type a tag and press Enter…"
+                  className="w-full px-3 py-[9px] bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl text-jtp-base-minus text-jtp-text outline-none focus:border-jtp-blue transition-colors placeholder:text-jtp-textFaint"
+                />
+
+                {/* Suggestions */}
+                {filteredSuggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-jtp-xs text-jtp-textFaint self-center">Suggestions:</span>
+                    {filteredSuggestions.map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => addTag(s)}
+                        className="text-jtp-xs px-2 py-0.5 rounded-jtp-md bg-jtp-control border border-jtp-borderStrong text-jtp-textMuted hover:border-jtp-blue hover:text-jtp-text transition-colors"
+                      >
+                        + {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Pre-Trade Checklist ──────────────────────────── */}
+              {preTradeChecklistState.length > 0 && (
+                <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3">
+                  <p className="text-jtp-xs font-semibold uppercase tracking-[0.4px] text-jtp-textDim">
+                    Pre-Trade Checklist <span className="normal-case font-normal text-jtp-textFaint">(optional)</span>
+                  </p>
+                  <div className="space-y-2">
+                    {preTradeChecklistState.map((item, idx) => (
+                      <label
+                        key={idx}
+                        className="flex items-start gap-2.5 cursor-pointer group"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={e => {
+                            setPreTradeChecklistState(prev =>
+                              prev.map((it, i) =>
+                                i === idx ? { ...it, checked: e.target.checked } : it,
+                              ),
+                            );
+                          }}
+                          className="mt-0.5 w-4 h-4 rounded accent-jtp-blue flex-shrink-0"
+                        />
+                        <span className="text-jtp-sm text-jtp-textSoft group-hover:text-jtp-text transition-colors">
+                          {item.label}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Costs (edit mode + fee model) */}
               {isEditMode && tradeToEdit?.result && shouldShowCosts && (
