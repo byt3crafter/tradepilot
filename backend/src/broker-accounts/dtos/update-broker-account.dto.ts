@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, ValidateNested, IsBoolean, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
-import { BrokerAccountType } from '@prisma/client';
+import { BrokerAccountType, FeeModel } from '@prisma/client';
 
 class TradingObjectiveDto {
   @IsBoolean()
@@ -80,6 +80,10 @@ export class UpdateBrokerAccountDto {
   @IsInt()
   @IsOptional()
   leverage?: number;
+
+  @IsEnum(FeeModel)
+  @IsOptional()
+  feeModel?: FeeModel;
 
   @IsString()
   @IsOptional()

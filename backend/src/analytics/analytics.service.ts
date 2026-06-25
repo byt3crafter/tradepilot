@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerAccountsService } from '../broker-accounts/broker-accounts.service';
 import { AssetsService } from '../assets/assets.service';
+import { resolveInstrument } from '../assets/instrument-catalog';
 import { Trade, AssetSpecification } from '@prisma/client';
 
 @Injectable()
@@ -62,8 +63,10 @@ export class AnalyticsService {
         totalHoldTimeMs += new Date(trade.exitDate).getTime() - new Date(trade.entryDate).getTime();
       }
 
+      // User override > built-in catalog > 1. So pips are correct even for
+      // instruments the user never manually configured.
       const spec = assetSpecMap.get(trade.asset);
-      const pipSize = spec?.pipSize ?? 1;
+      const pipSize = resolveInstrument(trade.asset, spec).pipSize;
       if (pipSize > 0 && trade.exitPrice) {
         const pips = trade.direction === 'Buy'
           ? (trade.exitPrice - trade.entryPrice) / pipSize
