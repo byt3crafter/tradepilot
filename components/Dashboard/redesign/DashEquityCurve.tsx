@@ -9,7 +9,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
-import { Trade, TradeResult, BrokerAccount } from '../../../types';
+import { Trade, BrokerAccount } from '../../../types';
 
 interface DashEquityCurveProps {
   closedTrades: Trade[];
@@ -59,11 +59,8 @@ const DashEquityCurve: React.FC<DashEquityCurveProps> = ({ closedTrades, account
 
     return sorted.map(t => {
       const pl = (t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0);
-      const r = t.result === TradeResult.Win
-        ? (t.rr ?? 1)
-        : t.result === TradeResult.Loss
-          ? -1
-          : 0;
+      // Use server-computed realisedR so the R curve matches the Net-R stat card
+      const r = t.realisedR ?? 0;
 
       equity += pl;
       runningR += r;
