@@ -16,14 +16,10 @@ html {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #08090A;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
-  background-attachment: fixed;
-  color: #f5f5f5;
+  font-family: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  background-color: #0b0c0e;
+  color: #e8eaed;
   -webkit-font-smoothing: antialiased;
   height: 100vh !important;
   max-height: 100vh !important;
@@ -51,16 +47,27 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #08090A;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 4px;
+  background: #2a2f37;
+  border-radius: 6px;
+  border: 2px solid #0b0c0e;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: #3a4050;
+}
+
+/* JTP keyframes for drawers */
+@keyframes jtpSlideIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes jtpFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 input[type=number]::-webkit-inner-spin-button,

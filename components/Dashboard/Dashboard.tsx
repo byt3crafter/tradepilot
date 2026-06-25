@@ -1,27 +1,31 @@
 import React from 'react';
 import { useTrade } from '../../context/TradeContext';
+import { useAccount } from '../../context/AccountContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
-import KeyMetricsDashboard from './KeyMetricsDashboard';
+import Spinner from '../Spinner';
 import OnboardingQuestionnaire from './OnboardingQuestionnaire';
 import GettingStartedGuide from './GettingStartedGuide';
-import { useAccount } from '../../context/AccountContext';
-import TradingObjectivesCard from './TradingObjectivesCard';
-import DashboardHeader from './DashboardHeader';
-
-import Spinner from '../Spinner';
+import DashStatCards from './redesign/DashStatCards';
+import PropFirmRulesPanel from './redesign/PropFirmRulesPanel';
+import DashEquityCurve from './redesign/DashEquityCurve';
+import DashRecentActivity from './redesign/DashRecentActivity';
 
 const Dashboard: React.FC = () => {
-  const { closedTrades, liveTrades, isLoading: tradesLoading, isTradesSynced } = useTrade();
+  const {
+    closedTrades,
+    liveTrades,
+    isLoading: tradesLoading,
+    isTradesSynced,
+  } = useTrade();
   const { activeAccount, objectivesProgress, isLoading: accountLoading } = useAccount();
-  const [questionnaireCompleted, setQuestionnaireCompleted] = useLocalStorage<boolean>('onboardingQuestionnaireCompleted', false);
+  const [questionnaireCompleted, setQuestionnaireCompleted] = useLocalStorage<boolean>(
+    'onboardingQuestionnaireCompleted',
+    false,
+  );
 
   const hasTrades = closedTrades.length > 0 || liveTrades.length > 0;
-
-  // Wait for BOTH account AND trades to load before showing anything
-  // Also wait for trades to be synced with the active account
   const isLoading = accountLoading || tradesLoading || !isTradesSynced;
 
-  // Show loading spinner while fetching data - DON'T show anything else
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -30,42 +34,44 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // After loading, determine what to show
-  const renderMainContent = () => {
-    // If user has trades, show dashboard
-    if (hasTrades) {
-      return <KeyMetricsDashboard />;
-    }
-
-    // No trades - show onboarding flow
+  // No trades yet — show onboarding flow
+  if (!hasTrades) {
     if (questionnaireCompleted) {
       return <GettingStartedGuide />;
     }
-
-    // Show questionnaire (Mission Briefing)
     return <OnboardingQuestionnaire onComplete={() => setQuestionnaireCompleted(true)} />;
-  };
+  }
+
+  // Has trades — show redesigned Dashboard
+  const showPropFirmRules =
+    activeAccount?.objectives?.isEnabled &&
+    objectivesProgress &&
+    objectivesProgress.length > 0;
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6 animate-fade-in-up">
-      {/* Only show header and objectives if there's data */}
-      {hasTrades && (
-        <>
-          <DashboardHeader />
+    <div className="flex flex-col gap-4">
+      {/* Row 1: 4 stat cards */}
+      <DashStatCards closedTrades={closedTrades} />
 
-          {/* Old Design - Trading Objectives (Equity, Profit Target, etc.) */}
-          {activeAccount && (
-            <TradingObjectivesCard
-              objectives={objectivesProgress}
-              currentEquity={activeAccount.currentBalance}
-            />
-          )}
-        </>
+      {/* Row 2: Prop Firm Rules (only when account has objectives enabled) */}
+      {showPropFirmRules && activeAccount && (
+        <PropFirmRulesPanel
+          objectives={objectivesProgress!}
+          account={activeAccount}
+        />
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 min-h-0">
-        {renderMainContent()}
+      {/* Row 3: Equity Curve + Recent Activity */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2">
+          <DashEquityCurve
+            closedTrades={closedTrades}
+            account={activeAccount}
+          />
+        </div>
+        <div className="xl:col-span-1">
+          <DashRecentActivity closedTrades={closedTrades} />
+        </div>
       </div>
     </div>
   );
