@@ -46,9 +46,9 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({ rule, onSuccess }) => {
         onChange={(e) => setRuleText(e.target.value)}
         required
       />
-      
-      {error && <p className="text-risk-high text-sm text-center my-4">{error}</p>}
-      <div className="mt-6">
+
+      {error && <p className="text-jtp-loss text-jtp-sm text-center my-4">{error}</p>}
+      <div className="mt-5">
         <Button type="submit" isLoading={isLoading} className="w-full">
           {rule ? 'Save Changes' : 'Add Rule'}
         </Button>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import md5 from 'md5';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import Card from '../Card';
@@ -16,10 +17,8 @@ const ProfileSettings: React.FC = () => {
       const newValue = !useGravatar;
       setUseGravatar(newValue);
       await updateUserPreferences({ useGravatar: newValue });
-      console.log('Gravatar preference updated:', newValue);
     } catch (err) {
       console.error('Failed to update Gravatar preference', err);
-      // Revert on error
       setUseGravatar(!useGravatar);
     } finally {
       setIsLoading(false);
@@ -27,64 +26,64 @@ const ProfileSettings: React.FC = () => {
   };
 
   const gravatarUrl = user?.email
-    ? `https://www.gravatar.com/avatar/${user.email}?d=identicon&s=80`
+    ? `https://www.gravatar.com/avatar/${md5(user.email.trim().toLowerCase())}?d=identicon&s=80`
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
-        <h2 className="text-xl font-orbitron text-photonic-blue mb-6">Profile</h2>
+        <h2 className="text-jtp-xl font-semibold text-jtp-text mb-5">Profile</h2>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* User Info */}
-          <div className="pb-6 border-b border-white/10">
-            <div className="space-y-4">
+          <div className="pb-5 border-b border-jtp-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-future-gray mb-2">Full Name</p>
-                <p className="text-future-light font-medium">{user?.fullName}</p>
+                <p className="text-jtp-xs uppercase tracking-wider text-jtp-textDim mb-1">Full Name</p>
+                <p className="text-jtp-md text-jtp-text font-medium">{user?.fullName}</p>
               </div>
               <div>
-                <p className="text-sm text-future-gray mb-2">Email</p>
-                <p className="text-future-light font-medium">{user?.email}</p>
+                <p className="text-jtp-xs uppercase tracking-wider text-jtp-textDim mb-1">Email</p>
+                <p className="text-jtp-md text-jtp-text font-medium">{user?.email}</p>
               </div>
             </div>
           </div>
 
-          {/* Performance Settings */}
-          <div className="pb-6 border-b border-white/10">
+          {/* Performance Mode */}
+          <div className="pb-5 border-b border-jtp-border">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-future-light mb-2">Performance Mode</h3>
-                <p className="text-xs text-future-gray mb-4">
-                  Enable this if you are experiencing lag or have a slower device. This will disable background animations and other resource-intensive effects.
+                <h3 className="text-jtp-md font-semibold text-jtp-text mb-1">Low Performance Mode</h3>
+                <p className="text-jtp-sm text-jtp-textDim">
+                  Disables background animations and resource-intensive effects. Enable if you experience lag on slower devices.
                 </p>
               </div>
               <Button
                 onClick={() => setLowPerformanceMode(!lowPerformanceMode)}
                 variant={lowPerformanceMode ? 'primary' : 'secondary'}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap flex-shrink-0"
               >
-                {lowPerformanceMode ? 'Low Performance: ON' : 'Low Performance: OFF'}
+                {lowPerformanceMode ? 'Enabled' : 'Disabled'}
               </Button>
             </div>
           </div>
 
-          {/* Gravatar Option */}
-          <div className="pb-6 border-b border-white/10">
+          {/* Gravatar */}
+          <div className="pb-5 border-b border-jtp-border">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-future-light mb-2">Gravatar Avatar</h3>
-                <p className="text-xs text-future-gray mb-4">
-                  Use your Gravatar profile picture instead of the default avatar. Your Gravatar is linked to your email address.
+                <h3 className="text-jtp-md font-semibold text-jtp-text mb-1">Gravatar Avatar</h3>
+                <p className="text-jtp-sm text-jtp-textDim mb-3">
+                  Use your Gravatar profile picture linked to your email address instead of the default avatar.
                 </p>
                 {gravatarUrl && useGravatar && (
-                  <div className="mb-3">
-                    <p className="text-xs text-future-gray mb-2">Preview:</p>
+                  <div className="flex items-center gap-3">
                     <img
                       src={gravatarUrl}
                       alt="Gravatar preview"
-                      className="w-12 h-12 rounded-full border border-white/10"
+                      className="w-10 h-10 rounded-full border border-jtp-borderStrong"
                     />
+                    <span className="text-jtp-sm text-jtp-textDim">Preview</span>
                   </div>
                 )}
               </div>
@@ -92,7 +91,7 @@ const ProfileSettings: React.FC = () => {
                 onClick={handleGravatarToggle}
                 isLoading={isLoading}
                 variant={useGravatar ? 'primary' : 'secondary'}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap flex-shrink-0"
               >
                 {useGravatar ? 'Using Gravatar' : 'Enable Gravatar'}
               </Button>
@@ -100,21 +99,19 @@ const ProfileSettings: React.FC = () => {
           </div>
 
           {/* Gravatar Info */}
-          <div className="text-xs text-future-gray space-y-2">
+          <div className="text-jtp-sm text-jtp-textDim space-y-1.5">
             <p>
-              <strong>Don't have a Gravatar?</strong> Visit{' '}
+              <span className="text-jtp-textSoft font-medium">Don't have a Gravatar?</span>{' '}
+              Visit{' '}
               <a
                 href="https://gravatar.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-photonic-blue hover:text-photonic-blue/80 underline"
+                className="text-jtp-blue hover:text-jtp-blueHover underline"
               >
                 gravatar.com
               </a>
-              {' '}to create one using your email address.
-            </p>
-            <p>
-              Gravatar is a free service that hosts your profile picture and makes it available across the web.
+              {' '}to create one with your email address.
             </p>
           </div>
         </div>
