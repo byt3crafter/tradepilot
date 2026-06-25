@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { BrokerAccountsService } from './broker-accounts.service';
 import { CreateBrokerAccountDto } from './dtos/create-broker-account.dto';
 import { UpdateBrokerAccountDto } from './dtos/update-broker-account.dto';
@@ -43,7 +43,7 @@ export class BrokerAccountsController {
     const userId = req.user.sub;
     return this.brokerAccountsService.getObjectivesProgress(id, userId);
   }
-  
+
   @Get(':id/smart-limits-progress')
   getSmartLimitsProgress(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
@@ -54,20 +54,6 @@ export class BrokerAccountsController {
   getDrawdownCalculation(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.drawdownService.calculateDrawdown(id, userId);
-  }
-
-  @Post(':id/weekly-debrief')
-  @HttpCode(HttpStatus.OK)
-  generateWeeklyDebrief(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return this.brokerAccountsService.generateWeeklyDebrief(id, userId);
-  }
-
-  @Post(':id/daily-debrief')
-  @HttpCode(HttpStatus.OK)
-  generateDailyDebrief(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return this.brokerAccountsService.generateDailyDebrief(id, userId);
   }
 
   @Patch(':id')

@@ -1,12 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { TradesService } from './trades.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
-import { EntitlementGuard } from '../auth/guards/entitlement.guard';
 import { Request } from 'express';
-import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
-import { AnalyzeChartDto } from './dtos/analyze-chart.dto';
 import { BulkImportTradesDto } from './dtos/bulk-import-trades.dto';
 import { BulkDeleteTradesDto } from './dtos/bulk-delete-trades.dto';
 
@@ -60,30 +57,5 @@ export class TradesController {
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     return this.tradesService.remove(id, userId);
-  }
-
-  // AI-cost endpoints (Gemini): require an active subscription, not just auth.
-  @UseGuards(EntitlementGuard)
-  @Post(':id/analyze')
-  @HttpCode(HttpStatus.OK)
-  analyze(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return this.tradesService.analyze(id, userId);
-  }
-
-  @UseGuards(EntitlementGuard)
-  @Post('pre-trade-check')
-  @HttpCode(HttpStatus.OK)
-  preTradeCheck(@Body() preTradeCheckDto: PreTradeCheckDto, @Req() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return this.tradesService.preTradeCheck(userId, preTradeCheckDto);
-  }
-
-  @UseGuards(EntitlementGuard)
-  @Post('analyze-chart')
-  @HttpCode(HttpStatus.OK)
-  analyzeChart(@Body() analyzeChartDto: AnalyzeChartDto, @Req() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return this.tradesService.analyzeChart(userId, analyzeChartDto.screenshotUrl, analyzeChartDto.availableAssets);
   }
 }
