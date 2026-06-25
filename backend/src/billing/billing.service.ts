@@ -172,7 +172,9 @@ export class BillingService {
           items: [{ priceId: finalPriceId, quantity: 1 }],
           customerId: customerId as string,
           discountId: discountId,
-          customData: { internal_user_id: userId },
+          // Tie the applied promo to the transaction so we can increment its
+          // usage exactly once on confirmed payment (webhook), not at checkout.
+          customData: { internal_user_id: userId, ...(discountId ? { promo_code: promoCode } : {}) },
         });
 
         this.logger.log(
@@ -307,6 +309,19 @@ export class BillingService {
       return;
     }
 
+    // Idempotency: Paddle retries deliveries and may send overlapping events.
+    // Skip anything we've already fully processed (dedupe by Paddle event id).
+    const eventId = event.eventId || event.notificationId || event.event_id;
+    if (eventId) {
+      const seen = await this.prisma.processedWebhookEvent
+        .findUnique({ where: { eventId } })
+        .catch(() => null);
+      if (seen) {
+        this.logger.log(`Skipping already-processed Paddle event ${eventId} (${eventType}).`);
+        return;
+      }
+    }
+
     // NOTE: paddle.webhooks.unmarshal() returns the SDK's typed EventEntity whose
     // `data` is camelCase (customerId, nextBilledAt, billingCycle, unitPrice...).
     // The previous code read snake_case (data.customer_id etc.) which was always
@@ -378,6 +393,19 @@ export class BillingService {
           }
         } catch (err: any) {
           this.logger.error(`Failed to sync subscription after transaction: ${err.message}`);
+        }
+
+        // Enforce promo maxUses: increment usage once, on confirmed payment only
+        // (transaction.completed, not .paid, to avoid double-count). Event-id
+        // idempotency above guarantees this runs at most once per payment.
+        if (eventType === 'transaction.completed') {
+          const promoApplied = data.customData?.promo_code;
+          if (promoApplied) {
+            await this.prisma.promoCode
+              .updateMany({ where: { code: promoApplied }, data: { usedCount: { increment: 1 } } })
+              .then(() => this.logger.log(`✓ Incremented usage for promo ${promoApplied}`))
+              .catch((e: any) => this.logger.error(`Failed to increment promo ${promoApplied}: ${e.message}`));
+          }
         }
         break;
 
@@ -499,6 +527,13 @@ export class BillingService {
 
       default:
         this.logger.log(`Unhandled Paddle webhook event type: ${eventType}`);
+    }
+
+    // Mark this event processed so retries/duplicates are skipped (see top of method).
+    if (eventId) {
+      await this.prisma.processedWebhookEvent
+        .create({ data: { eventId, type: eventType } })
+        .catch(() => { /* already recorded by a concurrent delivery — fine */ });
     }
   }
 

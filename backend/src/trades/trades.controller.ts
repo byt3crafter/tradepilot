@@ -3,6 +3,7 @@ import { TradesService } from './trades.service';
 import { CreateTradeDto } from './dtos/create-trade.dto';
 import { UpdateTradeDto } from './dtos/update-trade.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { EntitlementGuard } from '../auth/guards/entitlement.guard';
 import { Request } from 'express';
 import { PreTradeCheckDto } from './dtos/pre-trade-check.dto';
 import { AnalyzeChartDto } from './dtos/analyze-chart.dto';
@@ -61,6 +62,8 @@ export class TradesController {
     return this.tradesService.remove(id, userId);
   }
 
+  // AI-cost endpoints (Gemini): require an active subscription, not just auth.
+  @UseGuards(EntitlementGuard)
   @Post(':id/analyze')
   @HttpCode(HttpStatus.OK)
   analyze(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
@@ -68,6 +71,7 @@ export class TradesController {
     return this.tradesService.analyze(id, userId);
   }
 
+  @UseGuards(EntitlementGuard)
   @Post('pre-trade-check')
   @HttpCode(HttpStatus.OK)
   preTradeCheck(@Body() preTradeCheckDto: PreTradeCheckDto, @Req() req: AuthenticatedRequest) {
@@ -75,6 +79,7 @@ export class TradesController {
     return this.tradesService.preTradeCheck(userId, preTradeCheckDto);
   }
 
+  @UseGuards(EntitlementGuard)
   @Post('analyze-chart')
   @HttpCode(HttpStatus.OK)
   analyzeChart(@Body() analyzeChartDto: AnalyzeChartDto, @Req() req: AuthenticatedRequest) {
