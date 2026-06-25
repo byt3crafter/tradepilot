@@ -1,59 +1,53 @@
-
 import React, { useState } from 'react';
 import { useChecklist } from '../../context/ChecklistContext';
-import { ChecklistRule } from '../../types';
-import Input from '../ui/Input';
-import Button from '../ui/Button';
+import { PlusIcon } from '../icons/PlusIcon';
 
-interface ChecklistFormProps {
-  rule: ChecklistRule | null;
-  onSuccess: () => void;
-}
-
-const ChecklistForm: React.FC<ChecklistFormProps> = ({ rule, onSuccess }) => {
-  const { createRule, updateRule } = useChecklist();
-  const [ruleText, setRuleText] = useState(rule?.rule || '');
+const ChecklistForm: React.FC = () => {
+  const { createRule } = useChecklist();
+  const [ruleText, setRuleText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdd = async () => {
+    const trimmed = ruleText.trim();
+    if (!trimmed) return;
     setIsLoading(true);
     setError('');
-
     try {
-      if (rule) {
-        await updateRule(rule.id, { rule: ruleText });
-      } else {
-        await createRule({ rule: ruleText });
-      }
-      onSuccess();
+      await createRule({ rule: trimmed });
+      setRuleText('');
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err.message || 'Failed to add rule.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Input
-        label="Rule"
-        id="ruleText"
-        type="text"
-        placeholder="e.g., Is price above 200 EMA?"
-        value={ruleText}
-        onChange={(e) => setRuleText(e.target.value)}
-        required
-      />
-
-      {error && <p className="text-jtp-loss text-jtp-sm text-center my-4">{error}</p>}
-      <div className="mt-5">
-        <Button type="submit" isLoading={isLoading} className="w-full">
-          {rule ? 'Save Changes' : 'Add Rule'}
-        </Button>
+    <div>
+      <div className="flex items-center gap-2 bg-jtp-raised border border-jtp-border rounded-jtp-md px-3 py-2">
+        <PlusIcon className="w-3.5 h-3.5 text-jtp-textDim flex-shrink-0" />
+        <input
+          type="text"
+          aria-label="New rule text"
+          placeholder="Add a rule — e.g., Is price above 200 EMA?"
+          value={ruleText}
+          onChange={e => setRuleText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+          disabled={isLoading}
+          className="flex-1 bg-transparent text-jtp-sm text-jtp-text placeholder:text-jtp-textDisabled outline-none min-w-0"
+        />
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={isLoading || !ruleText.trim()}
+          className="flex-shrink-0 px-3 py-1 rounded-jtp-sm bg-jtp-blue text-white text-jtp-xs font-medium disabled:opacity-40 hover:bg-jtp-blueHover transition-colors"
+        >
+          {isLoading ? 'Adding…' : 'Add'}
+        </button>
       </div>
-    </form>
+      {error && <p className="text-jtp-loss text-jtp-xs mt-1.5 pl-1">{error}</p>}
+    </div>
   );
 };
 

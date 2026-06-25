@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
 import { BrokerAccount, ParsedTradeData, Direction } from '../../types';
 import { usePlaybook } from '../../context/PlaybookContext';
 import FileDropzone from '../ui/FileDropzone';
@@ -501,9 +501,15 @@ const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose 
   };
 
   return (
-    <Modal title={`Import Trades — ${account.name}`} onClose={onClose} size="xl">
+    <Drawer
+      isOpen={true}
+      onClose={onClose}
+      title="Import Trades"
+      subtitle={account.name}
+      width="lg"
+    >
       {renderContent()}
-    </Modal>
+    </Drawer>
   );
 };
 

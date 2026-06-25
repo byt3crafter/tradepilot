@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
 import { Playbook, PlaybookSetup } from '../../types';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -123,12 +123,28 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
   };
 
 
+  const footer = (
+    <div className="space-y-2">
+      {error && <p className="text-risk-high text-jtp-sm text-center">{error}</p>}
+      <Button type="submit" form="playbook-builder-form" isLoading={isLoading} className="w-full">
+        {isEditMode ? 'Save Playbook' : 'Create Playbook'}
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal title={isEditMode ? 'Edit Playbook' : 'Create New Playbook'} onClose={onClose} size="4xl">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <Drawer
+      isOpen
+      onClose={onClose}
+      title={isEditMode ? 'Edit Playbook' : 'Create New Playbook'}
+      subtitle={isEditMode ? 'Update your setup details below' : 'Define your trading edge'}
+      width="xl"
+      footer={footer}
+    >
+      <form id="playbook-builder-form" onSubmit={handleSubmit} className="space-y-6">
         {/* --- CORE DETAILS --- */}
         <section>
-          <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Core Details</h3>
+          <h3 className="text-jtp-base font-semibold text-jtp-text mb-3">Core Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Playbook Name" id="name" name="name" value={playbook.name} onChange={handleInputChange} required />
             <Input label="Core Idea" id="coreIdea" name="coreIdea" value={playbook.coreIdea || ''} onChange={handleInputChange} placeholder="e.g., Trend continuation on pullbacks" />
@@ -140,7 +156,7 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
 
         {/* --- TAGS --- */}
         <section>
-          <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Tags</h3>
+          <h3 className="text-jtp-base font-semibold text-jtp-text mb-3">Tags</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Trading Styles" id="tradingStyles" name="tradingStyles" placeholder="Swing, Day, Scalp" value={playbook.tradingStyles?.join(', ')} onChange={e => handleArrayChange('tradingStyles', e.target.value)} />
             <Input label="Instruments" id="instruments" name="instruments" placeholder="Forex, Crypto, Futures" value={playbook.instruments?.join(', ')} onChange={e => handleArrayChange('instruments', e.target.value)} />
@@ -150,7 +166,7 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
 
         {/* --- PROS & CONS --- */}
         <section>
-          <h3 className="text-lg font-orbitron text-photonic-blue mb-3">Pros & Cons</h3>
+          <h3 className="text-jtp-base font-semibold text-jtp-text mb-3">Pros &amp; Cons</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Textarea label="Pros" id="pros" name="pros" placeholder="One per line..." value={playbook.pros?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, pros: e.target.value.split('\n') }))} />
             <Textarea label="Cons" id="cons" name="cons" placeholder="One per line..." value={playbook.cons?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, cons: e.target.value.split('\n') }))} />
@@ -160,14 +176,14 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
         {/* --- SETUPS --- */}
         <section>
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-orbitron text-photonic-blue">Setups</h3>
+            <h3 className="text-jtp-base font-semibold text-jtp-text">Setups</h3>
             <Button type="button" onClick={handleAddSetup} className="w-auto flex items-center gap-2 text-sm px-3 py-1.5">
               <PlusIcon className="w-4 h-4" /> Add Setup
             </Button>
           </div>
           <div className="space-y-4">
             {playbook.setups?.map((setup, index) => (
-              <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg border border-white/10">
+              <div key={setup.id} className="p-4 bg-jtp-raised rounded-jtp-panel border border-jtp-border">
                 <Input label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
 
                 <div className="grid grid-cols-2 gap-4 my-4">
@@ -186,8 +202,8 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
                 </div>
 
                 {/* Risk Settings */}
-                <div className="mt-4 p-3 bg-white/5 rounded border border-white/5">
-                  <h4 className="text-sm font-semibold text-future-light mb-2">Risk Parameters</h4>
+                <div className="mt-4 p-3 bg-jtp-shell/30 rounded-jtp-md border border-jtp-borderSubtle">
+                  <h4 className="text-jtp-sm font-semibold text-jtp-textSoft mb-2">Risk Parameters</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <Input
                       label="Risk % per Trade"
@@ -208,16 +224,8 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
             ))}
           </div>
         </section>
-
-        {/* --- FOOTER --- */}
-        <div className="mt-6 pt-6 border-t border-white/10">
-          {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-          <Button type="submit" isLoading={isLoading} className="w-full">
-            {isEditMode ? 'Save Playbook' : 'Create Playbook'}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Drawer>
   );
 };
 

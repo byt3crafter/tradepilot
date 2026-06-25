@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
 import { Trade } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import Input from '../ui/Input';
@@ -64,45 +64,51 @@ const CloseTradeModal: React.FC<CloseTradeModalProps> = ({ tradeToClose, onClose
     }
   };
 
+  const drawerFooter = (
+    <div>
+      {error && <p className="text-jtp-loss text-jtp-sm text-center mb-3">{error}</p>}
+      <Button type="submit" form="close-trade-form" isLoading={isLoading} className="w-full">
+        Close Trade
+      </Button>
+    </div>
+  );
+
   return (
-    <>
-      <Modal title={`Close Trade: ${tradeToClose.asset}`} onClose={onClose} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Exit Date & Time"
-              id="exitDate" name="exitDate" type="datetime-local"
-              value={formState.exitDate} onChange={handleInputChange} required step="1"
-            />
-            <Input
-              label="Exit Price"
-              id="exitPrice" name="exitPrice" type="number" step="any"
-              value={formState.exitPrice} onChange={handleInputChange} required
-            />
-          </div>
-
+    <Drawer
+      isOpen={true}
+      onClose={onClose}
+      title={`Close Trade`}
+      subtitle={tradeToClose.asset}
+      width="md"
+      footer={drawerFooter}
+    >
+      <form id="close-trade-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Net P/L ($)"
-            id="profitLoss" name="profitLoss" type="number" step="any"
-            value={formState.profitLoss} onChange={handleInputChange} required
+            label="Exit Date & Time"
+            id="exitDate" name="exitDate" type="datetime-local"
+            value={formState.exitDate} onChange={handleInputChange} required step="1"
           />
-
-          <ImageUploader
-            label="After Exit Screenshot (Optional)"
-            onImageUpload={handleImageUpload}
-            currentImage={formState.screenshotAfterUrl}
+          <Input
+            label="Exit Price"
+            id="exitPrice" name="exitPrice" type="number" step="any"
+            value={formState.exitPrice} onChange={handleInputChange} required
           />
+        </div>
 
-          {/* --- FOOTER --- */}
-          <div className="mt-6 pt-6 border-t border-white/10">
-            {error && <p className="text-risk-high text-sm text-center mb-4">{error}</p>}
-            <Button type="submit" isLoading={isLoading} className="w-full">
-              Close Trade
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </>
+        <Input
+          label="Net P/L ($)"
+          id="profitLoss" name="profitLoss" type="number" step="any"
+          value={formState.profitLoss} onChange={handleInputChange} required
+        />
+
+        <ImageUploader
+          label="After Exit Screenshot (Optional)"
+          onImageUpload={handleImageUpload}
+          currentImage={formState.screenshotAfterUrl}
+        />
+      </form>
+    </Drawer>
   );
 };
 

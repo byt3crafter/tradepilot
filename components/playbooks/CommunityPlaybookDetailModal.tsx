@@ -1,5 +1,5 @@
 import React from 'react';
-import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
 import { CommunityPlaybook } from '../../types';
 
 interface CommunityPlaybookDetailModalProps {
@@ -24,12 +24,17 @@ const ChecklistDisplay: React.FC<{ title: string, items: { text: string }[] }> =
 
 const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> = ({ playbook, onClose }) => {
   return (
-    <Modal title={playbook.name} onClose={onClose} size="4xl">
+    <Drawer
+      isOpen
+      onClose={onClose}
+      title={playbook.name}
+      subtitle={`by ${playbook.authorName}`}
+      width="lg"
+    >
       <div className="space-y-6">
         {/* --- HEADER --- */}
         <section>
-          <p className="text-future-gray mb-1">Created by: <span className="font-semibold text-future-light">{playbook.authorName}</span></p>
-          <p className="text-future-gray italic">{playbook.coreIdea}</p>
+          <p className="text-jtp-textMuted italic text-jtp-sm">{playbook.coreIdea}</p>
           <div className="flex flex-wrap gap-2 mt-3">
             {playbook.tradingStyles.map(tag => <Tag key={tag}>{tag}</Tag>)}
             {playbook.instruments.map(tag => <Tag key={tag}>{tag}</Tag>)}
@@ -38,16 +43,16 @@ const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> 
         </section>
 
         {/* --- PROS & CONS --- */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-photonic-blue/10">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-jtp-border">
           <div>
-            <h3 className="font-orbitron text-momentum-green/80 mb-2">Pros</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm text-future-light">
+            <h3 className="text-jtp-sm font-semibold text-jtp-profit mb-2">Pros</h3>
+            <ul className="list-disc list-inside space-y-1 text-jtp-sm text-jtp-textSoft">
               {playbook.pros.map((pro, i) => <li key={i}>{pro}</li>)}
             </ul>
           </div>
           <div>
-            <h3 className="font-orbitron text-risk-high/80 mb-2">Cons to Manage</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm text-future-light">
+            <h3 className="text-jtp-sm font-semibold text-jtp-loss mb-2">Cons to Manage</h3>
+            <ul className="list-disc list-inside space-y-1 text-jtp-sm text-jtp-textSoft">
               {playbook.cons.map((con, i) => <li key={i}>{con}</li>)}
             </ul>
           </div>
@@ -55,11 +60,11 @@ const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> 
 
         {/* --- SETUPS --- */}
         <section>
-          <h2 className="text-xl font-orbitron text-photonic-blue mb-4 border-t border-photonic-blue/10 pt-4">Setups</h2>
+          <h2 className="text-jtp-base font-semibold text-jtp-text mb-4 border-t border-jtp-border pt-4">Setups</h2>
           <div className="space-y-6">
             {playbook.setups.map(setup => (
-              <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg">
-                <h3 className="text-lg font-semibold text-future-light mb-4">{setup.name}</h3>
+              <div key={setup.id} className="p-4 bg-jtp-raised rounded-jtp-panel border border-jtp-border">
+                <h3 className="text-jtp-base font-semibold text-jtp-textSoft mb-4">{setup.name}</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <ChecklistDisplay title="Entry Criteria" items={setup.entryCriteria} />
@@ -67,12 +72,16 @@ const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> 
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <span className="text-xs text-future-gray">Ideal 'Before' Chart</span>
-                      {setup.screenshotBeforeUrl ? <img src={setup.screenshotBeforeUrl} alt="Before" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                      <span className="text-jtp-xs text-jtp-textDim">Ideal 'Before' Chart</span>
+                      {setup.screenshotBeforeUrl
+                        ? <img src={setup.screenshotBeforeUrl} alt="Before" className="mt-1 rounded-jtp-md border border-jtp-border" />
+                        : <div className="mt-1 h-24 bg-jtp-shell/30 rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint">Not provided</div>}
                     </div>
                     <div>
-                      <span className="text-xs text-future-gray">Ideal 'After' Chart</span>
-                      {setup.screenshotAfterUrl ? <img src={setup.screenshotAfterUrl} alt="After" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                      <span className="text-jtp-xs text-jtp-textDim">Ideal 'After' Chart</span>
+                      {setup.screenshotAfterUrl
+                        ? <img src={setup.screenshotAfterUrl} alt="After" className="mt-1 rounded-jtp-md border border-jtp-border" />
+                        : <div className="mt-1 h-24 bg-jtp-shell/30 rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint">Not provided</div>}
                     </div>
                   </div>
                 </div>
@@ -81,7 +90,7 @@ const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> 
           </div>
         </section>
       </div>
-    </Modal>
+    </Drawer>
   );
 };
 

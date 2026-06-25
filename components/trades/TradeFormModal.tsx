@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import SelectInput from '../ui/SelectInput';
@@ -272,11 +272,33 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
 
   const selectedPlaybook = playbooks.find(p => p.id === formState.playbookId);
 
-  if (!isOpen) return null;
+  const drawerFooter = (
+    <div>
+      {error && (
+        <p className="text-jtp-loss text-jtp-sm text-center mb-3">{error}</p>
+      )}
+      <Button
+        type="submit"
+        form="trade-form"
+        disabled={isLoading || !canSubmit}
+        isLoading={isLoading}
+        className="w-full"
+      >
+        {isEditMode ? 'Save Changes' : 'Log Trade'}
+      </Button>
+    </div>
+  );
 
   return (
-    <Modal title={isEditMode ? 'Edit Trade' : 'Log Trade'} onClose={onClose} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditMode ? 'Edit Trade' : 'Log Trade'}
+      subtitle={isEditMode && tradeToEdit ? tradeToEdit.asset : undefined}
+      width="lg"
+      footer={drawerFooter}
+    >
+      <form id="trade-form" onSubmit={handleSubmit} className="space-y-5">
 
         {/* ── Core fields ─────────────────────────────────────── */}
         <div className="space-y-4">
@@ -708,22 +730,8 @@ const TradeFormModal: React.FC<TradeFormModalProps> = ({
           )}
         </div>
 
-        {/* ── Submit ──────────────────────────────────────────── */}
-        <div className="pt-2">
-          {error && (
-            <p className="text-jtp-loss text-jtp-sm text-center mb-3">{error}</p>
-          )}
-          <Button
-            type="submit"
-            disabled={isLoading || !canSubmit}
-            isLoading={isLoading}
-            className="w-full"
-          >
-            {isEditMode ? 'Save Changes' : 'Log Trade'}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Drawer>
   );
 };
 
