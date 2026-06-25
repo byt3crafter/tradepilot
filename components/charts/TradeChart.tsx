@@ -118,13 +118,24 @@ export default function TradeChart({
   // Candle data
   useEffect(() => {
     if (!candleSeriesRef.current || candles.length === 0) return;
-    const data: CandlestickData[] = candles.map((c) => ({
-      time: c.time as UTCTimestamp,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
+    // Dedupe by timestamp (last wins) + sort ascending — lightweight-charts
+    // asserts strictly ascending time and throws (blanking the app) otherwise.
+    const byTime = new Map<number, CandlestickData>();
+    for (const c of candles) {
+      if (Number.isFinite(c.time) && Number.isFinite(c.close)) {
+        byTime.set(c.time as number, {
+          time: c.time as UTCTimestamp,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        });
+      }
+    }
+    const data: CandlestickData[] = [...byTime.values()].sort(
+      (a, b) => (a.time as number) - (b.time as number),
+    );
+    if (data.length === 0) return;
     candleSeriesRef.current.setData(data);
     chartRef.current?.timeScale().fitContent();
   }, [candles]);
@@ -132,23 +143,30 @@ export default function TradeChart({
   // Markers + connecting line
   useEffect(() => {
     if (candleSeriesRef.current) {
-      const markers: SeriesMarker<Time>[] = trades.map((t) => {
-        const isBuy = t.side === "Buy";
-        return {
-          time: t.time as UTCTimestamp,
-          position: isBuy ? "belowBar" : "aboveBar",
-          shape: isBuy ? "arrowUp" : "arrowDown",
-          color: isBuy ? "#39FF14" : "#FF003C",
-          text: `${t.side} ${t.type} @ ${t.price.toFixed(2)}`,
-        };
-      });
+      // Markers must be sorted ascending by time, else lightweight-charts throws.
+      const markers: SeriesMarker<Time>[] = trades
+        .slice()
+        .sort((a, b) => a.time - b.time)
+        .map((t) => {
+          const isBuy = t.side === "Buy";
+          return {
+            time: t.time as UTCTimestamp,
+            position: isBuy ? "belowBar" : "aboveBar",
+            shape: isBuy ? "arrowUp" : "arrowDown",
+            color: isBuy ? "#39FF14" : "#FF003C",
+            text: `${t.side} ${t.type} @ ${t.price.toFixed(2)}`,
+          };
+        });
       (candleSeriesRef.current as any).setMarkers(markers);
     }
 
     if (lineSeriesRef.current) {
       const entry = trades.find((t) => t.type === "Entry");
       const exit = trades.find((t) => t.type === "Exit");
-      if (entry && exit) {
+      // Only draw the connecting line when exit is strictly after entry —
+      // equal timestamps (e.g. imports with a single date) would violate the
+      // strict-ascending assertion and crash the chart.
+      if (entry && exit && exit.time > entry.time) {
         const line: LineData[] = [
           { time: entry.time as UTCTimestamp, value: entry.price },
           { time: exit.time as UTCTimestamp, value: exit.price },
