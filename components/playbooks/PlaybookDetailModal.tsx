@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
 import { Playbook, PlaybookStats, Trade } from '../../types';
 import Button from '../ui/Button';
 import { PencilIcon } from '../icons/PencilIcon';
@@ -189,28 +189,38 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
     setEditingTrade(null);
   };
 
-  return (
-    <Modal title={playbook.name} onClose={onClose} size="4xl">
-      <div className="absolute top-4 right-20 flex items-center gap-4">
-        <Button onClick={onEdit} variant="link" className="flex items-center gap-1 text-sm p-0">
-          <PencilIcon className="w-4 h-4 mr-1" /> Edit
-        </Button>
-        <Button onClick={handleDelete} variant="link" className="flex items-center gap-1 text-sm p-0 text-risk-high">
-          <TrashIcon className="w-4 h-4 mr-1" /> Delete
-        </Button>
-      </div>
+  const footer = (
+    <div className="flex items-center gap-3">
+      <Button onClick={onEdit} variant="link" className="flex items-center gap-1.5 text-jtp-sm p-0">
+        <PencilIcon className="w-4 h-4" /> Edit Playbook
+      </Button>
+      <span className="text-jtp-borderStrong">|</span>
+      <Button onClick={handleDelete} variant="link" className="flex items-center gap-1.5 text-jtp-sm p-0 text-risk-high">
+        <TrashIcon className="w-4 h-4" /> Delete
+      </Button>
+    </div>
+  );
 
-      <div className="border-b border-photonic-blue/20 mb-4">
-        <nav className="flex space-x-4 -mt-2">
+  return (
+    <Drawer
+      isOpen
+      onClose={onClose}
+      title={playbook.name}
+      subtitle={playbook.coreIdea || undefined}
+      width="xl"
+      footer={footer}
+    >
+      <div className="border-b border-jtp-border mb-4">
+        <nav className="flex space-x-4">
           <button
             onClick={() => setActiveTab('details')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors ${activeTab === 'details' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+            className={`px-3 py-2 text-jtp-sm font-semibold transition-colors ${activeTab === 'details' ? 'text-jtp-blue border-b-2 border-jtp-blue' : 'text-jtp-textDim hover:text-jtp-text'}`}
           >
             Playbook Details
           </button>
           <button
             onClick={() => setActiveTab('stats')}
-            className={`px-3 py-2 text-sm font-semibold transition-colors ${activeTab === 'stats' ? 'text-photonic-blue border-b-2 border-photonic-blue' : 'text-future-gray hover:text-future-light'}`}
+            className={`px-3 py-2 text-jtp-sm font-semibold transition-colors ${activeTab === 'stats' ? 'text-jtp-blue border-b-2 border-jtp-blue' : 'text-jtp-textDim hover:text-jtp-text'}`}
           >
             Performance Stats
           </button>
@@ -228,8 +238,7 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
           onSuccess={handleTradeSaved}
         />
       )}
-
-    </Modal>
+    </Drawer>
   );
 };
 
