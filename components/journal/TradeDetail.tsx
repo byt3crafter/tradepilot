@@ -1,14 +1,17 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Trade, Direction, TradeJournal } from '../../types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Trade, Direction, TradeJournal, Candle } from '../../types';
 import { useTrade } from '../../context/TradeContext';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { usePriceFormatter } from '../../hooks/usePriceFormatter';
 import { useAccount } from '../../context/AccountContext';
+import { useAuth } from '../../context/AuthContext';
 import { PencilIcon } from '../icons/PencilIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { XIcon } from '../icons/XIcon';
 import { UploadIcon } from '../icons/UploadIcon';
 import Spinner from '../Spinner';
+import TradeChart from '../charts/TradeChart';
+import api from '../../services/api';
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -484,6 +487,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
   const { updateTrade, deleteTrade, createOrUpdateJournal, closedTrades } = useTrade();
   const { playbooks } = usePlaybook();
   const { activeAccount } = useAccount();
+  const { accessToken } = useAuth();
   const { formatPrice } = usePriceFormatter(trade.asset);
 
   // ── Edit / save state ──────────────────────────────────────────────────────
@@ -493,6 +497,12 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
 
   // ── Lightbox ───────────────────────────────────────────────────────────────
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // ── Chart state ────────────────────────────────────────────────────────────
+  const [chartCandles, setChartCandles] = useState<Candle[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartNote, setChartNote] = useState<string | undefined>(undefined);
+  const [chartEmpty, setChartEmpty] = useState(false);
 
   // ── Delete confirm ─────────────────────────────────────────────────────────
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
@@ -653,6 +663,97 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
       setIsDeleteConfirming(false);
     }
   };
+
+  // ── Chart: interval/window logic + fetch ──────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    const toApiDate = (ms: number): string => {
+      const d = new Date(ms);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    };
+
+    async function fetchCandles() {
+      if (!trade.entryDate) return;
+
+      setChartLoading(true);
+      setChartEmpty(false);
+      setChartCandles([]);
+
+      const entryMs = new Date(trade.entryDate).getTime();
+      const exitMs = trade.exitDate ? new Date(trade.exitDate).getTime() : null;
+
+      let interval: string;
+      let startMs: number;
+      let endMs: number;
+
+      if (exitMs != null) {
+        const durationMs = Math.max(exitMs - entryMs, 0);
+        if (durationMs < 6 * 3600 * 1000) interval = '5min';
+        else if (durationMs < 2 * 86400 * 1000) interval = '15min';
+        else if (durationMs < 10 * 86400 * 1000) interval = '1h';
+        else if (durationMs < 60 * 86400 * 1000) interval = '4h';
+        else interval = '1day';
+
+        const padding = durationMs * 0.4;
+        startMs = entryMs - padding;
+        endMs = exitMs + padding;
+      } else {
+        interval = '1h';
+        startMs = entryMs - 2 * 86400 * 1000;
+        endMs = entryMs + 2 * 86400 * 1000;
+      }
+
+      try {
+        const res = await api.getCandles(
+          trade.asset,
+          interval,
+          toApiDate(startMs),
+          toApiDate(endMs),
+          accessToken,
+        );
+        if (!cancelled) {
+          setChartCandles(res.candles);
+          setChartNote(res.note);
+          setChartEmpty(res.candles.length === 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setChartCandles([]);
+          setChartEmpty(true);
+        }
+      } finally {
+        if (!cancelled) setChartLoading(false);
+      }
+    }
+
+    fetchCandles();
+    return () => { cancelled = true; };
+  }, [trade.id, trade.entryDate, trade.exitDate, trade.asset, accessToken]);
+
+  // Chart trade markers
+  const chartTrades = useMemo(() => {
+    const markers: { time: number; price: number; side: 'Buy' | 'Sell'; type: 'Entry' | 'Exit' }[] = [];
+    const side = trade.direction === Direction.Buy ? 'Buy' as const : 'Sell' as const;
+    if (trade.entryDate && trade.entryPrice != null) {
+      markers.push({
+        time: Math.floor(new Date(trade.entryDate).getTime() / 1000),
+        price: trade.entryPrice,
+        side,
+        type: 'Entry',
+      });
+    }
+    if (trade.exitDate && trade.exitPrice != null) {
+      markers.push({
+        time: Math.floor(new Date(trade.exitDate).getTime() / 1000),
+        price: trade.exitPrice,
+        side,
+        type: 'Exit',
+      });
+    }
+    return markers;
+  }, [trade.entryDate, trade.exitDate, trade.entryPrice, trade.exitPrice, trade.direction]);
 
   // ── Date display ───────────────────────────────────────────────────────────
   const dateDisplay = fmtDateTime(trade.exitDate || trade.entryDate);
@@ -860,6 +961,45 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
               color={adherencePct === 100 ? 'profit' : adherencePct >= 60 ? 'warning' : 'loss'}
             />
           )}
+        </div>
+
+        {/* ── Price Chart ─────────────────────────────────────────────────── */}
+        <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
+          <div className="px-5 py-3 border-b border-jtp-border">
+            <span className="text-jtp-xs-plus font-semibold uppercase tracking-[0.4px] text-jtp-textDim">
+              Price Chart
+            </span>
+          </div>
+          <div className="px-5 py-4">
+            {chartLoading ? (
+              <div className="flex items-center justify-center" style={{ height: 320 }}>
+                <Spinner />
+              </div>
+            ) : chartEmpty ? (
+              <div className="flex flex-col items-center justify-center gap-2 text-center" style={{ height: 320 }}>
+                <span className="text-jtp-textDim text-jtp-base-minus">
+                  Price chart unavailable for {trade.asset}.
+                </span>
+                {chartNote && /key|plan|limit|coverage|demo/i.test(chartNote) && (
+                  <span className="text-jtp-textFaint text-jtp-xs">
+                    Add a market-data API key for full symbol coverage.
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div style={{ height: 320 }}>
+                <TradeChart
+                  candles={chartCandles}
+                  trades={chartTrades}
+                  result={trade.result}
+                  direction={trade.direction}
+                  entryPrice={trade.entryPrice}
+                  stopLoss={trade.stopLoss}
+                  takeProfit={trade.takeProfit}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Two-column body ─────────────────────────────────────────────── */}

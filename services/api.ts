@@ -1,5 +1,12 @@
 
-import { AdminStats, AdminUser, BrokerAccount, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig } from "../types";
+
+export interface CandlesResult {
+  symbol: string;
+  mappedSymbol: string;
+  candles: Candle[];
+  note?: string;
+}
 
 const getApiUrl = () => (window as any).APP_CONFIG?.API_URL || 'http://localhost:8080';
 
@@ -101,6 +108,9 @@ export interface ApiService {
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification>;
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification>;
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }>;
+
+  // Market Data
+  getCandles(symbol: string, interval: string, start: string, end: string, token?: string | null): Promise<CandlesResult>;
 
   // Prop Firm Template Methods (Admin)
   getAllPropFirmTemplates(token: string): Promise<import('../types').PropFirmTemplate[]>;
@@ -282,7 +292,13 @@ const api: ApiService = {
   getAssetSpecs(token: string): Promise<AssetSpecification[]> { return this.get('/api/assets/specs', token); },
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> { return this.post('/api/assets', data, token); },
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> { return this.patch(`/api/assets/${id}`, data, token); },
-  deleteAssetSpec(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/assets/${id}`, token); }
+  deleteAssetSpec(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/assets/${id}`, token); },
+
+  // Market Data Methods
+  getCandles(symbol: string, interval: string, start: string, end: string, token?: string | null): Promise<CandlesResult> {
+    const params = new URLSearchParams({ symbol, interval, start, end });
+    return this.get<CandlesResult>(`/api/market-data/candles?${params.toString()}`, token);
+  },
 };
 
 export default api;
