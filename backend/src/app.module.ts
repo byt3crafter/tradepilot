@@ -21,6 +21,7 @@ import { JoiValidationSchema } from './config/config.schema';
 import { PdfModule } from './pdf/pdf.module';
 import { InvitesModule } from './invites/invites.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { MarketDataModule } from './market-data/market-data.module';
 
 
 @Module({
@@ -60,6 +61,7 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     PdfModule,
     InvitesModule,
     PromoCodesModule,
+    MarketDataModule,
   ],
   controllers: [],
   providers: [
