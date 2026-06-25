@@ -351,18 +351,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           {isSubscribed && (
             <>
               <NavItem
-                icon={<JournalSvg />}
-                label="Journal"
-                isActive={currentView === 'journal'}
-                isCollapsed={isSidebarCollapsed}
-                onClick={() => handleNav('journal')}
-              />
-              <NavItem
                 icon={<DashboardSvg />}
                 label="Dashboard"
                 isActive={currentView === 'dashboard'}
                 isCollapsed={isSidebarCollapsed}
                 onClick={() => handleNav('dashboard')}
+              />
+              <NavItem
+                icon={<JournalSvg />}
+                label="Journal"
+                isActive={currentView === 'journal'}
+                isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('journal')}
               />
               <NavItem
                 icon={<AnalyticsSvg />}
