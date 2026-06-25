@@ -28,3 +28,18 @@ dist-ssr
 .env.*
 !.env.example
 public/compliance-report-*.pdf
+
+# Database dumps / backups — never commit (may contain real user data)
+*.backup
+*.backup.gz
+db_cluster-*
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
+# Coordination MCP local SQLite (lives in a Docker volume anyway)
+tools/coordination-mcp/*.db
+
+# Python bytecode
+__pycache__/
+*.pyc

@@ -1,0 +1,20 @@
+# Distinct project name so this never collides with other projects that also
+# have a tools/coordination-mcp/ dir (e.g. PulaPoint on :8765).
+name: tradepilot-coord
+
+services:
+  coordination-mcp:
+    build: .
+    container_name: tradepilot-coordination-mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8766:8766"   # bind to localhost only — never expose the bus publicly
+    volumes:
+      - coord-data:/data
+    environment:
+      COORD_DB: /data/coordination.db
+      COORD_HOST: 0.0.0.0
+      COORD_PORT: "8766"
+
+volumes:
+  coord-data:
