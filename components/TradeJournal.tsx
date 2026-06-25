@@ -3,8 +3,6 @@ import { useAccount } from '../context/AccountContext';
 import { useTrade } from '../context/TradeContext';
 import { usePlaybook } from '../context/PlaybookContext';
 import Spinner from './Spinner';
-import { useSettings } from '../context/SettingsContext';
-import { useChecklist } from '../context/ChecklistContext';
 import { Trade, TradeResult } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -12,7 +10,6 @@ import LiveTradeRow from './trades/LiveTradeRow.tsx';
 import PendingOrderRow from './trades/PendingOrderRow';
 import CloseTradeModal from './trades/CloseTradeModal';
 import TradeFormModal from './trades/TradeFormModal';
-import PreTradeChecklistModal from './trades/PreFlightChecklistModal';
 import { useUI } from '../context/UIContext';
 import { TrashIcon } from './icons/TrashIcon';
 import { ImportIcon } from './icons/ImportIcon';
@@ -23,7 +20,7 @@ import Checkbox from './ui/Checkbox';
 import JtpHistoryRow from './journal/JtpHistoryRow';
 
 type TradeView = 'live' | 'pending' | 'history' | 'calendar';
-type AddTradeStep = 'closed' | 'checklist' | 'form';
+type AddTradeStep = 'closed' | 'form';
 type DateFilter = 'all-time' | 'today' | 'yesterday' | 'this-week' | 'this-month' | 'custom-range';
 type ResultFilter = 'all' | 'win' | 'loss';
 
@@ -116,8 +113,6 @@ const TradeJournal: React.FC = () => {
   const { liveTrades, pendingTrades, closedTrades, isLoading: isTradeLoading, bulkDeleteTrades } =
     useTrade();
   const { playbooks } = usePlaybook();
-  const { enforceChecklist } = useSettings();
-  const { rules } = useChecklist();
   const { isTrialExpired } = useAuth();
   const { showUpgradeModal } = useSubscription();
   const { isAddTradeModalOpenRequest, clearAddTradeModalRequest } = useUI();
@@ -256,12 +251,8 @@ const TradeJournal: React.FC = () => {
       return;
     }
     setEditingTrade(null);
-    if (enforceChecklist && rules.length > 0) {
-      setAddTradeStep('checklist');
-    } else {
-      setAddTradeStep('form');
-    }
-  }, [isTrialExpired, showUpgradeModal, enforceChecklist, rules.length]);
+    setAddTradeStep('form');
+  }, [isTrialExpired, showUpgradeModal]);
 
   useEffect(() => {
     if (isAddTradeModalOpenRequest) {
@@ -391,16 +382,38 @@ const TradeJournal: React.FC = () => {
       );
     }
     if (displayedTrades.length === 0) {
-      const msg =
-        searchQuery || filterSetup !== 'all' || filterResult !== 'all'
-          ? 'No trades match your filters.'
-          : dateFilter === 'all-time'
-          ? 'No closed trades logged for this account yet.'
-          : 'No closed trades found for the selected period.';
+      const isFiltered = searchQuery || filterSetup !== 'all' || filterResult !== 'all';
+      if (isFiltered) {
+        return (
+          <tr>
+            <td colSpan={HISTORY_COLS.length} className="text-center p-8 text-jtp-textMuted text-jtp-sm">
+              No trades match your filters.
+            </td>
+          </tr>
+        );
+      }
       return (
         <tr>
-          <td colSpan={HISTORY_COLS.length} className="text-center p-8 text-jtp-textMuted text-jtp-sm">
-            {msg}
+          <td colSpan={HISTORY_COLS.length} className="text-center px-4 py-14">
+            <p className="text-jtp-xl font-semibold text-jtp-text mb-1">No trades yet</p>
+            <p className="text-jtp-sm text-jtp-textMuted mb-6">
+              Import from your broker or add a trade manually.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-jtp-blue hover:bg-jtp-blueHover text-white font-semibold text-jtp-base rounded-jtp-xl transition-colors"
+              >
+                <ImportIcon className="w-4 h-4" />
+                Import trades
+              </button>
+              <button
+                onClick={handleOpenAddTrade}
+                className="flex items-center gap-2 px-5 py-2.5 bg-jtp-control border border-jtp-borderStrong hover:border-jtp-borderHover text-jtp-text font-medium text-jtp-base rounded-jtp-xl transition-colors"
+              >
+                Add manually
+              </button>
+            </div>
           </td>
         </tr>
       );
@@ -843,13 +856,6 @@ const TradeJournal: React.FC = () => {
       )}
 
       {/* ── MODALS ───────────────────────────────────────────────────────── */}
-      {addTradeStep === 'checklist' && (
-        <PreTradeChecklistModal
-          onSuccess={() => setAddTradeStep('form')}
-          onClose={closeModals}
-        />
-      )}
-
       {addTradeStep === 'form' && (
         <TradeFormModal
           isOpen

@@ -13,7 +13,6 @@ import PricingPage from './PricingPage';
 import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 import AnalyticsPage from './AnalyticsPage';
-import AnalysisPage from './AnalysisPage';
 import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 import { useTrade } from '../context/TradeContext';
 
@@ -25,7 +24,6 @@ export type DashboardView =
   | 'personalisation'
   | 'settings'
   | 'subscription'
-  | 'analysis-tracker'
   | 'pricing';
 
 export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
@@ -39,7 +37,6 @@ const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
   personalisation:  { title: 'Personalisation', subtitle: '' },
   subscription:     { title: 'Subscription', subtitle: '' },
   pricing:          { title: 'Pricing',     subtitle: '' },
-  'analysis-tracker': { title: 'Analysis', subtitle: 'Track your AI insights' },
 };
 
 // Small "+" icon inline SVG
@@ -156,7 +153,6 @@ const DashboardPage: React.FC = () => {
       case 'settings':         return <SettingsPage />;
       case 'subscription':     return <SubscriptionPage />;
       case 'pricing':          return <PricingPage />;
-      case 'analysis-tracker': return user?.featureFlags?.analysisTrackerEnabled ? <AnalysisPage /> : <Dashboard />;
       case 'dashboard':
       default:
         return <Dashboard />;

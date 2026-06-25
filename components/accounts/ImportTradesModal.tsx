@@ -1,8 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import Modal from '../ui/Modal';
-import { BrokerAccount, ParsedTradeData } from '../../types';
-import SelectInput from '../ui/SelectInput';
+import { BrokerAccount, ParsedTradeData, Direction } from '../../types';
 import { usePlaybook } from '../../context/PlaybookContext';
 import FileDropzone from '../ui/FileDropzone';
 import { parseCTraderCsvReport } from '../../utils/cTraderCsvParser';
@@ -11,99 +9,237 @@ import Button from '../ui/Button';
 import Spinner from '../Spinner';
 import { useTrade } from '../../context/TradeContext';
 import { CheckCircleIcon } from '../icons/CheckCircleIcon';
-import { CTraderIcon } from '../icons/CTraderIcon';
-import { MetaTraderIcon } from '../icons/MetaTraderIcon';
 
-type Stage = 'platform' | 'upload' | 'review' | 'loading' | 'success' | 'error';
-type Platform = 'cTrader' | 'metaTrader';
-type FileFormat = 'csv' | 'html' | 'xls';
+// ─── Generic CSV support ──────────────────────────────────────────────────────
+
+type ColumnMap = {
+  asset?: string;
+  direction?: string;
+  entryDate?: string;
+  exitDate?: string;
+  entryPrice?: string;
+  exitPrice?: string;
+  lotSize?: string;
+  profitLoss?: string;
+};
+
+const FIELD_LABELS: Record<keyof ColumnMap, string> = {
+  asset: 'Asset / Symbol',
+  direction: 'Direction (Buy/Sell)',
+  entryDate: 'Entry Date',
+  exitDate: 'Exit Date',
+  entryPrice: 'Entry Price',
+  exitPrice: 'Exit Price',
+  lotSize: 'Lot Size (optional)',
+  profitLoss: 'P/L (optional)',
+};
+
+const REQUIRED_FIELDS: (keyof ColumnMap)[] = ['asset', 'direction', 'entryPrice', 'exitPrice'];
+
+const COLUMN_ALIASES: Record<keyof ColumnMap, string[]> = {
+  asset: ['symbol', 'asset', 'pair', 'instrument', 'ticker', 'market', 'currency_pair'],
+  direction: ['side', 'direction', 'type', 'buy_sell', 'trade_type', 'action'],
+  entryDate: ['entry_date', 'entrydate', 'open_date', 'date', 'datetime', 'time', 'date_opened', 'open_time'],
+  exitDate: ['exit_date', 'exitdate', 'close_date', 'date_closed', 'close_time', 'closing_time'],
+  entryPrice: ['entry', 'entry_price', 'entryprice', 'open_price', 'open', 'price_open', 'entry_rate'],
+  exitPrice: ['exit', 'exit_price', 'exitprice', 'close_price', 'close', 'price_close', 'exit_rate', 'closing_price'],
+  lotSize: ['size', 'qty', 'quantity', 'lots', 'volume', 'lot_size', 'position_size'],
+  profitLoss: ['pnl', 'profit', 'p&l', 'profit_loss', 'net_pnl', 'net_profit', 'pl', 'net_usd', 'netprofit', 'gross'],
+};
+
+function autoMapColumns(headers: string[]): ColumnMap {
+  const normalized = headers.map(h => h.toLowerCase().replace(/[\s\-/]/g, '_'));
+  const map: ColumnMap = {};
+  for (const [field, aliases] of Object.entries(COLUMN_ALIASES) as [keyof ColumnMap, string[]][]) {
+    for (let i = 0; i < normalized.length; i++) {
+      if (aliases.some(a => normalized[i] === a || normalized[i].startsWith(a) || normalized[i].endsWith(a))) {
+        map[field] = headers[i];
+        break;
+      }
+    }
+  }
+  return map;
+}
+
+function parseCsvLine(line: string): string[] {
+  const cols: string[] = [];
+  let inQuotes = false;
+  let cur = '';
+  for (const ch of line) {
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { cols.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+function parseGenericCsv(text: string, map: ColumnMap): ParsedTradeData[] {
+  const rows = text.trim().split('\n');
+  if (rows.length < 2) throw new Error('CSV must have at least a header row and one data row.');
+
+  const headers = parseCsvLine(rows[0]);
+  const idx = (col: string | undefined) => (col ? headers.indexOf(col) : -1);
+
+  const getCell = (row: string[], col: string | undefined) => {
+    const i = idx(col);
+    return i >= 0 ? (row[i] ?? '').replace(/^["']|["']$/g, '').trim() : '';
+  };
+
+  const parseDir = (val: string): Direction => {
+    const v = val.toLowerCase().trim();
+    if (v === 'buy' || v === 'long' || v === 'b') return Direction.Buy;
+    if (v === 'sell' || v === 'short' || v === 's') return Direction.Sell;
+    throw new Error(`Unknown direction value: "${val}". Expected Buy/Sell or Long/Short.`);
+  };
+
+  const trades: ParsedTradeData[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i].trim()) continue;
+    const row = parseCsvLine(rows[i]);
+
+    try {
+      const asset = getCell(row, map.asset);
+      const dirRaw = getCell(row, map.direction);
+      const entryRaw = getCell(row, map.entryPrice);
+      const exitRaw = getCell(row, map.exitPrice);
+
+      if (!asset || !dirRaw || !entryRaw || !exitRaw) continue;
+
+      const direction = parseDir(dirRaw);
+      const entryPrice = parseFloat(entryRaw);
+      const exitPrice = parseFloat(exitRaw);
+
+      if (isNaN(entryPrice) || isNaN(exitPrice)) continue;
+
+      const entryDateRaw = getCell(row, map.entryDate);
+      const exitDateRaw = getCell(row, map.exitDate);
+      const plRaw = getCell(row, map.profitLoss);
+      const lotRaw = getCell(row, map.lotSize);
+
+      const now = new Date().toISOString();
+      const parseDate = (s: string) => {
+        if (!s) return now;
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? now : d.toISOString();
+      };
+
+      trades.push({
+        asset,
+        direction,
+        entryDate: parseDate(entryDateRaw),
+        exitDate: parseDate(exitDateRaw || entryDateRaw),
+        entryPrice,
+        exitPrice,
+        lotSize: lotRaw ? (isNaN(parseFloat(lotRaw)) ? null : parseFloat(lotRaw)) : null,
+        profitLoss: plRaw ? (isNaN(parseFloat(plRaw)) ? null : parseFloat(plRaw)) : null,
+      });
+    } catch {
+      // Skip malformed rows silently
+    }
+  }
+  return trades;
+}
+
+// ─── Stage types ──────────────────────────────────────────────────────────────
+
+type Stage = 'upload' | 'mapping' | 'review' | 'loading' | 'success' | 'error';
 
 interface ImportTradesModalProps {
   account: BrokerAccount;
   onClose: () => void;
 }
 
-const PlatformCard: React.FC<{ icon: React.ReactNode; label: string; description: string; onClick: () => void; disabled?: boolean }> = ({ icon, label, description, onClick, disabled }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`w-full p-4 rounded-lg border-2 text-center transition-all duration-200 h-full flex flex-col items-center justify-center ${disabled
-      ? 'bg-future-dark/30 border-future-panel/50 cursor-not-allowed opacity-50'
-      : 'bg-future-dark/50 border-future-panel hover:border-photonic-blue/50 hover:bg-photonic-blue/10'
-      }`}
-  >
-    {icon}
-    <div className="font-semibold text-future-light mt-3">{label}</div>
-    <div className="text-xs text-future-gray mt-1">{description}</div>
-  </button>
-);
-
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose }) => {
   const { playbooks } = usePlaybook();
   const { bulkImportTrades } = useTrade();
 
-  const [stage, setStage] = useState<Stage>('platform');
-  const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<FileFormat>('csv');
-
-  const [selectedPlaybookId, setSelectedPlaybookId] = useState('');
+  const [stage, setStage] = useState<Stage>('upload');
+  const [selectedPlaybookId, setSelectedPlaybookId] = useState(() => playbooks[0]?.id || '');
   const [parsedTrades, setParsedTrades] = useState<ParsedTradeData[]>([]);
   const [error, setError] = useState('');
   const [successResult, setSuccessResult] = useState({ imported: 0, skipped: 0 });
 
-  // Update selected playbook when playbooks load
-  useEffect(() => {
-    if (playbooks.length > 0 && !selectedPlaybookId) {
-      setSelectedPlaybookId(playbooks[0].id);
-    }
-  }, [playbooks, selectedPlaybookId]);
+  // Generic CSV state
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [rawCsvText, setRawCsvText] = useState('');
+  const [columnMap, setColumnMap] = useState<ColumnMap>({});
 
-  const handlePlatformSelect = (platform: Platform) => {
-    setSelectedPlatform(platform);
-    setStage('upload');
-  };
-
-  const handleFileAccepted = (file: File) => {
+  const handleFileAccepted = useCallback((file: File) => {
     setError('');
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
       try {
-        const text = event.target?.result as string;
-        let trades: ParsedTradeData[];
+        // Try cTrader CSV
+        const csvTrades = parseCTraderCsvReport(text);
+        if (csvTrades.length > 0) {
+          setParsedTrades(csvTrades);
+          setStage('review');
+          return;
+        }
+      } catch { /* not cTrader CSV */ }
 
-        if (selectedPlatform === 'cTrader') {
-          if (selectedFormat === 'csv') {
-            trades = parseCTraderCsvReport(text);
-          } else if (selectedFormat === 'html') {
-            trades = parseCTraderHtmlReport(text);
-          } else {
-            throw new Error("Unsupported file format for cTrader.");
-          }
+      try {
+        // Try cTrader HTML
+        const htmlTrades = parseCTraderHtmlReport(text);
+        if (htmlTrades.length > 0) {
+          setParsedTrades(htmlTrades);
+          setStage('review');
+          return;
+        }
+      } catch { /* not cTrader HTML */ }
+
+      // Fall back: treat as generic CSV
+      try {
+        const rows = text.trim().split('\n');
+        if (rows.length < 2) throw new Error('File has fewer than 2 rows.');
+        const headers = parseCsvLine(rows[0]);
+        if (headers.length < 2) throw new Error('Could not parse CSV headers.');
+
+        const autoMap = autoMapColumns(headers);
+        setCsvHeaders(headers);
+        setRawCsvText(text);
+        setColumnMap(autoMap);
+
+        // Check if all required fields were auto-detected
+        const allMapped = REQUIRED_FIELDS.every(f => autoMap[f]);
+        if (allMapped) {
+          const trades = parseGenericCsv(text, autoMap);
+          if (trades.length === 0) throw new Error('No valid trades found after parsing.');
+          setParsedTrades(trades);
+          setStage('review');
         } else {
-          throw new Error("Selected platform is not yet supported.");
+          setStage('mapping');
         }
-
-        if (trades.length === 0) {
-          throw new Error("No valid trades found in the report file.");
-        }
-        setParsedTrades(trades);
-        setStage('review');
       } catch (err: any) {
-        setError(err.message || 'Failed to parse the file.');
+        setError(err.message || 'Could not parse the file. Check that it is a valid CSV or cTrader HTML report.');
         setStage('error');
       }
     };
     reader.readAsText(file);
+  }, []);
+
+  const handleApplyMapping = () => {
+    setError('');
+    const missing = REQUIRED_FIELDS.filter(f => !columnMap[f]);
+    if (missing.length > 0) {
+      setError(`Please map the following required fields: ${missing.map(f => FIELD_LABELS[f]).join(', ')}`);
+      return;
+    }
+    try {
+      const trades = parseGenericCsv(rawCsvText, columnMap);
+      if (trades.length === 0) throw new Error('No valid trades found with the selected column mapping.');
+      setParsedTrades(trades);
+      setStage('review');
+    } catch (err: any) {
+      setError(err.message || 'Failed to parse trades with the given column mapping.');
+    }
   };
 
   const handleConfirmImport = async () => {
-    if (!selectedPlaybookId) {
-      setError('Please select a playbook before importing.');
-      setStage('error');
-      return;
-    }
-
     setStage('loading');
     setError('');
     try {
@@ -115,161 +251,257 @@ const ImportTradesModal: React.FC<ImportTradesModalProps> = ({ account, onClose 
       setSuccessResult(result);
       setStage('success');
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred during import.");
+      setError(err.message || 'An unexpected error occurred during import.');
       setStage('error');
     }
   };
 
-  const resetAndGoTo = (targetStage: Stage) => {
+  const reset = (toStage: Stage = 'upload') => {
     setError('');
     setParsedTrades([]);
-    if (targetStage === 'platform') {
-      setSelectedPlatform(null);
-    }
-    setStage(targetStage);
-  }
+    setCsvHeaders([]);
+    setRawCsvText('');
+    setColumnMap({});
+    setStage(toStage);
+  };
 
-  const renderPlatformStage = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg text-center font-semibold text-future-light">Which platform is this report from?</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-        <PlatformCard
-          icon={<CTraderIcon className="w-12 h-12" />}
-          label="cTrader"
-          description="Supports CSV & HTML reports"
-          onClick={() => handlePlatformSelect('cTrader')}
-        />
-        <PlatformCard
-          icon={<MetaTraderIcon className="w-12 h-12" />}
-          label="MetaTrader 4/5"
-          description="Coming Soon"
-          onClick={() => { }}
-          disabled
-        />
+  // ── Render stages ─────────────────────────────────────────────────────────
+
+  const renderUpload = () => (
+    <div className="space-y-5">
+      <p className="text-jtp-sm text-jtp-textMuted">
+        Drop a cTrader CSV/HTML report or any broker CSV. Columns are auto-detected.
+      </p>
+
+      {/* Playbook selector */}
+      <div>
+        <label htmlFor="import-playbook" className="block text-jtp-xs font-semibold uppercase tracking-[0.4px] text-jtp-textDim mb-1.5">
+          Assign imported trades to playbook <span className="text-jtp-loss">*</span>
+        </label>
+        {playbooks.length > 0 ? (
+          <select
+            id="import-playbook"
+            value={selectedPlaybookId}
+            onChange={e => setSelectedPlaybookId(e.target.value)}
+            className="w-full px-3 py-[9px] bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl text-jtp-base-minus text-jtp-text outline-none focus:border-jtp-blue transition-colors"
+          >
+            {playbooks.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-jtp-sm text-jtp-warning">Please create a playbook first before importing.</p>
+        )}
+      </div>
+
+      {/* Supported formats */}
+      <div className="flex gap-2">
+        {['cTrader CSV', 'cTrader HTML', 'Generic CSV'].map(f => (
+          <span key={f} className="px-2 py-0.5 rounded-jtp-md bg-jtp-raised border border-jtp-border text-jtp-xs text-jtp-textMuted">
+            {f}
+          </span>
+        ))}
+      </div>
+
+      <FileDropzone
+        onFileAccepted={handleFileAccepted}
+        accept=".csv,.txt,.html,.htm"
+        label="Drop your broker report here, or click to select (.csv, .html)"
+      />
+    </div>
+  );
+
+  const renderMapping = () => (
+    <div className="space-y-5">
+      <div>
+        <p className="text-jtp-sm text-jtp-text font-semibold mb-1">Map your CSV columns</p>
+        <p className="text-jtp-xs text-jtp-textMuted">
+          We couldn't auto-detect all required columns. Map them manually below.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {(Object.keys(FIELD_LABELS) as (keyof ColumnMap)[]).map(field => (
+          <div key={field} className="flex items-center gap-3">
+            <div className="w-40 flex-shrink-0">
+              <span className="text-jtp-xs text-jtp-textSoft">
+                {FIELD_LABELS[field]}
+                {REQUIRED_FIELDS.includes(field) && (
+                  <span className="text-jtp-loss ml-0.5">*</span>
+                )}
+              </span>
+            </div>
+            <select
+              value={columnMap[field] || ''}
+              onChange={e => setColumnMap(prev => ({ ...prev, [field]: e.target.value || undefined }))}
+              className="flex-1 px-3 py-[7px] bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl text-jtp-base-minus text-jtp-text outline-none focus:border-jtp-blue transition-colors"
+            >
+              <option value="">— not mapped —</option>
+              {csvHeaders.map(h => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <p className="text-jtp-xs text-jtp-loss">{error}</p>
+      )}
+
+      <div className="flex justify-between pt-2 border-t border-jtp-border">
+        <Button variant="secondary" onClick={() => reset('upload')} className="w-auto">
+          Back
+        </Button>
+        <Button onClick={handleApplyMapping} className="w-auto">
+          Preview Trades
+        </Button>
       </div>
     </div>
   );
 
-  const renderUploadStage = () => {
-    const formatConfig = {
-      csv: { accept: '.csv,.txt', label: `Drag & drop cTrader .csv report here, or click to select` },
-      html: { accept: '.html,.htm', label: `Drag & drop cTrader .html report here, or click to select` },
-      xls: { accept: '.xls,.xlsx', label: 'XLS format is coming soon' },
-    };
-
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-future-light">Upload Report</h3>
-          <Button variant="link" onClick={() => resetAndGoTo('platform')} className="text-sm">Change Platform</Button>
-        </div>
-
-        <SelectInput
-          label="1. Assign all imported trades to this playbook:"
-          id="playbookId"
-          value={selectedPlaybookId}
-          onChange={(e) => setSelectedPlaybookId(e.target.value)}
-          options={playbooks.map(p => ({ value: p.id, label: p.name }))}
-          disabled={playbooks.length === 0}
-        />
-        {playbooks.length === 0 && <p className="text-sm text-risk-medium -mt-2">Please create a playbook before importing trades.</p>}
-
-        <div>
-          <label className="block text-sm font-medium text-future-gray mb-2">2. Select the report format:</label>
-          <div className="flex items-center gap-2 rounded-lg bg-future-dark p-1 w-min">
-            <Button variant={selectedFormat === 'csv' ? 'primary' : 'secondary'} onClick={() => setSelectedFormat('csv')} className="w-auto px-4 py-1 text-sm !shadow-none">CSV</Button>
-            <Button variant={selectedFormat === 'html' ? 'primary' : 'secondary'} onClick={() => setSelectedFormat('html')} className="w-auto px-4 py-1 text-sm !shadow-none">HTML</Button>
-          </div>
-        </div>
-
-        <FileDropzone
-          onFileAccepted={handleFileAccepted}
-          accept={formatConfig[selectedFormat].accept}
-          label={formatConfig[selectedFormat].label}
-        />
-      </div>
-    );
-  };
-
-  const renderReviewStage = () => (
+  const renderReview = () => (
     <div className="space-y-4">
-      <p className="text-sm text-future-gray">
-        Found <span className="font-semibold text-future-light">{parsedTrades.length}</span> trades to import. Review the data below before confirming.
-      </p>
-      <div className="max-h-64 overflow-y-auto border border-photonic-blue/20 rounded-md table-scrollbar">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-future-panel">
-            <tr className="border-b border-photonic-blue/20">
-              {['Date', 'Asset', 'Direction', 'Entry', 'Exit', 'P/L'].map(h =>
-                <th key={h} className="p-2 text-left font-semibold text-future-gray">{h}</th>
-              )}
+      <div className="flex items-center justify-between">
+        <p className="text-jtp-sm text-jtp-text">
+          Found <span className="font-semibold">{parsedTrades.length}</span> trades to import.
+          Review below before confirming.
+        </p>
+        <button
+          onClick={() => reset('upload')}
+          className="text-jtp-xs text-jtp-textDim hover:text-jtp-text transition-colors"
+        >
+          Start over
+        </button>
+      </div>
+
+      {/* Preview table */}
+      <div className="max-h-56 overflow-y-auto border border-jtp-border rounded-jtp-panel bg-jtp-panel">
+        <table className="w-full text-jtp-xs border-collapse">
+          <thead className="sticky top-0 bg-jtp-active border-b border-jtp-borderStrong">
+            <tr>
+              {['Date', 'Asset', 'Dir', 'Entry', 'Exit', 'P/L'].map(h => (
+                <th key={h} className="px-3 py-[9px] text-left font-semibold uppercase tracking-[0.4px] text-jtp-textDim whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {parsedTrades.slice(0, 50).map((trade, i) => (
-              <tr key={i} className="border-b border-future-dark/50">
-                <td className="p-2 font-tech-mono">{new Date(trade.exitDate).toLocaleDateString()}</td>
-                <td className="p-2 font-tech-mono">{trade.asset}</td>
-                <td className={`p-2 font-tech-mono ${trade.direction === 'Buy' ? 'text-momentum-green' : 'text-risk-high'}`}>{trade.direction}</td>
-                <td className="p-2 font-tech-mono">{trade.entryPrice.toFixed(4)}</td>
-                <td className="p-2 font-tech-mono">{trade.exitPrice.toFixed(4)}</td>
-                <td className={`p-2 font-tech-mono ${trade.profitLoss && trade.profitLoss > 0 ? 'text-momentum-green' : 'text-risk-high'}`}>
-                  ${trade.profitLoss?.toFixed(2)}
-                </td>
-              </tr>
-            ))}
+            {parsedTrades.slice(0, 60).map((t, i) => {
+              const isBuy = t.direction === Direction.Buy;
+              const pl = t.profitLoss;
+              return (
+                <tr key={i} className="border-b border-jtp-borderSubtle last:border-0 hover:bg-jtp-raised">
+                  <td className="px-3 py-2 font-mono text-jtp-textMuted">
+                    {new Date(t.exitDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-jtp-text">{t.asset}</td>
+                  <td className={`px-3 py-2 font-medium ${isBuy ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
+                    {isBuy ? 'Long' : 'Short'}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-jtp-textMuted">
+                    {t.entryPrice.toFixed(5)}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-jtp-textMuted">
+                    {t.exitPrice.toFixed(5)}
+                  </td>
+                  <td className={`px-3 py-2 font-mono font-medium ${pl == null ? 'text-jtp-textFaint' : pl > 0 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
+                    {pl != null ? `${pl > 0 ? '+' : ''}$${pl.toFixed(2)}` : '—'}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-        {parsedTrades.length > 50 && <p className="p-2 text-center text-xs text-future-gray">And {parsedTrades.length - 50} more trades...</p>}
+        {parsedTrades.length > 60 && (
+          <p className="px-3 py-2 text-jtp-xs text-jtp-textFaint text-center">
+            … and {parsedTrades.length - 60} more trades
+          </p>
+        )}
       </div>
-      <div className="flex justify-end gap-4 pt-4 border-t border-photonic-blue/10">
-        <Button variant="secondary" onClick={() => resetAndGoTo('upload')} className="w-auto">Back</Button>
-        <Button onClick={handleConfirmImport} className="w-auto" disabled={!selectedPlaybookId}>Confirm & Import</Button>
+
+      {/* Playbook selector */}
+      <div>
+        <label htmlFor="review-playbook" className="block text-jtp-xs font-semibold uppercase tracking-[0.4px] text-jtp-textDim mb-1.5">
+          Assign to playbook
+        </label>
+        <select
+          id="review-playbook"
+          value={selectedPlaybookId}
+          onChange={e => setSelectedPlaybookId(e.target.value)}
+          disabled={playbooks.length === 0}
+          className="w-full px-3 py-[9px] bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl text-jtp-base-minus text-jtp-text outline-none focus:border-jtp-blue transition-colors disabled:opacity-50"
+        >
+          {playbooks.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2 border-t border-jtp-border">
+        <Button variant="secondary" onClick={() => reset('upload')} className="w-auto">
+          Back
+        </Button>
+        <Button
+          onClick={handleConfirmImport}
+          disabled={!selectedPlaybookId}
+          className="w-auto"
+        >
+          Import {parsedTrades.length} trades
+        </Button>
       </div>
     </div>
   );
 
-  const renderLoadingStage = () => (
-    <div className="flex flex-col items-center justify-center text-center p-8 h-48">
+  const renderLoading = () => (
+    <div className="flex flex-col items-center justify-center text-center py-12">
       <Spinner />
-      <p className="mt-4 text-future-gray">Importing trades... this may take a moment.</p>
-    </div>
-  );
-
-  const renderSuccessStage = () => (
-    <div className="flex flex-col items-center justify-center text-center p-8 h-48">
-      <CheckCircleIcon className="w-16 h-16 text-momentum-green" />
-      <h3 className="text-xl font-semibold text-future-light mt-4">Import Complete!</h3>
-      <p className="text-future-gray mt-2">
-        Successfully imported {successResult.imported} trades.
-        {successResult.skipped > 0 && ` Skipped ${successResult.skipped} duplicate trades.`}
+      <p className="mt-4 text-jtp-sm text-jtp-textMuted">
+        Importing trades… this may take a moment.
       </p>
-      <Button onClick={onClose} className="w-auto mt-6">Done</Button>
     </div>
   );
 
-  const renderErrorStage = () => (
-    <div className="space-y-4 text-center">
-      <h3 className="text-lg font-semibold text-risk-high">Import Failed</h3>
-      <p className="text-future-gray bg-future-dark/50 p-3 rounded-md">{error}</p>
-      <Button onClick={() => resetAndGoTo('upload')} className="w-auto">Try Again</Button>
+  const renderSuccess = () => (
+    <div className="flex flex-col items-center justify-center text-center py-12">
+      <CheckCircleIcon className="w-14 h-14 text-jtp-profit mb-4" />
+      <p className="text-jtp-xl font-semibold text-jtp-text mb-1">Import complete</p>
+      <p className="text-jtp-sm text-jtp-textMuted">
+        {successResult.imported} trades imported successfully.
+        {successResult.skipped > 0 && ` ${successResult.skipped} duplicates skipped.`}
+      </p>
+      <Button onClick={onClose} className="w-auto mt-6">
+        Done
+      </Button>
+    </div>
+  );
+
+  const renderError = () => (
+    <div className="text-center space-y-4 py-8">
+      <p className="text-jtp-lg font-semibold text-jtp-loss">Import failed</p>
+      <p className="text-jtp-sm text-jtp-textMuted bg-jtp-raised border border-jtp-border rounded-jtp-xl px-4 py-3">
+        {error}
+      </p>
+      <Button onClick={() => reset('upload')} className="w-auto mx-auto">
+        Try again
+      </Button>
     </div>
   );
 
   const renderContent = () => {
     switch (stage) {
-      case 'platform': return renderPlatformStage();
-      case 'upload': return renderUploadStage();
-      case 'review': return renderReviewStage();
-      case 'loading': return renderLoadingStage();
-      case 'success': return renderSuccessStage();
-      case 'error': return renderErrorStage();
-      default: return renderPlatformStage();
+      case 'upload':  return renderUpload();
+      case 'mapping': return renderMapping();
+      case 'review':  return renderReview();
+      case 'loading': return renderLoading();
+      case 'success': return renderSuccess();
+      case 'error':   return renderError();
     }
-  }
+  };
 
   return (
-    <Modal title={`Import Trades for "${account.name}"`} onClose={onClose} size="xl">
+    <Modal title={`Import Trades — ${account.name}`} onClose={onClose} size="xl">
       {renderContent()}
     </Modal>
   );

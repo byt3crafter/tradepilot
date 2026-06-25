@@ -10,8 +10,6 @@ import { TrashIcon } from '../icons/TrashIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
 import Button from '../ui/Button';
-import Spinner from '../Spinner';
-import AiAnalysisDisplay from '../trades/AiAnalysisDisplay';
 import JournalEntry from './JournalEntry';
 import JournalForm from './JournalForm';
 import Modal from '../ui/Modal';
@@ -45,13 +43,12 @@ const calculateDuration = (start?: string | null, end?: string | null): string =
 };
 
 const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected, onSelect }) => {
-  const { deleteTrade, analyzeTrade } = useTrade();
+  const { deleteTrade } = useTrade();
   const { playbooks } = usePlaybook();
   const { findSpec } = useAssets();
   const { formatPrice } = usePriceFormatter(trade.asset);
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -119,21 +116,6 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
       }
     }
   };
-
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    try {
-      await analyzeTrade(trade.id);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to analyze trade. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const canAnalyze =
-    !!(trade.screenshotBeforeUrl && trade.screenshotAfterUrl && !trade.aiAnalysis);
 
   const toggleSection = (key: string) => {
     setOpenSection(prev => (prev === key ? null : key));
@@ -399,43 +381,6 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onEdit, isSelected
                 )}
               </div>
 
-              {/* AI Analysis */}
-              <div className="border-t border-jtp-border">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between py-2"
-                  onClick={() => toggleSection('ai')}
-                >
-                  <span className="text-jtp-sm font-semibold text-jtp-blue">AI Analysis</span>
-                  <ChevronDownIcon
-                    className={`w-4 h-4 text-jtp-blue transition-transform ${
-                      openSection === 'ai' ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                {openSection === 'ai' && (
-                  <div className="mb-4">
-                    {trade.aiAnalysis ? (
-                      <AiAnalysisDisplay analysis={trade.aiAnalysis} />
-                    ) : canAnalyze ? (
-                      <div className="flex flex-col items-center justify-center bg-jtp-panel p-4 rounded-jtp-panel">
-                        <p className="text-jtp-sm text-jtp-textMuted mb-3">
-                          Ready to analyze trade execution.
-                        </p>
-                        <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-auto">
-                          {isAnalyzing ? <Spinner /> : 'Analyze with AI'}
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center bg-jtp-panel p-4 rounded-jtp-panel">
-                        <p className="text-jtp-sm text-jtp-textMuted text-center">
-                          Upload "Before" and "After" screenshots to enable AI analysis.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </td>
         </tr>
