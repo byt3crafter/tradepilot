@@ -16,7 +16,7 @@ export class TradesService {
   async create(userId: string, createTradeDto: CreateTradeDto) {
     // Explicitly destructure entryDate to prevent it from being included in ...rest with an optional type,
     // which confuses TypeScript when we try to assign a definite Date value later.
-    const { brokerAccountId, playbookId, playbookSetupId, riskPercentage, entryDate, status, ...rest } = createTradeDto;
+    const { brokerAccountId, playbookId, playbookSetupId, riskPercentage, entryDate, status, mistakeTags, ...rest } = createTradeDto;
 
     const brokerAccount = await this.prisma.brokerAccount.findFirst({
       where: { id: brokerAccountId, userId },
@@ -60,7 +60,7 @@ export class TradesService {
       }
     }
 
-    return this.prisma.trade.create({
+    const created = await this.prisma.trade.create({
       data: {
         ...rest,
         entryDate: entryDate ?? new Date(),
@@ -71,6 +71,28 @@ export class TradesService {
         ...(playbookSetupId ? { playbookSetup: { connect: { id: playbookSetupId } } } : {}),
       },
     });
+
+    if (mistakeTags && mistakeTags.length) {
+      await this.syncMistakeTags(created.id, userId, mistakeTags);
+    }
+    return created;
+  }
+
+  /**
+   * Replace a trade's mistake tags. Upserts each label into the user's tag
+   * taxonomy (MistakeTag) and rewrites the TradeMistake join rows.
+   */
+  private async syncMistakeTags(tradeId: string, userId: string, labels: string[]) {
+    const clean = Array.from(new Set(labels.map((l) => l.trim()).filter(Boolean)));
+    await this.prisma.tradeMistake.deleteMany({ where: { tradeId } });
+    for (const label of clean) {
+      const tag = await this.prisma.mistakeTag.upsert({
+        where: { userId_label: { userId, label } },
+        update: {},
+        create: { userId, label },
+      });
+      await this.prisma.tradeMistake.create({ data: { tradeId, tagId: tag.id } });
+    }
   }
 
   async bulkImport(userId: string, bulkImportDto: BulkImportTradesDto) {
@@ -220,11 +242,21 @@ export class TradesService {
       if (risk > 0) planR = Math.round((reward / risk) * 100) / 100;
     }
 
+    // Adherence: derived from the captured pre-trade checklist state.
+    // true = every captured item checked, false = some unchecked, null = not captured.
+    let adherence: boolean | null = null;
+    const state = t.preTradeChecklistState;
+    const items = Array.isArray(state) ? state : state?.items;
+    if (Array.isArray(items) && items.length > 0) {
+      adherence = items.every((i: any) => i?.checked === true);
+    }
+
     return {
       ...t,
       realisedR,
       planR,
       riskUnit,
+      adherence,
       mistakeTags: (t.mistakes || []).map((m: any) => m.tag?.label).filter(Boolean),
     };
   }
@@ -252,7 +284,8 @@ export class TradesService {
   async update(id: string, userId: string, updateTradeDto: UpdateTradeDto) {
     await this.findOne(id, userId); // Authorization check
 
-    let dataToUpdate: Partial<UpdateTradeDto> = { ...updateTradeDto };
+    // mistakeTags is a relation, not a column — handle it separately.
+    const { mistakeTags, ...dataToUpdate } = updateTradeDto as any;
 
     // If P/L is provided, determine the trade result automatically
     if (updateTradeDto.profitLoss !== undefined && updateTradeDto.profitLoss !== null) {
@@ -275,6 +308,10 @@ export class TradesService {
         tradeJournal: true,
       }
     });
+
+    if (mistakeTags !== undefined) {
+      await this.syncMistakeTags(id, userId, mistakeTags || []);
+    }
 
     await this.accountsService.recalculateBalance(updatedTrade.brokerAccountId, userId);
 

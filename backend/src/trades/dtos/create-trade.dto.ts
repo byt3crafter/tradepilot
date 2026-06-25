@@ -1,8 +1,33 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsBoolean, IsDate } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, Max, IsInt, IsOptional, IsBoolean, IsDate, IsArray, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Direction, TradeResult } from '@prisma/client';
 
 export class CreateTradeDto {
+  // Redesign capture fields (all optional / advanced)
+  @IsInt() @Min(1) @Max(5) @IsOptional()
+  confidence?: number | null;
+
+  @IsNumber() @IsOptional()
+  mae?: number | null;
+
+  @IsNumber() @IsOptional()
+  mfe?: number | null;
+
+  @IsNumber() @IsOptional()
+  commission?: number | null;
+
+  @IsNumber() @IsOptional()
+  swap?: number | null;
+
+  @IsString() @IsOptional()
+  screenshotAfterUrl?: string | null;
+
+  @IsArray() @IsString({ each: true }) @IsOptional()
+  mistakeTags?: string[];
+
+  @IsObject() @IsOptional()
+  preTradeChecklistState?: any;
+
   @IsDate()
   @Type(() => Date)
   @IsOptional()
