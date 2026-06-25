@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, ReactNode, useState, useEffe
 import { User } from '../types';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import md5 from 'md5';
+import { DEV_AUTH_BYPASS, DEV_AUTH_TOKEN, DEV_MOCK_USER } from '../utils/devAuth';
 
 interface AuthContextType {
   user: User | null;
@@ -152,6 +153,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return { isTrialing, isSubscribed, trialDaysRemaining, isTrialExpired };
   }, [appUser]);
+
+  // DEV-ONLY: short-circuit to a mock authenticated session (see utils/devAuth).
+  // Dead-code-eliminated from production builds.
+  if (DEV_AUTH_BYPASS) {
+    const devValue: any = {
+      user: DEV_MOCK_USER,
+      accessToken: DEV_AUTH_TOKEN,
+      isAuthenticated: true,
+      isLoading: false,
+      isTrialing: false,
+      isSubscribed: true,
+      trialDaysRemaining: 0,
+      isTrialExpired: false,
+      logout: () => {},
+      refreshUser: async () => DEV_MOCK_USER,
+      getToken: async () => DEV_AUTH_TOKEN,
+      updateUserPreferences: async () => {},
+    };
+    return <AuthContext.Provider value={devValue}>{children}</AuthContext.Provider>;
+  }
 
   const value = {
     user: appUser,

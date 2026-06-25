@@ -105,6 +105,9 @@ export interface Trade {
   exitPrice?: number | null;
   riskPercentage: number;
   rr?: number | null;
+  realisedR?: number | null;   // computed server-side: realised P&L ÷ account risk unit
+  planR?: number | null;       // planned R: stored rr, or derived from entry/SL/TP
+  mistakeTags?: string[];      // flattened mistake-tag labels
   profitLoss?: number | null;
   result?: TradeResult | null;
   isPendingOrder: boolean;

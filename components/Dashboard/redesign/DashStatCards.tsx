@@ -53,16 +53,8 @@ const DashStatCards: React.FC<DashStatCardsProps> = ({ closedTrades }) => {
     const ratable = wins.length + losses.length;
     const winRate = ratable > 0 ? (wins.length / ratable) * 100 : 0;
 
-    // Net R (approximate realized R per trade)
-    let netR = 0;
-    for (const t of closedTrades) {
-      if (t.result === TradeResult.Win) {
-        netR += t.rr ?? 1;
-      } else if (t.result === TradeResult.Loss) {
-        netR -= 1;
-      }
-      // breakeven = 0
-    }
+    // Net R — sum of server-computed realised R (P&L ÷ account risk unit)
+    const netR = closedTrades.reduce((sum, t) => sum + (t.realisedR ?? 0), 0);
 
     // Net P&L
     const netPL = closedTrades.reduce((sum, t) => {
