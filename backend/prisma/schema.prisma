@@ -51,6 +51,7 @@ model User {
   mistakeTags        MistakeTag[]
   notebookEntries    NotebookEntry[]
   ctraderConnection  CtraderConnection?
+  chatgptConnection  ChatgptConnection?
 }
 
 // Polymarket "Wallet Bank" — autonomously discovered wallets + edge-adjusted metrics.
@@ -76,6 +77,8 @@ model PmWallet {
   dollarEdge     Float     @default(0)  // notional-weighted mean edge
   edgeScore      Float     @default(0)  // mirror of edgeLcb (kept for the frontend contract)
   qualified      Boolean   @default(false) // nClosed >= display threshold
+  aiVerdict      String?   // cached AI verdict JSON
+  aiVerdictAt    DateTime?
   scanned        Boolean   @default(false)
   firstSeen      DateTime  @default(now())
   lastScanned    DateTime?
@@ -84,6 +87,21 @@ model PmWallet {
   @@index([edgeLcb])
   @@index([scanned])
   @@index([qualified])
+}
+
+// Per-user ChatGPT (OpenAI OAuth PKCE) connection — powers on-demand AI Verdicts.
+model ChatgptConnection {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken     String    @default("")
+  refreshToken    String    @default("")
+  accountId       String?   // chatgpt_account_id from the JWT
+  expiresAt       DateTime?
+  pendingVerifier String?   // PKCE verifier between start and exchange
+  pendingState    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 // Cache of market resolutions (fetched once globally, not per wallet).

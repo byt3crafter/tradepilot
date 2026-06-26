@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PolymarketClient } from './polymarket.client';
+import { ChatgptService } from '../chatgpt/chatgpt.service';
 
 const Z = 1.64; // one-sided 95% lower bound
 const MIN_CLOSED = 15; // display gate (v1; spec target 30 — relaxed while the bank warms)
@@ -11,7 +12,46 @@ export class QuantService implements OnApplicationBootstrap {
   private readonly logger = new Logger(QuantService.name);
   private ticking = false;
 
-  constructor(private readonly prisma: PrismaService, private readonly pm: PolymarketClient) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pm: PolymarketClient,
+    private readonly chatgpt: ChatgptService,
+  ) {}
+
+  /**
+   * On-demand AI Verdict for a wallet that already passed the statistical edge test.
+   * Runs on the *requesting user's* connected ChatGPT account (per-user, on-demand).
+   */
+  async aiVerdict(userId: string, addressRaw: string) {
+    const address = String(addressRaw || '').toLowerCase();
+    const w = await this.prisma.pmWallet.findUnique({ where: { address } });
+    if (!w || !w.qualified) {
+      throw new BadRequestException('Wallet needs ≥15 closed positions before a verdict.');
+    }
+    if (w.aiVerdict && w.aiVerdictAt && Date.now() - w.aiVerdictAt.getTime() < 24 * 3600 * 1000) {
+      return JSON.parse(w.aiVerdict);
+    }
+    const instructions =
+      'You are a skeptical Polymarket quant analyst. From a wallet\'s realized-edge stats, ' +
+      'judge whether its edge is COPYABLE (a replicable modeling/mispricing edge on slow markets) ' +
+      'vs NON-COPYABLE (latency/speed bots, insider) vs NONE (luck or insurance-selling). ' +
+      'Reply with STRICT JSON only, no prose: ' +
+      '{"verdict":"COPY|WATCH|AVOID","edgeType":"mispricing|speed|insider|insurance|none","copyable":true|false,"confidence":"low|medium|high","summary":"one sentence"}';
+    const input =
+      `Wallet ${address} focus=${w.marketFocus || 'mixed'}. ` +
+      `edgeLcb=${w.edgeLcb.toFixed(4)} (95% lower bound of realized edge/share), ` +
+      `meanEdge=${w.meanEdge.toFixed(4)}, nClosed=${w.nClosed}, nEff=${w.nEff.toFixed(0)}, ` +
+      `dollarEdge=${w.dollarEdge.toFixed(4)}, winRate=${(w.winRate * 100).toFixed(0)}%, volume=$${w.volume.toFixed(0)}.`;
+    const text = await this.chatgpt.complete(userId, instructions, input);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch {
+      parsed = { verdict: 'WATCH', edgeType: 'none', copyable: false, confidence: 'low', summary: text.slice(0, 200) || 'No response' };
+    }
+    await this.prisma.pmWallet.update({ where: { address }, data: { aiVerdict: JSON.stringify(parsed), aiVerdictAt: new Date() } });
+    return parsed;
+  }
 
   onApplicationBootstrap() {
     setTimeout(() => this.autoTick().catch(() => {}), 8000);
