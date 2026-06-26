@@ -27,6 +27,11 @@ export class ChatgptController {
     return this.chatgpt.status(req.user.sub);
   }
 
+  @Get('models')
+  models(@Req() req: AuthedRequest) {
+    return this.chatgpt.listModels(req.user.sub);
+  }
+
   @Post('disconnect')
   disconnect(@Req() req: AuthedRequest) {
     return this.chatgpt.disconnect(req.user.sub);

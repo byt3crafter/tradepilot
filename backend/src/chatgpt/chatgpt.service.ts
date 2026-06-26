@@ -172,34 +172,69 @@ export class ChatgptService {
     return { disconnected: true };
   }
 
+  /** List models the connected account can use (best-effort, for diagnostics/model picker). */
+  async listModels(userId: string) {
+    const auth = await this.getValidToken(userId);
+    if (!auth) return { models: [], working: ChatgptService.workingModel };
+    try {
+      const res = await fetch('https://chatgpt.com/backend-api/models', {
+        headers: { Authorization: `Bearer ${auth.token}`, ...(auth.accountId ? { 'chatgpt-account-id': auth.accountId } : {}) },
+      });
+      const j: any = await res.json().catch(() => ({}));
+      const arr = j?.models || j?.data || [];
+      const models = Array.isArray(arr) ? arr.map((m: any) => m.slug || m.id || m).filter(Boolean) : [];
+      this.logger.log(`chatgpt models for ${userId}: ${models.join(', ').slice(0, 300)}`);
+      return { models, working: ChatgptService.workingModel };
+    } catch (e: any) {
+      return { models: [], working: ChatgptService.workingModel, error: e?.message };
+    }
+  }
+
   /**
    * One-shot completion via the Codex responses endpoint using the user's token.
    * Returns the accumulated output text. (Undocumented internal endpoint — may
    * need iteration.)
    */
+  // Codex+ChatGPT only accepts its codex models. Try the configured one first,
+  // then known codex models, skipping any the account reports as unsupported.
+  private static workingModel: string | null = null;
+  private modelCandidates(): string[] {
+    const env = process.env.CODEX_MODEL ? [process.env.CODEX_MODEL] : [];
+    const known = ['gpt-5.3-codex', 'gpt-5-codex', 'gpt-5.1-codex', 'gpt-5-codex-mini', 'codex-mini-latest'];
+    const list = [...env];
+    if (ChatgptService.workingModel) list.unshift(ChatgptService.workingModel);
+    for (const m of known) if (!list.includes(m)) list.push(m);
+    return list;
+  }
+
   async complete(userId: string, instructions: string, input: string): Promise<string> {
     const auth = await this.getValidToken(userId);
     if (!auth) throw new BadRequestException('CHATGPT_NOT_CONNECTED');
-    const res = await fetch('https://chatgpt.com/backend-api/codex/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        ...(auth.accountId ? { 'chatgpt-account-id': auth.accountId } : {}),
-        'Content-Type': 'application/json',
-        'OpenAI-Beta': 'responses=experimental',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.2',
-        instructions,
-        input,
-        stream: true,
-        store: false,
-      }),
-    });
-    if (!res.ok || !res.body) {
-      const t = await res.text().catch(() => '');
-      this.logger.warn(`codex responses ${res.status}: ${t.slice(0, 200)}`);
-      throw new BadRequestException('AI request failed');
+    let res: Response | null = null;
+    let lastErr = '';
+    for (const model of this.modelCandidates()) {
+      res = await fetch('https://chatgpt.com/backend-api/codex/responses', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          ...(auth.accountId ? { 'chatgpt-account-id': auth.accountId } : {}),
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'responses=experimental',
+        },
+        body: JSON.stringify({ model, instructions, input, stream: true, store: false }),
+      });
+      if (res.ok && res.body) {
+        ChatgptService.workingModel = model; // remember the one that works
+        break;
+      }
+      lastErr = await res.text().catch(() => '');
+      this.logger.warn(`codex responses ${res.status} (model ${model}): ${lastErr.slice(0, 160)}`);
+      // only fall through to the next model on a "model not supported" 400
+      if (!/model.*not supported|unsupported model|invalid model/i.test(lastErr)) break;
+      res = null;
+    }
+    if (!res || !res.ok || !res.body) {
+      throw new BadRequestException(`AI request failed${lastErr ? ': ' + lastErr.slice(0, 120) : ''}`);
     }
     // Parse the SSE stream: accumulate output_text deltas.
     const reader = (res.body as any).getReader();
