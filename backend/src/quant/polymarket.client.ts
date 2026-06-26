@@ -38,6 +38,63 @@ export class PolymarketClient {
     return Array.isArray(d) && d[0]?.value ? Number(d[0].value) : 0;
   }
 
+  private async gget(url: string): Promise<any> {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': 'JTradePilot/1.0' } });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Search / list tradeable markets via gamma. Returns market cards with each
+   * outcome's CLOB tokenId + current price (so the UI can trade without a raw id).
+   */
+  async searchMarkets(query: string | undefined, limit = 30): Promise<any[]> {
+    const base = 'https://gamma-api.polymarket.com';
+    let raw: any[] = [];
+    if (query && query.trim()) {
+      const d = await this.gget(`${base}/public-search?q=${encodeURIComponent(query.trim())}&limit_per_type=25&events_status=active`);
+      for (const e of d?.events || []) for (const m of e.markets || []) raw.push(m);
+      if (Array.isArray(d?.markets)) raw.push(...d.markets);
+    }
+    if (!raw.length) {
+      const d = await this.gget(`${base}/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=${limit * 2}`);
+      raw = Array.isArray(d) ? d : [];
+      if (query && query.trim()) {
+        const q = query.trim().toLowerCase();
+        raw = raw.filter((m) => (m.question || '').toLowerCase().includes(q));
+      }
+    }
+    const out: any[] = [];
+    const seen = new Set<string>();
+    for (const m of raw) {
+      if (m.closed || m.enableOrderBook === false) continue;
+      let outcomes: string[] = [], tokenIds: string[] = [], prices: number[] = [];
+      try { outcomes = JSON.parse(m.outcomes || '[]'); } catch { /* */ }
+      try { tokenIds = JSON.parse(m.clobTokenIds || '[]'); } catch { /* */ }
+      try { prices = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { /* */ }
+      if (!outcomes.length || tokenIds.length !== outcomes.length) continue;
+      const key = m.conditionId || m.slug || m.question;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        question: m.question,
+        slug: m.slug,
+        conditionId: m.conditionId,
+        image: m.image || m.icon || null,
+        category: m.category || null,
+        endDate: m.endDate || null,
+        volume: Number(m.volumeNum || m.volume || 0),
+        outcomes: outcomes.map((o, i) => ({ label: o, tokenId: tokenIds[i], price: prices[i] ?? null })),
+      });
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
   /**
    * Resolution status for markets, via gamma. Returns a map conditionId ->
    * { closed, winningIndex, outcomePrices }. Fetched in chunks.

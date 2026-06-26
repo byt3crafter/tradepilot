@@ -60,6 +60,11 @@ export class QuantService implements OnApplicationBootstrap {
     setTimeout(() => this.autoTick().catch(() => {}), 8000);
   }
 
+  /** Search/list tradeable Polymarket markets (with outcome tokenIds + prices). */
+  markets(query?: string) {
+    return this.pm.searchMarkets(query, 30);
+  }
+
   /** A wallet's current OPEN positions — for "mirror this" from the report. */
   async walletPositions(addressRaw: string) {
     const address = String(addressRaw || '').toLowerCase();
