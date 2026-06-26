@@ -23,6 +23,7 @@ import { InvitesModule } from './invites/invites.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { MarketDataModule } from './market-data/market-data.module';
 import { NotebookModule } from './notebook/notebook.module';
+import { CtraderModule } from './ctrader/ctrader.module';
 
 
 @Module({
@@ -64,6 +65,7 @@ import { NotebookModule } from './notebook/notebook.module';
     PromoCodesModule,
     MarketDataModule,
     NotebookModule,
+    CtraderModule,
   ],
   controllers: [],
   providers: [
