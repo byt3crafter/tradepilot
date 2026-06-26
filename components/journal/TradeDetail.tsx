@@ -55,6 +55,69 @@ const fmtDateTime = (d?: string | null): string => {
   });
 };
 
+// ─── Chart helpers (module-scope so both effects can share them) ───────────────
+
+const toApiDate = (ms: number): string => {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+};
+
+type TfButton = { label: string; interval: string; lookbackMs: number };
+const TF_BUTTONS: TfButton[] = [
+  { label: '1m',  interval: '1min',  lookbackMs: 1   * 86400 * 1000 },
+  { label: '5m',  interval: '5min',  lookbackMs: 3   * 86400 * 1000 },
+  { label: '15m', interval: '15min', lookbackMs: 7   * 86400 * 1000 },
+  { label: '1h',  interval: '1h',    lookbackMs: 20  * 86400 * 1000 },
+  { label: '4h',  interval: '4h',    lookbackMs: 60  * 86400 * 1000 },
+  { label: '1D',  interval: '1day',  lookbackMs: 200 * 86400 * 1000 },
+  { label: '1W',  interval: '1week', lookbackMs: 2   * 365 * 86400 * 1000 },
+];
+
+/** Return [startMs, endMs] centered on the trade with a comfortable margin. */
+const getWindowMs = (
+  interval: string,
+  entryMs: number,
+  exitMs: number | null,
+): [number, number] => {
+  const refMs = exitMs ?? entryMs;
+  const tf = TF_BUTTONS.find(t => t.interval === interval);
+  const w = tf ? tf.lookbackMs : 20 * 86400 * 1000;
+  return [entryMs - w, refMs + w];
+};
+
+/**
+ * Choose the best default interval for a trade given its duration and age.
+ * Mirrors the original logic that lived inside the useEffect.
+ */
+const computeDefaultInterval = (
+  entryDate: string | null | undefined,
+  exitDate:  string | null | undefined,
+): string => {
+  if (!entryDate) return '1h';
+  const entryMs = new Date(entryDate).getTime();
+  const exitMs  = exitDate ? new Date(exitDate).getTime() : null;
+
+  let interval: string;
+  if (exitMs != null) {
+    const dur = Math.max(exitMs - entryMs, 0);
+    if      (dur < 6   * 3600 * 1000)   interval = '5min';
+    else if (dur < 2   * 86400 * 1000)  interval = '15min';
+    else if (dur < 10  * 86400 * 1000)  interval = '1h';
+    else if (dur < 60  * 86400 * 1000)  interval = '4h';
+    else                                 interval = '1day';
+  } else {
+    interval = '1h';
+  }
+
+  const refMs   = exitMs ?? entryMs;
+  const daysAgo = (Date.now() - refMs) / 86400000;
+  if (daysAgo > 50 && interval !== '1day' && interval !== '1week') {
+    interval = '1day';
+  }
+  return interval;
+};
+
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
 interface StatCardProps {
@@ -503,6 +566,9 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
   const [chartLoading, setChartLoading] = useState(false);
   const [chartNote, setChartNote] = useState<string | undefined>(undefined);
   const [chartEmpty, setChartEmpty] = useState(false);
+  const [chartInterval, setChartInterval] = useState<string>(() =>
+    computeDefaultInterval(trade.entryDate, trade.exitDate),
+  );
 
   // ── Delete confirm ─────────────────────────────────────────────────────────
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
@@ -664,15 +730,15 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
     }
   };
 
-  // ── Chart: interval/window logic + fetch ──────────────────────────────────
+  // ── Reset interval when the trade changes ─────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setChartInterval(computeDefaultInterval(trade.entryDate, trade.exitDate));
+  }, [trade.id]);
+
+  // ── Fetch candles for the active interval ──────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-
-    const toApiDate = (ms: number): string => {
-      const d = new Date(ms);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
-    };
 
     async function fetchCandles() {
       if (!trade.entryDate) return;
@@ -682,45 +748,13 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
       setChartCandles([]);
 
       const entryMs = new Date(trade.entryDate).getTime();
-      const exitMs = trade.exitDate ? new Date(trade.exitDate).getTime() : null;
-
-      let interval: string;
-      let startMs: number;
-      let endMs: number;
-
-      if (exitMs != null) {
-        const durationMs = Math.max(exitMs - entryMs, 0);
-        if (durationMs < 6 * 3600 * 1000) interval = '5min';
-        else if (durationMs < 2 * 86400 * 1000) interval = '15min';
-        else if (durationMs < 10 * 86400 * 1000) interval = '1h';
-        else if (durationMs < 60 * 86400 * 1000) interval = '4h';
-        else interval = '1day';
-
-        const padding = Math.max(durationMs * 0.4, 6 * 3600 * 1000);
-        startMs = entryMs - padding;
-        endMs = exitMs + padding;
-      } else {
-        interval = '1h';
-        startMs = entryMs - 2 * 86400 * 1000;
-        endMs = entryMs + 2 * 86400 * 1000;
-      }
-
-      // Intraday history (≤ 1h candles) is only available ~60 days back on free
-      // data tiers. For older trades, switch to daily candles and widen the
-      // window so the chart still renders meaningful context around the trade.
-      const refMs = exitMs ?? entryMs;
-      const daysAgo = (Date.now() - refMs) / 86400000;
-      if (daysAgo > 50 && interval !== '1day' && interval !== '1week') {
-        interval = '1day';
-        const widen = 12 * 86400 * 1000;
-        startMs = Math.min(startMs, entryMs - widen);
-        endMs = Math.max(endMs, refMs + widen);
-      }
+      const exitMs  = trade.exitDate ? new Date(trade.exitDate).getTime() : null;
+      const [startMs, endMs] = getWindowMs(chartInterval, entryMs, exitMs);
 
       try {
         const res = await api.getCandles(
           trade.asset,
-          interval,
+          chartInterval,
           toApiDate(startMs),
           toApiDate(endMs),
           accessToken,
@@ -742,7 +776,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
 
     fetchCandles();
     return () => { cancelled = true; };
-  }, [trade.id, trade.entryDate, trade.exitDate, trade.asset, accessToken]);
+  }, [trade.id, trade.entryDate, trade.exitDate, trade.asset, accessToken, chartInterval]);
 
   // Chart trade markers
   const chartTrades = useMemo(() => {
@@ -977,10 +1011,28 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
 
         {/* ── Price Chart ─────────────────────────────────────────────────── */}
         <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-          <div className="px-5 py-3 border-b border-jtp-border">
-            <span className="text-jtp-xs-plus font-semibold uppercase tracking-[0.4px] text-jtp-textDim">
+          {/* Header: label + timeframe picker */}
+          <div className="px-5 py-2.5 border-b border-jtp-border flex items-center justify-between gap-3">
+            <span className="text-jtp-xs-plus font-semibold uppercase tracking-[0.4px] text-jtp-textDim shrink-0">
               Price Chart
             </span>
+            {/* Timeframe picker */}
+            <div className="flex items-center gap-px">
+              {TF_BUTTONS.map(tf => (
+                <button
+                  key={tf.interval}
+                  onClick={() => setChartInterval(tf.interval)}
+                  className={[
+                    'px-2 py-1 rounded text-jtp-xs font-mono font-semibold transition-colors',
+                    chartInterval === tf.interval
+                      ? 'bg-jtp-blue text-white'
+                      : 'text-jtp-textDim hover:text-jtp-text hover:bg-jtp-hover',
+                  ].join(' ')}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="px-5 py-4">
             {chartLoading ? (
@@ -990,7 +1042,13 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
             ) : chartEmpty ? (
               <div className="flex flex-col items-center justify-center gap-2 text-center" style={{ height: 320 }}>
                 <span className="text-jtp-textDim text-jtp-base-minus">
-                  Price chart unavailable for {trade.asset}.
+                  {(() => {
+                    const tf = TF_BUTTONS.find(t => t.interval === chartInterval);
+                    if (tf && ['1min','5min','15min','1h','4h'].includes(tf.interval)) {
+                      return `No ${tf.label} data this far back — try a higher timeframe.`;
+                    }
+                    return `Price chart unavailable for ${trade.asset}.`;
+                  })()}
                 </span>
                 {chartNote && /key|plan|limit|coverage|demo/i.test(chartNote) && (
                   <span className="text-jtp-textFaint text-jtp-xs">
