@@ -56,6 +56,50 @@ const BotToggle: React.FC<{ user: AdminUser; onRefresh: () => void }> = ({ user,
   );
 };
 
+/** Inline toggle switch for the Quant column. */
+const QuantToggle: React.FC<{ user: AdminUser; onRefresh: () => void }> = ({ user, onRefresh }) => {
+  const { accessToken } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    try {
+      await api.setUserQuantEnabled(user.id, !user.quantEnabled, accessToken);
+      onRefresh();
+    } catch (err: any) {
+      alert(`Failed to update Quant access: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const enabled = !!user.quantEnabled;
+
+  return (
+    <button
+      role="switch"
+      aria-checked={enabled}
+      aria-label={`Quant for ${user.fullName}`}
+      onClick={handleToggle}
+      disabled={loading}
+      title={enabled ? 'Quant enabled — click to disable' : 'Quant disabled — click to enable'}
+      className="relative flex-shrink-0 border-none cursor-pointer rounded-full transition-colors duration-150 disabled:opacity-50"
+      style={{
+        width: '32px',
+        height: '18px',
+        background: enabled ? '#4cc38a' : '#131619',
+        border: `1px solid ${enabled ? '#3fb37f' : '#232931'}`,
+      }}
+    >
+      <span
+        className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all duration-150"
+        style={{ left: enabled ? '15px' : '2px' }}
+      />
+    </button>
+  );
+};
+
 const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGrantPro, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { accessToken, user: currentUser } = useAuth();
@@ -125,13 +169,14 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
               <th className="px-4 py-2.5 text-left text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">API Usage</th>
               <th className="px-4 py-2.5 text-left text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Last Login</th>
               <th className="px-4 py-2.5 text-left text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Bot (beta)</th>
+              <th className="px-4 py-2.5 text-left text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Quant</th>
               <th className="px-4 py-2.5 text-right text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-jtp-textDim text-jtp-sm">
+                <td colSpan={9} className="px-4 py-10 text-center text-jtp-textDim text-jtp-sm">
                   No users match your search.
                 </td>
               </tr>
@@ -191,6 +236,14 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
                         <BotToggle user={user} onRefresh={onRefresh} />
                         <span className="text-jtp-xs text-jtp-textDim">
                           {user.botEnabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <QuantToggle user={user} onRefresh={onRefresh} />
+                        <span className="text-jtp-xs text-jtp-textDim">
+                          {user.quantEnabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </div>
                     </td>

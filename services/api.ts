@@ -89,6 +89,7 @@ export interface ApiService {
   getSystemConfig(token: string): Promise<SystemConfig>;
   setFreeMode(enabled: boolean, token: string): Promise<SystemConfig>;
   setUserBotEnabled(userId: string, enabled: boolean, token: string): Promise<AdminUser>;
+  setUserQuantEnabled(userId: string, enabled: boolean, token: string): Promise<AdminUser>;
   toggleMaintenance(enabled: boolean, token: string): Promise<SystemConfig>;
   getAdminUsers(token: string): Promise<AdminUser[]>;
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
@@ -293,6 +294,7 @@ const api: ApiService = {
   toggleMaintenance(enabled: boolean, token: string): Promise<SystemConfig> { return this.post('/api/admin/system/maintenance', { enabled }, token); },
   setFreeMode(enabled: boolean, token: string): Promise<SystemConfig> { return this.post('/api/admin/system/free-mode', { enabled }, token); },
   setUserBotEnabled(userId: string, enabled: boolean, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/bot`, { enabled }, token); },
+  setUserQuantEnabled(userId: string, enabled: boolean, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/quant`, { enabled }, token); },
   getAdminUsers(token: string): Promise<AdminUser[]> { return this.get('/api/admin/users', token); },
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/grant-pro`, data, token); },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> { return this.delete(`/api/admin/users/${userId}/grant-pro`, token); },
