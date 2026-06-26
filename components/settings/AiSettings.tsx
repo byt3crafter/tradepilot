@@ -69,6 +69,17 @@ const AiSettings: React.FC = () => {
   const [savingPerm, setSavingPerm] = useState<keyof ChatGptPermissions | null>(null);
   const [permError, setPermError] = useState<string | null>(null);
 
+  // ── Model picker ──
+  const [modelInput, setModelInput] = useState('');
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [savingModel, setSavingModel] = useState(false);
+  const [modelSaved, setModelSaved] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
+
+  // Common codex suggestions offered even when the account list comes back empty.
+  const FALLBACK_MODELS = ['gpt-5.3-codex', 'gpt-5.1-codex', 'gpt-5-codex', 'o4-mini', 'gpt-5.4'];
+
   const connected = !!status.connected;
   const permissions: ChatGptPermissions = status.permissions ?? { verdict: false, bot: false, analysis: false };
 
@@ -77,6 +88,7 @@ const AiSettings: React.FC = () => {
       const token = await getToken();
       const s = await api.chatgptStatus(token);
       setStatus(s);
+      setModelInput(s.model ?? '');
     } catch {
       setStatus({ connected: false });
     } finally {
@@ -87,6 +99,54 @@ const AiSettings: React.FC = () => {
   useEffect(() => {
     refreshStatus();
   }, [refreshStatus]);
+
+  // Fetch the account's available models once connected.
+  useEffect(() => {
+    if (!connected) {
+      setModelOptions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setModelsLoading(true);
+      try {
+        const token = await getToken();
+        const { models } = await api.chatgptModels(token);
+        if (!cancelled) setModelOptions(Array.isArray(models) ? models : []);
+      } catch {
+        if (!cancelled) setModelOptions([]);
+      } finally {
+        if (!cancelled) setModelsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, getToken]);
+
+  const suggestions = modelOptions.length > 0 ? modelOptions : FALLBACK_MODELS;
+
+  const handleSaveModel = useCallback(async () => {
+    const value = modelInput.trim();
+    if (!value) {
+      setModelError('Enter a model name first.');
+      return;
+    }
+    setModelError(null);
+    setModelSaved(false);
+    setSavingModel(true);
+    try {
+      const token = await getToken();
+      const updated = await api.chatgptSetModel(value, token);
+      setStatus(updated);
+      setModelInput(updated.model ?? value);
+      setModelSaved(true);
+    } catch (e: any) {
+      setModelError(e?.message || 'Could not save the model. Please try again.');
+    } finally {
+      setSavingModel(false);
+    }
+  }, [modelInput, getToken]);
 
   const handleStart = useCallback(async () => {
     setError(null);
@@ -265,6 +325,99 @@ const AiSettings: React.FC = () => {
           </p>
         </div>
       </Card>
+
+      {/* ── Model ── */}
+      {connected && (
+        <Card>
+          <h2 className="text-jtp-xl font-semibold text-jtp-text mb-1">Model</h2>
+          <p className="text-jtp-md text-jtp-textDim mb-4">
+            Which ChatGPT/Codex model to use. If you're unsure, use the same model name your Codex
+            CLI uses (e.g. <span className="font-mono text-jtp-text">gpt-5.3-codex</span>). Our
+            guesses failed for your account, so set it explicitly.
+          </p>
+
+          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg p-5 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <input
+                type="text"
+                list="chatgpt-model-options"
+                value={modelInput}
+                onChange={(e) => {
+                  setModelInput(e.target.value);
+                  setModelSaved(false);
+                  setModelError(null);
+                }}
+                placeholder={status.model ?? 'e.g. gpt-5.3-codex'}
+                spellCheck={false}
+                autoComplete="off"
+                className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              />
+              <datalist id="chatgpt-model-options">
+                {suggestions.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              <button
+                type="button"
+                onClick={handleSaveModel}
+                disabled={savingModel || !modelInput.trim()}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {savingModel ? <Spinner /> : null}
+                {savingModel ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+
+            {/* Clickable suggestions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {modelsLoading ? (
+                <span className="inline-flex items-center gap-1.5 text-jtp-xs text-jtp-textDim">
+                  <Spinner className="w-3.5 h-3.5" />
+                  Loading your models…
+                </span>
+              ) : (
+                <>
+                  <span className="text-jtp-xs text-jtp-textMuted">
+                    {modelOptions.length > 0 ? 'Available:' : 'Suggestions:'}
+                  </span>
+                  {suggestions.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setModelInput(m);
+                        setModelSaved(false);
+                        setModelError(null);
+                      }}
+                      className={`px-2.5 py-1 rounded-md text-jtp-xs font-mono border transition-colors ${
+                        modelInput.trim() === m
+                          ? 'bg-jtp-blue text-white border-jtp-blue'
+                          : 'bg-jtp-control text-jtp-text border-jtp-borderStrong hover:border-jtp-borderFocus'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {modelSaved && (
+              <p className="text-jtp-sm text-jtp-profit font-medium">Model saved ✓</p>
+            )}
+            {modelError && (
+              <p role="alert" className="text-jtp-xs text-jtp-loss">
+                {modelError}
+              </p>
+            )}
+
+            <p className="text-jtp-xs text-jtp-textDim">
+              After saving, re-run an AI Verdict in Quant to test it. If it errors with "model not
+              supported", try another.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* ── Permissions ── */}
       {connected && (
