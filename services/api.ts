@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -163,6 +163,14 @@ export interface ApiService {
   aiJournalAnalysis(token?: string | null): Promise<AiJournalAnalysis>;
   aiChat(message: string, history?: string, token?: string | null): Promise<{ reply: string }>;
   aiAgent(goal: string, token?: string | null): Promise<AiAgentResult>;
+
+  // AI Agent management (tools / skills + run audit log)
+  aiTools(token?: string | null): Promise<AgentTool[]>;
+  aiAddTool(body: { name: string; description: string; method: 'GET' | 'POST'; url: string; category?: string }, token?: string | null): Promise<AgentTool>;
+  aiToggleTool(id: string, enabled: boolean, token?: string | null): Promise<AgentTool>;
+  aiDeleteTool(id: string, token?: string | null): Promise<{ message: string }>;
+  aiRuns(token?: string | null): Promise<AgentRun[]>;
+  aiRun(id: string, token?: string | null): Promise<AgentRun>;
 }
 
 export interface ChatGptPermissions {
@@ -404,6 +412,14 @@ const api: ApiService = {
   aiJournalAnalysis(token?: string | null): Promise<AiJournalAnalysis> { return this.post('/api/ai/journal-analysis', {}, token); },
   aiChat(message: string, history?: string, token?: string | null): Promise<{ reply: string }> { return this.post('/api/ai/chat', { message, history }, token); },
   aiAgent(goal: string, token?: string | null): Promise<AiAgentResult> { return this.post('/api/ai/agent', { goal }, token); },
+
+  // AI Agent management (tools / skills + run audit log)
+  aiTools(token?: string | null): Promise<AgentTool[]> { return this.get('/api/ai/tools', token); },
+  aiAddTool(body: { name: string; description: string; method: 'GET' | 'POST'; url: string; category?: string }, token?: string | null): Promise<AgentTool> { return this.post('/api/ai/tools', body, token); },
+  aiToggleTool(id: string, enabled: boolean, token?: string | null): Promise<AgentTool> { return this.patch(`/api/ai/tools/${id}`, { enabled }, token); },
+  aiDeleteTool(id: string, token?: string | null): Promise<{ message: string }> { return this.delete(`/api/ai/tools/${id}`, token); },
+  aiRuns(token?: string | null): Promise<AgentRun[]> { return this.get('/api/ai/runs', token); },
+  aiRun(id: string, token?: string | null): Promise<AgentRun> { return this.get(`/api/ai/runs/${id}`, token); },
 };
 
 export default api;

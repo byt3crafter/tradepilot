@@ -631,6 +631,39 @@ export interface AiAgentResult {
   raw?: unknown;
 }
 
+// --- AI Agent management (tools / skills + run audit log) ---
+
+export interface AgentTool {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  builtin: boolean;
+  enabled: boolean;
+  kind: 'builtin' | 'http';
+  httpMethod?: 'GET' | 'POST' | null;
+  httpUrl?: string | null;
+  createdAt: string;
+}
+
+export interface AgentRunStep {
+  tool: string;
+  args?: unknown;
+  result?: unknown;
+  ts?: string | number;
+}
+
+export interface AgentRun {
+  id: string;
+  goal: string;
+  answer: string;
+  status: 'done' | 'error' | 'limit';
+  steps: AgentRunStep[];
+  durationMs: number;
+  createdAt: string;
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api, { ChatGptPermissions, ChatGptStatus } from '../../services/api';
 import Card from '../Card';
+import AgentPanel from '../ai/AgentPanel';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 
@@ -459,6 +460,9 @@ const AiSettings: React.FC = () => {
           </div>
         </Card>
       )}
+
+      {/* ── Agent management: tools/skills + run audit log ── */}
+      <AgentPanel />
     </div>
   );
 };
