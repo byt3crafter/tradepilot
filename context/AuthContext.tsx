@@ -16,6 +16,8 @@ interface AuthContextType {
   isTrialExpired: boolean;
   /** True when the system-wide free mode flag is active — everyone gets full Pro access. */
   freeMode: boolean;
+  /** True when the current user has the trading bot enabled (from DB via /me). */
+  botEnabled: boolean;
   logout: () => void;
   refreshUser: () => Promise<User | undefined>;
   updateUserPreferences: (prefs: { useGravatar?: boolean }) => Promise<void>;
@@ -28,6 +30,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { getToken, signOut } = useClerkAuth();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [freeMode, setFreeMode] = useState(false);
+  // DB-sourced overrides fetched from /me — null means "not yet loaded"
+  const [meRole, setMeRole] = useState<'USER' | 'ADMIN' | null>(null);
+  const [meBotEnabled, setMeBotEnabled] = useState(false);
 
   // Keep the access token fresh in the context state
   useEffect(() => {
@@ -60,23 +65,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [isSignedIn, getToken]);
 
-  // Fetch backend feature flags (including freeMode) whenever the token changes.
+  // Fetch backend feature flags (freeMode, role, botEnabled) whenever the token changes.
   useEffect(() => {
     if (!accessToken) {
       setFreeMode(false);
+      setMeRole(null);
+      setMeBotEnabled(false);
       return;
     }
     let cancelled = false;
     api.getMe(accessToken)
-      .then(me => { if (!cancelled) setFreeMode(me.featureFlags?.freeMode ?? false); })
-      .catch(() => { if (!cancelled) setFreeMode(false); });
+      .then(me => {
+        if (cancelled) return;
+        setFreeMode(me.featureFlags?.freeMode ?? false);
+        // Override Clerk-derived role with the authoritative DB value
+        if (me.role === 'ADMIN' || me.role === 'USER') {
+          setMeRole(me.role);
+        }
+        setMeBotEnabled((me as any).botEnabled ?? false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFreeMode(false);
+        setMeRole(null);
+        setMeBotEnabled(false);
+      });
     return () => { cancelled = true; };
   }, [accessToken]);
 
-  // Adapter to map Clerk user to our app's User type
+  // Adapter to map Clerk user to our app's User type.
+  // `role` and `botEnabled` are overridden with DB-authoritative values from /me
+  // (stored in meRole / meBotEnabled) once the /me response arrives.
   const appUser: User | null = useMemo(() => {
     if (!clerkUser) return null;
     const email = clerkUser.primaryEmailAddress?.emailAddress || '';
+    const clerkRole = (clerkUser.publicMetadata?.role as 'USER' | 'ADMIN') || 'USER';
     return {
       id: clerkUser.id,
       email: email,
@@ -84,7 +107,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isEmailVerified: true,
       createdAt: clerkUser.createdAt?.toISOString() || new Date().toISOString(),
       lastLoginAt: clerkUser.lastSignInAt?.toISOString() || new Date().toISOString(),
-      role: (clerkUser.publicMetadata?.role as any) || 'USER',
+      // Use the DB role when available; fall back to Clerk metadata
+      role: meRole ?? clerkRole,
       subscriptionStatus: (clerkUser.publicMetadata?.subscriptionStatus as any) || 'TRIALING',
       trialEndsAt: (clerkUser.publicMetadata?.trialEndsAt as string) || null,
       proAccessExpiresAt: (clerkUser.publicMetadata?.proAccessExpiresAt as string) || null,
@@ -93,9 +117,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       },
       gravatarUrl: `https://www.gravatar.com/avatar/${md5(email.toLowerCase().trim())}?d=mp`,
       preferences: (clerkUser.unsafeMetadata?.preferences as any) || { useGravatar: false },
-      isLifetimeAccess: (clerkUser.publicMetadata?.isLifetimeAccess as boolean) || false
+      isLifetimeAccess: (clerkUser.publicMetadata?.isLifetimeAccess as boolean) || false,
+      botEnabled: meBotEnabled,
     };
-  }, [clerkUser]);
+  }, [clerkUser, meRole, meBotEnabled]);
 
   const logout = () => { signOut(); };
 
@@ -185,6 +210,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       trialDaysRemaining: 0,
       isTrialExpired: false,
       freeMode: false,
+      botEnabled: true,
       logout: () => {},
       refreshUser: async () => DEV_MOCK_USER,
       getToken: async () => DEV_AUTH_TOKEN,
@@ -200,6 +226,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading: !isUserLoaded,
     ...subscriptionState,
     freeMode,
+    botEnabled: meBotEnabled,
     logout,
     refreshUser,
     getToken,

@@ -16,6 +16,7 @@ import AnalyticsPage from './AnalyticsPage';
 import NotebookPage from './NotebookPage';
 import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 import { useTrade } from '../context/TradeContext';
+import BotPage from './BotPage';
 
 export type DashboardView =
   | 'dashboard'
@@ -26,7 +27,8 @@ export type DashboardView =
   | 'personalisation'
   | 'settings'
   | 'subscription'
-  | 'pricing';
+  | 'pricing'
+  | 'bot';
 
 export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
 
@@ -40,6 +42,7 @@ const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
   personalisation:  { title: 'Personalisation', subtitle: '' },
   subscription:     { title: 'Subscription', subtitle: '' },
   pricing:          { title: 'Pricing',     subtitle: '' },
+  bot:              { title: 'Bot',         subtitle: 'AI trading automation' },
 };
 
 // Small "+" icon inline SVG
@@ -157,6 +160,8 @@ const DashboardPage: React.FC = () => {
       case 'settings':         return <SettingsPage />;
       case 'subscription':     return <SubscriptionPage />;
       case 'pricing':          return <PricingPage />;
+      case 'bot':
+        return <BotPage />;
       case 'dashboard':
       default:
         return <Dashboard />;

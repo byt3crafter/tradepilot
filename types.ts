@@ -20,6 +20,7 @@ export interface User {
     useGravatar?: boolean;
   };
   isLifetimeAccess?: boolean;
+  botEnabled?: boolean;
 }
 
 export enum BrokerAccountType {
