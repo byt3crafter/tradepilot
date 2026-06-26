@@ -568,6 +568,30 @@ export interface QuantVerdict {
   summary: string;
 }
 
+// --- Quant AI Opportunity Finder (ChatGPT-powered scan of the leaderboard) ---
+
+export interface AiOpportunity {
+  wallet: string;       // display name / pseudonym
+  addr: string;         // 0x… address (for Polymarket profile link)
+  focus: string;        // market focus chip, e.g. "Politics"
+  edge: string;         // human-readable edge description
+  copyable: boolean;    // is the edge realistically copyable?
+  action: string;       // what to do — the prominent call to action
+  why: string;          // the reasoning behind the suggestion
+}
+
+// --- Quant AI Strategy Builder (ChatGPT-powered draft strategy) ---
+
+export interface AiStrategy {
+  name: string;
+  marketType: string;
+  entryRules: string[];
+  exitRules: string[];
+  riskRules: string[];
+  rationale: string;
+  confidence: 'low' | 'medium' | 'high';
+}
+
 // --- Quant live trade feed (terminal ticker tape) ---
 
 export interface QuantFeedItem {
@@ -580,6 +604,17 @@ export interface QuantFeedItem {
   title: string;             // market title
   outcome: string;           // outcome label (Yes/No/…)
   ts: number;               // UNIX timestamp (seconds or ms)
+}
+
+// --- AI Journal Analysis (ChatGPT-powered review of closed trades) ---
+
+export interface AiJournalAnalysis {
+  strengths?: string[];
+  mistakes?: string[];
+  lessons?: string[];
+  summary?: string;
+  // When the user has no closed trades to analyse, the backend returns a note instead.
+  note?: string;
 }
 
 // --- Notebook ---

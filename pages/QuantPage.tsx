@@ -4,6 +4,7 @@ import { useView } from '../context/ViewContext';
 import api from '../services/api';
 import { PmWallet, QuantVerdict } from '../types';
 import QuantTerminal from '../components/quant/QuantTerminal';
+import AiQuantPanel from '../components/quant/AiQuantPanel';
 
 type QuantMode = 'leaderboard' | 'terminal';
 
@@ -535,6 +536,9 @@ const QuantPage: React.FC = () => {
           {scanResult && <WalletCard wallet={scanResult} />}
         </div>
       </div>
+
+      {/* ── AI Opportunities + Strategy Builder ── */}
+      <AiQuantPanel />
 
       {/* ── Leaderboard ── */}
       <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">

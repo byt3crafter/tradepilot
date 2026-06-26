@@ -18,6 +18,7 @@ import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 import { useTrade } from '../context/TradeContext';
 import BotPage from './BotPage';
 import QuantPage from './QuantPage';
+import Copilot from '../components/ai/Copilot';
 
 export type DashboardView =
   | 'dashboard'
@@ -219,6 +220,9 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <UpgradeModal />
+
+      {/* App-wide AI Copilot chat widget */}
+      {isSubscribed && <Copilot />}
     </div>
   );
 };

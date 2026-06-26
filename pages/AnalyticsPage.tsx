@@ -15,7 +15,10 @@ import {
 import { useTrade } from '../context/TradeContext';
 import { useAccount } from '../context/AccountContext';
 import { usePlaybook } from '../context/PlaybookContext';
-import { Trade, TradeResult, Direction, Playbook } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
+import { Trade, TradeResult, Direction, Playbook, AiJournalAnalysis } from '../types';
+import api from '../services/api';
 import DeeperReports from '../components/analytics/DeeperReports';
 
 // ─── Local types ─────────────────────────────────────────────────────────────
@@ -721,6 +724,168 @@ const MaeMfePanel: React.FC<{ trades: Trade[] }> = ({ trades }) => {
   );
 };
 
+// AI Insights — ChatGPT-grounded review of the user's closed trades
+const AI_COLUMNS: {
+  key: 'strengths' | 'mistakes' | 'lessons';
+  title: string;
+  dotClass: string;
+  textClass: string;
+}[] = [
+  { key: 'strengths', title: 'Strengths', dotClass: 'bg-jtp-profit', textClass: 'text-jtp-profit' },
+  { key: 'mistakes', title: 'Mistakes', dotClass: 'bg-jtp-loss', textClass: 'text-jtp-loss' },
+  { key: 'lessons', title: 'Lessons', dotClass: 'bg-jtp-blue', textClass: 'text-jtp-blue' },
+];
+
+const AiInsightsPanel: React.FC = () => {
+  const { getToken } = useAuth();
+  const { navigateTo } = useView();
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<AiJournalAnalysis | null>(null);
+  const [needsConnect, setNeedsConnect] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const analyze = async () => {
+    setLoading(true);
+    setError(null);
+    setNeedsConnect(false);
+    setResult(null);
+    try {
+      const token = await getToken();
+      const data = await api.aiJournalAnalysis(token!);
+      setResult(data);
+    } catch (err: any) {
+      const msg: string = err?.message || 'Something went wrong.';
+      if (/settings\s*→?\s*ai/i.test(msg) || /connect/i.test(msg)) {
+        setNeedsConnect(true);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasInsights =
+    !!result &&
+    !result.note &&
+    ((result.strengths?.length ?? 0) > 0 ||
+      (result.mistakes?.length ?? 0) > 0 ||
+      (result.lessons?.length ?? 0) > 0 ||
+      !!result.summary);
+
+  return (
+    <div className={`${PANEL} ${PANEL_PAD}`}>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-[6px]">
+        <div>
+          <div
+            className="text-jtp-base-minus font-semibold text-jtp-text"
+            style={{ letterSpacing: '0.2px' }}
+          >
+            🧠 AI Insights
+          </div>
+          <div className="text-jtp-xs text-jtp-textDim mt-[3px]">
+            AI insights — not financial advice.
+          </div>
+        </div>
+        <button
+          onClick={analyze}
+          disabled={loading}
+          className="flex items-center gap-[7px] px-[14px] py-[8px] bg-jtp-blue hover:bg-jtp-blueHover disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-jtp-sm rounded-jtp-xl border-none cursor-pointer transition-colors"
+        >
+          {loading ? (
+            <>
+              <span className="w-3.5 h-3.5 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+              Analyzing…
+            </>
+          ) : (
+            <>{result ? 'Re-analyze' : 'Analyze my trades'}</>
+          )}
+        </button>
+      </div>
+
+      {/* Not-connected state */}
+      {needsConnect && (
+        <div className="mt-3 border border-jtp-borderSubtle rounded-jtp-xl px-4 py-5 text-center">
+          <p className="text-jtp-sm text-jtp-textMuted">
+            Connect ChatGPT/Codex to generate AI insights.
+          </p>
+          <button
+            onClick={() => navigateTo('settings', 'ai')}
+            className="mt-3 text-jtp-sm font-medium px-3 py-2 rounded-jtp-xl bg-[rgba(91,141,239,0.12)] text-jtp-blue hover:bg-[rgba(91,141,239,0.2)] transition-colors"
+          >
+            Open Settings → AI
+          </button>
+        </div>
+      )}
+
+      {/* Generic error */}
+      {error && !needsConnect && (
+        <div className="mt-3 border border-jtp-borderSubtle rounded-jtp-xl px-4 py-4 text-center text-jtp-sm text-jtp-loss">
+          {error}
+        </div>
+      )}
+
+      {/* Empty state (no closed trades) */}
+      {result?.note && (
+        <div className="mt-3 border border-jtp-borderSubtle rounded-jtp-xl px-4 py-5 text-center text-jtp-sm text-jtp-textFaint">
+          {result.note}
+        </div>
+      )}
+
+      {/* Insights */}
+      {hasInsights && (
+        <div className="mt-3 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {AI_COLUMNS.map(col => {
+              const items = result?.[col.key] ?? [];
+              return (
+                <div
+                  key={col.key}
+                  className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-[14px]"
+                >
+                  <div className="flex items-center gap-2 mb-[10px]">
+                    <span className={`w-[6px] h-[6px] rounded-full ${col.dotClass}`} />
+                    <span className={`text-jtp-sm font-semibold ${col.textClass}`}>
+                      {col.title}
+                    </span>
+                  </div>
+                  {items.length === 0 ? (
+                    <div className="text-jtp-xs text-jtp-textFaint">None noted.</div>
+                  ) : (
+                    <ul className="space-y-[7px]">
+                      {items.map((item, i) => (
+                        <li
+                          key={i}
+                          className="flex gap-2 text-jtp-sm text-jtp-textMuted leading-snug"
+                        >
+                          <span className={`shrink-0 mt-[7px] w-[4px] h-[4px] rounded-full ${col.dotClass}`} />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {result?.summary && (
+            <div className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-[14px]">
+              <div className="text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim mb-[6px]">
+                Summary
+              </div>
+              <p className="text-jtp-sm text-jtp-textMuted leading-relaxed whitespace-pre-wrap">
+                {result.summary}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const AnalyticsPage: React.FC = () => {
@@ -762,6 +927,9 @@ const AnalyticsPage: React.FC = () => {
           What your edge is made of
         </p>
       </div>
+
+      {/* AI Insights — ChatGPT-grounded review of closed trades */}
+      <AiInsightsPanel />
 
       {isEmpty ? (
         <div className={`${PANEL} ${PANEL_PAD} py-14 text-center`}>
