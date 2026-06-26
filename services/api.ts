@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -125,6 +125,12 @@ export interface ApiService {
   deletePropFirmTemplate(token: string, id: string): Promise<{ message: string }>;
   getPricingPlans(token: string): Promise<any[]>;
   updatePricingPlan(id: string, data: any, token: string): Promise<any>;
+
+  // Notebook
+  getNotebookEntries(token: string): Promise<NotebookEntry[]>;
+  createNotebookEntry(body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry>;
+  updateNotebookEntry(id: string, body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry>;
+  deleteNotebookEntry(id: string, token: string): Promise<{ message: string }>;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {
@@ -303,6 +309,12 @@ const api: ApiService = {
   createAssetSpec(data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> { return this.post('/api/assets', data, token); },
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> { return this.patch(`/api/assets/${id}`, data, token); },
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/assets/${id}`, token); },
+
+  // Notebook Methods
+  getNotebookEntries(token: string): Promise<NotebookEntry[]> { return this.get('/api/notebook', token); },
+  createNotebookEntry(body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry> { return this.post('/api/notebook', body, token); },
+  updateNotebookEntry(id: string, body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry> { return this.patch(`/api/notebook/${id}`, body, token); },
+  deleteNotebookEntry(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/notebook/${id}`, token); },
 
   // Market Data Methods
   getCandles(symbol: string, interval: string, start: string, end: string, token?: string | null): Promise<CandlesResult> {

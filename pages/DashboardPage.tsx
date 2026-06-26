@@ -13,12 +13,14 @@ import PricingPage from './PricingPage';
 import Dashboard from '../components/Dashboard/Dashboard';
 import { useUI } from '../context/UIContext';
 import AnalyticsPage from './AnalyticsPage';
+import NotebookPage from './NotebookPage';
 import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 import { useTrade } from '../context/TradeContext';
 
 export type DashboardView =
   | 'dashboard'
   | 'journal'
+  | 'notebook'
   | 'playbooks'
   | 'analytics'
   | 'personalisation'
@@ -31,6 +33,7 @@ export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' 
 const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
   dashboard:        { title: 'Dashboard',   subtitle: 'Account & rule status' },
   journal:          { title: 'Journal',     subtitle: 'Log, review, learn' },
+  notebook:         { title: 'Notebook',    subtitle: 'Daily reflections & notes' },
   analytics:        { title: 'Analytics',   subtitle: 'What your edge is made of' },
   playbooks:        { title: 'Playbooks',   subtitle: 'Your setups, measured' },
   settings:         { title: 'Settings',    subtitle: 'Profile & configuration' },
@@ -147,6 +150,7 @@ const DashboardPage: React.FC = () => {
 
     switch (currentView) {
       case 'journal':          return <TradeJournal />;
+      case 'notebook':         return <NotebookPage />;
       case 'playbooks':        return <PlaybooksPage />;
       case 'analytics':        return <AnalyticsPage />;
       case 'personalisation':  return <PersonalisationPage />;

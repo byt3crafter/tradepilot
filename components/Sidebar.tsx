@@ -28,6 +28,16 @@ const DashboardSvg = () => (
   </svg>
 );
 
+const NotebookSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <rect x="3" y="2" width="10" height="12" rx="1.5" />
+    <line x1="6" y1="2" x2="6" y2="14" strokeLinecap="round" />
+    <line x1="8.5" y1="5.5" x2="11" y2="5.5" strokeLinecap="round" />
+    <line x1="8.5" y1="8" x2="11" y2="8" strokeLinecap="round" />
+    <line x1="8.5" y1="10.5" x2="10" y2="10.5" strokeLinecap="round" />
+  </svg>
+);
+
 const AnalyticsSvg = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
     <polyline points="2,12 5,8 8,10 11,5 14,7" />
@@ -363,6 +373,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 isActive={currentView === 'journal'}
                 isCollapsed={isSidebarCollapsed}
                 onClick={() => handleNav('journal')}
+              />
+              <NavItem
+                icon={<NotebookSvg />}
+                label="Notebook"
+                isActive={currentView === 'notebook'}
+                isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('notebook')}
               />
               <NavItem
                 icon={<AnalyticsSvg />}

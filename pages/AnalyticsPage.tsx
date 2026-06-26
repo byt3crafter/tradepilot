@@ -16,6 +16,7 @@ import { useTrade } from '../context/TradeContext';
 import { useAccount } from '../context/AccountContext';
 import { usePlaybook } from '../context/PlaybookContext';
 import { Trade, TradeResult, Direction, Playbook } from '../types';
+import DeeperReports from '../components/analytics/DeeperReports';
 
 // ─── Local types ─────────────────────────────────────────────────────────────
 
@@ -788,6 +789,9 @@ const AnalyticsPage: React.FC = () => {
             <AdherencePanel />
             <MaeMfePanel trades={closedTrades} />
           </div>
+
+          {/* Row 4 — Deeper Reports */}
+          <DeeperReports trades={closedTrades} playbooks={playbooks} />
         </>
       )}
     </div>
