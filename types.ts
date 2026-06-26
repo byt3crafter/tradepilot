@@ -664,6 +664,20 @@ export interface AgentRun {
   createdAt: string;
 }
 
+export type ScheduledAgentFrequency = '15m' | 'hourly' | '6h' | 'daily';
+
+export interface ScheduledAgent {
+  id: string;
+  name: string;
+  goal: string;
+  frequency: ScheduledAgentFrequency;
+  enabled: boolean;
+  lastRunAt: string | null;
+  lastRunId: string | null;
+  nextRunAt: string | null;
+  createdAt: string;
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
