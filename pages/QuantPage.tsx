@@ -167,12 +167,12 @@ const ConnectChatGPT: React.FC = () => {
         <div>
           <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">AI Verdict</h2>
           <p className="text-jtp-xs text-jtp-textDim mt-1">
-            Connect ChatGPT to generate on-demand copyability verdicts for any scanned wallet.
+            Connect your ChatGPT/Codex account — powers AI across JTradePilot (verdicts, and more).
           </p>
         </div>
         {!statusLoading && connected && (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-jtp-xs font-medium bg-[rgba(34,197,94,0.12)] text-jtp-profit border border-[rgba(34,197,94,0.25)] whitespace-nowrap">
-            ChatGPT connected ✓
+            ChatGPT / Codex connected ✓
           </span>
         )}
       </div>
@@ -186,12 +186,12 @@ const ConnectChatGPT: React.FC = () => {
         ) : connected ? (
           <div className="space-y-2">
             {justConnected && (
-              <p className="text-jtp-sm text-jtp-profit font-medium">ChatGPT connected ✓</p>
+              <p className="text-jtp-sm text-jtp-profit font-medium">ChatGPT / Codex connected ✓</p>
             )}
             <p className="text-jtp-xs text-jtp-textMuted">
               {connectedAt
                 ? `Connected ${new Date(connectedAt).toLocaleString()}.`
-                : 'Your ChatGPT account is linked.'}{' '}
+                : 'Your ChatGPT/Codex account is linked.'}{' '}
               <button
                 type="button"
                 onClick={handleDisconnect}
@@ -211,7 +211,7 @@ const ConnectChatGPT: React.FC = () => {
                 className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {starting ? <Spinner /> : null}
-                {starting ? 'Opening…' : 'Connect ChatGPT'}
+                {starting ? 'Opening…' : 'Connect ChatGPT / Codex'}
               </button>
             ) : (
               <div className="space-y-2.5">
@@ -251,7 +251,7 @@ const ConnectChatGPT: React.FC = () => {
         )}
 
         <p className="text-jtp-xs text-jtp-textDim">
-          Uses your own ChatGPT account to generate verdicts. Requires ChatGPT Plus/Pro.
+          Uses your own ChatGPT/Codex account to generate verdicts. Requires ChatGPT Plus/Pro.
         </p>
       </div>
     </div>
@@ -325,7 +325,7 @@ const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
       {needsConnect && (
         <p className="text-jtp-xs text-jtp-warning">
           <button type="button" onClick={scrollToConnect} className="hover:underline font-medium">
-            Connect ChatGPT above
+            Connect ChatGPT / Codex above
           </button>{' '}
           to run verdicts.
         </p>

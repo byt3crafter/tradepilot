@@ -73,9 +73,10 @@ const WalletCardPanel: React.FC<{ wallet: PmWallet | null }> = ({ wallet }) => {
               href={`https://polymarket.com/profile/${wallet.address}`}
               target="_blank"
               rel="noopener noreferrer"
+              title="Open on Polymarket"
               className="text-[10px] text-[var(--qt-blue)] hover:underline whitespace-nowrap flex-shrink-0"
             >
-              PM ↗
+              ↗ Polymarket
             </a>
           </div>
 
@@ -113,7 +114,7 @@ const WalletCardPanel: React.FC<{ wallet: PmWallet | null }> = ({ wallet }) => {
 
             {needsConnect && (
               <p className="text-[10px] text-[var(--qt-amber)]">
-                Connect ChatGPT in Leaderboard view to run verdicts.
+                Connect ChatGPT / Codex in Leaderboard view to run verdicts.
               </p>
             )}
             {error && <p className="text-[10px] text-[var(--qt-red)]">{error}</p>}
