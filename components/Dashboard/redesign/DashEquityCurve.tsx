@@ -1,13 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
-} from 'recharts';
+import Chart from 'react-apexcharts';
 import { Trade, BrokerAccount } from '../../../types';
 
 interface Props {
@@ -18,7 +10,7 @@ interface Props {
 const netOf = (t: Trade) => (t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0);
 
 interface Pt {
-  dateMs: number;
+  ts: number;
   equity: number;
   r: number;
   ddD: number;
@@ -31,33 +23,10 @@ const fmtMoney = (v: number) => {
   return v < 0 ? `-${s}` : s;
 };
 
-const Tip: React.FC<any> = ({ active, payload, isR }) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload as Pt;
-  const val = isR ? d.r : d.equity;
-  const dd = isR ? d.ddR : d.ddD;
-  const valStr = isR
-    ? `${val >= 0 ? '+' : ''}${val.toFixed(2)}R`
-    : `${val >= 0 ? '+' : '-'}$${Math.abs(val).toFixed(2)}`;
-  const ddStr = isR ? `${dd.toFixed(2)}R` : `-$${Math.abs(dd).toFixed(2)}`;
-  const date = new Date(d.dateMs).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-  return (
-    <div className="bg-jtp-panel border border-jtp-borderStrong rounded-jtp-md px-3 py-2 shadow-jtp-drawer">
-      <div className="text-jtp-xs text-jtp-textDim mb-1">{date}</div>
-      <div className={`font-mono text-jtp-md font-semibold ${val >= 0 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>{valStr}</div>
-      {dd < 0 && <div className="font-mono text-jtp-xs text-jtp-loss mt-0.5">drawdown {ddStr}</div>}
-    </div>
-  );
-};
-
 const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
   const [isR, setIsR] = useState(false);
 
-  const data = useMemo<Pt[]>(() => {
+  const points = useMemo<Pt[]>(() => {
     const sorted = [...closedTrades].sort(
       (a, b) =>
         new Date(a.exitDate ?? a.entryDate).getTime() -
@@ -70,7 +39,7 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
       peak = Math.max(peak, eq);
       peakR = Math.max(peakR, r);
       return {
-        dateMs: new Date(t.exitDate ?? t.entryDate).getTime(),
+        ts: new Date(t.exitDate ?? t.entryDate).getTime(),
         equity: eq,
         r,
         ddD: eq - peak,
@@ -79,7 +48,82 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
     });
   }, [closedTrades]);
 
-  const valueKey = isR ? 'r' : 'equity';
+  const series = useMemo(
+    () => [{ name: isR ? 'R' : 'Equity', data: points.map((p) => [p.ts, +(isR ? p.r : p.equity).toFixed(2)]) }],
+    [points, isR],
+  );
+
+  const options = useMemo(
+    () => ({
+      chart: {
+        type: 'area' as const,
+        background: 'transparent',
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        animations: { enabled: false },
+        fontFamily: 'Inter, system-ui, sans-serif',
+        parentHeightOffset: 0,
+      },
+      theme: { mode: 'dark' as const },
+      colors: ['#5b8def'],
+      stroke: { curve: 'straight' as const, width: 2 },
+      fill: {
+        type: 'gradient',
+        gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0, stops: [0, 100] },
+      },
+      dataLabels: { enabled: false },
+      grid: {
+        borderColor: 'rgba(255,255,255,0.05)',
+        strokeDashArray: 0,
+        xaxis: { lines: { show: false } },
+        padding: { left: 8, right: 0, top: 0, bottom: 0 },
+      },
+      xaxis: {
+        type: 'datetime' as const,
+        labels: { style: { colors: '#6b7280', fontSize: '11px' }, datetimeUTC: true },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+        tooltip: { enabled: false },
+        crosshairs: { stroke: { color: '#5b8def', dashArray: 4, width: 1 } },
+      },
+      yaxis: {
+        opposite: true,
+        labels: {
+          style: { colors: '#6b7280', fontSize: '11px' },
+          formatter: (v: number) => (isR ? `${v.toFixed(1)}R` : fmtMoney(v)),
+        },
+      },
+      markers: { size: 0, hover: { size: 4 }, colors: ['#5b8def'], strokeColors: '#0f1216', strokeWidth: 2 },
+      annotations: {
+        yaxis: [{ y: 0, borderColor: '#2a2f37', strokeDashArray: 3 }],
+      },
+      tooltip: {
+        theme: 'dark',
+        x: { format: 'dd MMM yyyy' },
+        custom: ({ dataPointIndex }: any) => {
+          const p = points[dataPointIndex];
+          if (!p) return '';
+          const val = isR ? p.r : p.equity;
+          const dd = isR ? p.ddR : p.ddD;
+          const valStr = isR
+            ? `${val >= 0 ? '+' : ''}${val.toFixed(2)}R`
+            : `${val >= 0 ? '+' : '-'}$${Math.abs(val).toFixed(2)}`;
+          const ddStr = isR ? `${dd.toFixed(2)}R` : `-$${Math.abs(dd).toFixed(2)}`;
+          const date = new Date(p.ts).toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric',
+          });
+          return (
+            `<div style="background:#0f1216;border:1px solid #2a2f37;border-radius:8px;padding:8px 10px;font-family:Inter,sans-serif">` +
+            `<div style="color:#6b7280;font-size:10px;margin-bottom:3px">${date}</div>` +
+            `<div style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:14px;color:${val >= 0 ? '#4cc38a' : '#e5635f'}">${valStr}</div>` +
+            (dd < 0 ? `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#e5635f;margin-top:2px">drawdown ${ddStr}</div>` : '') +
+            `</div>`
+          );
+        },
+      },
+    }),
+    [points, isR],
+  );
 
   return (
     <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel p-4 h-full">
@@ -90,51 +134,10 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
           <button onClick={() => setIsR(true)} className={`px-2.5 py-1 ${isR ? 'bg-jtp-blue text-white' : 'text-jtp-textDim'}`}>R</button>
         </div>
       </div>
-      {data.length === 0 ? (
+      {points.length === 0 ? (
         <div className="h-[260px] flex items-center justify-center text-jtp-textDim text-jtp-sm">No closed trades yet</div>
       ) : (
-        <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={data} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#5b8def" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#5b8def" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="dateMs"
-              type="number"
-              scale="time"
-              domain={['dataMin', 'dataMax']}
-              padding={{ left: 0, right: 0 }}
-              tickFormatter={(ms) => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-              tick={{ fill: '#6b7280', fontSize: 11 }}
-              axisLine={{ stroke: '#1c2128' }}
-              tickLine={false}
-              minTickGap={56}
-            />
-            <YAxis
-              orientation="right"
-              tickFormatter={(v) => (isR ? `${v}R` : fmtMoney(v))}
-              tick={{ fill: '#6b7280', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              width={52}
-            />
-            <ReferenceLine y={0} stroke="#2a2f37" strokeDasharray="3 3" />
-            <Tooltip content={<Tip isR={isR} />} cursor={{ stroke: '#5b8def', strokeWidth: 1, strokeDasharray: '3 3' }} />
-            <Area
-              type="linear"
-              dataKey={valueKey}
-              stroke="#5b8def"
-              strokeWidth={2}
-              fill="url(#eqFill)"
-              dot={false}
-              activeDot={{ r: 4, fill: '#5b8def', stroke: '#0f1216', strokeWidth: 2 }}
-              isAnimationActive={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <Chart options={options as any} series={series} type="area" height={260} />
       )}
     </div>
   );
