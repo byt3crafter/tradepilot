@@ -119,4 +119,9 @@ export class AdminController {
   setBotEnabled(@Param('id') userId: string, @Body('enabled') enabled: boolean) {
     return this.adminService.setBotEnabled(userId, enabled);
   }
+
+  @Patch('users/:id/quant')
+  setQuantEnabled(@Param('id') userId: string, @Body('enabled') enabled: boolean) {
+    return this.adminService.setQuantEnabled(userId, enabled);
+  }
 }

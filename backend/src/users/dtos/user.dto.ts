@@ -26,6 +26,9 @@ export class UserDto {
   botEnabled: boolean;
 
   @Expose()
+  quantEnabled: boolean;
+
+  @Expose()
   subscriptionStatus: string;
 
   @Expose()

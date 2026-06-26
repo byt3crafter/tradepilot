@@ -15,6 +15,7 @@ model User {
   isEmailVerified    Boolean   @default(false)
   role               String    @default("USER") // USER or ADMIN
   botEnabled         Boolean   @default(false) // admin-gated access to the (beta, not-live) trading bot
+  quantEnabled       Boolean   @default(false) // admin-gated access to the Polymarket Quant module
   createdAt          DateTime  @default(now())
   lastLoginAt        DateTime?
   lastActiveAt       DateTime?

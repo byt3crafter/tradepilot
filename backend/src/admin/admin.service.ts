@@ -104,6 +104,15 @@ export class AdminService {
     });
   }
 
+  /** Per-user gate for the Polymarket Quant module. */
+  async setQuantEnabled(userId: string, enabled: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { quantEnabled: enabled },
+      select: { id: true, email: true, quantEnabled: true },
+    });
+  }
+
   async getPlayingUsersCount() {
     // Alias for online users if needed separately
     return this.prisma.user.count({
