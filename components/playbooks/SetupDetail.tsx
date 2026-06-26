@@ -46,10 +46,13 @@ const StatCard: React.FC<{ label: string; value: string; color?: string }> = ({
   color = 'text-jtp-text',
 }) => (
   <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel px-4 py-[13px]">
-    <div className="text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim mb-[5px]">
-      {label}
+    <div className="jtp-label mb-[5px]">{label}</div>
+    <div
+      className={`font-mono font-semibold text-jtp-2xl leading-none ${color}`}
+      style={{ fontVariantNumeric: 'tabular-nums' }}
+    >
+      {value}
     </div>
-    <div className={`font-mono font-semibold text-jtp-2xl leading-none ${color}`}>{value}</div>
   </div>
 );
 
@@ -57,16 +60,14 @@ const TextBlock: React.FC<{ label: string; content: string }> = ({ label, conten
   const isEmpty = !content.trim();
   return (
     <div>
-      <div className="text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim mb-[8px]">
-        {label}
-      </div>
+      <div className="jtp-label mb-[8px]">{label}</div>
       {isEmpty ? (
-        <p className="text-jtp-sm text-jtp-textFaint italic">Not defined yet</p>
+        <p className="text-jtp-md text-jtp-textFaint italic">Not defined yet</p>
       ) : (
         <div className="space-y-1">
           {content.split('\n').filter(Boolean).map((line, i) => (
-            <div key={i} className="flex gap-2 text-jtp-base text-jtp-textNote leading-snug">
-              <span className="text-jtp-textFaint shrink-0 mt-[2px] text-jtp-xs">·</span>
+            <div key={i} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+              <span className="text-jtp-textDim shrink-0 mt-[2px]">·</span>
               <span>{line}</span>
             </div>
           ))}
@@ -122,15 +123,15 @@ const SetupDetail: React.FC<SetupDetailProps> = ({ item, closedTrades }) => {
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-jtp-xl text-jtp-text leading-tight">{item.name}</h2>
           {playbook.coreIdea && (
-            <p className="text-jtp-sm text-jtp-textMuted mt-1 leading-snug">{playbook.coreIdea}</p>
+            <p className="text-jtp-lg text-jtp-textMuted mt-1 leading-snug">{playbook.coreIdea}</p>
           )}
           {!playbook.coreIdea && !setup && (
-            <p className="text-jtp-sm text-jtp-textFaint italic mt-1">No description</p>
+            <p className="text-jtp-lg text-jtp-textFaint italic mt-1">No description</p>
           )}
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim">Target R:R</div>
-          <div className="font-mono font-semibold text-jtp-lg text-jtp-textSoft mt-0.5">{rrStr}</div>
+          <div className="jtp-label">TARGET R:R</div>
+          <div className="font-mono font-semibold text-jtp-lg text-jtp-textSoft mt-1">{rrStr}</div>
         </div>
       </div>
 
@@ -168,9 +169,7 @@ const SetupDetail: React.FC<SetupDetailProps> = ({ item, closedTrades }) => {
       {/* Tags */}
       {tags.length > 0 && (
         <div>
-          <div className="text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim mb-[8px]">
-            Tags
-          </div>
+          <div className="jtp-label mb-[8px]">TAGS</div>
           <div className="flex flex-wrap gap-1.5">
             {tags.map(tag => (
               <span

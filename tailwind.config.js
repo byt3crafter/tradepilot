@@ -35,8 +35,9 @@ export default {
         'risk-high': '#ef4444',
         'risk-medium': '#f59e0b',
         'momentum-green': '#10b981',
-        // ── JTradePilot design system tokens ────────────────────────────
+        // ── JTradePilot Operator Console token system ──────────────────────
         jtp: {
+          // ── Backgrounds / layers ──
           bg:            '#0b0c0e',   // App / body background
           shell:         '#0e1013',   // Sidebar + topbar
           panel:         '#0f1216',   // Cards, panels, drawers
@@ -46,13 +47,15 @@ export default {
           hover:         '#181c22',   // Nav hover, row hover
           avatar:        '#222933',   // User avatar background
           accountTag:    '#1d242e',   // Account tag tile
+          statusbar:     '#0c0e11',   // Bottom status bar (slightly darker than shell)
+          // ── Borders ──
           border:        '#1c2128',   // Shell borders, panel borders, row separators
           borderSubtle:  '#16191e',   // Table row dividers
           borderStrong:  '#232931',   // Inputs, buttons, seg-controls
           borderFocus:   '#2a313a',   // Form field focus, secondary button border
           borderHover:   '#323942',   // Secondary hover border
-          // Text
-          text:          '#e8eaed',   // Primary text
+          // ── Text scale (high-contrast, legible on dark) ──
+          text:          '#e8eaed',   // Primary text (≈ white-ish)
           textSoft:      '#cdd2d9',   // Secondary values
           textNote:      '#b8bec7',   // Drawer notes
           textMuted:     '#9aa1ab',   // Default secondary labels
@@ -60,11 +63,11 @@ export default {
           textDim:       '#6b7280',   // Labels, metadata
           textFaint:     '#5b6370',   // Timestamps, helper copy
           textDisabled:  '#454d57',   // Disabled, dropzone helper
-          // Brand / interaction
+          // ── Brand / interaction ──
           blue:          '#5b8def',   // Primary action, active nav, equity line
           blueHover:     '#6f9bf2',   // Primary action hover
           blueDeep:      '#3f6fd6',   // Brand gradient end
-          // Trading semantics
+          // ── Trading semantics (money tokens — highest contrast) ──
           profit:        '#4cc38a',   // Positive P&L/R, long, profit target
           profitDot:     '#3fb37f',   // Live dot, clean execution
           loss:          '#e5635f',   // Negative P&L/R, short, max loss
@@ -73,33 +76,36 @@ export default {
         },
       },
       fontFamily: {
-        // Inter = the trading-journal/fintech standard (TradeZella, Tradervue, etc.)
+        // Inter = body / UI; JetBrains Mono = all numbers/money/codes
         sans:        ['Inter', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
         mono:        ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
-        // Aliases for legacy classes — also map to Inter so legacy pages match
+        // Aliases for legacy classes — map to same stack
         orbitron:    ['Inter', '"IBM Plex Sans"', 'sans-serif'],
         'tech-mono': ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
       },
       fontSize: {
-        // JTP type scale
-        'jtp-2xs':        ['9.5px',  { lineHeight: '1.2' }],
-        'jtp-xs':         ['10px',   { lineHeight: '1.2' }],
-        'jtp-xs-plus':    ['10.5px', { lineHeight: '1.3' }],
-        'jtp-sm-minus':   ['11px',   { lineHeight: '1.4' }],
-        'jtp-sm':         ['11.5px', { lineHeight: '1.4' }],
-        'jtp-base-minus': ['12px',   { lineHeight: '1.4' }],
-        'jtp-base':       ['12.5px', { lineHeight: '1.5' }],
-        'jtp-md':         ['13px',   { lineHeight: '1.5' }],
-        'jtp-md-plus':    ['13.5px', { lineHeight: '1.5' }],
-        'jtp-lg':         ['14px',   { lineHeight: '1.5' }],
-        'jtp-xl':         ['15px',   { lineHeight: '1.4' }],
-        'jtp-2xl':        ['17px',   { lineHeight: '1.3' }],
-        'jtp-3xl':        ['22px',   { lineHeight: '1.2' }],
-        'jtp-4xl':        ['26px',   { lineHeight: '1.1' }],
+        // ── JTP Operator Console type scale ──────────────────────────────
+        // Rule: body text ≥ 14px, labels ≥ 10px, numbers use mono + bold + high contrast
+        'jtp-2xs':        ['9.5px',  { lineHeight: '1.2' }],   // micro labels, status bar
+        'jtp-xs':         ['10px',   { lineHeight: '1.2' }],   // tiny badges, timestamps
+        'jtp-xs-plus':    ['10.5px', { lineHeight: '1.3' }],   // section labels (UPPERCASE MONO)
+        'jtp-sm-minus':   ['11px',   { lineHeight: '1.4' }],   // sub-labels
+        'jtp-sm':         ['11.5px', { lineHeight: '1.4' }],   // helper text
+        'jtp-base-minus': ['12px',   { lineHeight: '1.4' }],   // compact row text
+        'jtp-base':       ['12.5px', { lineHeight: '1.5' }],   // secondary values
+        'jtp-md':         ['13px',   { lineHeight: '1.5' }],   // standard row text
+        'jtp-md-plus':    ['13.5px', { lineHeight: '1.5' }],   // slightly elevated
+        'jtp-lg':         ['14px',   { lineHeight: '1.5' }],   // body text minimum ← FLOOR
+        'jtp-xl':         ['15px',   { lineHeight: '1.4' }],   // nav labels, sub-headings
+        'jtp-2xl':        ['17px',   { lineHeight: '1.3' }],   // card headings
+        'jtp-3xl':        ['22px',   { lineHeight: '1.2' }],   // stat values (medium)
+        'jtp-4xl':        ['28px',   { lineHeight: '1.1' }],   // stat values (hero) — was 26px
+        'jtp-5xl':        ['36px',   { lineHeight: '1.0' }],   // large hero numbers
       },
       spacing: {
         'sidebar':    '228px',
         'topbar':     '52px',
+        'statusbar':  '28px',    // Bottom status bar height
         'drawer':     '480px',
         'log-drawer': '460px',
         'jtp-row':    '43px',
@@ -116,13 +122,16 @@ export default {
       },
       boxShadow: {
         'jtp-drawer': '-20px 0 50px rgba(0,0,0,.4)',
+        'jtp-panel':  '0 2px 12px rgba(0,0,0,.25)',
+        'jtp-float':  '0 8px 32px rgba(0,0,0,.5)',
       },
       animation: {
-        'fade-in':    'fadeIn 0.5s ease-out forwards',
-        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
-        'slide-up':   'slideUp 0.5s ease-out forwards',
+        'fade-in':      'fadeIn 0.5s ease-out forwards',
+        'fade-in-up':   'fadeInUp 0.5s ease-out forwards',
+        'slide-up':     'slideUp 0.5s ease-out forwards',
         'jtp-slide-in': 'jtpSlideIn 0.18s ease forwards',
         'jtp-fade-in':  'jtpFadeIn 0.12s ease forwards',
+        'pulse-dot':    'pulseDot 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -144,6 +153,10 @@ export default {
         jtpFadeIn: {
           from: { opacity: '0' },
           to:   { opacity: '1' },
+        },
+        pulseDot: {
+          '0%, 100%': { opacity: '1' },
+          '50%':      { opacity: '0.4' },
         },
       },
     },

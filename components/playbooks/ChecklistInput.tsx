@@ -17,9 +17,8 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
   const handleAddItem = () => {
     if (newItemText.trim()) {
       const newItem: ChecklistItem = {
-        id: `new-${Date.now()}`, // Temporary ID for local state
+        id: `new-${Date.now()}`,
         text: newItemText.trim(),
-        // The type doesn't matter here as the backend assigns it based on the list
         type: ChecklistItemType.ENTRY_CRITERIA,
       };
       onChange([...items, newItem]);
@@ -54,7 +53,7 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
 
   return (
     <div className="mt-4">
-      <h4 className="text-sm font-semibold text-future-light mb-2">{title}</h4>
+      <div className="jtp-label mb-2">{title}</div>
       <div className="space-y-2">
         {items.map((item, index) => (
           <div key={item.id || index} className="flex items-center gap-2 group">
@@ -63,7 +62,7 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
                 type="button"
                 onClick={() => handleMoveUp(index)}
                 disabled={index === 0}
-                className="text-future-gray hover:text-photonic-blue disabled:opacity-30"
+                className="text-jtp-textMuted hover:text-jtp-blue disabled:opacity-30 transition-colors"
               >
                 <ArrowUpIcon className="w-3 h-3" />
               </button>
@@ -71,7 +70,7 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
                 type="button"
                 onClick={() => handleMoveDown(index)}
                 disabled={index === items.length - 1}
-                className="text-future-gray hover:text-photonic-blue disabled:opacity-30"
+                className="text-jtp-textMuted hover:text-jtp-blue disabled:opacity-30 transition-colors"
               >
                 <ArrowDownIcon className="w-3 h-3" />
               </button>
@@ -80,9 +79,13 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
               type="text"
               value={item.text}
               onChange={(e) => handleItemTextChange(index, e.target.value)}
-              className="flex-grow bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-1.5 text-sm text-future-light placeholder-future-gray/50 focus:outline-none focus:ring-1 focus:ring-photonic-blue"
+              className="flex-grow bg-jtp-active border border-jtp-borderStrong rounded-jtp-md px-3 py-1.5 text-jtp-lg text-jtp-text placeholder:text-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue transition-colors"
             />
-            <button type="button" onClick={() => handleRemoveItem(index)} className="p-1.5 text-risk-high hover:bg-risk-high/10 rounded-md">
+            <button
+              type="button"
+              onClick={() => handleRemoveItem(index)}
+              className="p-1.5 text-jtp-loss hover:bg-jtp-loss/10 rounded-jtp-md transition-colors"
+            >
               <TrashIcon className="w-4 h-4" />
             </button>
           </div>
@@ -94,10 +97,14 @@ const ChecklistInput: React.FC<ChecklistInputProps> = ({ title, items, onChange 
           value={newItemText}
           onChange={(e) => setNewItemText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
-          placeholder="Add a rule..."
-          className="flex-grow bg-future-dark border border-photonic-blue/30 rounded-md px-3 py-1.5 text-sm text-future-light placeholder-future-gray/50 focus:outline-none focus:ring-1 focus:ring-photonic-blue"
+          placeholder="Add a rule…"
+          className="flex-grow bg-jtp-active border border-jtp-borderStrong rounded-jtp-md px-3 py-1.5 text-jtp-lg text-jtp-text placeholder:text-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue transition-colors"
         />
-        <button type="button" onClick={handleAddItem} className="p-1.5 text-momentum-green hover:bg-momentum-green/10 rounded-md">
+        <button
+          type="button"
+          onClick={handleAddItem}
+          className="p-1.5 text-jtp-profit hover:bg-jtp-profit/10 rounded-jtp-md transition-colors"
+        >
           <PlusIcon className="w-5 h-5" />
         </button>
       </div>

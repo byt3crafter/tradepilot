@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api, { ChatGptPermissions, ChatGptStatus } from '../../services/api';
-import Card from '../Card';
+import { Panel, Badge, ToggleSwitch, Button } from '../ui';
 import AgentPanel from '../ai/AgentPanel';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
@@ -19,41 +19,7 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// ─── Permission toggle switch ───────────────────────────────────────────────────
-
-const PermissionToggle: React.FC<{
-  label: string;
-  description: string;
-  enabled: boolean;
-  busy?: boolean;
-  onChange: (next: boolean) => void;
-}> = ({ label, description, enabled, busy, onChange }) => (
-  <div className="flex items-start justify-between gap-4 py-4 border-b border-jtp-border last:border-b-0">
-    <div className="min-w-0">
-      <p className="text-jtp-md font-medium text-jtp-text">{label}</p>
-      <p className="text-jtp-sm text-jtp-textDim mt-0.5">{description}</p>
-    </div>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      aria-label={label}
-      disabled={busy}
-      onClick={() => onChange(!enabled)}
-      className={`relative inline-flex flex-shrink-0 h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-jtp-borderFocus ${
-        enabled ? 'bg-jtp-profit' : 'bg-jtp-control border border-jtp-borderStrong'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-          enabled ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
-    </button>
-  </div>
-);
-
-// ─── AI Settings panel ──────────────────────────────────────────────────────────
+// ─── AI Settings ──────────────────────────────────────────────────────────────
 
 const AiSettings: React.FC = () => {
   const { getToken } = useAuth();
@@ -78,7 +44,6 @@ const AiSettings: React.FC = () => {
   const [modelSaved, setModelSaved] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
 
-  // Common codex suggestions offered even when the account list comes back empty.
   const FALLBACK_MODELS = ['gpt-5.3-codex', 'gpt-5.1-codex', 'gpt-5-codex', 'o4-mini', 'gpt-5.4'];
 
   const connected = !!status.connected;
@@ -101,7 +66,6 @@ const AiSettings: React.FC = () => {
     refreshStatus();
   }, [refreshStatus]);
 
-  // Fetch the account's available models once connected.
   useEffect(() => {
     if (!connected) {
       setModelOptions([]);
@@ -223,7 +187,6 @@ const AiSettings: React.FC = () => {
         setStatus(updated);
       } catch (e: any) {
         setPermError(e?.message || 'Could not update that permission. Please try again.');
-        // revert by refetching
         await refreshStatus();
       } finally {
         setSavingPerm(null);
@@ -234,35 +197,28 @@ const AiSettings: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <h2 className="text-jtp-xl font-semibold text-jtp-text mb-1">ChatGPT / Codex</h2>
-        <p className="text-jtp-md text-jtp-textDim mb-6">
+      {/* ── ChatGPT / Codex connection ── */}
+      <Panel label="CHATGPT / CODEX">
+        <p className="text-jtp-md text-jtp-textMuted mb-4">
           Connect your ChatGPT/Codex account once — it powers AI across JTradePilot. Requires
           ChatGPT Plus/Pro.
         </p>
 
-        {/* ── Connection ── */}
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg p-5 space-y-3">
+        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3">
           {statusLoading ? (
-            <div className="flex items-center gap-2 text-jtp-textDim">
+            <div className="flex items-center gap-2 text-jtp-textMuted">
               <Spinner />
-              <span className="text-jtp-sm">Checking connection…</span>
+              <span className="text-jtp-md">Checking connection…</span>
             </div>
           ) : connected ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-jtp-sm font-medium bg-[rgba(34,197,94,0.12)] text-jtp-profit border border-[rgba(34,197,94,0.25)]">
-                  Connected ✓
-                </span>
-                <button
-                  type="button"
-                  onClick={handleDisconnect}
-                  className="text-jtp-sm text-jtp-blue hover:underline font-medium"
-                >
+                <Badge variant="profit" size="md">CONNECTED</Badge>
+                <Button variant="link" onClick={handleDisconnect}>
                   Disconnect
-                </button>
+                </Button>
               </div>
-              <p className="text-jtp-xs text-jtp-textMuted">
+              <p className="text-jtp-md text-jtp-textMuted">
                 {status.connectedAt
                   ? `Connected ${new Date(status.connectedAt).toLocaleString()}.`
                   : 'Your ChatGPT/Codex account is linked.'}
@@ -271,18 +227,16 @@ const AiSettings: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {!showPaste ? (
-                <button
-                  type="button"
+                <Button
                   onClick={handleStart}
+                  isLoading={starting}
                   disabled={starting}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {starting ? <Spinner /> : null}
                   {starting ? 'Opening…' : 'Connect ChatGPT / Codex'}
-                </button>
+                </Button>
               ) : (
                 <div className="space-y-2.5">
-                  <p className="text-jtp-xs text-jtp-textMuted leading-relaxed">
+                  <p className="text-jtp-md text-jtp-textMuted leading-relaxed">
                     After signing in, OpenAI redirects to a page that won't load (localhost:1455).
                     Copy that full URL from the address bar and paste it below.
                   </p>
@@ -294,17 +248,15 @@ const AiSettings: React.FC = () => {
                       placeholder="http://localhost:1455/?code=…&state=…"
                       spellCheck={false}
                       autoComplete="off"
-                      className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                      className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3.5 py-2 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
                     />
-                    <button
-                      type="button"
+                    <Button
                       onClick={handleExchange}
                       disabled={exchanging || !pasted.trim()}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      isLoading={exchanging}
                     >
-                      {exchanging ? <Spinner /> : null}
                       {exchanging ? 'Connecting…' : 'Complete Connection'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -312,32 +264,30 @@ const AiSettings: React.FC = () => {
           )}
 
           {justConnected && connected && (
-            <p className="text-jtp-sm text-jtp-profit font-medium">ChatGPT / Codex connected ✓</p>
+            <p className="text-jtp-md text-jtp-profit font-medium">ChatGPT / Codex connected</p>
           )}
 
           {error && (
-            <p role="alert" className="text-jtp-xs text-jtp-loss">
-              {error}
-            </p>
+            <p role="alert" className="text-jtp-md text-jtp-loss">{error}</p>
           )}
 
-          <p className="text-jtp-xs text-jtp-textDim">
+          <p className="text-jtp-md text-jtp-textMuted">
             Uses your own ChatGPT/Codex account. Requires ChatGPT Plus/Pro.
           </p>
         </div>
-      </Card>
+      </Panel>
 
-      {/* ── Model ── */}
+      {/* ── Model picker ── */}
       {connected && (
-        <Card>
-          <h2 className="text-jtp-xl font-semibold text-jtp-text mb-1">Model</h2>
-          <p className="text-jtp-md text-jtp-textDim mb-4">
+        <Panel label="MODEL">
+          <p className="text-jtp-md text-jtp-textMuted mb-4">
             Which ChatGPT/Codex model to use. If you're unsure, use the same model name your Codex
-            CLI uses (e.g. <span className="font-mono text-jtp-text">gpt-5.3-codex</span>). Our
-            guesses failed for your account, so set it explicitly.
+            CLI uses (e.g.{' '}
+            <span className="font-mono text-jtp-text">gpt-5.3-codex</span>
+            ). Our guesses failed for your account, so set it explicitly.
           </p>
 
-          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg p-5 space-y-3">
+          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3">
             <div className="flex flex-col sm:flex-row gap-2.5">
               <input
                 type="text"
@@ -351,34 +301,32 @@ const AiSettings: React.FC = () => {
                 placeholder={status.model ?? 'e.g. gpt-5.3-codex'}
                 spellCheck={false}
                 autoComplete="off"
-                className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3.5 py-2 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
               />
               <datalist id="chatgpt-model-options">
                 {suggestions.map((m) => (
                   <option key={m} value={m} />
                 ))}
               </datalist>
-              <button
-                type="button"
+              <Button
                 onClick={handleSaveModel}
                 disabled={savingModel || !modelInput.trim()}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                isLoading={savingModel}
               >
-                {savingModel ? <Spinner /> : null}
                 {savingModel ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
 
             {/* Clickable suggestions */}
             <div className="flex items-center gap-2 flex-wrap">
               {modelsLoading ? (
-                <span className="inline-flex items-center gap-1.5 text-jtp-xs text-jtp-textDim">
+                <span className="inline-flex items-center gap-1.5 text-jtp-md text-jtp-textMuted">
                   <Spinner className="w-3.5 h-3.5" />
                   Loading your models…
                 </span>
               ) : (
                 <>
-                  <span className="text-jtp-xs text-jtp-textMuted">
+                  <span className="text-jtp-md text-jtp-textMuted">
                     {modelOptions.length > 0 ? 'Available:' : 'Suggestions:'}
                   </span>
                   {suggestions.map((m) => (
@@ -404,61 +352,83 @@ const AiSettings: React.FC = () => {
             </div>
 
             {modelSaved && (
-              <p className="text-jtp-sm text-jtp-profit font-medium">Model saved ✓</p>
+              <p className="text-jtp-md text-jtp-profit">Model saved ✓</p>
             )}
             {modelError && (
-              <p role="alert" className="text-jtp-xs text-jtp-loss">
-                {modelError}
-              </p>
+              <p role="alert" className="text-jtp-md text-jtp-loss">{modelError}</p>
             )}
 
-            <p className="text-jtp-xs text-jtp-textDim">
+            <p className="text-jtp-md text-jtp-textMuted">
               After saving, re-run an AI Verdict in Quant to test it. If it errors with "model not
               supported", try another.
             </p>
           </div>
-        </Card>
+        </Panel>
       )}
 
       {/* ── Permissions ── */}
       {connected && (
-        <Card>
-          <h2 className="text-jtp-xl font-semibold text-jtp-text mb-1">What AI can power</h2>
-          <p className="text-jtp-md text-jtp-textDim mb-4">
+        <Panel label="PERMISSIONS">
+          <p className="text-jtp-md text-jtp-textMuted mb-4">
             Control which JTradePilot features use your connected ChatGPT/Codex account. A disabled
             feature won't use AI.
           </p>
 
           {permError && (
-            <p role="alert" className="text-jtp-xs text-jtp-loss mb-2">
-              {permError}
-            </p>
+            <p role="alert" className="text-jtp-md text-jtp-loss mb-2">{permError}</p>
           )}
 
-          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg px-5">
-            <PermissionToggle
-              label="AI Verdict (Quant)"
-              description="Generate copyable-edge verdicts on Polymarket wallets in the Quant page."
-              enabled={permissions.verdict}
-              busy={savingPerm === 'verdict'}
-              onChange={(next) => togglePermission('verdict', next)}
-            />
-            <PermissionToggle
-              label="Bot strategy AI"
-              description="Let the trading bot use AI to shape and refine its strategy."
-              enabled={permissions.bot}
-              busy={savingPerm === 'bot'}
-              onChange={(next) => togglePermission('bot', next)}
-            />
-            <PermissionToggle
-              label="Trade & journal analysis"
-              description="AI summaries, mistakes and good points on your trades and journal entries."
-              enabled={permissions.analysis}
-              busy={savingPerm === 'analysis'}
-              onChange={(next) => togglePermission('analysis', next)}
-            />
+          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel divide-y divide-jtp-border">
+            <div className="flex items-start justify-between gap-4 px-4 py-4">
+              <div className="min-w-0">
+                <p className="text-jtp-md font-medium text-jtp-text">AI Verdict (Quant)</p>
+                <p className="text-jtp-md text-jtp-textMuted mt-0.5">
+                  Generate copyable-edge verdicts on Polymarket wallets in the Quant page.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <ToggleSwitch
+                  label=""
+                  checked={permissions.verdict}
+                  onChange={(next) => togglePermission('verdict', next)}
+                  disabled={savingPerm === 'verdict'}
+                />
+              </div>
+            </div>
+            <div className="flex items-start justify-between gap-4 px-4 py-4">
+              <div className="min-w-0">
+                <p className="text-jtp-md font-medium text-jtp-text">Bot strategy AI</p>
+                <p className="text-jtp-md text-jtp-textMuted mt-0.5">
+                  Let the trading bot use AI to shape and refine its strategy.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <ToggleSwitch
+                  label=""
+                  checked={permissions.bot}
+                  onChange={(next) => togglePermission('bot', next)}
+                  disabled={savingPerm === 'bot'}
+                />
+              </div>
+            </div>
+            <div className="flex items-start justify-between gap-4 px-4 py-4">
+              <div className="min-w-0">
+                <p className="text-jtp-md font-medium text-jtp-text">Trade &amp; journal analysis</p>
+                <p className="text-jtp-md text-jtp-textMuted mt-0.5">
+                  AI summaries, mistakes and good points on your trades and journal entries.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <ToggleSwitch
+                  label=""
+                  checked={permissions.analysis}
+                  onChange={(next) => togglePermission('analysis', next)}
+                  disabled={savingPerm === 'analysis'}
+                />
+              </div>
+            </div>
           </div>
-        </Card>
+        </Panel>
       )}
 
       {/* ── Agent management: tools/skills + run audit log ── */}

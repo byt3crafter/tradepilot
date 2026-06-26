@@ -6,18 +6,20 @@ interface JournalEntryProps {
 }
 
 const JournalItem: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-    <div>
-        <h5 className="text-xs text-future-gray font-orbitron uppercase mb-1">{label}</h5>
-        <p className="text-sm text-future-light bg-future-dark/30 p-2 rounded-md whitespace-pre-wrap">{children}</p>
-    </div>
+  <div>
+    <h5 className="jtp-label mb-1.5">{label}</h5>
+    <p className="text-jtp-lg text-jtp-textSoft bg-jtp-raised px-3 py-2.5 rounded-jtp-md whitespace-pre-wrap leading-relaxed">
+      {children}
+    </p>
+  </div>
 );
 
 const JournalEntry: React.FC<JournalEntryProps> = ({ journal }) => {
   return (
-    <div className="space-y-3">
-        <JournalItem label="Mindset Before Entry">{journal.mindsetBefore}</JournalItem>
-        <JournalItem label="Reasoning for Exit">{journal.exitReasoning}</JournalItem>
-        <JournalItem label="Lessons Learned">{journal.lessonsLearned}</JournalItem>
+    <div className="space-y-4">
+      <JournalItem label="MINDSET BEFORE ENTRY">{journal.mindsetBefore}</JournalItem>
+      <JournalItem label="REASONING FOR EXIT">{journal.exitReasoning}</JournalItem>
+      <JournalItem label="LESSONS LEARNED">{journal.lessonsLearned}</JournalItem>
     </div>
   );
 };

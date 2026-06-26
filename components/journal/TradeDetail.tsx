@@ -12,6 +12,7 @@ import { UploadIcon } from '../icons/UploadIcon';
 import Spinner from '../Spinner';
 import TradeChart from '../charts/TradeChart';
 import api from '../../services/api';
+import { Panel, StatTile, Badge } from '../ui';
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -118,32 +119,30 @@ const computeDefaultInterval = (
   return interval;
 };
 
-// ─── Stat card ────────────────────────────────────────────────────────────────
+// ─── Compact secondary stat chip (for non-hero metrics) ───────────────────────
 
-interface StatCardProps {
+interface StatChipProps {
   label: string;
   value: React.ReactNode;
   sub?: string;
   color?: 'profit' | 'loss' | 'neutral' | 'blue' | 'warning';
 }
 
-const colorMap: Record<NonNullable<StatCardProps['color']>, string> = {
+const chipColorMap: Record<NonNullable<StatChipProps['color']>, string> = {
   profit:  'text-jtp-profit',
   loss:    'text-jtp-loss',
-  neutral: 'text-jtp-text',
+  neutral: 'text-jtp-textSoft',
   blue:    'text-jtp-blue',
   warning: 'text-jtp-warning',
 };
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, sub, color = 'neutral' }) => (
-  <div className="flex flex-col gap-1 bg-jtp-raised border border-jtp-border rounded-jtp-panel px-4 py-3 min-w-[110px]">
-    <span className="text-jtp-xs-plus uppercase tracking-[0.4px] font-semibold text-jtp-textDim whitespace-nowrap">
-      {label}
-    </span>
-    <span className={`font-mono font-semibold text-jtp-2xl leading-none ${colorMap[color]}`}>
+const StatChip: React.FC<StatChipProps> = ({ label, value, sub, color = 'neutral' }) => (
+  <div className="flex flex-col gap-0.5 bg-jtp-raised border border-jtp-border rounded-jtp-panel px-3 py-2.5 min-w-[90px]">
+    <span className="jtp-label whitespace-nowrap">{label}</span>
+    <span className={`font-mono font-semibold text-jtp-md leading-snug ${chipColorMap[color]}`}>
       {value}
     </span>
-    {sub && <span className="text-jtp-xs text-jtp-textFaint">{sub}</span>}
+    {sub && <span className="text-jtp-2xs text-jtp-textFaint">{sub}</span>}
   </div>
 );
 
@@ -321,12 +320,12 @@ const MistakeTagEditor: React.FC<MistakeTagEditorProps> = ({
           <span className="text-jtp-xs text-jtp-textFaint">None recorded</span>
         )}
         {tags.map(tag => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 text-jtp-xs px-2 py-1 rounded-jtp-md bg-jtp-loss/10 text-jtp-lossSoft"
-          >
-            {tag}
-            {editMode && (
+          editMode ? (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 text-jtp-xs px-2 py-1 rounded-jtp-md bg-jtp-loss/10 text-jtp-lossSoft"
+            >
+              {tag}
               <button
                 type="button"
                 onClick={() => removeTag(tag)}
@@ -335,8 +334,10 @@ const MistakeTagEditor: React.FC<MistakeTagEditorProps> = ({
               >
                 ×
               </button>
-            )}
-          </span>
+            </span>
+          ) : (
+            <Badge key={tag} variant="loss" size="xs">{tag}</Badge>
+          )
         ))}
       </div>
 
@@ -444,22 +445,7 @@ const ChecklistDisplay: React.FC<ChecklistDisplayProps> = ({ items, editMode, on
   );
 };
 
-// ─── Section wrapper ──────────────────────────────────────────────────────────
-
-const Section: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({
-  title,
-  children,
-  className = '',
-}) => (
-  <div className={`bg-jtp-panel border border-jtp-border rounded-jtp-panel ${className}`}>
-    <div className="px-5 py-3 border-b border-jtp-border">
-      <span className="text-jtp-xs-plus font-semibold uppercase tracking-[0.4px] text-jtp-textDim">
-        {title}
-      </span>
-    </div>
-    <div className="px-5 py-4">{children}</div>
-  </div>
-);
+// Section removed — use kit Panel directly
 
 // ─── Editable field ───────────────────────────────────────────────────────────
 
@@ -609,9 +595,6 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
   // ── Computed ───────────────────────────────────────────────────────────────
   const isBuy = trade.direction === Direction.Buy;
   const netPL = (trade.profitLoss ?? 0) - (trade.commission ?? 0) - (trade.swap ?? 0);
-  const netPLColor: StatCardProps['color'] = netPL > 0 ? 'profit' : netPL < 0 ? 'loss' : 'neutral';
-  const realisedRColor: StatCardProps['color'] =
-    (trade.realisedR ?? 0) > 0 ? 'profit' : (trade.realisedR ?? 0) < 0 ? 'loss' : 'neutral';
 
   const setupName = useMemo(() => {
     if (!playbookId) return '—';
@@ -826,28 +809,22 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
 
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="font-semibold text-jtp-2xl text-jtp-text">{trade.asset}</span>
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-jtp-md text-jtp-xs font-semibold ${
-                  isBuy
-                    ? 'bg-jtp-profit/10 text-jtp-profit'
-                    : 'bg-jtp-loss/10 text-jtp-loss'
-                }`}
-              >
-                <span className="text-[8px]">{isBuy ? '▲' : '▼'}</span>
-                {isBuy ? 'Long' : 'Short'}
-              </span>
+              <Badge variant={isBuy ? 'profit' : 'loss'} size="sm">
+                {isBuy ? '▲ Long' : '▼ Short'}
+              </Badge>
               {trade.result && (
-                <span
-                  className={`px-2.5 py-1 rounded-jtp-md text-jtp-xs font-semibold ${
+                <Badge
+                  variant={
                     trade.result === 'Win'
-                      ? 'bg-jtp-profit/10 text-jtp-profit'
+                      ? 'profit'
                       : trade.result === 'Loss'
-                      ? 'bg-jtp-loss/10 text-jtp-loss'
-                      : 'bg-jtp-border text-jtp-textMuted'
-                  }`}
+                      ? 'loss'
+                      : 'neutral'
+                  }
+                  size="sm"
                 >
-                  {trade.result}
-                </span>
+                  {trade.result === 'Win' ? 'WIN' : trade.result === 'Loss' ? 'LOSS' : 'BE'}
+                </Badge>
               )}
               <span className="text-jtp-base-minus text-jtp-textFaint font-mono">{dateDisplay}</span>
             </div>
@@ -919,90 +896,47 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
           </div>
         )}
 
-        {/* ── Stat cards row ──────────────────────────────────────────────── */}
-        <div className="flex gap-3 flex-wrap">
-          <StatCard
-            label="Net P&L"
+        {/* ── Hero stat strip — key metrics ───────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+          <StatTile
+            label="NET P&L"
             value={fmtPL(netPL)}
-            color={netPLColor}
-            sub="after fees"
+            valueColor={netPL > 0 ? 'text-jtp-profit' : netPL < 0 ? 'text-jtp-loss' : 'text-jtp-text'}
+            subValue="after fees"
           />
-          <StatCard
-            label="Real R"
+          <StatTile
+            label="REAL R"
             value={fmtR(trade.realisedR)}
-            color={realisedRColor}
+            valueColor={(trade.realisedR ?? 0) > 0 ? 'text-jtp-profit' : (trade.realisedR ?? 0) < 0 ? 'text-jtp-loss' : 'text-jtp-text'}
           />
-          <StatCard
-            label="Plan R"
+          <StatTile
+            label="PLAN R"
             value={trade.planR != null ? `${trade.planR.toFixed(2)} R` : '—'}
-            color="neutral"
           />
-          <StatCard
-            label="Entry"
+          <StatTile
+            label="ENTRY"
             value={formatPrice(trade.entryPrice)}
-            color="neutral"
           />
-          <StatCard
-            label="Exit"
+          <StatTile
+            label="EXIT"
             value={formatPrice(trade.exitPrice)}
-            color="neutral"
           />
-          <StatCard
-            label="Size"
-            value={trade.lotSize != null ? `${trade.lotSize} lot` : '—'}
-            color="neutral"
-          />
-          <StatCard
-            label="Duration"
-            value={duration}
-            color="neutral"
-          />
-          <StatCard
-            label="MAE"
-            value={trade.mae != null ? formatPrice(trade.mae) : '—'}
-            color={trade.mae != null ? 'loss' : 'neutral'}
-            sub="max adverse"
-          />
-          <StatCard
-            label="MFE"
-            value={trade.mfe != null ? formatPrice(trade.mfe) : '—'}
-            color={trade.mfe != null ? 'profit' : 'neutral'}
-            sub="max favourable"
-          />
-          <StatCard
-            label="Confidence"
-            value={
-              trade.confidence != null ? (
-                <span className="text-jtp-blue">{trade.confidence}/5</span>
-              ) : (
-                '—'
-              )
-            }
-            color="neutral"
-          />
-          <StatCard
-            label="Commission"
-            value={trade.commission ? `-$${trade.commission.toFixed(2)}` : '—'}
-            color={trade.commission ? 'loss' : 'neutral'}
-          />
-          <StatCard
-            label="Swap"
-            value={trade.swap ? `-$${trade.swap.toFixed(2)}` : '—'}
-            color={trade.swap ? 'loss' : 'neutral'}
-          />
-          <StatCard
-            label="Risk %"
-            value={trade.riskPercentage != null ? `${trade.riskPercentage.toFixed(2)}%` : '—'}
-            color="neutral"
-          />
-          <StatCard
-            label="Setup"
-            value={<span className="text-jtp-base-minus">{setupName}</span>}
-            color="neutral"
-          />
+        </div>
+
+        {/* ── Secondary metrics strip ──────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2">
+          <StatChip label="SIZE"     value={trade.lotSize != null ? `${trade.lotSize} lot` : '—'} />
+          <StatChip label="DURATION" value={duration} />
+          <StatChip label="RISK %"   value={trade.riskPercentage != null ? `${trade.riskPercentage.toFixed(2)}%` : '—'} />
+          <StatChip label="MAE"      value={trade.mae != null ? formatPrice(trade.mae) : '—'}   color={trade.mae != null ? 'loss' : 'neutral'}    sub="max adverse" />
+          <StatChip label="MFE"      value={trade.mfe != null ? formatPrice(trade.mfe) : '—'}   color={trade.mfe != null ? 'profit' : 'neutral'}  sub="max favourable" />
+          <StatChip label="CONFIDENCE" value={trade.confidence != null ? `${trade.confidence}/5` : '—'} color={trade.confidence != null ? 'blue' : 'neutral'} />
+          <StatChip label="COMMISSION" value={trade.commission ? `-$${trade.commission.toFixed(2)}` : '—'} color={trade.commission ? 'loss' : 'neutral'} />
+          <StatChip label="SWAP"     value={trade.swap ? `-$${trade.swap.toFixed(2)}` : '—'}    color={trade.swap ? 'loss' : 'neutral'} />
+          <StatChip label="SETUP"    value={setupName} />
           {adherencePct != null && (
-            <StatCard
-              label="Adherence"
+            <StatChip
+              label="ADHERENCE"
               value={`${adherencePct}%`}
               color={adherencePct === 100 ? 'profit' : adherencePct >= 60 ? 'warning' : 'loss'}
             />
@@ -1010,20 +944,16 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
         </div>
 
         {/* ── Price Chart ─────────────────────────────────────────────────── */}
-        <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-          {/* Header: label + timeframe picker */}
-          <div className="px-5 py-2.5 border-b border-jtp-border flex items-center justify-between gap-3">
-            <span className="text-jtp-xs-plus font-semibold uppercase tracking-[0.4px] text-jtp-textDim shrink-0">
-              Price Chart
-            </span>
-            {/* Timeframe picker */}
+        <Panel
+          label="PRICE CHART"
+          actions={
             <div className="flex items-center gap-px">
               {TF_BUTTONS.map(tf => (
                 <button
                   key={tf.interval}
                   onClick={() => setChartInterval(tf.interval)}
                   className={[
-                    'px-2 py-1 rounded text-jtp-xs font-mono font-semibold transition-colors',
+                    'px-2 py-[5px] rounded text-jtp-xs font-mono font-semibold transition-colors',
                     chartInterval === tf.interval
                       ? 'bg-jtp-blue text-white'
                       : 'text-jtp-textDim hover:text-jtp-text hover:bg-jtp-hover',
@@ -1033,44 +963,43 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
                 </button>
               ))}
             </div>
-          </div>
-          <div className="px-5 py-4">
-            {chartLoading ? (
-              <div className="flex items-center justify-center" style={{ height: 320 }}>
-                <Spinner />
-              </div>
-            ) : chartEmpty ? (
-              <div className="flex flex-col items-center justify-center gap-2 text-center" style={{ height: 320 }}>
-                <span className="text-jtp-textDim text-jtp-base-minus">
-                  {(() => {
-                    const tf = TF_BUTTONS.find(t => t.interval === chartInterval);
-                    if (tf && ['1min','5min','15min','1h','4h'].includes(tf.interval)) {
-                      return `No ${tf.label} data this far back — try a higher timeframe.`;
-                    }
-                    return `Price chart unavailable for ${trade.asset}.`;
-                  })()}
+          }
+        >
+          {chartLoading ? (
+            <div className="flex items-center justify-center" style={{ height: 320 }}>
+              <Spinner />
+            </div>
+          ) : chartEmpty ? (
+            <div className="flex flex-col items-center justify-center gap-2 text-center" style={{ height: 320 }}>
+              <span className="text-jtp-textDim text-jtp-base-minus">
+                {(() => {
+                  const tf = TF_BUTTONS.find(t => t.interval === chartInterval);
+                  if (tf && ['1min','5min','15min','1h','4h'].includes(tf.interval)) {
+                    return `No ${tf.label} data this far back — try a higher timeframe.`;
+                  }
+                  return `Price chart unavailable for ${trade.asset}.`;
+                })()}
+              </span>
+              {chartNote && /key|plan|limit|coverage|demo/i.test(chartNote) && (
+                <span className="text-jtp-textFaint text-jtp-xs">
+                  Add a market-data API key for full symbol coverage.
                 </span>
-                {chartNote && /key|plan|limit|coverage|demo/i.test(chartNote) && (
-                  <span className="text-jtp-textFaint text-jtp-xs">
-                    Add a market-data API key for full symbol coverage.
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div style={{ height: 320 }}>
-                <TradeChart
-                  candles={chartCandles}
-                  trades={chartTrades}
-                  result={trade.result}
-                  direction={trade.direction}
-                  entryPrice={trade.entryPrice}
-                  stopLoss={trade.stopLoss}
-                  takeProfit={trade.takeProfit}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ height: 320 }}>
+              <TradeChart
+                candles={chartCandles}
+                trades={chartTrades}
+                result={trade.result}
+                direction={trade.direction}
+                entryPrice={trade.entryPrice}
+                stopLoss={trade.stopLoss}
+                takeProfit={trade.takeProfit}
+              />
+            </div>
+          )}
+        </Panel>
 
         {/* ── Two-column body ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
@@ -1079,7 +1008,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
           <div className="flex flex-col gap-5">
 
             {/* Screenshots */}
-            <Section title="Screenshots">
+            <Panel label="SCREENSHOTS">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InlineImageUploader
                   label="Before Entry"
@@ -1096,10 +1025,10 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
                   onEnlarge={setLightboxUrl}
                 />
               </div>
-            </Section>
+            </Panel>
 
             {/* Trade execution fields */}
-            <Section title="Execution Details">
+            <Panel label="EXECUTION DETAILS">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-4">
                 <EditableField label="Entry Price" value={entryPrice} editMode={editMode} onChange={setEntryPrice} type="number" />
                 <EditableField label="Exit Price"  value={exitPrice}  editMode={editMode} onChange={setExitPrice}  type="number" />
@@ -1112,10 +1041,10 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
                 <EditableField label="Commission"  value={commission} editMode={editMode} onChange={setCommission} type="number" />
                 <EditableField label="Swap"        value={swap}       editMode={editMode} onChange={setSwap}       type="number" />
               </div>
-            </Section>
+            </Panel>
 
             {/* Playbook / Setup selector */}
-            <Section title="Playbook & Setup">
+            <Panel label="PLAYBOOK & SETUP">
               {editMode ? (
                 <div className="flex flex-col gap-3">
                   <div>
@@ -1163,19 +1092,19 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
                   )}
                 </div>
               )}
-            </Section>
+            </Panel>
           </div>
 
           {/* Right column */}
           <div className="flex flex-col gap-5">
 
             {/* MAE / MFE + Confidence */}
-            <Section title="Trade Quality">
+            <Panel label="TRADE QUALITY">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <EditableField label="MAE (Max Adverse Excursion)" value={mae} editMode={editMode} onChange={setMae} type="number" placeholder="0.00000" />
                 <EditableField label="MFE (Max Favourable Excursion)" value={mfe} editMode={editMode} onChange={setMfe} type="number" placeholder="0.00000" />
                 <div className="flex flex-col gap-1.5 col-span-full">
-                  <span className="text-jtp-xs uppercase tracking-[0.4px] font-semibold text-jtp-textDim">Confidence</span>
+                  <span className="jtp-label">Confidence</span>
                   {editMode ? (
                     <ConfidenceEditor value={confidence} onChange={setConfidence} />
                   ) : (
@@ -1183,29 +1112,29 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
                   )}
                 </div>
               </div>
-            </Section>
+            </Panel>
 
             {/* Mistake tags */}
-            <Section title="Mistake Tags">
+            <Panel label="MISTAKE TAGS">
               <MistakeTagEditor
                 tags={mistakeTags}
                 allSuggestions={allMistakeSuggestions}
                 editMode={editMode}
                 onChange={setMistakeTags}
               />
-            </Section>
+            </Panel>
 
             {/* Pre-trade checklist */}
-            <Section title="Pre-Trade Checklist">
+            <Panel label="PRE-TRADE CHECKLIST">
               <ChecklistDisplay
                 items={preTradeChecklist}
                 editMode={editMode}
                 onChange={setPreTradeChecklist}
               />
-            </Section>
+            </Panel>
 
             {/* Journal notes */}
-            <Section title="Journal Notes">
+            <Panel label="JOURNAL NOTES">
               <div className="flex flex-col gap-4">
                 <EditableTextarea
                   label="Mindset Before Entry"
@@ -1232,7 +1161,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, initialEditMode = fals
                   rows={3}
                 />
               </div>
-            </Section>
+            </Panel>
           </div>
         </div>
       </div>

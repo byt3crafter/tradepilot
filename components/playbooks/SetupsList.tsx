@@ -77,8 +77,8 @@ const SetupsList: React.FC<SetupsListProps> = ({
   if (sorted.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-16 px-6">
-        <p className="text-jtp-textDim text-jtp-sm">No setups yet.</p>
-        <p className="text-jtp-textFaint text-jtp-xs mt-1">
+        <p className="text-jtp-textMuted text-jtp-lg">No setups yet.</p>
+        <p className="text-jtp-textFaint text-jtp-md mt-1">
           Add setups inside a playbook to see them here.
         </p>
       </div>

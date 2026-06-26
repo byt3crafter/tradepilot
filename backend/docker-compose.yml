@@ -1,0 +1,26 @@
+# Local Postgres for TradePilot (replaces the decommissioned Supabase instance).
+# Host port 5544 -> container 5432 to avoid clashing with other local postgres
+# containers on this machine. Data persists in the named volume.
+name: tradepilot-db
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tradepilot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tradepilot
+      POSTGRES_PASSWORD: tradepilot
+      POSTGRES_DB: tradepilot
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - tradepilot-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradepilot -d tradepilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  tradepilot-pgdata:

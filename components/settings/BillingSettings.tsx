@@ -2,13 +2,13 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usePaddle } from '../../context/PaddleContext';
 import { useView } from '../../context/ViewContext';
-import Card from '../Card';
-import Button from '../ui/Button';
+import { Panel, Badge, Button } from '../ui';
 
 const BillingSettings: React.FC = () => {
   const { user, isTrialing } = useAuth();
   const { isLoading: isPaddleLoading } = usePaddle();
   const { navigateTo } = useView();
+
   const calculateDaysRemaining = (endDate: string | null): number | null => {
     if (!endDate) return null;
     const now = new Date();
@@ -18,23 +18,23 @@ const BillingSettings: React.FC = () => {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const getStatusColor = (): string => {
+  const getStatusVariant = (): 'profit' | 'info' | 'loss' | 'neutral' => {
     switch (user?.subscriptionStatus) {
-      case 'ACTIVE':    return 'text-jtp-profit';
-      case 'TRIALING':  return 'text-jtp-blue';
-      case 'PAST_DUE':  return 'text-jtp-loss';
-      case 'CANCELED':  return 'text-jtp-textDim';
-      default:          return 'text-jtp-textDim';
+      case 'ACTIVE':   return 'profit';
+      case 'TRIALING': return 'info';
+      case 'PAST_DUE': return 'loss';
+      case 'CANCELED': return 'neutral';
+      default:         return 'neutral';
     }
   };
 
   const getStatusDisplay = (): string => {
     switch (user?.subscriptionStatus) {
-      case 'ACTIVE':   return 'Active';
-      case 'TRIALING': return 'Trial';
-      case 'PAST_DUE': return 'Past Due';
-      case 'CANCELED': return 'Canceled';
-      default:         return 'Unknown';
+      case 'ACTIVE':   return 'ACTIVE';
+      case 'TRIALING': return 'TRIALING';
+      case 'PAST_DUE': return 'PAST DUE';
+      case 'CANCELED': return 'CANCELED';
+      default:         return 'UNKNOWN';
     }
   };
 
@@ -43,96 +43,83 @@ const BillingSettings: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <h2 className="text-jtp-xl font-semibold text-jtp-text mb-5">Subscription</h2>
-
-        <div className="space-y-5">
-          {/* Current Status */}
-          <div className="pb-5 border-b border-jtp-border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-jtp-xs uppercase tracking-wider text-jtp-textDim mb-1">Current Status</p>
-                <p className={`text-jtp-2xl font-semibold ${getStatusColor()}`}>
-                  {getStatusDisplay()}
-                </p>
-              </div>
-              {showTrialWarning && daysRemaining !== null && (
-                <div className="text-right">
-                  <p className="text-jtp-sm text-jtp-warning font-medium">{daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining</p>
-                  <p className="text-jtp-xs text-jtp-textDim">in trial period</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Pro Access Expiration */}
-          {user?.proAccessExpiresAt && user?.subscriptionStatus === 'ACTIVE' && (
-            <div className="pb-5 border-b border-jtp-border">
-              <p className="text-jtp-xs uppercase tracking-wider text-jtp-textDim mb-1">Pro Access Expires</p>
-              <p className="text-jtp-md text-jtp-text">
-                {new Date(user.proAccessExpiresAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </p>
-            </div>
+      <Panel label="SUBSCRIPTION">
+        {/* Status row */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <Badge variant={getStatusVariant()} size="md">{getStatusDisplay()}</Badge>
+          {showTrialWarning && daysRemaining !== null && (
+            <p className="text-jtp-lg font-mono font-semibold text-jtp-warning">
+              {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
+            </p>
           )}
-
-          {/* Action */}
-          <div>
-            {isTrialing || user?.subscriptionStatus === 'PAST_DUE' ? (
-              <div className="space-y-3">
-                <p className="text-jtp-sm text-jtp-textDim">
-                  {isTrialing
-                    ? 'Your trial is active. Upgrade to Pro for unlimited access and all features.'
-                    : 'Your subscription has expired. Upgrade now to restore access.'}
-                </p>
-                <Button
-                  onClick={() => navigateTo('pricing')}
-                  isLoading={isPaddleLoading}
-                  disabled={isPaddleLoading}
-                  className="w-full"
-                >
-                  {isPaddleLoading ? 'Loading...' : 'View Plans & Upgrade'}
-                </Button>
-              </div>
-            ) : user?.subscriptionStatus === 'ACTIVE' ? (
-              <p className="text-jtp-sm text-jtp-profit">
-                Your subscription is active. Thank you for being a TradePilot user!
-              </p>
-            ) : (
-              <p className="text-jtp-sm text-jtp-textDim">
-                Your subscription has been canceled.
-              </p>
-            )}
-          </div>
         </div>
-      </Card>
 
-      {/* Billing FAQ */}
-      <Card>
-        <h2 className="text-jtp-xl font-semibold text-jtp-text mb-4">Billing FAQ</h2>
+        {/* Pro Access Expiration */}
+        {user?.proAccessExpiresAt && user?.subscriptionStatus === 'ACTIVE' && (
+          <div className="pt-4 border-t border-jtp-border mt-4">
+            <p className="jtp-label mb-1">PRO ACCESS EXPIRES</p>
+            <p className="text-jtp-md text-jtp-text">
+              {new Date(user.proAccessExpiresAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
+          </div>
+        )}
 
-        <div className="space-y-4 text-jtp-sm">
+        {/* Action */}
+        <div className="pt-4 border-t border-jtp-border mt-4">
+          {isTrialing || user?.subscriptionStatus === 'PAST_DUE' ? (
+            <div className="space-y-3">
+              <p className="text-jtp-md text-jtp-textMuted">
+                {isTrialing
+                  ? 'Your trial is active. Upgrade to Pro for unlimited access and all features.'
+                  : 'Your subscription has expired. Upgrade now to restore access.'}
+              </p>
+              <Button
+                onClick={() => navigateTo('pricing')}
+                isLoading={isPaddleLoading}
+                disabled={isPaddleLoading}
+                className="w-full"
+              >
+                {isPaddleLoading ? 'Loading...' : 'View Plans & Upgrade'}
+              </Button>
+            </div>
+          ) : user?.subscriptionStatus === 'ACTIVE' ? (
+            <p className="text-jtp-md text-jtp-profit">
+              Your subscription is active. Thank you for being a TradePilot user!
+            </p>
+          ) : (
+            <p className="text-jtp-md text-jtp-textMuted">
+              Your subscription has been canceled.
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      <Panel label="BILLING FAQ">
+        <div className="space-y-4">
           <div>
-            <p className="font-semibold text-jtp-textSoft mb-1">What happens when my trial ends?</p>
-            <p className="text-jtp-textDim">
+            <p className="text-jtp-md font-semibold text-jtp-textSoft mb-1">What happens when my trial ends?</p>
+            <p className="text-jtp-md text-jtp-textMuted">
               Your account will be restricted and you won't be able to create new trades or access advanced features. You can still view your historical data.
             </p>
           </div>
 
           <div className="pt-4 border-t border-jtp-border">
-            <p className="font-semibold text-jtp-textSoft mb-1">Can I cancel my subscription anytime?</p>
-            <p className="text-jtp-textDim">
+            <p className="text-jtp-md font-semibold text-jtp-textSoft mb-1">Can I cancel my subscription anytime?</p>
+            <p className="text-jtp-md text-jtp-textMuted">
               Yes, you can cancel your subscription anytime from your billing settings or by contacting our support team.
             </p>
           </div>
 
           <div className="pt-4 border-t border-jtp-border">
-            <p className="font-semibold text-jtp-textSoft mb-1">Early Adopter Pricing</p>
-            <p className="text-jtp-textDim">
-              As an early adopter, you lock in $5.99/month pricing forever and receive all new features. Contact{' '}
+            <p className="text-jtp-md font-semibold text-jtp-textSoft mb-1">Early Adopter Pricing</p>
+            <p className="text-jtp-md text-jtp-textMuted">
+              As an early adopter, you lock in{' '}
+              <span className="font-mono font-semibold text-jtp-text">$5.99/month</span>{' '}
+              pricing forever and receive all new features. Contact{' '}
               <a href="mailto:support@jtradepilot.com" className="text-jtp-blue hover:text-jtp-blueHover">
                 support@jtradepilot.com
               </a>
@@ -140,7 +127,7 @@ const BillingSettings: React.FC = () => {
             </p>
           </div>
         </div>
-      </Card>
+      </Panel>
     </div>
   );
 };

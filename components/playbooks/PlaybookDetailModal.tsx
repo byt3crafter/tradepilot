@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Drawer from '../ui/Drawer';
 import { Playbook, PlaybookStats, Trade } from '../../types';
-import Button from '../ui/Button';
+import { Button, Tabs, Badge, Panel, EmptyState } from '../ui';
+import type { Tab } from '../ui';
 import { PencilIcon } from '../icons/PencilIcon';
 import { useTrade } from '../../context/TradeContext';
 import TradeRow from '../TradeRow';
@@ -18,136 +19,230 @@ interface PlaybookDetailModalProps {
   onEdit: () => void;
 }
 
+// ─── Tag chip ────────────────────────────────────────────────────────────────
 const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="bg-photonic-blue/10 text-photonic-blue text-xs font-semibold px-2.5 py-1 rounded-full">
+  <span className="text-jtp-xs px-2.5 py-[3px] rounded-jtp-md bg-jtp-blue/10 text-jtp-blue font-medium">
     {children}
   </span>
 );
 
-const ChecklistDisplay: React.FC<{ title: string, items: { text: string }[] }> = ({ title, items }) => (
+// ─── Checklist display (read-only) ────────────────────────────────────────────
+const ChecklistDisplay: React.FC<{ title: string; items: { text: string }[] }> = ({ title, items }) => (
   <div>
-    <h4 className="font-semibold text-future-light mb-2">{title}</h4>
-    <ul className="list-disc list-inside space-y-1 text-sm text-future-gray">
-      {items.map((item, index) => <li key={index}>{item.text}</li>)}
-    </ul>
+    <div className="jtp-label mb-2">{title}</div>
+    {items.length === 0 ? (
+      <p className="text-jtp-md text-jtp-textFaint italic">Not defined</p>
+    ) : (
+      <ul className="space-y-1">
+        {items.map((item, index) => (
+          <li key={index} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+            <span className="text-jtp-textDim shrink-0 mt-px">·</span>
+            <span>{item.text}</span>
+          </li>
+        ))}
+      </ul>
+    )}
   </div>
 );
 
-const PlaybookDetailsTab: React.FC<{ playbook: Playbook, onEditTrade: (trade: Trade) => void }> = ({ playbook, onEditTrade }) => {
+// ─── Playbook details tab ─────────────────────────────────────────────────────
+const PlaybookDetailsTab: React.FC<{ playbook: Playbook; onEditTrade: (trade: Trade) => void }> = ({
+  playbook,
+  onEditTrade,
+}) => {
   const { closedTrades, isLoading: tradesLoading } = useTrade();
   const relevantTrades = closedTrades.filter(trade => trade.playbookId === playbook.id);
 
+  const allTags = [
+    ...playbook.tradingStyles,
+    ...playbook.instruments,
+    ...playbook.timeframes,
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* --- HEADER --- */}
-      <section>
-        <p className="text-future-gray italic">{playbook.coreIdea}</p>
-        <div className="flex flex-wrap gap-2 mt-3">
-          {playbook.tradingStyles.map(tag => <Tag key={tag}>{tag}</Tag>)}
-          {playbook.instruments.map(tag => <Tag key={tag}>{tag}</Tag>)}
-          {playbook.timeframes.map(tag => <Tag key={tag}>{tag}</Tag>)}
+    <div className="space-y-5">
+      {/* Header — core idea + tags */}
+      <Panel label="OVERVIEW">
+        <div className="space-y-3">
+          {playbook.coreIdea && (
+            <p className="text-jtp-lg text-jtp-textMuted leading-relaxed">{playbook.coreIdea}</p>
+          )}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {allTags.map(tag => <Tag key={tag}>{tag}</Tag>)}
+            </div>
+          )}
         </div>
-      </section>
+      </Panel>
 
-      {/* --- PROS & CONS --- */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className="font-orbitron text-momentum-green/80 mb-2">Pros</h3>
-          <ul className="list-disc list-inside space-y-1 text-sm text-future-light">
-            {playbook.pros.map((pro, i) => <li key={i}>{pro}</li>)}
-          </ul>
-        </div>
-        <div>
-          <h3 className="font-orbitron text-risk-high/80 mb-2">Cons to Manage</h3>
-          <ul className="list-disc list-inside space-y-1 text-sm text-future-light">
-            {playbook.cons.map((con, i) => <li key={i}>{con}</li>)}
-          </ul>
-        </div>
-      </section>
+      {/* Pros & Cons */}
+      {(playbook.pros.length > 0 || playbook.cons.length > 0) && (
+        <Panel label="EDGE ANALYSIS">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <div className="jtp-label text-jtp-profit mb-2">PROS</div>
+              <ul className="space-y-1">
+                {playbook.pros.filter(Boolean).map((pro, i) => (
+                  <li key={i} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+                    <span className="text-jtp-profit shrink-0 mt-px">+</span>
+                    <span>{pro}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="jtp-label text-jtp-loss mb-2">CONS TO MANAGE</div>
+              <ul className="space-y-1">
+                {playbook.cons.filter(Boolean).map((con, i) => (
+                  <li key={i} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+                    <span className="text-jtp-loss shrink-0 mt-px">−</span>
+                    <span>{con}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Panel>
+      )}
 
-      {/* --- SETUPS --- */}
-      <section>
-        <h2 className="text-xl font-orbitron text-photonic-blue mb-4 border-t border-photonic-blue/10 pt-4">Setups</h2>
-        <div className="space-y-6">
-          {playbook.setups.map(setup => (
-            <div key={setup.id} className="p-4 bg-future-dark/50 rounded-lg">
-              <h3 className="text-lg font-semibold text-future-light mb-4">{setup.name}</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <ChecklistDisplay title="Entry Criteria" items={setup.entryCriteria} />
-                  {setup.confirmationFilters && setup.confirmationFilters.length > 0 && (
-                    <ChecklistDisplay title="Confirmation Filters" items={setup.confirmationFilters} />
-                  )}
-                  {setup.exitRules && setup.exitRules.length > 0 && (
-                    <ChecklistDisplay title="Exit Rules" items={setup.exitRules} />
-                  )}
-                  <ChecklistDisplay title="Risk Management" items={setup.riskManagement} />
+      {/* Setups */}
+      {playbook.setups.length > 0 && (
+        <Panel label="SETUPS">
+          <div className="space-y-4">
+            {playbook.setups.map(setup => (
+              <div
+                key={setup.id}
+                className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4"
+              >
+                <div className="font-semibold text-jtp-lg text-jtp-text mb-4">{setup.name}</div>
 
-                  {setup.riskSettings && (
-                    <div className="mt-4 p-3 bg-white/5 rounded border border-white/5">
-                      <h4 className="font-semibold text-future-light mb-2 text-sm">Risk Parameters</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-future-gray block text-xs">Risk %</span>
-                          <span className="text-white">{setup.riskSettings.riskPercent}%</span>
-                        </div>
-                        <div>
-                          <span className="text-future-gray block text-xs">Stop Loss Type</span>
-                          <span className="text-white">{setup.riskSettings.stopLossType}</span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {/* Left — criteria */}
+                  <div className="space-y-4">
+                    <ChecklistDisplay title="ENTRY CRITERIA"     items={setup.entryCriteria} />
+                    {setup.confirmationFilters && setup.confirmationFilters.length > 0 && (
+                      <ChecklistDisplay title="CONFIRMATION FILTERS" items={setup.confirmationFilters} />
+                    )}
+                    {setup.exitRules && setup.exitRules.length > 0 && (
+                      <ChecklistDisplay title="EXIT RULES"       items={setup.exitRules} />
+                    )}
+                    <ChecklistDisplay title="RISK MANAGEMENT"   items={setup.riskManagement} />
+
+                    {setup.riskSettings && (
+                      <div className="p-3 bg-jtp-shell rounded-jtp-md border border-jtp-borderSubtle">
+                        <div className="jtp-label mb-2">RISK PARAMETERS</div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-jtp-xs text-jtp-textDim mb-0.5">Risk %</div>
+                            <div className="font-mono font-semibold text-jtp-lg text-jtp-textSoft">
+                              {setup.riskSettings.riskPercent}%
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-jtp-xs text-jtp-textDim mb-0.5">Stop Loss Type</div>
+                            <div className="font-semibold text-jtp-lg text-jtp-textSoft">
+                              {setup.riskSettings.stopLossType}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-xs text-future-gray">Ideal 'Before' Chart</span>
-                    {setup.screenshotBeforeUrl ? <img src={setup.screenshotBeforeUrl} alt="Before" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+                    )}
                   </div>
-                  <div>
-                    <span className="text-xs text-future-gray">Ideal 'After' Chart</span>
-                    {setup.screenshotAfterUrl ? <img src={setup.screenshotAfterUrl} alt="After" className="mt-1 rounded-md border border-future-panel" /> : <div className="mt-1 h-24 bg-future-dark/50 rounded-md flex items-center justify-center text-xs text-future-gray">Not provided</div>}
+
+                  {/* Right — screenshots */}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="jtp-label mb-1">BEFORE CHART</div>
+                      {setup.screenshotBeforeUrl ? (
+                        <img
+                          src={setup.screenshotBeforeUrl}
+                          alt="Before"
+                          className="rounded-jtp-md border border-jtp-border w-full"
+                        />
+                      ) : (
+                        <div className="h-24 bg-jtp-shell rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint border border-jtp-borderSubtle">
+                          Not provided
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="jtp-label mb-1">AFTER CHART</div>
+                      {setup.screenshotAfterUrl ? (
+                        <img
+                          src={setup.screenshotAfterUrl}
+                          alt="After"
+                          className="rounded-jtp-md border border-jtp-border w-full"
+                        />
+                      ) : (
+                        <div className="h-24 bg-jtp-shell rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint border border-jtp-borderSubtle">
+                          Not provided
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </Panel>
+      )}
 
-      {/* --- TRADE GALLERY --- */}
-      <section>
-        <h2 className="text-xl font-orbitron text-photonic-blue mb-4 border-t border-photonic-blue/10 pt-4">Trade Gallery</h2>
-        {tradesLoading ? <p>Loading trades...</p> : relevantTrades.length > 0 ? (
-          <div className="overflow-x-auto table-scrollbar -mx-6">
-            <table className="w-full border-collapse text-sm">
+      {/* Trade gallery */}
+      <Panel label={`TRADE GALLERY${relevantTrades.length > 0 ? ` (${relevantTrades.length})` : ''}`} noPadding>
+        {tradesLoading ? (
+          <div className="px-4 py-6 text-jtp-md text-jtp-textDim text-center">Loading trades…</div>
+        ) : relevantTrades.length > 0 ? (
+          <div className="overflow-x-auto -mx-0">
+            <table className="w-full border-collapse text-jtp-md">
               <thead>
-                <tr className="border-b border-photonic-blue/30">
-                  {['', '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Net P/L', 'Actions'].map((header, index) => (
-                    <th key={header} className={`p-3 text-left font-orbitron text-photonic-blue/80 uppercase tracking-wider text-xs ${index === 0 ? 'w-12' : ''}`}>
-                      {header}
-                    </th>
-                  ))}
+                <tr className="border-b border-jtp-border bg-jtp-raised">
+                  {['', '', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Result', 'Net P/L', 'Actions'].map(
+                    (header, i) => (
+                      <th
+                        key={i}
+                        className="px-3 py-2.5 text-left jtp-label"
+                      >
+                        {header}
+                      </th>
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {relevantTrades.map(trade => <TradeRow key={trade.id} trade={trade} onEdit={() => onEditTrade(trade)} isSelected={false} onSelect={() => { }} />)}
+                {relevantTrades.map(trade => (
+                  <TradeRow
+                    key={trade.id}
+                    trade={trade}
+                    onEdit={() => onEditTrade(trade)}
+                    isSelected={false}
+                    onSelect={() => {}}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-sm text-future-gray">No trades have been logged with this playbook yet.</p>
+          <EmptyState
+            title="No trades yet"
+            description="No trades have been logged with this playbook yet."
+          />
         )}
-      </section>
+      </Panel>
     </div>
   );
 };
+
+// ─── Main modal ───────────────────────────────────────────────────────────────
+const TABS: Tab[] = [
+  { id: 'details', label: 'Playbook Details' },
+  { id: 'stats',   label: 'Performance Stats' },
+];
 
 const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onClose, onEdit }) => {
   const { accessToken } = useAuth();
   const { deletePlaybook } = usePlaybook();
   const { refreshTrades } = useTrade();
-  const [activeTab, setActiveTab] = useState<'details' | 'stats'>('details');
+  const [activeTab, setActiveTab] = useState<string>('details');
   const [stats, setStats] = useState<PlaybookStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
@@ -162,7 +257,7 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
         const data = await api.getPlaybookStats(playbook.id, accessToken);
         setStats(data);
       } catch (error) {
-        console.error("Failed to fetch playbook stats", error);
+        console.error('Failed to fetch playbook stats', error);
         setStats(null);
       } finally {
         setIsLoadingStats(false);
@@ -191,11 +286,19 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
 
   const footer = (
     <div className="flex items-center gap-3">
-      <Button onClick={onEdit} variant="link" className="flex items-center gap-1.5 text-jtp-sm p-0">
+      <Button
+        onClick={onEdit}
+        variant="link"
+        className="flex items-center gap-1.5 text-jtp-md p-0"
+      >
         <PencilIcon className="w-4 h-4" /> Edit Playbook
       </Button>
       <span className="text-jtp-borderStrong">|</span>
-      <Button onClick={handleDelete} variant="link" className="flex items-center gap-1.5 text-jtp-sm p-0 text-risk-high">
+      <Button
+        onClick={handleDelete}
+        variant="link"
+        className="flex items-center gap-1.5 text-jtp-md p-0 !text-jtp-loss hover:!text-jtp-loss"
+      >
         <TrashIcon className="w-4 h-4" /> Delete
       </Button>
     </div>
@@ -210,25 +313,19 @@ const PlaybookDetailModal: React.FC<PlaybookDetailModalProps> = ({ playbook, onC
       width="xl"
       footer={footer}
     >
-      <div className="border-b border-jtp-border mb-4">
-        <nav className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab('details')}
-            className={`px-3 py-2 text-jtp-sm font-semibold transition-colors ${activeTab === 'details' ? 'text-jtp-blue border-b-2 border-jtp-blue' : 'text-jtp-textDim hover:text-jtp-text'}`}
-          >
-            Playbook Details
-          </button>
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`px-3 py-2 text-jtp-sm font-semibold transition-colors ${activeTab === 'stats' ? 'text-jtp-blue border-b-2 border-jtp-blue' : 'text-jtp-textDim hover:text-jtp-text'}`}
-          >
-            Performance Stats
-          </button>
-        </nav>
-      </div>
+      <Tabs
+        tabs={TABS}
+        active={activeTab}
+        onChange={setActiveTab}
+        className="mb-5 -mt-1"
+      />
 
-      {activeTab === 'details' && <PlaybookDetailsTab playbook={playbook} onEditTrade={handleEditTrade} />}
-      {activeTab === 'stats' && <PlaybookStatsTab stats={stats} isLoading={isLoadingStats} />}
+      {activeTab === 'details' && (
+        <PlaybookDetailsTab playbook={playbook} onEditTrade={handleEditTrade} />
+      )}
+      {activeTab === 'stats' && (
+        <PlaybookStatsTab stats={stats} isLoading={isLoadingStats} />
+      )}
 
       {isTradeModalOpen && (
         <TradeFormModal

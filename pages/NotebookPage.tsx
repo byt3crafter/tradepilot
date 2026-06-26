@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { NotebookEntry } from '../types';
-import Spinner from '../components/Spinner';
+import { Button, EmptyState, Skeleton } from '../components/ui';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ const PlusSmIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-const TrashIcon: React.FC<{ className?: string }> = ({ className }) => (
+const TrashSmIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
     <path d="M2.5 4.5h11M6 4.5V3a1 1 0 011-1h2a1 1 0 011 1v1.5M5.5 4.5l.5 8a1 1 0 001 1h3a1 1 0 001-1l.5-8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -62,37 +62,6 @@ const TagChip: React.FC<{ label: string; onRemove: () => void }> = ({ label, onR
       ×
     </button>
   </span>
-);
-
-// ─── Empty editor placeholder ─────────────────────────────────────────────────
-
-const EmptyEditorPlaceholder: React.FC<{ hasEntries: boolean; onNew: () => void }> = ({
-  hasEntries,
-  onNew,
-}) => (
-  <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
-    <div className="w-12 h-12 rounded-jtp-panel bg-jtp-active border border-jtp-border flex items-center justify-center">
-      <PenIcon className="w-5 h-5 text-jtp-textDim" />
-    </div>
-    <div>
-      <div className="text-jtp-lg font-semibold text-jtp-text mb-1">
-        {hasEntries ? 'Select an entry' : 'Start your first journal entry'}
-      </div>
-      <div className="text-jtp-sm text-jtp-textDim max-w-xs">
-        {hasEntries
-          ? 'Choose an entry from the list, or create a new one.'
-          : 'Capture your daily reflections, trading insights, and lessons learned.'}
-      </div>
-    </div>
-    <button
-      type="button"
-      onClick={onNew}
-      className="flex items-center gap-1.5 px-4 py-2 bg-jtp-blue hover:bg-jtp-blueHover text-white text-jtp-sm font-semibold rounded-jtp-xl transition-colors"
-    >
-      <PlusSmIcon className="w-3.5 h-3.5" />
-      New entry
-    </button>
-  </div>
 );
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
@@ -174,7 +143,6 @@ const NotebookPage: React.FC = () => {
     setTagInput('');
     setSaveError(null);
     setSavedFlash(false);
-    // Focus title after state settles
     setTimeout(() => titleRef.current?.focus(), 50);
   };
 
@@ -273,7 +241,7 @@ const NotebookPage: React.FC = () => {
 
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-jtp-border">
-          <span className="text-jtp-md font-semibold text-jtp-text">Entries</span>
+          <span className="jtp-label">ENTRIES</span>
           <button
             type="button"
             onClick={openNew}
@@ -288,31 +256,35 @@ const NotebookPage: React.FC = () => {
         {/* Scrollable list */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
+            <div className="p-4 space-y-2">
+              <Skeleton variant="text" lines={6} />
             </div>
           ) : listError ? (
-            <div className="px-4 py-6 text-jtp-xs text-jtp-loss text-center">
+            <div className="px-4 py-6 text-jtp-md text-jtp-loss text-center">
               {listError}
               <br />
               <button
                 type="button"
                 onClick={loadEntries}
-                className="mt-2 text-jtp-blue hover:underline"
+                className="mt-2 text-jtp-blue hover:underline text-jtp-md"
               >
                 Retry
               </button>
             </div>
           ) : entries.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <div className="text-jtp-sm text-jtp-textDim mb-3">No entries yet.</div>
-              <button
-                type="button"
-                onClick={openNew}
-                className="text-jtp-xs text-jtp-blue hover:underline"
-              >
-                Start your first journal entry
-              </button>
+            <div className="px-4 py-8">
+              <EmptyState
+                title="No entries yet"
+                action={
+                  <button
+                    type="button"
+                    onClick={openNew}
+                    className="text-jtp-md text-jtp-blue hover:underline"
+                  >
+                    Start your first journal entry
+                  </button>
+                }
+              />
             </div>
           ) : (
             <ul role="list">
@@ -332,18 +304,18 @@ const NotebookPage: React.FC = () => {
                           : 'border-l-2 border-l-transparent hover:bg-jtp-hover'
                       }`}
                     >
-                      <div className="text-jtp-xs text-jtp-textDim mb-0.5 font-medium">
+                      <div className="text-jtp-xs text-jtp-textDim mb-0.5 font-mono font-medium">
                         {entryDateLabel(entry.date)}
                       </div>
                       <div
-                        className={`text-jtp-sm font-medium truncate ${
+                        className={`text-jtp-lg font-medium truncate ${
                           isActive ? 'text-jtp-text' : 'text-jtp-textMuted'
                         }`}
                       >
                         {label}
                       </div>
                       {snippet && (
-                        <div className="text-jtp-xs text-jtp-textDim truncate mt-0.5">
+                        <div className="text-jtp-md text-jtp-textDim truncate mt-0.5">
                           {snippet}
                         </div>
                       )}
@@ -376,7 +348,25 @@ const NotebookPage: React.FC = () => {
       {/* ── Right pane: editor ────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col bg-jtp-bg overflow-hidden">
         {!showEditor ? (
-          <EmptyEditorPlaceholder hasEntries={entries.length > 0} onNew={openNew} />
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+            <div className="w-12 h-12 rounded-jtp-panel bg-jtp-active border border-jtp-border flex items-center justify-center">
+              <PenIcon className="w-5 h-5 text-jtp-textDim" />
+            </div>
+            <div>
+              <div className="text-jtp-xl font-semibold text-jtp-text mb-1">
+                {entries.length > 0 ? 'Select an entry' : 'Start your first journal entry'}
+              </div>
+              <div className="text-jtp-lg text-jtp-textMuted max-w-xs">
+                {entries.length > 0
+                  ? 'Choose an entry from the list, or create a new one.'
+                  : 'Capture your daily reflections, trading insights, and lessons learned.'}
+              </div>
+            </div>
+            <Button onClick={openNew} className="flex items-center gap-1.5 mt-1">
+              <PlusSmIcon className="w-3.5 h-3.5" />
+              New entry
+            </Button>
+          </div>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden">
 
@@ -388,21 +378,21 @@ const NotebookPage: React.FC = () => {
                 value={edDate}
                 onChange={e => setEdDate(e.target.value)}
                 aria-label="Entry date"
-                className="bg-jtp-active border border-jtp-borderStrong rounded-jtp-lg px-2.5 py-1 text-jtp-xs text-jtp-textMuted focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                className="bg-jtp-active border border-jtp-borderStrong rounded-jtp-lg px-2.5 py-1 text-jtp-md text-jtp-textMuted focus:outline-none focus:border-jtp-borderFocus transition-colors font-mono"
               />
 
               <div className="flex-1" />
 
               {/* Saved flash */}
               {savedFlash && (
-                <span className="text-jtp-xs text-jtp-profit animate-jtp-fade-in select-none">
+                <span className="text-jtp-md text-jtp-profit animate-jtp-fade-in select-none font-mono">
                   Saved
                 </span>
               )}
 
               {/* Save error */}
               {saveError && !savedFlash && (
-                <span className="text-jtp-xs text-jtp-loss max-w-[200px] truncate" title={saveError}>
+                <span className="text-jtp-md text-jtp-loss max-w-[200px] truncate" title={saveError}>
                   {saveError}
                 </span>
               )}
@@ -414,22 +404,21 @@ const NotebookPage: React.FC = () => {
                   onClick={handleDelete}
                   disabled={isDeleting || isSaving}
                   title="Delete entry"
-                  className="flex items-center gap-1 text-jtp-xs text-jtp-textDim hover:text-jtp-loss transition-colors disabled:opacity-40 px-2 py-1 rounded-jtp-lg hover:bg-jtp-hover"
+                  className="flex items-center gap-1.5 text-jtp-md text-jtp-textDim hover:text-jtp-loss transition-colors disabled:opacity-40 px-2 py-1 rounded-jtp-lg hover:bg-jtp-hover"
                 >
-                  <TrashIcon className="w-3.5 h-3.5" />
+                  <TrashSmIcon className="w-3.5 h-3.5" />
                   {isDeleting ? 'Deleting…' : 'Delete'}
                 </button>
               )}
 
               {/* Save button */}
-              <button
-                type="button"
+              <Button
                 onClick={handleSave}
                 disabled={isSaving || isDeleting}
-                className="px-3 py-1.5 bg-jtp-blue hover:bg-jtp-blueHover text-white text-jtp-xs font-semibold rounded-jtp-lg transition-colors disabled:opacity-50"
+                className="px-4 py-1.5 text-jtp-md"
               >
                 {isSaving ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
 
             {/* Title input */}
@@ -454,7 +443,7 @@ const NotebookPage: React.FC = () => {
                 onChange={e => setEdContent(e.target.value)}
                 placeholder="Write your thoughts, reflections, and trading insights…"
                 aria-label="Entry content"
-                className="flex-1 w-full bg-transparent text-jtp-md text-jtp-textSoft placeholder:text-jtp-textDisabled focus:outline-none resize-none"
+                className="flex-1 w-full bg-transparent text-jtp-lg text-jtp-textSoft placeholder:text-jtp-textDisabled focus:outline-none resize-none"
                 style={{ lineHeight: '1.75' }}
               />
             </div>
@@ -466,7 +455,7 @@ const NotebookPage: React.FC = () => {
                 role="group"
                 aria-label="Entry tags"
               >
-                <span className="text-jtp-xs text-jtp-textDim mr-0.5 select-none">Tags</span>
+                <span className="jtp-label mr-0.5 select-none">TAGS</span>
                 {edTags.map(tag => (
                   <TagChip
                     key={tag}
@@ -482,7 +471,7 @@ const NotebookPage: React.FC = () => {
                   onBlur={() => tagInput.trim() && commitTag()}
                   placeholder={edTags.length === 0 ? 'Add tag, press Enter…' : '+tag'}
                   aria-label="Add tag"
-                  className="bg-transparent text-jtp-xs text-jtp-textMuted placeholder:text-jtp-textDisabled focus:outline-none min-w-[72px] flex-1"
+                  className="bg-transparent text-jtp-md text-jtp-textMuted placeholder:text-jtp-textDisabled focus:outline-none min-w-[72px] flex-1"
                 />
               </div>
             </div>

@@ -242,10 +242,13 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, badge, isActive, isColla
     onClick={onClick}
     className={`w-full flex items-center gap-[11px] px-[10px] py-[8px] rounded-jtp-xl border-none cursor-pointer text-left text-jtp-md font-medium transition-colors ${
       isActive
-        ? 'bg-[rgba(91,141,239,0.12)] text-jtp-blue'
+        ? 'bg-[rgba(91,141,239,0.10)] text-jtp-blue'
         : 'bg-transparent text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
     } ${isCollapsed ? 'justify-center' : ''}`}
     title={isCollapsed ? label : undefined}
+    aria-current={isActive ? 'page' : undefined}
+    /* Left rail accent via inset box-shadow — stays within border-radius */
+    style={isActive ? { boxShadow: 'inset 2px 0 0 #5b8def' } : undefined}
   >
     <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center">{icon}</span>
     {!isCollapsed && (
@@ -328,15 +331,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* ── Brand block (52 px) ── */}
         <div
           className="flex-shrink-0 flex items-center border-b border-jtp-border"
-          style={{ height: '52px', padding: '0 18px', gap: '9px' }}
+          style={{ height: '52px', padding: '0 16px', gap: '10px' }}
         >
-          {/* Gradient mark */}
+          {/* Gradient mark — square console unit indicator */}
           <div
             className="flex-shrink-0 flex items-center justify-center rounded-jtp-md"
             style={{
-              width: '22px',
-              height: '22px',
-              background: 'linear-gradient(135deg,#5b8def,#3f6fd6)',
+              width: '24px',
+              height: '24px',
+              background: 'linear-gradient(135deg, #5b8def 0%, #3f6fd6 100%)',
+              boxShadow: '0 0 8px rgba(91,141,239,0.35)',
             }}
           >
             <div
@@ -346,12 +350,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </div>
 
           {!isSidebarCollapsed && (
-            <span
-              className="text-jtp-lg font-semibold text-jtp-text"
-              style={{ letterSpacing: '-0.2px' }}
-            >
-              JTradePilot
-            </span>
+            <div className="flex flex-col leading-none">
+              <span
+                className="text-jtp-lg font-semibold text-jtp-text"
+                style={{ letterSpacing: '-0.2px' }}
+              >
+                JTradePilot
+              </span>
+              <span
+                className="font-mono text-jtp-2xs text-jtp-textDim uppercase tracking-[0.08em]"
+                style={{ marginTop: '2px' }}
+              >
+                Operator Console
+              </span>
+            </div>
           )}
         </div>
 

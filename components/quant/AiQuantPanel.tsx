@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useView } from '../../context/ViewContext';
 import api from '../../services/api';
 import { AiOpportunity, AiStrategy } from '../../types';
+import { Panel, Badge, Button, EmptyState } from '../../components/ui';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -12,38 +13,19 @@ const profileUrl = (addr: string) => `https://polymarket.com/profile/${addr}`;
 const isConnectError = (msg: string) =>
   /settings\s*[→>-]+\s*ai/i.test(msg) || msg.includes('CHATGPT_NOT_CONNECTED');
 
-const Spinner: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    className={`animate-spin text-jtp-textDim ${className ?? 'w-4 h-4'}`}
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-  </svg>
-);
-
-const confidenceStyles: Record<AiStrategy['confidence'], string> = {
-  low: 'bg-[rgba(239,68,68,0.12)] text-jtp-loss border-[rgba(239,68,68,0.25)]',
-  medium: 'bg-[rgba(234,179,8,0.12)] text-jtp-warning border-[rgba(234,179,8,0.25)]',
-  high: 'bg-[rgba(34,197,94,0.12)] text-jtp-profit border-[rgba(34,197,94,0.25)]',
+// Confidence → Badge variant
+const CONFIDENCE_VARIANT: Record<AiStrategy['confidence'], 'profit' | 'warning' | 'loss'> = {
+  high: 'profit',
+  medium: 'warning',
+  low: 'loss',
 };
 
-const Chip: React.FC<{ label: string }> = ({ label }) =>
-  label ? (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-medium bg-jtp-active border border-jtp-border text-jtp-textMuted">
-      {label}
-    </span>
-  ) : null;
-
-// ─── Connect prompt (when AI not connected/permitted) ───────────────────────────
+// ─── Connect prompt (when AI not connected/permitted) ─────────────────────────
 
 const ConnectPrompt: React.FC = () => {
   const { navigateTo } = useView();
   return (
-    <p className="text-jtp-xs text-jtp-warning">
+    <p className="text-jtp-md text-jtp-warning">
       <button
         type="button"
         onClick={() => navigateTo('settings', 'ai')}
@@ -56,13 +38,15 @@ const ConnectPrompt: React.FC = () => {
   );
 };
 
-// ─── Opportunity card ───────────────────────────────────────────────────────────
+// ─── Opportunity card ─────────────────────────────────────────────────────────
 
 const OpportunityCard: React.FC<{ opp: AiOpportunity; rank: number }> = ({ opp, rank }) => (
   <div className="bg-jtp-bg border border-jtp-border rounded-jtp-xl overflow-hidden">
     <div className="px-4 py-3 border-b border-jtp-border flex items-center gap-2.5 flex-wrap">
       <span className="font-mono text-jtp-xs text-jtp-textDim">#{rank}</span>
-      <span className="text-jtp-sm font-semibold text-jtp-text truncate">{opp.wallet || 'Unknown wallet'}</span>
+      <span className="text-jtp-lg font-semibold text-jtp-text truncate">
+        {opp.wallet || 'Unknown wallet'}
+      </span>
       {opp.addr && (
         <a
           href={profileUrl(opp.addr)}
@@ -74,39 +58,33 @@ const OpportunityCard: React.FC<{ opp: AiOpportunity; rank: number }> = ({ opp, 
         </a>
       )}
       <span className="ml-auto flex items-center gap-2">
-        <Chip label={opp.focus} />
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-jtp-xs font-semibold border ${
-            opp.copyable
-              ? 'bg-[rgba(34,197,94,0.12)] text-jtp-profit border-[rgba(34,197,94,0.25)]'
-              : 'bg-[rgba(239,68,68,0.12)] text-jtp-loss border-[rgba(239,68,68,0.25)]'
-          }`}
-        >
+        {opp.focus && <Badge variant="neutral" size="xs">{opp.focus}</Badge>}
+        <Badge variant={opp.copyable ? 'profit' : 'loss'} size="xs">
           {opp.copyable ? '✓ Copyable' : '✗ Not copyable'}
-        </span>
+        </Badge>
       </span>
     </div>
     <div className="px-4 py-3 space-y-2.5">
       {opp.edge && (
-        <p className="font-mono text-jtp-sm text-jtp-textMuted">{opp.edge}</p>
+        <p className="font-mono text-jtp-md text-jtp-textMuted">{opp.edge}</p>
       )}
       {opp.action && (
         <div className="bg-jtp-active border border-jtp-borderFocus rounded-jtp-lg px-3 py-2">
-          <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">Action</span>
-          <p className="text-jtp-sm font-semibold text-jtp-text mt-0.5">{opp.action}</p>
+          <span className="jtp-label">Action</span>
+          <p className="text-jtp-lg font-semibold text-jtp-text mt-0.5">{opp.action}</p>
         </div>
       )}
       {opp.why && (
         <div>
-          <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">Why</span>
-          <p className="text-jtp-sm text-jtp-textMuted leading-relaxed mt-0.5">{opp.why}</p>
+          <span className="jtp-label">Why</span>
+          <p className="text-jtp-md text-jtp-textMuted leading-relaxed mt-0.5">{opp.why}</p>
         </div>
       )}
     </div>
   </div>
 );
 
-// ─── Strategy card ──────────────────────────────────────────────────────────────
+// ─── Strategy card ────────────────────────────────────────────────────────────
 
 const RuleList: React.FC<{ title: string; rules: string[]; accent: string }> = ({ title, rules, accent }) => (
   <div className="bg-jtp-bg border border-jtp-border rounded-jtp-xl px-4 py-3">
@@ -114,7 +92,7 @@ const RuleList: React.FC<{ title: string; rules: string[]; accent: string }> = (
     {rules && rules.length > 0 ? (
       <ul className="space-y-1.5">
         {rules.map((r, i) => (
-          <li key={i} className="text-jtp-sm text-jtp-textMuted leading-snug flex gap-2">
+          <li key={i} className="text-jtp-md text-jtp-textMuted leading-snug flex gap-2">
             <span className="text-jtp-textDim flex-shrink-0">•</span>
             <span>{r}</span>
           </li>
@@ -129,12 +107,17 @@ const RuleList: React.FC<{ title: string; rules: string[]; accent: string }> = (
 const StrategyCard: React.FC<{ strategy: AiStrategy }> = ({ strategy }) => (
   <div className="bg-jtp-bg border border-jtp-border rounded-jtp-xl overflow-hidden">
     <div className="px-4 py-3 border-b border-jtp-border flex items-center gap-2.5 flex-wrap">
-      <span className="text-jtp-base font-semibold text-jtp-text">{strategy.name || 'Untitled strategy'}</span>
-      <Chip label={strategy.marketType} />
-      <span
-        className={`ml-auto inline-flex items-center px-2.5 py-1 rounded-md text-jtp-xs font-bold border capitalize ${confidenceStyles[strategy.confidence] ?? confidenceStyles.medium}`}
-      >
-        {strategy.confidence} confidence
+      <span className="text-jtp-lg font-semibold text-jtp-text">
+        {strategy.name || 'Untitled strategy'}
+      </span>
+      {strategy.marketType && <Badge variant="neutral" size="xs">{strategy.marketType}</Badge>}
+      <span className="ml-auto">
+        <Badge
+          variant={CONFIDENCE_VARIANT[strategy.confidence] ?? 'warning'}
+          size="sm"
+        >
+          {strategy.confidence} confidence
+        </Badge>
       </span>
     </div>
     <div className="px-4 py-4 space-y-3">
@@ -145,8 +128,8 @@ const StrategyCard: React.FC<{ strategy: AiStrategy }> = ({ strategy }) => (
       </div>
       {strategy.rationale && (
         <div>
-          <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">Rationale</span>
-          <p className="text-jtp-sm text-jtp-textMuted leading-relaxed mt-0.5">{strategy.rationale}</p>
+          <span className="jtp-label">Rationale</span>
+          <p className="text-jtp-md text-jtp-textMuted leading-relaxed mt-0.5">{strategy.rationale}</p>
         </div>
       )}
       <p className="text-jtp-xs text-jtp-textDim italic">Draft strategy — backtest before trading.</p>
@@ -154,7 +137,7 @@ const StrategyCard: React.FC<{ strategy: AiStrategy }> = ({ strategy }) => (
   </div>
 );
 
-// ─── Main panel ─────────────────────────────────────────────────────────────────
+// ─── Main panel ───────────────────────────────────────────────────────────────
 
 const AiQuantPanel: React.FC = () => {
   const { getToken } = useAuth();
@@ -210,81 +193,76 @@ const AiQuantPanel: React.FC = () => {
     }
   }, [getToken]);
 
-  return (
-    <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-      <div className="px-5 py-4 border-b border-jtp-border flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">⚡ AI Opportunities</h2>
-          <p className="text-jtp-xs text-jtp-textDim mt-1">
-            AI-suggested copyable edges — not financial advice.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={findOpportunities}
-            disabled={oppLoading}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {oppLoading ? <Spinner /> : null}
-            {oppLoading ? 'Scanning…' : opps ? 'Re-scan' : 'Find opportunities'}
-          </button>
-          <button
-            type="button"
-            onClick={buildStrategy}
-            disabled={stratLoading}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {stratLoading ? <Spinner /> : null}
-            {stratLoading ? 'Building…' : '🧠 Build Strategy'}
-          </button>
-        </div>
-      </div>
-
-      <div className="px-5 py-4 space-y-4">
-        {/* ── Opportunities results ── */}
-        {oppNeedsConnect && <ConnectPrompt />}
-        {oppError && (
-          <p role="alert" className="text-jtp-xs text-jtp-loss">
-            {oppError}
-          </p>
-        )}
-        {opps && opps.length > 0 && (
-          <div className="space-y-2.5">
-            {opps.map((opp, i) => (
-              <OpportunityCard key={opp.addr || i} opp={opp} rank={i + 1} />
-            ))}
-          </div>
-        )}
-        {opps && opps.length === 0 && (
-          <div className="text-center py-6">
-            <p className="text-jtp-sm text-jtp-textMuted font-medium">No copyable opportunities right now</p>
-            {oppNote && <p className="text-jtp-xs text-jtp-textDim mt-1 max-w-md mx-auto">{oppNote}</p>}
-          </div>
-        )}
-
-        {/* ── Strategy result ── */}
-        {(stratNeedsConnect || stratError || strategy) && (
-          <div className="pt-1 border-t border-jtp-borderSubtle space-y-2.5">
-            <h3 className="text-jtp-sm font-semibold text-jtp-text pt-3">🧠 AI Strategy</h3>
-            {stratNeedsConnect && <ConnectPrompt />}
-            {stratError && (
-              <p role="alert" className="text-jtp-xs text-jtp-loss">
-                {stratError}
-              </p>
-            )}
-            {strategy && <StrategyCard strategy={strategy} />}
-          </div>
-        )}
-
-        {/* ── Idle hint ── */}
-        {!opps && !oppLoading && !oppError && !oppNeedsConnect && !strategy && !stratLoading && !stratError && !stratNeedsConnect && (
-          <p className="text-jtp-xs text-jtp-textDim">
-            Scan the qualified leaderboard for AI-ranked copyable edges, or generate a draft strategy.
-          </p>
-        )}
-      </div>
+  const panelActions = (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="secondary"
+        onClick={buildStrategy}
+        isLoading={stratLoading}
+        disabled={stratLoading}
+      >
+        {stratLoading ? 'Building…' : 'Build Strategy'}
+      </Button>
+      <Button
+        variant="primary"
+        onClick={findOpportunities}
+        isLoading={oppLoading}
+        disabled={oppLoading}
+      >
+        {oppLoading ? 'Scanning…' : opps ? 'Re-scan' : 'Find Opportunities'}
+      </Button>
     </div>
+  );
+
+  return (
+    <Panel label="AI OPPORTUNITIES" actions={panelActions}>
+      <p className="text-jtp-md text-jtp-textDim mb-4">
+        AI-suggested copyable edges — not financial advice.
+      </p>
+
+      {/* ── Opportunities results ── */}
+      {oppNeedsConnect && <ConnectPrompt />}
+      {oppError && (
+        <p role="alert" className="text-jtp-md text-jtp-loss">
+          {oppError}
+        </p>
+      )}
+      {opps && opps.length > 0 && (
+        <div className="space-y-2.5">
+          {opps.map((opp, i) => (
+            <OpportunityCard key={opp.addr || i} opp={opp} rank={i + 1} />
+          ))}
+        </div>
+      )}
+      {opps && opps.length === 0 && (
+        <EmptyState
+          title="No copyable opportunities right now"
+          description={oppNote ?? undefined}
+        />
+      )}
+
+      {/* ── Strategy result ── */}
+      {(stratNeedsConnect || stratError || strategy) && (
+        <div className="pt-4 border-t border-jtp-borderSubtle space-y-3 mt-4">
+          <span className="jtp-label">AI Strategy</span>
+          {stratNeedsConnect && <ConnectPrompt />}
+          {stratError && (
+            <p role="alert" className="text-jtp-md text-jtp-loss">
+              {stratError}
+            </p>
+          )}
+          {strategy && <StrategyCard strategy={strategy} />}
+        </div>
+      )}
+
+      {/* ── Idle hint ── */}
+      {!opps && !oppLoading && !oppError && !oppNeedsConnect &&
+        !strategy && !stratLoading && !stratError && !stratNeedsConnect && (
+        <p className="text-jtp-md text-jtp-textDim">
+          Scan the qualified leaderboard for AI-ranked copyable edges, or generate a draft strategy.
+        </p>
+      )}
+    </Panel>
   );
 };
 

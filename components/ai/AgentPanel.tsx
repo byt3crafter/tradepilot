@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AgentRun, AgentTool, ScheduledAgent, ScheduledAgentFrequency } from '../../types';
-import Card from '../Card';
+import { Panel, Badge, ToggleSwitch, Button, DataTable } from '../ui';
+import type { TableColumn } from '../ui';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,14 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
   >
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+  </svg>
+);
+
+// ─── Trash icon ───────────────────────────────────────────────────────────────
+
+const TrashIcon: React.FC = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
   </svg>
 );
 
@@ -62,42 +71,7 @@ const stringify = (value: unknown): string => {
   }
 };
 
-// ─── Toggle switch (shared look with AiSettings) ────────────────────────────────
-
-const Toggle: React.FC<{
-  enabled: boolean;
-  busy?: boolean;
-  label: string;
-  onChange: (next: boolean) => void;
-}> = ({ enabled, busy, label, onChange }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={enabled}
-    aria-label={label}
-    disabled={busy}
-    onClick={() => onChange(!enabled)}
-    className={`relative inline-flex flex-shrink-0 h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-jtp-borderFocus ${
-      enabled ? 'bg-jtp-profit' : 'bg-jtp-control border border-jtp-borderStrong'
-    }`}
-  >
-    <span
-      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-        enabled ? 'translate-x-6' : 'translate-x-1'
-      }`}
-    />
-  </button>
-);
-
-const Chip: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-  <span
-    className={`inline-flex items-center px-2 py-0.5 rounded-md text-jtp-xs font-medium border ${
-      className ?? 'bg-jtp-control text-jtp-textDim border-jtp-borderStrong'
-    }`}
-  >
-    {children}
-  </span>
-);
+const truncate = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 // ─── Agent Tools & Skills card ────────────────────────────────────────────────
 
@@ -205,27 +179,94 @@ const AgentToolsCard: React.FC = () => {
     }
   }, [name, description, method, url, category, getToken, refresh]);
 
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <h2 className="text-jtp-xl font-semibold text-jtp-text">Agent Tools &amp; Skills</h2>
-        <button
-          type="button"
-          onClick={() => setShowForm((s) => !s)}
-          className="text-jtp-sm font-medium text-jtp-blue hover:underline whitespace-nowrap"
-        >
-          {showForm ? 'Cancel' : '+ Add Skill'}
-        </button>
-      </div>
-      <p className="text-jtp-md text-jtp-textDim mb-4">
-        Tools and skills the AI agent can call while researching and acting on your behalf. Disable any
-        you don't want it to use.
-      </p>
+  const toolColumns: TableColumn<any>[] = [
+    {
+      key: 'name',
+      header: 'TOOL / SKILL',
+      render: (_v, row) => (
+        <div className="py-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-jtp-md font-medium text-jtp-text">{row.name}</span>
+            <span className="font-mono text-jtp-xs text-jtp-textDim">{row.key}</span>
+            {row.category && (
+              <Badge variant="neutral" size="xs">{row.category}</Badge>
+            )}
+            <Badge variant={row.kind === 'builtin' ? 'info' : 'neutral'} size="xs">
+              {row.kind === 'builtin' ? 'BUILTIN' : 'HTTP'}
+            </Badge>
+          </div>
+          {row.description && (
+            <p className="text-jtp-md text-jtp-textMuted mt-0.5">{row.description}</p>
+          )}
+          {row.kind === 'http' && row.httpUrl && (
+            <p className="font-mono text-jtp-xs text-jtp-textMuted mt-0.5 truncate">
+              {row.httpMethod} {row.httpUrl}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'kind',
+      header: 'TYPE',
+      width: '80px',
+      render: (_v, row) => (
+        <Badge variant={row.kind === 'builtin' ? 'info' : 'neutral'} size="xs">
+          {row.kind === 'builtin' ? 'BUILTIN' : 'HTTP'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'enabled',
+      header: 'ENABLED',
+      width: '80px',
+      align: 'center',
+      render: (v, row) => (
+        <div className="flex justify-center">
+          <ToggleSwitch
+            label=""
+            checked={v}
+            onChange={(next) => handleToggle(row as AgentTool, next)}
+            disabled={busyId === row.id}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'id',
+      header: '',
+      width: '48px',
+      align: 'right',
+      render: (_v, row) =>
+        !row.builtin ? (
+          <button
+            type="button"
+            onClick={() => handleDelete(row as AgentTool)}
+            disabled={busyId === row.id}
+            aria-label={`Delete ${row.name}`}
+            title="Delete skill"
+            className="p-1.5 rounded-md text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <TrashIcon />
+          </button>
+        ) : null,
+    },
+  ];
 
+  return (
+    <Panel
+      label="AGENT TOOLS & SKILLS"
+      noPadding
+      actions={
+        <Button variant="link" onClick={() => setShowForm((s) => !s)} className="text-jtp-md">
+          {showForm ? 'Cancel' : '+ Add Skill'}
+        </Button>
+      }
+    >
       {/* Add-skill form */}
       {showForm && (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg p-5 space-y-3 mb-4">
-          <p className="text-jtp-xs text-jtp-textMuted leading-relaxed">
+        <div className="p-4 border-b border-jtp-border space-y-3">
+          <p className="text-jtp-md text-jtp-textMuted leading-relaxed">
             Install an external skill the agent can call. Must be an https endpoint; it receives the
             agent's args (GET query / POST JSON).
           </p>
@@ -236,7 +277,7 @@ const AgentToolsCard: React.FC = () => {
               onChange={(e) => setName(e.target.value)}
               placeholder="Skill name"
               spellCheck={false}
-              className="bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
             />
             <input
               type="text"
@@ -244,22 +285,22 @@ const AgentToolsCard: React.FC = () => {
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Category (optional)"
               spellCheck={false}
-              className="bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
             />
           </div>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What does this skill do? (helps the agent decide when to call it)"
+            placeholder="What does this skill do?"
             spellCheck={false}
-            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
           />
           <div className="flex flex-col sm:flex-row gap-2.5">
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as 'GET' | 'POST')}
-              className="bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md font-mono text-jtp-text focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
             >
               <option value="GET">GET</option>
               <option value="POST">POST</option>
@@ -271,97 +312,48 @@ const AgentToolsCard: React.FC = () => {
               placeholder="https://api.example.com/skill"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
             />
-            <button
-              type="button"
-              onClick={handleAdd}
-              disabled={adding}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {adding ? <Spinner /> : null}
+            <Button onClick={handleAdd} isLoading={adding} disabled={adding} className="whitespace-nowrap">
               {adding ? 'Adding…' : 'Add Skill'}
-            </button>
+            </Button>
           </div>
           {formError && (
-            <p role="alert" className="text-jtp-xs text-jtp-loss">
-              {formError}
-            </p>
+            <p role="alert" className="text-jtp-md text-jtp-loss">{formError}</p>
           )}
         </div>
       )}
 
       {error && (
-        <p role="alert" className="text-jtp-xs text-jtp-loss mb-2">
-          {error}
-        </p>
+        <div className="px-4 py-2">
+          <p role="alert" className="text-jtp-md text-jtp-loss">{error}</p>
+        </div>
       )}
 
-      {/* Tools list */}
       {loading ? (
-        <div className="flex items-center gap-2 text-jtp-textDim">
+        <div className="flex items-center gap-2 text-jtp-textMuted p-4">
           <Spinner />
-          <span className="text-jtp-sm">Loading tools…</span>
+          <span className="text-jtp-md">Loading tools…</span>
         </div>
-      ) : tools.length === 0 ? (
-        <p className="text-jtp-sm text-jtp-textDim">No tools registered yet.</p>
       ) : (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg divide-y divide-jtp-border">
-          {tools.map((tool) => (
-            <div key={tool.id} className="flex items-start justify-between gap-4 p-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-jtp-md font-medium text-jtp-text">{tool.name}</span>
-                  <span className="font-mono text-jtp-xs text-jtp-textDim">{tool.key}</span>
-                  {tool.category && <Chip>{tool.category}</Chip>}
-                  {tool.kind === 'builtin' ? (
-                    <Chip className="bg-[rgba(59,130,246,0.12)] text-jtp-blue border-[rgba(59,130,246,0.25)]">builtin</Chip>
-                  ) : (
-                    <Chip className="bg-[rgba(168,85,247,0.12)] text-[#c084fc] border-[rgba(168,85,247,0.25)]">http</Chip>
-                  )}
-                </div>
-                <p className="text-jtp-sm text-jtp-textDim mt-1">{tool.description}</p>
-                {tool.kind === 'http' && tool.httpUrl && (
-                  <p className="font-mono text-jtp-xs text-jtp-textMuted mt-1 truncate">
-                    {tool.httpMethod} {tool.httpUrl}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Toggle
-                  enabled={tool.enabled}
-                  busy={busyId === tool.id}
-                  label={`Enable ${tool.name}`}
-                  onChange={(next) => handleToggle(tool, next)}
-                />
-                {!tool.builtin && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(tool)}
-                    disabled={busyId === tool.id}
-                    aria-label={`Delete ${tool.name}`}
-                    title="Delete skill"
-                    className="p-1.5 rounded-md text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    🗑
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <DataTable
+          columns={toolColumns}
+          data={tools as any[]}
+          keyFn={(t) => t.id}
+          emptyMessage="No tools registered yet."
+        />
       )}
-    </Card>
+    </Panel>
   );
 };
 
 // ─── Scheduled Agents card ──────────────────────────────────────────────────────
 
 const FREQUENCY_OPTIONS: { value: ScheduledAgentFrequency; label: string; chip: string }[] = [
-  { value: '15m', label: 'Every 15m', chip: '15m' },
-  { value: 'hourly', label: 'Hourly', chip: 'Hourly' },
-  { value: '6h', label: 'Every 6h', chip: '6h' },
-  { value: 'daily', label: 'Daily', chip: 'Daily' },
+  { value: '15m',    label: 'Every 15m', chip: '15m' },
+  { value: 'hourly', label: 'Hourly',    chip: 'Hourly' },
+  { value: '6h',     label: 'Every 6h',  chip: '6h' },
+  { value: 'daily',  label: 'Daily',     chip: 'Daily' },
 ];
 
 const frequencyChip = (f: ScheduledAgentFrequency): string =>
@@ -487,31 +479,28 @@ const ScheduledAgentsCard: React.FC = () => {
   }, [name, goal, frequency, getToken, refresh]);
 
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <h2 className="text-jtp-xl font-semibold text-jtp-text">Scheduled Agents</h2>
-        <button
-          type="button"
-          onClick={() => setShowForm((s) => !s)}
-          className="text-jtp-sm font-medium text-jtp-blue hover:underline whitespace-nowrap"
-        >
-          {showForm ? 'Cancel' : '+ New scheduled agent'}
-        </button>
-      </div>
-      <p className="text-jtp-md text-jtp-textDim mb-4">
+    <Panel
+      label="SCHEDULED AGENTS"
+      actions={
+        <Button variant="link" onClick={() => setShowForm((s) => !s)} className="text-jtp-md">
+          {showForm ? 'Cancel' : '+ New Schedule'}
+        </Button>
+      }
+    >
+      <p className="text-jtp-md text-jtp-textMuted mb-4">
         Autonomous agents that run on a timer using your tools, then log to Activity and notify you.
       </p>
 
       {/* New-schedule form */}
       {showForm && (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg p-5 space-y-3 mb-4">
+        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3 mb-4">
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Agent name"
             spellCheck={false}
-            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
           />
           <textarea
             value={goal}
@@ -519,84 +508,70 @@ const ScheduledAgentsCard: React.FC = () => {
             placeholder="What should this agent do each run? (e.g. Review my open trades and flag any that breach my risk rules)"
             rows={3}
             spellCheck={false}
-            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors resize-y"
+            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors resize-y"
           />
           <div className="flex flex-col sm:flex-row gap-2.5">
             <select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as ScheduledAgentFrequency)}
-              className="bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
             >
               {FREQUENCY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={creating}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {creating ? <Spinner /> : null}
+            <Button onClick={handleCreate} isLoading={creating} disabled={creating} className="whitespace-nowrap">
               {creating ? 'Creating…' : 'Create agent'}
-            </button>
+            </Button>
           </div>
           {formError && (
-            <p role="alert" className="text-jtp-xs text-jtp-loss">
-              {formError}
-            </p>
+            <p role="alert" className="text-jtp-md text-jtp-loss">{formError}</p>
           )}
         </div>
       )}
 
       {error && (
-        <p role="alert" className="text-jtp-xs text-jtp-loss mb-2">
-          {error}
-        </p>
+        <p role="alert" className="text-jtp-md text-jtp-loss mb-2">{error}</p>
       )}
 
       {/* Schedules list */}
       {loading ? (
-        <div className="flex items-center gap-2 text-jtp-textDim">
+        <div className="flex items-center gap-2 text-jtp-textMuted">
           <Spinner />
-          <span className="text-jtp-sm">Loading scheduled agents…</span>
+          <span className="text-jtp-md">Loading scheduled agents…</span>
         </div>
       ) : schedules.length === 0 ? (
-        <p className="text-jtp-sm text-jtp-textDim">No scheduled agents yet.</p>
+        <p className="text-jtp-md text-jtp-textMuted">No scheduled agents yet.</p>
       ) : (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg divide-y divide-jtp-border">
+        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel divide-y divide-jtp-border mt-2">
           {schedules.map((schedule) => (
             <div key={schedule.id} className="flex items-start justify-between gap-4 p-4">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <span className="text-jtp-md font-medium text-jtp-text">{schedule.name}</span>
-                  <Chip className="bg-[rgba(59,130,246,0.12)] text-jtp-blue border-[rgba(59,130,246,0.25)]">
-                    {frequencyChip(schedule.frequency)}
-                  </Chip>
+                  <Badge variant="info" size="xs">{frequencyChip(schedule.frequency)}</Badge>
                 </div>
-                <p className="text-jtp-sm text-jtp-textDim mt-1">{truncateGoal(schedule.goal, 140)}</p>
-                <p className="text-jtp-xs text-jtp-textMuted mt-1">
-                  Last run: {schedule.lastRunAt ? relativeTime(schedule.lastRunAt) : 'never'} · Next run:{' '}
+                <p className="text-jtp-md text-jtp-textMuted mt-0.5">{truncateGoal(schedule.goal, 140)}</p>
+                <p className="text-jtp-md font-mono text-jtp-textMuted mt-0.5">
+                  Last: {schedule.lastRunAt ? relativeTime(schedule.lastRunAt) : 'never'} · Next:{' '}
                   {schedule.enabled ? relativeFuture(schedule.nextRunAt) : 'paused'}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   onClick={() => handleRunNow(schedule)}
+                  isLoading={runningId === schedule.id}
                   disabled={runningId === schedule.id || busyId === schedule.id}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-control text-jtp-text border border-jtp-borderStrong hover:bg-jtp-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="px-3 py-1.5 text-jtp-md whitespace-nowrap"
                 >
-                  {runningId === schedule.id ? <Spinner /> : null}
                   {runningId === schedule.id ? 'Running…' : 'Run now'}
-                </button>
-                <Toggle
-                  enabled={schedule.enabled}
-                  busy={busyId === schedule.id}
-                  label={`Enable ${schedule.name}`}
+                </Button>
+                <ToggleSwitch
+                  label=""
+                  checked={schedule.enabled}
                   onChange={(next) => handleToggle(schedule, next)}
+                  disabled={busyId === schedule.id}
                 />
                 <button
                   type="button"
@@ -606,7 +581,7 @@ const ScheduledAgentsCard: React.FC = () => {
                   title="Delete scheduled agent"
                   className="p-1.5 rounded-md text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  🗑
+                  <TrashIcon />
                 </button>
               </div>
             </div>
@@ -614,28 +589,23 @@ const ScheduledAgentsCard: React.FC = () => {
         </div>
       )}
 
-      <p className="text-jtp-xs text-jtp-textMuted mt-3">
+      <p className="text-jtp-md text-jtp-textMuted mt-3">
         Scheduled runs use your connected ChatGPT/Codex quota.
       </p>
-    </Card>
+    </Panel>
   );
 };
 
 // ─── Agent Activity (audit / debug log) card ──────────────────────────────────
 
-const statusBadge = (status: AgentRun['status']): string => {
+const statusVariant = (status: AgentRun['status']): 'profit' | 'warning' | 'loss' => {
   switch (status) {
-    case 'done':
-      return 'bg-[rgba(34,197,94,0.12)] text-jtp-profit border-[rgba(34,197,94,0.25)]';
-    case 'limit':
-      return 'bg-[rgba(217,162,59,0.12)] text-jtp-warning border-[rgba(217,162,59,0.25)]';
+    case 'done':  return 'profit';
+    case 'limit': return 'warning';
     case 'error':
-    default:
-      return 'bg-[rgba(239,68,68,0.12)] text-jtp-loss border-[rgba(239,68,68,0.25)]';
+    default:      return 'loss';
   }
 };
-
-const truncate = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 const AgentActivityCard: React.FC = () => {
   const { getToken } = useAuth();
@@ -663,37 +633,34 @@ const AgentActivityCard: React.FC = () => {
   }, [refresh]);
 
   return (
-    <Card>
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <h2 className="text-jtp-xl font-semibold text-jtp-text">Agent Activity</h2>
-        <button
-          type="button"
-          onClick={() => refresh()}
-          className="text-jtp-sm font-medium text-jtp-blue hover:underline"
-        >
+    <Panel
+      label="AGENT ACTIVITY"
+      actions={
+        <Button variant="link" onClick={refresh} className="text-jtp-md">
           Refresh
-        </button>
-      </div>
-      <p className="text-jtp-md text-jtp-textDim mb-4">
+        </Button>
+      }
+    >
+      <p className="text-jtp-md text-jtp-textMuted mb-4">
         A debug log of recent agent runs. Click a run to inspect exactly which tools it called, the
         arguments it sent, and what came back.
       </p>
 
       {error && (
-        <p role="alert" className="text-jtp-xs text-jtp-loss mb-2">
-          {error}
-        </p>
+        <p role="alert" className="text-jtp-md text-jtp-loss mb-2">{error}</p>
       )}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-jtp-textDim">
+        <div className="flex items-center gap-2 text-jtp-textMuted">
           <Spinner />
-          <span className="text-jtp-sm">Loading runs…</span>
+          <span className="text-jtp-md">Loading runs…</span>
         </div>
       ) : runs.length === 0 ? (
-        <p className="text-jtp-sm text-jtp-textDim">No agent runs yet. They'll appear here once the agent runs.</p>
+        <p className="text-jtp-md text-jtp-textMuted">
+          No agent runs yet. They'll appear here once the agent runs.
+        </p>
       ) : (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg divide-y divide-jtp-border">
+        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel divide-y divide-jtp-border">
           {runs.map((run) => {
             const open = expandedId === run.id;
             return (
@@ -704,19 +671,17 @@ const AgentActivityCard: React.FC = () => {
                   className="w-full text-left p-4 flex items-center gap-3 hover:bg-jtp-control/40 transition-colors"
                   aria-expanded={open}
                 >
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-jtp-xs font-medium border ${statusBadge(run.status)}`}>
-                    {run.status}
-                  </span>
-                  <span className="flex-1 min-w-0 text-jtp-sm text-jtp-text truncate">
+                  <Badge variant={statusVariant(run.status)} size="xs">{run.status}</Badge>
+                  <span className="flex-1 min-w-0 text-jtp-md text-jtp-text truncate">
                     {truncate(run.goal || '(no goal)', 90)}
                   </span>
-                  <span className="text-jtp-xs text-jtp-textDim whitespace-nowrap hidden sm:inline">
+                  <span className="text-jtp-md text-jtp-textMuted whitespace-nowrap hidden sm:inline">
                     {run.steps?.length ?? 0} {(run.steps?.length ?? 0) === 1 ? 'step' : 'steps'}
                   </span>
-                  <span className="text-jtp-xs text-jtp-textMuted whitespace-nowrap font-mono">
+                  <span className="font-mono text-jtp-md text-jtp-textMuted whitespace-nowrap">
                     {run.durationMs}ms
                   </span>
-                  <span className="text-jtp-xs text-jtp-textMuted whitespace-nowrap hidden sm:inline">
+                  <span className="font-mono text-jtp-md text-jtp-textMuted whitespace-nowrap hidden sm:inline">
                     {relativeTime(run.createdAt)}
                   </span>
                   <span className="text-jtp-textDim text-jtp-xs">{open ? '▲' : '▼'}</span>
@@ -726,26 +691,24 @@ const AgentActivityCard: React.FC = () => {
                   <div className="px-4 pb-4 space-y-3">
                     {run.answer && (
                       <div>
-                        <p className="text-jtp-xs font-medium text-jtp-textDim uppercase tracking-wide mb-1">Answer</p>
-                        <div className="bg-jtp-bg border border-jtp-border rounded-md p-3 text-jtp-sm text-jtp-text whitespace-pre-wrap">
+                        <p className="jtp-label mb-1">ANSWER</p>
+                        <div className="bg-jtp-bg border border-jtp-border rounded-md p-3 text-jtp-md text-jtp-text whitespace-pre-wrap">
                           {run.answer}
                         </div>
                       </div>
                     )}
 
                     <div>
-                      <p className="text-jtp-xs font-medium text-jtp-textDim uppercase tracking-wide mb-1">
-                        Steps ({run.steps?.length ?? 0})
-                      </p>
+                      <p className="jtp-label mb-1">STEPS ({run.steps?.length ?? 0})</p>
                       {(!run.steps || run.steps.length === 0) ? (
-                        <p className="text-jtp-xs text-jtp-textMuted">No tool calls were made.</p>
+                        <p className="text-jtp-md text-jtp-textMuted">No tool calls were made.</p>
                       ) : (
                         <ol className="space-y-2">
                           {run.steps.map((step, i) => (
                             <li key={i} className="bg-jtp-bg border border-jtp-border rounded-md p-3">
                               <div className="flex items-center gap-2 mb-1.5">
                                 <span className="font-mono text-jtp-xs text-jtp-textMuted">#{i + 1}</span>
-                                <span className="font-mono text-jtp-sm font-medium text-jtp-blue">{step.tool}</span>
+                                <span className="font-mono text-jtp-md font-medium text-jtp-blue">{step.tool}</span>
                                 {step.ts !== undefined && (
                                   <span className="ml-auto font-mono text-jtp-xs text-jtp-textMuted">
                                     {typeof step.ts === 'number' ? new Date(step.ts).toLocaleTimeString() : step.ts}
@@ -780,7 +743,7 @@ const AgentActivityCard: React.FC = () => {
           })}
         </div>
       )}
-    </Card>
+    </Panel>
   );
 };
 

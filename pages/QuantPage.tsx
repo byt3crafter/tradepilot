@@ -6,38 +6,19 @@ import { PmWallet, PmPosition, QuantVerdict } from '../types';
 import QuantTerminal from '../components/quant/QuantTerminal';
 import AiQuantPanel from '../components/quant/AiQuantPanel';
 import PolymarketTradePanel, { TradePrefill } from '../components/trade/PolymarketTradePanel';
+import {
+  Panel,
+  StatTile,
+  DataTable,
+  Badge,
+  SegmentedControl,
+  EmptyState,
+  Skeleton,
+  Button,
+} from '../components/ui';
+import type { TableColumn, Segment } from '../components/ui';
 
 type QuantMode = 'leaderboard' | 'terminal' | 'trade';
-
-const MODE_LABELS: Record<QuantMode, string> = {
-  leaderboard: 'Leaderboard',
-  terminal: 'Terminal',
-  trade: 'Trade',
-};
-
-// ─── Mode toggle (segmented control) ────────────────────────────────────────────
-
-const ModeToggle: React.FC<{ mode: QuantMode; onChange: (m: QuantMode) => void }> = ({
-  mode,
-  onChange,
-}) => (
-  <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl">
-    {(['leaderboard', 'terminal', 'trade'] as const).map((m) => (
-      <button
-        key={m}
-        type="button"
-        onClick={() => onChange(m)}
-        className={`px-4 py-1.5 rounded-jtp-lg text-jtp-xs font-semibold uppercase tracking-wide transition-colors ${
-          mode === m
-            ? 'bg-jtp-active text-jtp-text border border-jtp-borderFocus'
-            : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
-        }`}
-      >
-        {MODE_LABELS[m]}
-      </button>
-    ))}
-  </div>
-);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +40,8 @@ const isAddress = (s: string) => /^0x[a-fA-F0-9]{40}$/.test(s.trim());
 
 // edge value (per-share, e.g. 0.049) → "4.9¢"
 const fmtCents = (edgePerShare: number) => `${(edgePerShare * 100).toFixed(1)}¢`;
-const edgeClass = (n: number) => (n > 0 ? 'text-jtp-profit' : n < 0 ? 'text-jtp-loss' : 'text-jtp-textMuted');
+const edgeClass = (n: number) =>
+  n > 0 ? 'text-jtp-profit' : n < 0 ? 'text-jtp-loss' : 'text-jtp-textMuted';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 
@@ -76,7 +58,15 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// ─── ChatGPT connection status line (connect lives in Settings → AI) ────────────
+// ─── Mode segments ────────────────────────────────────────────────────────────
+
+const MODE_SEGMENTS: Segment<QuantMode>[] = [
+  { value: 'leaderboard', label: 'Leaderboard' },
+  { value: 'terminal',    label: 'Terminal' },
+  { value: 'trade',       label: 'Trade' },
+];
+
+// ─── ChatGPT connection status (connect lives in Settings → AI) ───────────────
 
 const ConnectChatGPT: React.FC = () => {
   const { getToken } = useAuth();
@@ -101,22 +91,18 @@ const ConnectChatGPT: React.FC = () => {
         if (active) setStatusLoading(false);
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [getToken]);
 
   const goToSettings = () => navigateTo('settings', 'ai');
 
   if (statusLoading) return null;
 
-  // Connected + verdict permitted: a quiet "ready" status; verdicts work on each wallet.
+  // Connected + verdict permitted: quiet "ready" chip.
   if (connected && verdictAllowed) {
     return (
-      <div className="flex items-center gap-2 text-jtp-xs text-jtp-textMuted">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium bg-[rgba(34,197,94,0.12)] text-jtp-profit border border-[rgba(34,197,94,0.25)]">
-          AI Verdict ready ✓
-        </span>
+      <div className="flex items-center gap-2 text-jtp-md text-jtp-textMuted">
+        <Badge variant="profit" size="xs">AI Verdict ready</Badge>
         <span>
           Run an AI Verdict on any wallet below.{' '}
           <button type="button" onClick={goToSettings} className="text-jtp-blue hover:underline font-medium">
@@ -130,46 +116,37 @@ const ConnectChatGPT: React.FC = () => {
   // Connected but verdict permission is off.
   if (connected && !verdictAllowed) {
     return (
-      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-jtp-xs text-jtp-textMuted">
-          ChatGPT/Codex is connected, but <span className="text-jtp-text font-medium">AI Verdict</span> is
-          turned off. Enable it to run verdicts.
+      <Panel label="AI VERDICT" actions={
+        <Button variant="secondary" onClick={goToSettings}>Settings → AI</Button>
+      }>
+        <p className="text-jtp-md text-jtp-textMuted">
+          ChatGPT/Codex is connected, but{' '}
+          <span className="text-jtp-text font-medium">AI Verdict</span> is turned off. Enable it to
+          run verdicts.
         </p>
-        <button
-          type="button"
-          onClick={goToSettings}
-          className="px-4 py-2 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors whitespace-nowrap"
-        >
-          Settings → AI
-        </button>
-      </div>
+      </Panel>
     );
   }
 
   // Not connected.
   return (
-    <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
-      <p className="text-jtp-xs text-jtp-textMuted">
-        Connect ChatGPT/Codex in <span className="text-jtp-text font-medium">Settings → AI</span> to
-        enable verdicts.
+    <Panel label="AI VERDICT" actions={
+      <Button variant="primary" onClick={goToSettings}>Connect in Settings → AI</Button>
+    }>
+      <p className="text-jtp-md text-jtp-textMuted">
+        Connect ChatGPT/Codex in{' '}
+        <span className="text-jtp-text font-medium">Settings → AI</span> to enable verdicts.
       </p>
-      <button
-        type="button"
-        onClick={goToSettings}
-        className="px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors whitespace-nowrap"
-      >
-        Connect in Settings → AI
-      </button>
-    </div>
+    </Panel>
   );
 };
 
-// ─── AI Verdict badge + display ─────────────────────────────────────────────────
+// ─── AI Verdict section (inside WalletCard) ───────────────────────────────────
 
-const verdictStyles: Record<QuantVerdict['verdict'], string> = {
-  COPY: 'bg-[rgba(34,197,94,0.12)] text-jtp-profit border-[rgba(34,197,94,0.25)]',
-  WATCH: 'bg-[rgba(234,179,8,0.12)] text-jtp-warning border-[rgba(234,179,8,0.25)]',
-  AVOID: 'bg-[rgba(239,68,68,0.12)] text-jtp-loss border-[rgba(239,68,68,0.25)]',
+const VERDICT_VARIANT: Record<QuantVerdict['verdict'], 'profit' | 'warning' | 'loss'> = {
+  COPY: 'profit',
+  WATCH: 'warning',
+  AVOID: 'loss',
 };
 
 const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
@@ -207,25 +184,19 @@ const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
     <div className="px-5 py-4 border-t border-jtp-border bg-jtp-bg space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-jtp-sm font-semibold text-jtp-text">AI Verdict</h3>
-          <p className="text-jtp-xs text-jtp-textDim mt-0.5">
+          <h3 className="text-jtp-lg font-semibold text-jtp-text">AI Verdict</h3>
+          <p className="text-jtp-md text-jtp-textDim mt-0.5">
             Is the edge <span className="italic">copyable</span> (mispricing) — or speed, insider,
             or luck?
           </p>
         </div>
-        <button
-          type="button"
-          onClick={run}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-        >
-          {loading ? <Spinner /> : null}
+        <Button variant="secondary" onClick={run} isLoading={loading}>
           {loading ? 'Analyzing…' : verdict ? 'Re-run AI Verdict' : 'AI Verdict'}
-        </button>
+        </Button>
       </div>
 
       {needsConnect && (
-        <p className="text-jtp-xs text-jtp-warning">
+        <p className="text-jtp-md text-jtp-warning">
           <button
             type="button"
             onClick={() => navigateTo('settings', 'ai')}
@@ -238,33 +209,28 @@ const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
       )}
 
       {error && (
-        <p role="alert" className="text-jtp-xs text-jtp-loss">
-          {error}
-        </p>
+        <p role="alert" className="text-jtp-md text-jtp-loss">{error}</p>
       )}
 
       {verdict && (
         <div className="space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-md text-jtp-xs font-bold border ${verdictStyles[verdict.verdict]}`}
-            >
+            <Badge variant={VERDICT_VARIANT[verdict.verdict]} size="sm">
               {verdict.verdict}
-            </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-medium bg-jtp-active border border-jtp-border text-jtp-textMuted">
-              {verdict.edgeType}
-            </span>
-            <span className="inline-flex items-center gap-1 text-jtp-xs text-jtp-textMuted">
+            </Badge>
+            <Badge variant="neutral" size="xs">{verdict.edgeType}</Badge>
+            <span className="text-jtp-md text-jtp-textMuted flex items-center gap-1">
               Copyable:{' '}
               <span className={verdict.copyable ? 'text-jtp-profit font-semibold' : 'text-jtp-loss font-semibold'}>
                 {verdict.copyable ? '✓' : '✗'}
               </span>
             </span>
-            <span className="inline-flex items-center text-jtp-xs text-jtp-textDim">
-              Confidence: <span className="text-jtp-textMuted font-medium ml-1 capitalize">{verdict.confidence}</span>
+            <span className="text-jtp-md text-jtp-textDim">
+              Confidence:{' '}
+              <span className="text-jtp-textMuted font-medium capitalize">{verdict.confidence}</span>
             </span>
           </div>
-          <p className="text-jtp-sm text-jtp-textMuted leading-relaxed">{verdict.summary}</p>
+          <p className="text-jtp-lg text-jtp-textMuted leading-relaxed">{verdict.summary}</p>
         </div>
       )}
     </div>
@@ -275,30 +241,28 @@ const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
 
 const FocusChip: React.FC<{ label: string }> = ({ label }) =>
   label ? (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-medium bg-jtp-active border border-jtp-border text-jtp-textMuted">
-      {label}
-    </span>
+    <Badge variant="neutral" size="xs">{label}</Badge>
   ) : (
     <span className="text-jtp-textDim text-jtp-xs">—</span>
   );
 
 // ─── Wallet metric (scan result) ──────────────────────────────────────────────
 
-const Metric: React.FC<{ label: string; value: React.ReactNode; valueClass?: string; hint?: string }> = ({
-  label,
-  value,
-  valueClass,
-  hint,
-}) => (
+const Metric: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  valueClass?: string;
+  hint?: string;
+}> = ({ label, value, valueClass, hint }) => (
   <div className="flex flex-col gap-1">
-    <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide" title={hint}>
-      {label}
+    <span className="jtp-label" title={hint}>{label}</span>
+    <span className={`font-mono text-jtp-lg font-semibold ${valueClass ?? 'text-jtp-text'}`}>
+      {value}
     </span>
-    <span className={`font-mono text-jtp-lg font-semibold ${valueClass ?? 'text-jtp-text'}`}>{value}</span>
   </div>
 );
 
-// ─── Wallet positions (Trade / Mirror entry points) ────────────────────────────
+// ─── Wallet open positions (mirror / trade entry) ─────────────────────────────
 
 const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => void }> = ({
   address,
@@ -325,16 +289,14 @@ const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => v
         if (active) setLoading(false);
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [address, getToken]);
 
   if (loading) {
     return (
       <div className="px-5 py-4 border-t border-jtp-border bg-jtp-bg flex items-center gap-2 text-jtp-textDim">
         <Spinner />
-        <span className="text-jtp-xs">Loading open positions…</span>
+        <span className="text-jtp-md">Loading open positions…</span>
       </div>
     );
   }
@@ -342,8 +304,8 @@ const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => v
   if (error || positions.length === 0) {
     return (
       <div className="px-5 py-3 border-t border-jtp-border bg-jtp-bg">
-        <p className="text-jtp-xs text-jtp-textDim">
-          {error ? error : 'No open positions to mirror for this wallet.'}
+        <p className="text-jtp-md text-jtp-textDim">
+          {error ?? 'No open positions to mirror for this wallet.'}
         </p>
       </div>
     );
@@ -352,8 +314,8 @@ const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => v
   return (
     <div className="px-5 py-4 border-t border-jtp-border bg-jtp-bg space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-jtp-sm font-semibold text-jtp-text">Open positions</h3>
-        <span className="text-jtp-xs text-jtp-textDim">Mirror a position into the Trade panel</span>
+        <h3 className="text-jtp-lg font-semibold text-jtp-text">Open positions</h3>
+        <span className="text-jtp-md text-jtp-textDim">Mirror a position into the Trade panel</span>
       </div>
       <div className="space-y-1.5 max-h-72 overflow-y-auto">
         {positions.map((p, i) => (
@@ -362,20 +324,20 @@ const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => v
             className="flex items-center justify-between gap-3 rounded-jtp-lg border border-jtp-borderSubtle bg-jtp-panel px-3 py-2"
           >
             <div className="min-w-0">
-              <div className="text-jtp-sm text-jtp-text truncate">{p.title || 'Untitled market'}</div>
-              <div className="text-jtp-xs text-jtp-textDim truncate">
+              <div className="text-jtp-lg text-jtp-text truncate">{p.title || 'Untitled market'}</div>
+              <div className="text-jtp-md text-jtp-textDim truncate">
                 {p.outcome || '—'}
                 {typeof p.curPrice === 'number' ? ` · ${(p.curPrice * 100).toFixed(0)}¢` : ''}
                 {typeof p.size === 'number' ? ` · ${fmtNum(Math.round(p.size))} sh` : ''}
               </div>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              className="flex-shrink-0 !px-3 !py-1.5 !text-jtp-xs"
               onClick={() => onTrade(p)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-jtp-lg text-jtp-xs font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors"
             >
               Trade
-            </button>
+            </Button>
           </div>
         ))}
       </div>
@@ -383,11 +345,14 @@ const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => v
   );
 };
 
+// ─── Wallet card (scan result + leaderboard expand) ───────────────────────────
+
 const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void }> = ({
   wallet,
   onTrade,
 }) => (
   <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
+    {/* Header: avatar + name + address + Polymarket link */}
     <div className="px-5 py-4 border-b border-jtp-border flex items-center gap-3">
       {wallet.profileImage ? (
         <img
@@ -399,10 +364,10 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
         <div className="w-9 h-9 rounded-full bg-jtp-active flex-shrink-0" />
       )}
       <div className="min-w-0 flex-1">
-        <div className="text-jtp-base font-semibold text-jtp-text truncate">
+        <div className="text-jtp-lg font-semibold text-jtp-text truncate">
           {wallet.pseudonym || 'Unknown wallet'}
         </div>
-        <div className="font-mono text-jtp-xs text-jtp-textDim truncate">
+        <div className="font-mono text-jtp-md text-jtp-textDim truncate">
           {truncateAddress(wallet.address)}
         </div>
       </div>
@@ -410,7 +375,7 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
         href={profileUrl(wallet.address)}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-jtp-xs font-medium text-jtp-blue hover:underline flex-shrink-0"
+        className="text-jtp-md font-medium text-jtp-blue hover:underline flex-shrink-0"
       >
         Polymarket ↗
       </a>
@@ -419,21 +384,18 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
     {/* Headline edge */}
     <div className="px-5 py-5 border-b border-jtp-border flex items-end justify-between gap-4 flex-wrap">
       <div className="flex flex-col gap-1">
-        <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">
-          Realized edge (95% lower bound)
-        </span>
-        <span className={`font-mono text-3xl font-bold leading-none ${edgeClass(wallet.edgeLcb)}`}>
+        <span className="jtp-label">Realized edge (95% lower bound)</span>
+        <span className={`font-mono text-jtp-4xl font-bold leading-none ${edgeClass(wallet.edgeLcb)}`}>
           {fmtCents(wallet.edgeLcb)}
-          <span className="text-jtp-sm font-medium text-jtp-textDim ml-1.5">/ share</span>
+          <span className="text-jtp-lg font-medium text-jtp-textDim ml-1.5">/ share</span>
         </span>
       </div>
       {!wallet.qualified && (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-jtp-xs font-medium bg-[rgba(234,179,8,0.12)] text-jtp-warning border border-[rgba(234,179,8,0.25)]">
-          Unqualified · n&lt;15
-        </span>
+        <Badge variant="warning" size="sm">Unqualified · n&lt;15</Badge>
       )}
     </div>
 
+    {/* Metrics grid */}
     <div className="px-5 py-5 grid grid-cols-2 sm:grid-cols-3 gap-y-5 gap-x-4">
       <Metric
         label="Mean edge"
@@ -452,7 +414,7 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
         value={
           <>
             {fmtNum(wallet.nClosed)}
-            <span className="text-jtp-xs text-jtp-textDim ml-1.5">n_eff {fmtNum(wallet.nEff)}</span>
+            <span className="text-jtp-md text-jtp-textDim ml-1.5">n_eff {fmtNum(wallet.nEff)}</span>
           </>
         }
         hint="Closed positions scored · effective clustered sample"
@@ -464,7 +426,7 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
       />
       <Metric label="Volume" value={fmtMoney(wallet.volume)} valueClass="text-jtp-textMuted" />
       <div className="flex flex-col gap-1">
-        <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">Market focus</span>
+        <span className="jtp-label">Market focus</span>
         <span className="mt-0.5">
           <FocusChip label={wallet.marketFocus} />
         </span>
@@ -473,7 +435,7 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
 
     {!wallet.qualified && (
       <div className="px-5 py-3 border-t border-jtp-border bg-jtp-bg">
-        <p className="text-jtp-xs text-jtp-textMuted">
+        <p className="text-jtp-md text-jtp-textMuted">
           Not enough closed positions yet (n&lt;15) for a statistically meaningful edge. Treat this
           score as provisional.
         </p>
@@ -481,10 +443,97 @@ const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void
     )}
 
     <AiVerdictSection key={wallet.address} address={wallet.address} />
-
     {onTrade && <WalletPositions address={wallet.address} onTrade={onTrade} />}
   </div>
 );
+
+// ─── Leaderboard DataTable columns ────────────────────────────────────────────
+
+type RankedWallet = PmWallet & { _rank: number };
+
+const buildLeaderboardCols = (
+  handleRowClick: (w: PmWallet) => void,
+): TableColumn<RankedWallet>[] => [
+  {
+    key: '_rank',
+    header: '#',
+    width: '44px',
+    mono: true,
+    render: (v) => <span className="text-jtp-textDim">{v}</span>,
+  },
+  {
+    key: 'pseudonym',
+    header: 'WALLET',
+    render: (_v, row) => (
+      <div className="flex items-center gap-2.5 min-w-0">
+        {row.profileImage ? (
+          <img
+            src={row.profileImage}
+            alt=""
+            className="w-6 h-6 rounded-full bg-jtp-active object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="w-6 h-6 rounded-full bg-jtp-active flex-shrink-0" />
+        )}
+        <div className="min-w-0">
+          <div className="text-jtp-text font-medium truncate">{row.pseudonym || 'Unknown'}</div>
+          <div className="font-mono text-jtp-xs text-jtp-textDim truncate">
+            {truncateAddress(row.address)}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    key: 'edgeLcb',
+    header: 'EDGE',
+    align: 'right',
+    mono: true,
+    render: (v) => (
+      <span className={`font-bold text-jtp-md ${edgeClass(v)}`}>{fmtCents(v)}</span>
+    ),
+  },
+  {
+    key: 'meanEdge',
+    header: 'MEAN',
+    align: 'right',
+    mono: true,
+    render: (v) => <span className="text-jtp-textDim">{fmtCents(v)}</span>,
+  },
+  {
+    key: 'nClosed',
+    header: 'CLOSED',
+    align: 'right',
+    mono: true,
+    render: (_v, row) => (
+      <span className="whitespace-nowrap text-jtp-textMuted">
+        {fmtNum(row.nClosed)}
+        <span className="text-jtp-xs text-jtp-textDim ml-1">· {fmtNum(row.nEff)}</span>
+      </span>
+    ),
+  },
+  {
+    key: 'dollarEdge',
+    header: '$ EDGE',
+    align: 'right',
+    mono: true,
+    render: (v) => <span className={edgeClass(v)}>{fmtCents(v)}</span>,
+  },
+  {
+    key: 'winRate',
+    header: 'WIN%',
+    align: 'right',
+    mono: true,
+    render: (v) => (
+      <span className="text-jtp-textDim" title="win rate ≠ edge">{fmtPct(v)}</span>
+    ),
+  },
+  {
+    key: 'marketFocus',
+    header: 'FOCUS',
+    render: (v) => <FocusChip label={v} />,
+  },
+];
 
 // ─── Main QuantPage ───────────────────────────────────────────────────────────
 
@@ -569,10 +618,22 @@ const QuantPage: React.FC = () => {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Pre-process leaderboard with rank field for DataTable
+  const rankedLeaderboard: RankedWallet[] = leaderboard.map((w, i) => ({ ...w, _rank: i + 1 }));
+  const leaderboardCols = buildLeaderboardCols(handleRowClick);
+
+  const maxWidth =
+    mode === 'terminal' ? 'max-w-7xl' : mode === 'trade' ? 'max-w-2xl' : 'max-w-6xl';
+
   return (
-    <div className={`space-y-5 animate-jtp-fade-in ${mode === 'terminal' ? 'max-w-7xl' : mode === 'trade' ? 'max-w-2xl' : 'max-w-6xl'}`}>
+    <div className={`px-5 py-[18px] pb-10 space-y-5 animate-jtp-fade-in ${maxWidth}`}>
+
       {/* ── Mode toggle ── */}
-      <ModeToggle mode={mode} onChange={setMode} />
+      <SegmentedControl
+        segments={MODE_SEGMENTS}
+        value={mode}
+        onChange={setMode}
+      />
 
       {mode === 'terminal' ? (
         <QuantTerminal />
@@ -582,7 +643,7 @@ const QuantPage: React.FC = () => {
             <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
               Trade — Polymarket (non-custodial)
             </h1>
-            <p className="text-jtp-sm text-jtp-textMuted mt-1.5 max-w-2xl">
+            <p className="text-jtp-lg text-jtp-textMuted mt-1.5 max-w-2xl">
               Connect your own Polygon wallet and place orders on Polymarket directly. You sign every
               action — JTradePilot never holds your keys or funds. Mirror a position from any scanned
               wallet, or paste a token id manually.
@@ -592,184 +653,121 @@ const QuantPage: React.FC = () => {
         </>
       ) : (
         <>
-      {/* ── Header ── */}
-      <div>
-        <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
-          Quant — Polymarket Edge Intelligence
-        </h1>
-        <p className="text-jtp-sm text-jtp-textMuted mt-1.5 max-w-3xl">
-          We rank wallets by <span className="text-jtp-text font-medium">realized edge per trade</span> —
-          how much they beat the market's implied price — using the 95% lower bound, with correlated
-          bets clustered. Win rate and raw PnL are noise; this surfaces the rare{' '}
-          <span className="text-jtp-text font-medium italic">copyable</span> edge and buries luck and
-          insurance-sellers.
-        </p>
-        <p className="text-jtp-xs text-jtp-textDim mt-2 font-mono">
-          {stats
-            ? `${fmtNum(stats.total)} tracked · ${fmtNum(stats.scanned)} scanned · ${fmtNum(
-                stats.qualified,
-              )} qualified (≥15 closed positions)`
-            : loading
-              ? 'Loading stats…'
-              : '— tracked · — scanned · — qualified'}
-        </p>
-      </div>
+          {/* ── Header ── */}
+          <div>
+            <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
+              Quant — Polymarket Edge Intelligence
+            </h1>
+            <p className="text-jtp-lg text-jtp-textMuted mt-1.5 max-w-3xl">
+              We rank wallets by{' '}
+              <span className="text-jtp-text font-medium">realized edge per trade</span> — how much
+              they beat the market's implied price — using the 95% lower bound, with correlated bets
+              clustered. Win rate and raw PnL are noise; this surfaces the rare{' '}
+              <span className="text-jtp-text font-medium italic">copyable</span> edge and buries luck
+              and insurance-sellers.
+            </p>
+          </div>
 
-      {/* ── ChatGPT connect (AI Verdict) ── */}
-      <ConnectChatGPT />
+          {/* ── Stats row ── */}
+          <div className="grid grid-cols-3 gap-3">
+            {loading && !stats ? (
+              <>
+                <Skeleton variant="stat" />
+                <Skeleton variant="stat" />
+                <Skeleton variant="stat" />
+              </>
+            ) : (
+              <>
+                <StatTile
+                  label="TRACKED"
+                  value={stats ? fmtNum(stats.total) : '—'}
+                />
+                <StatTile
+                  label="SCANNED"
+                  value={stats ? fmtNum(stats.scanned) : '—'}
+                />
+                <StatTile
+                  label="QUALIFIED"
+                  value={stats ? fmtNum(stats.qualified) : '—'}
+                  subValue="≥15 closed"
+                />
+              </>
+            )}
+          </div>
 
-      {/* ── Scan box ── */}
-      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-        <div className="px-5 py-4 border-b border-jtp-border">
-          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">Scan a wallet</h2>
-          <p className="text-jtp-xs text-jtp-textDim mt-1">
-            Paste any Polymarket address to compute its statistical edge breakdown.
-          </p>
-        </div>
-        <div className="px-5 py-4 space-y-4">
-          <form
-            className="flex flex-col sm:flex-row gap-2.5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleScan();
-            }}
-          >
-            <input
-              type="text"
-              value={scanInput}
-              onChange={(e) => setScanInput(e.target.value)}
-              placeholder="Paste a Polymarket wallet address (0x…)"
-              spellCheck={false}
-              autoComplete="off"
-              className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={scanning}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          {/* ── ChatGPT connect (AI Verdict) ── */}
+          <ConnectChatGPT />
+
+          {/* ── Scan wallet ── */}
+          <Panel label="SCAN WALLET">
+            <p className="text-jtp-md text-jtp-textDim mb-4">
+              Paste any Polymarket address to compute its statistical edge breakdown.
+            </p>
+            <form
+              className="flex flex-col sm:flex-row gap-2.5"
+              onSubmit={(e) => { e.preventDefault(); handleScan(); }}
             >
-              {scanning ? <Spinner /> : null}
-              {scanning ? 'Scanning…' : 'Scan'}
-            </button>
-          </form>
+              <input
+                type="text"
+                value={scanInput}
+                onChange={(e) => setScanInput(e.target.value)}
+                placeholder="Paste a Polymarket wallet address (0x…)"
+                spellCheck={false}
+                autoComplete="off"
+                className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={scanning}
+              >
+                {scanning ? 'Scanning…' : 'Scan'}
+              </Button>
+            </form>
 
-          {scanError && (
-            <p role="alert" className="text-jtp-xs text-jtp-loss">
-              {scanError}
-            </p>
-          )}
+            {scanError && (
+              <p role="alert" className="text-jtp-md text-jtp-loss mt-3">{scanError}</p>
+            )}
 
-          {scanResult && <WalletCard wallet={scanResult} onTrade={handleTradePosition} />}
-        </div>
-      </div>
+            {scanResult && (
+              <div className="mt-4">
+                <WalletCard wallet={scanResult} onTrade={handleTradePosition} />
+              </div>
+            )}
+          </Panel>
 
-      {/* ── AI Opportunities + Strategy Builder ── */}
-      <AiQuantPanel />
+          {/* ── AI Opportunities + Strategy Builder ── */}
+          <AiQuantPanel />
 
-      {/* ── Leaderboard ── */}
-      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-        <div className="px-5 py-4 border-b border-jtp-border flex items-center justify-between">
-          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">
-            Edge Leaderboard
-          </h2>
-          <span className="text-jtp-xs text-jtp-textDim font-mono">
-            Ranked by realized edge (95% LCB)
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-jtp-textDim">
-            <Spinner />
-            <span className="text-jtp-sm">Loading leaderboard…</span>
-          </div>
-        ) : leaderboard.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-2 text-center px-5">
-            <p className="text-jtp-sm text-jtp-textMuted font-medium">No qualified wallets yet</p>
-            <p className="text-jtp-xs text-jtp-textDim max-w-sm">
-              Scan a Polymarket wallet address above. Wallets need ≥15 closed positions to qualify for
-              the edge leaderboard.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-jtp-sm">
-              <thead>
-                <tr className="text-jtp-xs text-jtp-textDim uppercase tracking-wide border-b border-jtp-border">
-                  <th className="text-left font-medium px-5 py-2.5 w-12">#</th>
-                  <th className="text-left font-medium px-3 py-2.5">Wallet</th>
-                  <th className="text-right font-medium px-3 py-2.5">Edge</th>
-                  <th className="text-right font-medium px-3 py-2.5">Mean</th>
-                  <th className="text-right font-medium px-3 py-2.5">Closed</th>
-                  <th className="text-right font-medium px-3 py-2.5">$ Edge</th>
-                  <th className="text-right font-medium px-3 py-2.5" title="win rate ≠ edge">
-                    Win%
-                  </th>
-                  <th className="text-left font-medium px-3 py-2.5 pr-5">Focus</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((w, i) => (
-                  <tr
-                    key={w.id || w.address}
-                    onClick={() => handleRowClick(w)}
-                    className="border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover cursor-pointer transition-colors"
-                  >
-                    <td className="px-5 py-3 font-mono text-jtp-textDim">{i + 1}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {w.profileImage ? (
-                          <img
-                            src={w.profileImage}
-                            alt=""
-                            className="w-6 h-6 rounded-full bg-jtp-active object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-jtp-active flex-shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <div className="text-jtp-text font-medium truncate">
-                            {w.pseudonym || 'Unknown'}
-                          </div>
-                          <div className="font-mono text-jtp-xs text-jtp-textDim truncate">
-                            {truncateAddress(w.address)}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    {/* Edge — headline metric, emphasized */}
-                    <td className={`px-3 py-3 text-right font-mono text-jtp-base font-bold ${edgeClass(w.edgeLcb)}`}>
-                      {fmtCents(w.edgeLcb)}
-                    </td>
-                    {/* Mean — dimmer secondary */}
-                    <td className="px-3 py-3 text-right font-mono text-jtp-textDim">
-                      {fmtCents(w.meanEdge)}
-                    </td>
-                    {/* Closed (+ n_eff) */}
-                    <td className="px-3 py-3 text-right font-mono text-jtp-textMuted whitespace-nowrap">
-                      {fmtNum(w.nClosed)}
-                      <span className="text-jtp-xs text-jtp-textDim ml-1">· n_eff {fmtNum(w.nEff)}</span>
-                    </td>
-                    {/* $ Edge */}
-                    <td className={`px-3 py-3 text-right font-mono ${edgeClass(w.dollarEdge)}`}>
-                      {fmtCents(w.dollarEdge)}
-                    </td>
-                    {/* Win% — de-emphasized */}
-                    <td
-                      className="px-3 py-3 text-right font-mono text-jtp-textDim"
-                      title="win rate ≠ edge"
-                    >
-                      {fmtPct(w.winRate)}
-                    </td>
-                    <td className="px-3 py-3 pr-5">
-                      <FocusChip label={w.marketFocus} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+          {/* ── Edge Leaderboard ── */}
+          <Panel
+            label="EDGE LEADERBOARD"
+            noPadding
+            actions={
+              <span className="font-mono text-jtp-xs text-jtp-textDim">
+                Ranked by realized edge (95% LCB)
+              </span>
+            }
+          >
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-16 text-jtp-textDim">
+                <Spinner />
+                <span className="text-jtp-lg">Loading leaderboard…</span>
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <EmptyState
+                title="No qualified wallets yet"
+                description="Scan a Polymarket wallet address above. Wallets need ≥15 closed positions to qualify for the edge leaderboard."
+              />
+            ) : (
+              <DataTable
+                columns={leaderboardCols}
+                data={rankedLeaderboard}
+                keyFn={(w) => w.id || w.address}
+                onRowClick={(w) => handleRowClick(w)}
+              />
+            )}
+          </Panel>
         </>
       )}
     </div>

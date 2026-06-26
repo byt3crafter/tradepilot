@@ -1,18 +1,19 @@
+/**
+ * TemplateFormModal — Create / edit a Prop Firm Template.
+ *
+ * Uses Field + Input + SelectInput + Checkbox from the kit for consistent
+ * form styling. No raw <label>/<input> pairs.
+ */
 import React, { useState, useEffect } from 'react';
-import Button from '../ui/Button';
 import { PropFirmTemplate, CreatePropFirmTemplateDto } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import Spinner from '../Spinner';
+import { Field, Input, SelectInput, Checkbox, Button } from '../ui';
 
 interface TemplateFormModalProps {
   template?: PropFirmTemplate | null;
   onSuccess: () => void;
 }
-
-const inputClass = "w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-text text-jtp-md placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors font-sans";
-const selectClass = `${inputClass} [&>option]:bg-jtp-panel [&>option]:text-jtp-text`;
-const labelClass = "block text-jtp-xs text-jtp-textDim uppercase tracking-wider mb-1.5";
 
 const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSuccess }) => {
   const { accessToken } = useAuth();
@@ -47,26 +48,14 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
     }
   }, [template]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else if (type === 'number') {
-      setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
+  const setField = (key: keyof CreatePropFirmTemplateDto, value: any) =>
+    setFormData((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accessToken) return;
-
     setIsSubmitting(true);
     setError('');
-
     try {
       if (template) {
         await api.updatePropFirmTemplate(accessToken, template.id, formData);
@@ -83,144 +72,140 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Error banner */}
       {error && (
-        <div className="bg-jtp-loss/10 border border-jtp-loss/20 rounded-jtp-md p-3 text-jtp-loss text-jtp-sm">
+        <div className="bg-jtp-loss/10 border border-jtp-loss/20 rounded-jtp-md px-4 py-3 text-jtp-loss text-jtp-md">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className={labelClass}>Template Name</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="e.g., FTMO $100k Challenge"
-            className={inputClass}
-            required
-          />
+      {/* Template name + firm name */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <Field label="TEMPLATE NAME" htmlFor="tmpl-name" required>
+            <Input
+              id="tmpl-name"
+              type="text"
+              value={formData.name}
+              onChange={(e) => setField('name', e.target.value)}
+              placeholder="e.g., FTMO $100k Challenge"
+              required
+              containerClassName="mb-0"
+            />
+          </Field>
         </div>
 
-        <div className="col-span-2">
-          <label className={labelClass}>Firm Name</label>
-          <input
-            type="text"
-            name="firmName"
-            value={formData.firmName}
-            onChange={handleChange}
-            placeholder="e.g., FTMO"
-            className={inputClass}
-            required
-          />
+        <div className="sm:col-span-2">
+          <Field label="FIRM NAME" htmlFor="tmpl-firm" required>
+            <Input
+              id="tmpl-firm"
+              type="text"
+              value={formData.firmName}
+              onChange={(e) => setField('firmName', e.target.value)}
+              placeholder="e.g., FTMO"
+              required
+              containerClassName="mb-0"
+            />
+          </Field>
         </div>
 
-        <div>
-          <label className={labelClass}>Account Size ($)</label>
-          <input
+        {/* Numeric fields */}
+        <Field label="ACCOUNT SIZE ($)" htmlFor="tmpl-account" required>
+          <Input
+            id="tmpl-account"
             type="number"
-            name="accountSize"
-            value={formData.accountSize}
-            onChange={handleChange}
             step="1000"
             min="0"
-            className={`${inputClass} font-mono`}
+            value={formData.accountSize}
+            onChange={(e) => setField('accountSize', parseFloat(e.target.value) || 0)}
+            className="font-mono"
             required
+            containerClassName="mb-0"
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className={labelClass}>Profit Target ($)</label>
-          <input
+        <Field label="PROFIT TARGET ($)" htmlFor="tmpl-target" required>
+          <Input
+            id="tmpl-target"
             type="number"
-            name="profitTarget"
+            step="100"
+            min="0"
             value={formData.profitTarget}
-            onChange={handleChange}
+            onChange={(e) => setField('profitTarget', parseFloat(e.target.value) || 0)}
+            className="font-mono"
+            required
+            containerClassName="mb-0"
+          />
+        </Field>
+
+        <Field label="DAILY DRAWDOWN ($)" htmlFor="tmpl-daily" required>
+          <Input
+            id="tmpl-daily"
+            type="number"
             step="100"
             min="0"
-            className={`${inputClass} font-mono`}
-            required
-          />
-        </div>
-
-        <div>
-          <label className={labelClass}>Daily Drawdown ($)</label>
-          <input
-            type="number"
-            name="dailyDrawdown"
             value={formData.dailyDrawdown}
-            onChange={handleChange}
+            onChange={(e) => setField('dailyDrawdown', parseFloat(e.target.value) || 0)}
+            className="font-mono"
+            required
+            containerClassName="mb-0"
+          />
+        </Field>
+
+        <Field label="MAX DRAWDOWN ($)" htmlFor="tmpl-max" required>
+          <Input
+            id="tmpl-max"
+            type="number"
             step="100"
             min="0"
-            className={`${inputClass} font-mono`}
-            required
-          />
-        </div>
-
-        <div>
-          <label className={labelClass}>Max Drawdown ($)</label>
-          <input
-            type="number"
-            name="maxDrawdown"
             value={formData.maxDrawdown}
-            onChange={handleChange}
-            step="100"
-            min="0"
-            className={`${inputClass} font-mono`}
+            onChange={(e) => setField('maxDrawdown', parseFloat(e.target.value) || 0)}
+            className="font-mono"
             required
+            containerClassName="mb-0"
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className={labelClass}>Drawdown Type</label>
-          <select
-            name="drawdownType"
-            value={formData.drawdownType}
-            onChange={handleChange}
-            className={selectClass}
-            required
-          >
-            <option value="TRAILING">Trailing</option>
-            <option value="STATIC">Static</option>
-          </select>
-        </div>
+        <SelectInput
+          id="tmpl-ddtype"
+          label="DRAWDOWN TYPE"
+          value={formData.drawdownType}
+          onChange={(e) => setField('drawdownType', e.target.value)}
+          options={[
+            { value: 'TRAILING', label: 'Trailing' },
+            { value: 'STATIC', label: 'Static' },
+          ]}
+          containerClassName="mb-0"
+        />
 
-        <div>
-          <label className={labelClass}>Min Trading Days</label>
-          <input
+        <Field label="MIN TRADING DAYS" htmlFor="tmpl-mindays" required>
+          <Input
+            id="tmpl-mindays"
             type="number"
-            name="minTradingDays"
-            value={formData.minTradingDays}
-            onChange={handleChange}
             min="1"
-            className={`${inputClass} font-mono`}
+            value={formData.minTradingDays}
+            onChange={(e) => setField('minTradingDays', parseInt(e.target.value, 10) || 1)}
+            className="font-mono"
             required
+            containerClassName="mb-0"
           />
-        </div>
-
-        <div className="col-span-2 flex items-center gap-3 pt-1">
-          <input
-            type="checkbox"
-            id="isActive"
-            name="isActive"
-            checked={formData.isActive}
-            onChange={handleChange}
-            className="w-4 h-4 rounded-jtp-xs border-2 border-jtp-borderStrong bg-jtp-control checked:bg-jtp-blue checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-jtp-panel focus:ring-jtp-blue accent-jtp-blue"
-          />
-          <label htmlFor="isActive" className="text-jtp-md text-jtp-text cursor-pointer">
-            Active Template
-          </label>
-        </div>
+        </Field>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-jtp-border">
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-auto text-jtp-sm h-8 px-4"
-        >
-          {isSubmitting ? <Spinner /> : template ? 'Update Template' : 'Create Template'}
+      {/* Active toggle */}
+      <div className="pt-1">
+        <Checkbox
+          id="tmpl-active"
+          label="Active Template (visible to users)"
+          checked={formData.isActive}
+          onChange={(e) => setField('isActive', e.target.checked)}
+        />
+      </div>
+
+      {/* Submit */}
+      <div className="flex justify-end pt-2 border-t border-jtp-border">
+        <Button type="submit" isLoading={isSubmitting} className="text-jtp-sm h-9 px-5">
+          {template ? 'Update Template' : 'Create Template'}
         </Button>
       </div>
     </form>
