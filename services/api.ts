@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -140,6 +140,7 @@ export interface ApiService {
 
   // Quant (Polymarket wallet intelligence)
   quantLeaderboard(limit?: number, token?: string | null): Promise<PmWallet[]>;
+  quantFeed(limit?: number, token?: string | null): Promise<QuantFeedItem[]>;
   quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }>;
   quantWallet(address: string, token?: string | null): Promise<PmWallet>;
   quantScan(address: string, token?: string | null): Promise<PmWallet>;
@@ -351,6 +352,10 @@ const api: ApiService = {
   quantLeaderboard(limit?: number, token?: string | null): Promise<PmWallet[]> {
     const query = limit !== undefined ? `?limit=${limit}` : '';
     return this.get(`/api/quant/leaderboard${query}`, token);
+  },
+  quantFeed(limit?: number, token?: string | null): Promise<QuantFeedItem[]> {
+    const query = limit !== undefined ? `?limit=${limit}` : '';
+    return this.get(`/api/quant/feed${query}`, token);
   },
   quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }> { return this.get('/api/quant/stats', token); },
   quantWallet(address: string, token?: string | null): Promise<PmWallet> { return this.get(`/api/quant/wallet/${address}`, token); },
