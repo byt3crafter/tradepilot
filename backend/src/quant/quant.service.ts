@@ -31,6 +31,9 @@ export class QuantService implements OnApplicationBootstrap {
     if (w.aiVerdict && w.aiVerdictAt && Date.now() - w.aiVerdictAt.getTime() < 24 * 3600 * 1000) {
       return JSON.parse(w.aiVerdict);
     }
+    if (!(await this.chatgpt.isAllowed(userId, 'verdict'))) {
+      throw new BadRequestException('AI Verdict is disabled or ChatGPT/Codex is not connected (Settings → AI).');
+    }
     const instructions =
       'You are a skeptical Polymarket quant analyst. From a wallet\'s realized-edge stats, ' +
       'judge whether its edge is COPYABLE (a replicable modeling/mispricing edge on slow markets) ' +

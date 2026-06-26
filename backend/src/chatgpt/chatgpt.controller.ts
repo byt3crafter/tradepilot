@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { ChatgptService } from './chatgpt.service';
@@ -30,5 +30,13 @@ export class ChatgptController {
   @Post('disconnect')
   disconnect(@Req() req: AuthedRequest) {
     return this.chatgpt.disconnect(req.user.sub);
+  }
+
+  @Patch('permissions')
+  setPermissions(
+    @Body() body: { verdict?: boolean; bot?: boolean; analysis?: boolean },
+    @Req() req: AuthedRequest,
+  ) {
+    return this.chatgpt.setPermissions(req.user.sub, body);
   }
 }

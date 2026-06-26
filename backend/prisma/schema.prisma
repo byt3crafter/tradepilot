@@ -99,6 +99,10 @@ model ChatgptConnection {
   refreshToken    String    @default("")
   accountId       String?   // chatgpt_account_id from the JWT
   expiresAt       DateTime?
+  // what the connection is allowed to power across the app
+  allowVerdict    Boolean   @default(true)  // Quant AI Verdict
+  allowBot        Boolean   @default(true)  // Bot strategy AI
+  allowAnalysis   Boolean   @default(true)  // Trade/journal analysis
   pendingVerifier String?   // PKCE verifier between start and exchange
   pendingState    String?
   createdAt       DateTime  @default(now())
