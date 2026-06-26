@@ -57,6 +57,22 @@ export class QuantService implements OnApplicationBootstrap {
     setTimeout(() => this.autoTick().catch(() => {}), 8000);
   }
 
+  /** Live recent trades across markets — for the terminal ticker tape. */
+  async feed(limit = 40) {
+    const trades = await this.pm.recentTrades(Math.min(limit, 100));
+    return trades.map((t) => ({
+      wallet: t.proxyWallet,
+      pseudonym: t.pseudonym || t.name || null,
+      side: t.side,
+      size: Number(t.size) || 0,
+      price: Number(t.price) || 0,
+      usd: Number(t.size) * Number(t.price) || 0,
+      title: t.title || '',
+      outcome: t.outcome || '',
+      ts: t.timestamp,
+    }));
+  }
+
   /** Harvest wallet addresses from the live trades feed (autonomous discovery). */
   async discover(limit = 200): Promise<{ discovered: number }> {
     const trades = await this.pm.recentTrades(limit);
