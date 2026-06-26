@@ -134,9 +134,37 @@ export class ChatgptService {
   async status(userId: string) {
     const c = await this.prisma.chatgptConnection.findUnique({
       where: { userId },
-      select: { accessToken: true, updatedAt: true },
+      select: { accessToken: true, updatedAt: true, allowVerdict: true, allowBot: true, allowAnalysis: true },
     });
-    return { connected: !!c?.accessToken, connectedAt: c?.updatedAt ?? null };
+    return {
+      connected: !!c?.accessToken,
+      connectedAt: c?.updatedAt ?? null,
+      permissions: {
+        verdict: c?.allowVerdict ?? true,
+        bot: c?.allowBot ?? true,
+        analysis: c?.allowAnalysis ?? true,
+      },
+    };
+  }
+
+  /** Update what the connection is allowed to power. */
+  async setPermissions(userId: string, p: { verdict?: boolean; bot?: boolean; analysis?: boolean }) {
+    await this.prisma.chatgptConnection.update({
+      where: { userId },
+      data: {
+        ...(p.verdict !== undefined ? { allowVerdict: p.verdict } : {}),
+        ...(p.bot !== undefined ? { allowBot: p.bot } : {}),
+        ...(p.analysis !== undefined ? { allowAnalysis: p.analysis } : {}),
+      },
+    });
+    return this.status(userId);
+  }
+
+  /** Whether a given AI capability is connected AND permitted for this user. */
+  async isAllowed(userId: string, cap: 'verdict' | 'bot' | 'analysis'): Promise<boolean> {
+    const c = await this.prisma.chatgptConnection.findUnique({ where: { userId } });
+    if (!c?.accessToken) return false;
+    return cap === 'verdict' ? c.allowVerdict : cap === 'bot' ? c.allowBot : c.allowAnalysis;
   }
 
   async disconnect(userId: string) {
