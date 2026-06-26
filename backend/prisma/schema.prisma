@@ -50,6 +50,20 @@ model User {
   usedInviteCodes    InviteCode[]
   mistakeTags        MistakeTag[]
   notebookEntries    NotebookEntry[]
+  ctraderConnection  CtraderConnection?
+}
+
+model CtraderConnection {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken         String
+  refreshToken        String   @default("")
+  expiresAt           DateTime
+  scope               String   @default("accounts")
+  ctidTraderAccountId String?  // set after fetching the account list (sync phase)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model NotebookEntry {
