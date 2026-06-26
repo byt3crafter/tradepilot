@@ -17,6 +17,9 @@ export class AdminUserDto {
   botEnabled: boolean;
 
   @Expose()
+  quantEnabled: boolean;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()
