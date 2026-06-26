@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { PmWallet } from '../types';
+import { PmWallet, QuantVerdict } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,304 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
   </svg>
 );
+
+// ─── ChatGPT connect panel (paste-URL OAuth flow) ───────────────────────────────
+
+const ConnectChatGPT: React.FC = () => {
+  const { getToken } = useAuth();
+
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const [connectedAt, setConnectedAt] = useState<string | undefined>(undefined);
+
+  const [starting, setStarting] = useState(false);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasted, setPasted] = useState('');
+  const [exchanging, setExchanging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [justConnected, setJustConnected] = useState(false);
+
+  const refreshStatus = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const s = await api.chatgptStatus(token);
+      setConnected(!!s.connected);
+      setConnectedAt(s.connectedAt);
+    } catch {
+      // leave as not-connected; surfaced via the connect button
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus]);
+
+  const handleStart = useCallback(async () => {
+    setError(null);
+    setStarting(true);
+    try {
+      const token = await getToken();
+      const { authUrl } = await api.chatgptStart(token);
+      if (typeof window !== 'undefined') window.open(authUrl, '_blank', 'noopener,noreferrer');
+      setShowPaste(true);
+    } catch (e: any) {
+      setError(e?.message || 'Could not start the ChatGPT connection. Please try again.');
+    } finally {
+      setStarting(false);
+    }
+  }, [getToken]);
+
+  const handleExchange = useCallback(async () => {
+    setError(null);
+    let code: string | null = null;
+    let state: string | null = null;
+    try {
+      const url = new URL(pasted.trim());
+      code = url.searchParams.get('code');
+      state = url.searchParams.get('state');
+    } catch {
+      setError('That does not look like a valid URL. Paste the full address (including https://).');
+      return;
+    }
+    if (!code || !state) {
+      setError('Could not find a code in that URL. Make sure you copied the entire redirect address.');
+      return;
+    }
+    setExchanging(true);
+    try {
+      const token = await getToken();
+      await api.chatgptExchange(code, state, token);
+      setJustConnected(true);
+      setShowPaste(false);
+      setPasted('');
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e?.message || 'Could not complete the connection. Please try again.');
+    } finally {
+      setExchanging(false);
+    }
+  }, [pasted, getToken, refreshStatus]);
+
+  const handleDisconnect = useCallback(async () => {
+    setError(null);
+    try {
+      const token = await getToken();
+      await api.chatgptDisconnect(token);
+      setJustConnected(false);
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e?.message || 'Could not disconnect. Please try again.');
+    }
+  }, [getToken, refreshStatus]);
+
+  return (
+    <div
+      id="quant-ai-connect"
+      className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden"
+    >
+      <div className="px-5 py-4 border-b border-jtp-border flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">AI Verdict</h2>
+          <p className="text-jtp-xs text-jtp-textDim mt-1">
+            Connect ChatGPT to generate on-demand copyability verdicts for any scanned wallet.
+          </p>
+        </div>
+        {!statusLoading && connected && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-jtp-xs font-medium bg-[rgba(34,197,94,0.12)] text-jtp-profit border border-[rgba(34,197,94,0.25)] whitespace-nowrap">
+            ChatGPT connected ✓
+          </span>
+        )}
+      </div>
+
+      <div className="px-5 py-4 space-y-3">
+        {statusLoading ? (
+          <div className="flex items-center gap-2 text-jtp-textDim">
+            <Spinner />
+            <span className="text-jtp-sm">Checking connection…</span>
+          </div>
+        ) : connected ? (
+          <div className="space-y-2">
+            {justConnected && (
+              <p className="text-jtp-sm text-jtp-profit font-medium">ChatGPT connected ✓</p>
+            )}
+            <p className="text-jtp-xs text-jtp-textMuted">
+              {connectedAt
+                ? `Connected ${new Date(connectedAt).toLocaleString()}.`
+                : 'Your ChatGPT account is linked.'}{' '}
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                className="text-jtp-blue hover:underline font-medium"
+              >
+                Disconnect
+              </button>
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {!showPaste ? (
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={starting}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {starting ? <Spinner /> : null}
+                {starting ? 'Opening…' : 'Connect ChatGPT'}
+              </button>
+            ) : (
+              <div className="space-y-2.5">
+                <p className="text-jtp-xs text-jtp-textMuted leading-relaxed">
+                  After signing in, OpenAI redirects to a page that won't load
+                  (localhost:1455). Copy that full URL from the address bar and paste it below.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <input
+                    type="text"
+                    value={pasted}
+                    onChange={(e) => setPasted(e.target.value)}
+                    placeholder="http://localhost:1455/?code=…&state=…"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleExchange}
+                    disabled={exchanging || !pasted.trim()}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {exchanging ? <Spinner /> : null}
+                    {exchanging ? 'Connecting…' : 'Complete Connection'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <p role="alert" className="text-jtp-xs text-jtp-loss">
+            {error}
+          </p>
+        )}
+
+        <p className="text-jtp-xs text-jtp-textDim">
+          Uses your own ChatGPT account to generate verdicts. Requires ChatGPT Plus/Pro.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ─── AI Verdict badge + display ─────────────────────────────────────────────────
+
+const verdictStyles: Record<QuantVerdict['verdict'], string> = {
+  COPY: 'bg-[rgba(34,197,94,0.12)] text-jtp-profit border-[rgba(34,197,94,0.25)]',
+  WATCH: 'bg-[rgba(234,179,8,0.12)] text-jtp-warning border-[rgba(234,179,8,0.25)]',
+  AVOID: 'bg-[rgba(239,68,68,0.12)] text-jtp-loss border-[rgba(239,68,68,0.25)]',
+};
+
+const scrollToConnect = () => {
+  if (typeof document === 'undefined') return;
+  document.getElementById('quant-ai-connect')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
+  const { getToken } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [verdict, setVerdict] = useState<QuantVerdict | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [needsConnect, setNeedsConnect] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setNeedsConnect(false);
+    setVerdict(null);
+    try {
+      const token = await getToken();
+      const v = await api.quantVerdict(address, token);
+      setVerdict(v);
+    } catch (e: any) {
+      const msg = e?.message || '';
+      if (msg.includes('CHATGPT_NOT_CONNECTED')) {
+        setNeedsConnect(true);
+      } else if (msg.includes('≥15 closed')) {
+        setError('Not enough closed positions for a verdict.');
+      } else {
+        setError(msg || 'Could not generate a verdict. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [address, getToken]);
+
+  return (
+    <div className="px-5 py-4 border-t border-jtp-border bg-jtp-bg space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-jtp-sm font-semibold text-jtp-text">AI Verdict</h3>
+          <p className="text-jtp-xs text-jtp-textDim mt-0.5">
+            Is the edge <span className="italic">copyable</span> (mispricing) — or speed, insider,
+            or luck?
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={run}
+          disabled={loading}
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        >
+          {loading ? <Spinner /> : null}
+          {loading ? 'Analyzing…' : verdict ? 'Re-run AI Verdict' : 'AI Verdict'}
+        </button>
+      </div>
+
+      {needsConnect && (
+        <p className="text-jtp-xs text-jtp-warning">
+          <button type="button" onClick={scrollToConnect} className="hover:underline font-medium">
+            Connect ChatGPT above
+          </button>{' '}
+          to run verdicts.
+        </p>
+      )}
+
+      {error && (
+        <p role="alert" className="text-jtp-xs text-jtp-loss">
+          {error}
+        </p>
+      )}
+
+      {verdict && (
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-md text-jtp-xs font-bold border ${verdictStyles[verdict.verdict]}`}
+            >
+              {verdict.verdict}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-medium bg-jtp-active border border-jtp-border text-jtp-textMuted">
+              {verdict.edgeType}
+            </span>
+            <span className="inline-flex items-center gap-1 text-jtp-xs text-jtp-textMuted">
+              Copyable:{' '}
+              <span className={verdict.copyable ? 'text-jtp-profit font-semibold' : 'text-jtp-loss font-semibold'}>
+                {verdict.copyable ? '✓' : '✗'}
+              </span>
+            </span>
+            <span className="inline-flex items-center text-jtp-xs text-jtp-textDim">
+              Confidence: <span className="text-jtp-textMuted font-medium ml-1 capitalize">{verdict.confidence}</span>
+            </span>
+          </div>
+          <p className="text-jtp-sm text-jtp-textMuted leading-relaxed">{verdict.summary}</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Market focus chip ────────────────────────────────────────────────────────
 
@@ -160,6 +458,8 @@ const WalletCard: React.FC<{ wallet: PmWallet }> = ({ wallet }) => (
         </p>
       </div>
     )}
+
+    <AiVerdictSection key={wallet.address} address={wallet.address} />
   </div>
 );
 
@@ -254,6 +554,9 @@ const QuantPage: React.FC = () => {
               : '— tracked · — scanned · — qualified'}
         </p>
       </div>
+
+      {/* ── ChatGPT connect (AI Verdict) ── */}
+      <ConnectChatGPT />
 
       {/* ── Scan box ── */}
       <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
