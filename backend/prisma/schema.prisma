@@ -14,6 +14,7 @@ model User {
   fullName           String
   isEmailVerified    Boolean   @default(false)
   role               String    @default("USER") // USER or ADMIN
+  botEnabled         Boolean   @default(false) // admin-gated access to the (beta, not-live) trading bot
   createdAt          DateTime  @default(now())
   lastLoginAt        DateTime?
   lastActiveAt       DateTime?
@@ -425,6 +426,7 @@ model SystemConfig {
   id                String   @id @default(uuid())
   key               String   @unique // e.g., 'main'
   isMaintenanceMode Boolean  @default(false)
+  freeMode          Boolean  @default(false) // when true, everyone gets full access (paywall off); billing stays intact
   maintenanceMessage String?
   updatedAt         DateTime @updatedAt
 }

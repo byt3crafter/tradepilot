@@ -109,4 +109,14 @@ export class AdminController {
   toggleMaintenance(@Body('enabled') enabled: boolean) {
     return this.adminService.toggleMaintenance(enabled);
   }
+
+  @Post('system/free-mode')
+  toggleFreeMode(@Body('enabled') enabled: boolean) {
+    return this.adminService.toggleFreeMode(enabled);
+  }
+
+  @Patch('users/:id/bot')
+  setBotEnabled(@Param('id') userId: string, @Body('enabled') enabled: boolean) {
+    return this.adminService.setBotEnabled(userId, enabled);
+  }
 }

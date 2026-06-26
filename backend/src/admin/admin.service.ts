@@ -86,6 +86,24 @@ export class AdminService {
     });
   }
 
+  /** Global free mode: when on, everyone gets full access (paywall off, billing intact). */
+  async toggleFreeMode(enabled: boolean) {
+    const config = await this.getSystemConfig(); // ensure exists
+    return this.prisma.systemConfig.update({
+      where: { id: config.id },
+      data: { freeMode: enabled }
+    });
+  }
+
+  /** Per-user gate for the (beta, not-live) trading bot. */
+  async setBotEnabled(userId: string, enabled: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { botEnabled: enabled },
+      select: { id: true, email: true, botEnabled: true },
+    });
+  }
+
   async getPlayingUsersCount() {
     // Alias for online users if needed separately
     return this.prisma.user.count({
