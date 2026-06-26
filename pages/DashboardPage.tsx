@@ -32,7 +32,7 @@ export type DashboardView =
   | 'pricing'
   | 'bot';
 
-export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing';
+export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing' | 'ai';
 
 const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
   dashboard:        { title: 'Dashboard',   subtitle: 'Account & rule status' },

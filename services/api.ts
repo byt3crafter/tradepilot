@@ -149,8 +149,21 @@ export interface ApiService {
   // ChatGPT connection (paste-URL OAuth flow)
   chatgptStart(token?: string | null): Promise<{ authUrl: string }>;
   chatgptExchange(code: string, state: string, token?: string | null): Promise<{ connected: true }>;
-  chatgptStatus(token?: string | null): Promise<{ connected: boolean; connectedAt?: string }>;
+  chatgptStatus(token?: string | null): Promise<ChatGptStatus>;
   chatgptDisconnect(token?: string | null): Promise<{ disconnected: true }>;
+  chatgptSetPermissions(perms: Partial<ChatGptPermissions>, token?: string | null): Promise<ChatGptStatus>;
+}
+
+export interface ChatGptPermissions {
+  verdict: boolean;
+  bot: boolean;
+  analysis: boolean;
+}
+
+export interface ChatGptStatus {
+  connected: boolean;
+  connectedAt?: string;
+  permissions?: ChatGptPermissions;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {
@@ -365,8 +378,9 @@ const api: ApiService = {
   // ChatGPT Connection Methods (paste-URL OAuth flow)
   chatgptStart(token?: string | null): Promise<{ authUrl: string }> { return this.post('/api/chatgpt/start', {}, token); },
   chatgptExchange(code: string, state: string, token?: string | null): Promise<{ connected: true }> { return this.post('/api/chatgpt/exchange', { code, state }, token); },
-  chatgptStatus(token?: string | null): Promise<{ connected: boolean; connectedAt?: string }> { return this.get('/api/chatgpt/status', token); },
+  chatgptStatus(token?: string | null): Promise<ChatGptStatus> { return this.get('/api/chatgpt/status', token); },
   chatgptDisconnect(token?: string | null): Promise<{ disconnected: true }> { return this.post('/api/chatgpt/disconnect', {}, token); },
+  chatgptSetPermissions(perms: Partial<ChatGptPermissions>, token?: string | null): Promise<ChatGptStatus> { return this.patch('/api/chatgpt/permissions', perms, token); },
 };
 
 export default api;

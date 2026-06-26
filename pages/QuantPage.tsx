@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 import api from '../services/api';
 import { PmWallet, QuantVerdict } from '../types';
 import QuantTerminal from '../components/quant/QuantTerminal';
@@ -67,193 +68,90 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// ─── ChatGPT connect panel (paste-URL OAuth flow) ───────────────────────────────
+// ─── ChatGPT connection status line (connect lives in Settings → AI) ────────────
 
 const ConnectChatGPT: React.FC = () => {
   const { getToken } = useAuth();
+  const { navigateTo } = useView();
 
   const [statusLoading, setStatusLoading] = useState(true);
   const [connected, setConnected] = useState(false);
-  const [connectedAt, setConnectedAt] = useState<string | undefined>(undefined);
-
-  const [starting, setStarting] = useState(false);
-  const [showPaste, setShowPaste] = useState(false);
-  const [pasted, setPasted] = useState('');
-  const [exchanging, setExchanging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [justConnected, setJustConnected] = useState(false);
-
-  const refreshStatus = useCallback(async () => {
-    try {
-      const token = await getToken();
-      const s = await api.chatgptStatus(token);
-      setConnected(!!s.connected);
-      setConnectedAt(s.connectedAt);
-    } catch {
-      // leave as not-connected; surfaced via the connect button
-    } finally {
-      setStatusLoading(false);
-    }
-  }, [getToken]);
+  const [verdictAllowed, setVerdictAllowed] = useState(false);
 
   useEffect(() => {
-    refreshStatus();
-  }, [refreshStatus]);
-
-  const handleStart = useCallback(async () => {
-    setError(null);
-    setStarting(true);
-    try {
-      const token = await getToken();
-      const { authUrl } = await api.chatgptStart(token);
-      if (typeof window !== 'undefined') window.open(authUrl, '_blank', 'noopener,noreferrer');
-      setShowPaste(true);
-    } catch (e: any) {
-      setError(e?.message || 'Could not start the ChatGPT connection. Please try again.');
-    } finally {
-      setStarting(false);
-    }
+    let active = true;
+    (async () => {
+      try {
+        const token = await getToken();
+        const s = await api.chatgptStatus(token);
+        if (!active) return;
+        setConnected(!!s.connected);
+        setVerdictAllowed(!!s.permissions?.verdict);
+      } catch {
+        // leave as not-connected; surfaced via the prompt below
+      } finally {
+        if (active) setStatusLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [getToken]);
 
-  const handleExchange = useCallback(async () => {
-    setError(null);
-    let code: string | null = null;
-    let state: string | null = null;
-    try {
-      const url = new URL(pasted.trim());
-      code = url.searchParams.get('code');
-      state = url.searchParams.get('state');
-    } catch {
-      setError('That does not look like a valid URL. Paste the full address (including https://).');
-      return;
-    }
-    if (!code || !state) {
-      setError('Could not find a code in that URL. Make sure you copied the entire redirect address.');
-      return;
-    }
-    setExchanging(true);
-    try {
-      const token = await getToken();
-      await api.chatgptExchange(code, state, token);
-      setJustConnected(true);
-      setShowPaste(false);
-      setPasted('');
-      await refreshStatus();
-    } catch (e: any) {
-      setError(e?.message || 'Could not complete the connection. Please try again.');
-    } finally {
-      setExchanging(false);
-    }
-  }, [pasted, getToken, refreshStatus]);
+  const goToSettings = () => navigateTo('settings', 'ai');
 
-  const handleDisconnect = useCallback(async () => {
-    setError(null);
-    try {
-      const token = await getToken();
-      await api.chatgptDisconnect(token);
-      setJustConnected(false);
-      await refreshStatus();
-    } catch (e: any) {
-      setError(e?.message || 'Could not disconnect. Please try again.');
-    }
-  }, [getToken, refreshStatus]);
+  if (statusLoading) return null;
 
-  return (
-    <div
-      id="quant-ai-connect"
-      className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden"
-    >
-      <div className="px-5 py-4 border-b border-jtp-border flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">AI Verdict</h2>
-          <p className="text-jtp-xs text-jtp-textDim mt-1">
-            Connect your ChatGPT/Codex account — powers AI across JTradePilot (verdicts, and more).
-          </p>
-        </div>
-        {!statusLoading && connected && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-jtp-xs font-medium bg-[rgba(34,197,94,0.12)] text-jtp-profit border border-[rgba(34,197,94,0.25)] whitespace-nowrap">
-            ChatGPT / Codex connected ✓
-          </span>
-        )}
+  // Connected + verdict permitted: a quiet "ready" status; verdicts work on each wallet.
+  if (connected && verdictAllowed) {
+    return (
+      <div className="flex items-center gap-2 text-jtp-xs text-jtp-textMuted">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium bg-[rgba(34,197,94,0.12)] text-jtp-profit border border-[rgba(34,197,94,0.25)]">
+          AI Verdict ready ✓
+        </span>
+        <span>
+          Run an AI Verdict on any wallet below.{' '}
+          <button type="button" onClick={goToSettings} className="text-jtp-blue hover:underline font-medium">
+            Manage in Settings → AI
+          </button>
+        </span>
       </div>
+    );
+  }
 
-      <div className="px-5 py-4 space-y-3">
-        {statusLoading ? (
-          <div className="flex items-center gap-2 text-jtp-textDim">
-            <Spinner />
-            <span className="text-jtp-sm">Checking connection…</span>
-          </div>
-        ) : connected ? (
-          <div className="space-y-2">
-            {justConnected && (
-              <p className="text-jtp-sm text-jtp-profit font-medium">ChatGPT / Codex connected ✓</p>
-            )}
-            <p className="text-jtp-xs text-jtp-textMuted">
-              {connectedAt
-                ? `Connected ${new Date(connectedAt).toLocaleString()}.`
-                : 'Your ChatGPT/Codex account is linked.'}{' '}
-              <button
-                type="button"
-                onClick={handleDisconnect}
-                className="text-jtp-blue hover:underline font-medium"
-              >
-                Disconnect
-              </button>
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {!showPaste ? (
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={starting}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {starting ? <Spinner /> : null}
-                {starting ? 'Opening…' : 'Connect ChatGPT / Codex'}
-              </button>
-            ) : (
-              <div className="space-y-2.5">
-                <p className="text-jtp-xs text-jtp-textMuted leading-relaxed">
-                  After signing in, OpenAI redirects to a page that won't load
-                  (localhost:1455). Copy that full URL from the address bar and paste it below.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2.5">
-                  <input
-                    type="text"
-                    value={pasted}
-                    onChange={(e) => setPasted(e.target.value)}
-                    placeholder="http://localhost:1455/?code=…&state=…"
-                    spellCheck={false}
-                    autoComplete="off"
-                    className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleExchange}
-                    disabled={exchanging || !pasted.trim()}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {exchanging ? <Spinner /> : null}
-                    {exchanging ? 'Connecting…' : 'Complete Connection'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {error && (
-          <p role="alert" className="text-jtp-xs text-jtp-loss">
-            {error}
-          </p>
-        )}
-
-        <p className="text-jtp-xs text-jtp-textDim">
-          Uses your own ChatGPT/Codex account to generate verdicts. Requires ChatGPT Plus/Pro.
+  // Connected but verdict permission is off.
+  if (connected && !verdictAllowed) {
+    return (
+      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-jtp-xs text-jtp-textMuted">
+          ChatGPT/Codex is connected, but <span className="text-jtp-text font-medium">AI Verdict</span> is
+          turned off. Enable it to run verdicts.
         </p>
+        <button
+          type="button"
+          onClick={goToSettings}
+          className="px-4 py-2 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors whitespace-nowrap"
+        >
+          Settings → AI
+        </button>
       </div>
+    );
+  }
+
+  // Not connected.
+  return (
+    <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+      <p className="text-jtp-xs text-jtp-textMuted">
+        Connect ChatGPT/Codex in <span className="text-jtp-text font-medium">Settings → AI</span> to
+        enable verdicts.
+      </p>
+      <button
+        type="button"
+        onClick={goToSettings}
+        className="px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors whitespace-nowrap"
+      >
+        Connect in Settings → AI
+      </button>
     </div>
   );
 };
@@ -266,13 +164,9 @@ const verdictStyles: Record<QuantVerdict['verdict'], string> = {
   AVOID: 'bg-[rgba(239,68,68,0.12)] text-jtp-loss border-[rgba(239,68,68,0.25)]',
 };
 
-const scrollToConnect = () => {
-  if (typeof document === 'undefined') return;
-  document.getElementById('quant-ai-connect')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-};
-
 const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
   const { getToken } = useAuth();
+  const { navigateTo } = useView();
   const [loading, setLoading] = useState(false);
   const [verdict, setVerdict] = useState<QuantVerdict | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -324,8 +218,12 @@ const AiVerdictSection: React.FC<{ address: string }> = ({ address }) => {
 
       {needsConnect && (
         <p className="text-jtp-xs text-jtp-warning">
-          <button type="button" onClick={scrollToConnect} className="hover:underline font-medium">
-            Connect ChatGPT / Codex above
+          <button
+            type="button"
+            onClick={() => navigateTo('settings', 'ai')}
+            className="hover:underline font-medium"
+          >
+            Connect ChatGPT / Codex in Settings → AI
           </button>{' '}
           to run verdicts.
         </p>
