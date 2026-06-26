@@ -558,6 +558,21 @@ export interface PmWallet {
   lastScanned: string;    // ISO date string
 }
 
+// --- Quant wallet position (for Trade / Mirror prefill) ---
+
+export interface PmPosition {
+  tokenId: string;          // CLOB ERC1155 outcome token id (the `tokenID` orders trade)
+  outcome: string;          // outcome label, e.g. "Yes" / "No"
+  outcomeIndex?: number;    // 0/1 index of the outcome within the market
+  curPrice?: number;        // current implied price 0..1
+  title?: string;           // market title
+  size?: number;            // shares held by the scanned wallet
+  avgPrice?: number;        // wallet's average entry price
+  conditionId?: string;     // market condition id
+  slug?: string;            // market slug
+  icon?: string;            // market icon url
+}
+
 // --- Quant AI Verdict (ChatGPT-powered) ---
 
 export interface QuantVerdict {

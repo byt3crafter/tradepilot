@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -143,6 +143,7 @@ export interface ApiService {
   quantFeed(limit?: number, token?: string | null): Promise<QuantFeedItem[]>;
   quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }>;
   quantWallet(address: string, token?: string | null): Promise<PmWallet>;
+  quantWalletPositions(address: string, token?: string | null): Promise<PmPosition[]>;
   quantScan(address: string, token?: string | null): Promise<PmWallet>;
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict>;
 
@@ -399,6 +400,7 @@ const api: ApiService = {
   },
   quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }> { return this.get('/api/quant/stats', token); },
   quantWallet(address: string, token?: string | null): Promise<PmWallet> { return this.get(`/api/quant/wallet/${address}`, token); },
+  quantWalletPositions(address: string, token?: string | null): Promise<PmPosition[]> { return this.get(`/api/quant/wallet/${address}/positions`, token); },
   quantScan(address: string, token?: string | null): Promise<PmWallet> { return this.post('/api/quant/scan', { address }, token); },
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict> { return this.post('/api/quant/verdict', { address }, token); },
 

@@ -2,11 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import api from '../services/api';
-import { PmWallet, QuantVerdict } from '../types';
+import { PmWallet, PmPosition, QuantVerdict } from '../types';
 import QuantTerminal from '../components/quant/QuantTerminal';
 import AiQuantPanel from '../components/quant/AiQuantPanel';
+import PolymarketTradePanel, { TradePrefill } from '../components/trade/PolymarketTradePanel';
 
-type QuantMode = 'leaderboard' | 'terminal';
+type QuantMode = 'leaderboard' | 'terminal' | 'trade';
+
+const MODE_LABELS: Record<QuantMode, string> = {
+  leaderboard: 'Leaderboard',
+  terminal: 'Terminal',
+  trade: 'Trade',
+};
 
 // ─── Mode toggle (segmented control) ────────────────────────────────────────────
 
@@ -15,7 +22,7 @@ const ModeToggle: React.FC<{ mode: QuantMode; onChange: (m: QuantMode) => void }
   onChange,
 }) => (
   <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl">
-    {(['leaderboard', 'terminal'] as const).map((m) => (
+    {(['leaderboard', 'terminal', 'trade'] as const).map((m) => (
       <button
         key={m}
         type="button"
@@ -26,7 +33,7 @@ const ModeToggle: React.FC<{ mode: QuantMode; onChange: (m: QuantMode) => void }
             : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
         }`}
       >
-        {m === 'leaderboard' ? 'Leaderboard' : 'Terminal'}
+        {MODE_LABELS[m]}
       </button>
     ))}
   </div>
@@ -291,7 +298,95 @@ const Metric: React.FC<{ label: string; value: React.ReactNode; valueClass?: str
   </div>
 );
 
-const WalletCard: React.FC<{ wallet: PmWallet }> = ({ wallet }) => (
+// ─── Wallet positions (Trade / Mirror entry points) ────────────────────────────
+
+const WalletPositions: React.FC<{ address: string; onTrade: (p: PmPosition) => void }> = ({
+  address,
+  onTrade,
+}) => {
+  const { getToken } = useAuth();
+  const [positions, setPositions] = useState<PmPosition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const token = await getToken();
+        const data = await api.quantWalletPositions(address, token);
+        if (!active) return;
+        setPositions(Array.isArray(data) ? data.filter((p) => p && p.tokenId) : []);
+      } catch (e: any) {
+        if (active) setError(e?.message || 'Could not load positions.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [address, getToken]);
+
+  if (loading) {
+    return (
+      <div className="px-5 py-4 border-t border-jtp-border bg-jtp-bg flex items-center gap-2 text-jtp-textDim">
+        <Spinner />
+        <span className="text-jtp-xs">Loading open positions…</span>
+      </div>
+    );
+  }
+
+  if (error || positions.length === 0) {
+    return (
+      <div className="px-5 py-3 border-t border-jtp-border bg-jtp-bg">
+        <p className="text-jtp-xs text-jtp-textDim">
+          {error ? error : 'No open positions to mirror for this wallet.'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-5 py-4 border-t border-jtp-border bg-jtp-bg space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-jtp-sm font-semibold text-jtp-text">Open positions</h3>
+        <span className="text-jtp-xs text-jtp-textDim">Mirror a position into the Trade panel</span>
+      </div>
+      <div className="space-y-1.5 max-h-72 overflow-y-auto">
+        {positions.map((p, i) => (
+          <div
+            key={`${p.tokenId}-${i}`}
+            className="flex items-center justify-between gap-3 rounded-jtp-lg border border-jtp-borderSubtle bg-jtp-panel px-3 py-2"
+          >
+            <div className="min-w-0">
+              <div className="text-jtp-sm text-jtp-text truncate">{p.title || 'Untitled market'}</div>
+              <div className="text-jtp-xs text-jtp-textDim truncate">
+                {p.outcome || '—'}
+                {typeof p.curPrice === 'number' ? ` · ${(p.curPrice * 100).toFixed(0)}¢` : ''}
+                {typeof p.size === 'number' ? ` · ${fmtNum(Math.round(p.size))} sh` : ''}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onTrade(p)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-jtp-lg text-jtp-xs font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors"
+            >
+              Trade
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const WalletCard: React.FC<{ wallet: PmWallet; onTrade?: (p: PmPosition) => void }> = ({
+  wallet,
+  onTrade,
+}) => (
   <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
     <div className="px-5 py-4 border-b border-jtp-border flex items-center gap-3">
       {wallet.profileImage ? (
@@ -386,6 +481,8 @@ const WalletCard: React.FC<{ wallet: PmWallet }> = ({ wallet }) => (
     )}
 
     <AiVerdictSection key={wallet.address} address={wallet.address} />
+
+    {onTrade && <WalletPositions address={wallet.address} onTrade={onTrade} />}
   </div>
 );
 
@@ -403,6 +500,21 @@ const QuantPage: React.FC = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<PmWallet | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+
+  // Trade panel prefill (set when "Trade" is clicked on a wallet position).
+  const [tradePrefill, setTradePrefill] = useState<TradePrefill | null>(null);
+
+  const handleTradePosition = useCallback((p: PmPosition) => {
+    setTradePrefill({
+      tokenId: p.tokenId,
+      price: typeof p.curPrice === 'number' ? p.curPrice : undefined,
+      side: 'BUY',
+      title: p.title,
+      outcome: p.outcome,
+    });
+    setMode('trade');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -458,12 +570,26 @@ const QuantPage: React.FC = () => {
   };
 
   return (
-    <div className={`space-y-5 animate-jtp-fade-in ${mode === 'terminal' ? 'max-w-7xl' : 'max-w-6xl'}`}>
+    <div className={`space-y-5 animate-jtp-fade-in ${mode === 'terminal' ? 'max-w-7xl' : mode === 'trade' ? 'max-w-2xl' : 'max-w-6xl'}`}>
       {/* ── Mode toggle ── */}
       <ModeToggle mode={mode} onChange={setMode} />
 
       {mode === 'terminal' ? (
         <QuantTerminal />
+      ) : mode === 'trade' ? (
+        <>
+          <div>
+            <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
+              Trade — Polymarket (non-custodial)
+            </h1>
+            <p className="text-jtp-sm text-jtp-textMuted mt-1.5 max-w-2xl">
+              Connect your own Polygon wallet and place orders on Polymarket directly. You sign every
+              action — JTradePilot never holds your keys or funds. Mirror a position from any scanned
+              wallet, or paste a token id manually.
+            </p>
+          </div>
+          <PolymarketTradePanel prefill={tradePrefill} />
+        </>
       ) : (
         <>
       {/* ── Header ── */}
@@ -533,7 +659,7 @@ const QuantPage: React.FC = () => {
             </p>
           )}
 
-          {scanResult && <WalletCard wallet={scanResult} />}
+          {scanResult && <WalletCard wallet={scanResult} onTrade={handleTradePosition} />}
         </div>
       </div>
 
