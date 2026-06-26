@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -146,6 +146,10 @@ export interface ApiService {
   quantScan(address: string, token?: string | null): Promise<PmWallet>;
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict>;
 
+  // Quant AI features (ChatGPT-powered)
+  aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
+  aiStrategy(token?: string | null): Promise<AiStrategy>;
+
   // ChatGPT connection (paste-URL OAuth flow)
   chatgptStart(token?: string | null): Promise<{ authUrl: string }>;
   chatgptExchange(code: string, state: string, token?: string | null): Promise<{ connected: true }>;
@@ -154,6 +158,10 @@ export interface ApiService {
   chatgptSetPermissions(perms: Partial<ChatGptPermissions>, token?: string | null): Promise<ChatGptStatus>;
   chatgptModels(token?: string | null): Promise<{ models: string[]; working: string | null }>;
   chatgptSetModel(model: string, token?: string | null): Promise<ChatGptStatus>;
+
+  // AI (ChatGPT-grounded journal analysis + copilot chat)
+  aiJournalAnalysis(token?: string | null): Promise<AiJournalAnalysis>;
+  aiChat(message: string, history?: string, token?: string | null): Promise<{ reply: string }>;
 }
 
 export interface ChatGptPermissions {
@@ -378,6 +386,10 @@ const api: ApiService = {
   quantScan(address: string, token?: string | null): Promise<PmWallet> { return this.post('/api/quant/scan', { address }, token); },
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict> { return this.post('/api/quant/verdict', { address }, token); },
 
+  // Quant AI features (ChatGPT-powered)
+  aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },
+  aiStrategy(token?: string | null): Promise<AiStrategy> { return this.post('/api/ai/strategy', {}, token); },
+
   // ChatGPT Connection Methods (paste-URL OAuth flow)
   chatgptStart(token?: string | null): Promise<{ authUrl: string }> { return this.post('/api/chatgpt/start', {}, token); },
   chatgptExchange(code: string, state: string, token?: string | null): Promise<{ connected: true }> { return this.post('/api/chatgpt/exchange', { code, state }, token); },
@@ -386,6 +398,10 @@ const api: ApiService = {
   chatgptSetPermissions(perms: Partial<ChatGptPermissions>, token?: string | null): Promise<ChatGptStatus> { return this.patch('/api/chatgpt/permissions', perms, token); },
   chatgptModels(token?: string | null): Promise<{ models: string[]; working: string | null }> { return this.get('/api/chatgpt/models', token); },
   chatgptSetModel(model: string, token?: string | null): Promise<ChatGptStatus> { return this.patch('/api/chatgpt/model', { model }, token); },
+
+  // AI Methods (ChatGPT-grounded journal analysis + copilot chat)
+  aiJournalAnalysis(token?: string | null): Promise<AiJournalAnalysis> { return this.post('/api/ai/journal-analysis', {}, token); },
+  aiChat(message: string, history?: string, token?: string | null): Promise<{ reply: string }> { return this.post('/api/ai/chat', { message, history }, token); },
 };
 
 export default api;
