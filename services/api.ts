@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -162,6 +162,7 @@ export interface ApiService {
   // AI (ChatGPT-grounded journal analysis + copilot chat)
   aiJournalAnalysis(token?: string | null): Promise<AiJournalAnalysis>;
   aiChat(message: string, history?: string, token?: string | null): Promise<{ reply: string }>;
+  aiAgent(goal: string, token?: string | null): Promise<AiAgentResult>;
 }
 
 export interface ChatGptPermissions {
@@ -402,6 +403,7 @@ const api: ApiService = {
   // AI Methods (ChatGPT-grounded journal analysis + copilot chat)
   aiJournalAnalysis(token?: string | null): Promise<AiJournalAnalysis> { return this.post('/api/ai/journal-analysis', {}, token); },
   aiChat(message: string, history?: string, token?: string | null): Promise<{ reply: string }> { return this.post('/api/ai/chat', { message, history }, token); },
+  aiAgent(goal: string, token?: string | null): Promise<AiAgentResult> { return this.post('/api/ai/agent', { goal }, token); },
 };
 
 export default api;

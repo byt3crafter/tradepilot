@@ -2,12 +2,18 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useView } from '../../context/ViewContext';
 import api from '../../services/api';
+import type { AiAgentStep } from '../../types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+type CopilotMode = 'agent' | 'chat';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  // Agent-mode metadata (assistant messages only)
+  steps?: AiAgentStep[];
+  actions?: string[];
 }
 
 // ─── Icons ──────────────────────────────────────────────────────────────────
@@ -31,6 +37,80 @@ const SendIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const ChevronIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// ─── Helper: compactly render a tool call's args ─────────────────────────────
+
+function formatArgs(args?: Record<string, unknown>): string {
+  if (!args || typeof args !== 'object') return '';
+  const entries = Object.entries(args);
+  if (entries.length === 0) return '';
+  return entries
+    .map(([k, v]) => {
+      let val: string;
+      if (v === null || v === undefined) val = '∅';
+      else if (typeof v === 'object') val = Array.isArray(v) ? `[${v.length}]` : '{…}';
+      else val = String(v);
+      if (val.length > 40) val = val.slice(0, 37) + '…';
+      return `${k}: ${val}`;
+    })
+    .join(', ');
+}
+
+// ─── Agent metadata block (collapsible "used N tools" + next steps) ──────────
+
+const AgentMeta: React.FC<{ steps?: AiAgentStep[]; actions?: string[] }> = ({ steps, actions }) => {
+  const [showTools, setShowTools] = useState(false);
+  const hasSteps = !!steps && steps.length > 0;
+  const hasActions = !!actions && actions.length > 0;
+  if (!hasSteps && !hasActions) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {hasSteps && (
+        <div>
+          <button
+            onClick={() => setShowTools(s => !s)}
+            className="inline-flex items-center gap-1 text-jtp-xs text-jtp-textDim hover:text-jtp-text transition-colors"
+            aria-expanded={showTools}
+          >
+            <ChevronIcon className={`w-3.5 h-3.5 transition-transform ${showTools ? '' : '-rotate-90'}`} />
+            <span>🔧 used {steps!.length} tool{steps!.length === 1 ? '' : 's'}</span>
+          </button>
+          {showTools && (
+            <ol className="mt-1.5 ml-1 space-y-1">
+              {steps!.map((s, i) => {
+                const argStr = formatArgs(s.args);
+                return (
+                  <li key={i} className="text-jtp-xs text-jtp-textMuted leading-snug">
+                    <span className="text-jtp-textDim">{i + 1}.</span>{' '}
+                    <code className="text-jtp-blue">{s.tool}</code>
+                    {argStr && <span className="text-jtp-textFaint"> ({argStr})</span>}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      )}
+      {hasActions && (
+        <div className="rounded-jtp-xl border border-jtp-borderSubtle bg-jtp-shell px-2.5 py-2">
+          <div className="text-jtp-xs font-semibold text-jtp-textDim mb-1">Next steps</div>
+          <ul className="list-disc list-inside space-y-0.5">
+            {actions!.map((a, i) => (
+              <li key={i} className="text-jtp-xs text-jtp-textMuted leading-snug">{a}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Helper: build a compact recent-history string ───────────────────────────
 
 function buildHistory(messages: ChatMessage[]): string {
@@ -51,6 +131,7 @@ const Copilot: React.FC = () => {
   const { navigateTo } = useView();
 
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<CopilotMode>('agent');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -88,8 +169,21 @@ const Copilot: React.FC = () => {
 
     try {
       const token = await getToken();
-      const { reply } = await api.aiChat(text, history, token!);
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      if (mode === 'agent') {
+        const res = await api.aiAgent(text, token!);
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: res.answer || 'Done.',
+            steps: res.steps,
+            actions: res.actions,
+          },
+        ]);
+      } else {
+        const { reply } = await api.aiChat(text, history, token!);
+        setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      }
     } catch (err: any) {
       const msg: string = err?.message || 'Something went wrong.';
       // Backend signals a missing/permission-blocked connection by mentioning Settings → AI.
@@ -108,7 +202,7 @@ const Copilot: React.FC = () => {
     } finally {
       setSending(false);
     }
-  }, [input, sending, messages, getToken]);
+  }, [input, sending, messages, getToken, mode]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -162,6 +256,36 @@ const Copilot: React.FC = () => {
             </button>
           </div>
 
+          {/* Mode toggle */}
+          <div className="px-4 py-2.5 border-b border-jtp-border bg-jtp-shell flex-shrink-0">
+            <div
+              role="tablist"
+              aria-label="Copilot mode"
+              className="flex items-center gap-1 p-0.5 rounded-jtp-xl bg-jtp-panel border border-jtp-border"
+            >
+              {(['agent', 'chat'] as CopilotMode[]).map(m => (
+                <button
+                  key={m}
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => setMode(m)}
+                  disabled={sending}
+                  className={[
+                    'flex-1 text-jtp-xs font-semibold py-1.5 rounded-jtp-lg transition-colors capitalize disabled:cursor-not-allowed',
+                    mode === m
+                      ? 'bg-jtp-blue text-white'
+                      : 'text-jtp-textMuted hover:text-jtp-text',
+                  ].join(' ')}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <div className="text-jtp-xs text-jtp-textFaint mt-1.5 text-center">
+              Agent researches with read-only tools before answering.
+            </div>
+          </div>
+
           {/* Messages */}
           <div
             ref={listRef}
@@ -173,7 +297,9 @@ const Copilot: React.FC = () => {
                   <SparkIcon className="w-5 h-5" />
                 </span>
                 <div className="text-jtp-sm text-jtp-textMuted">
-                  Ask about your trades, edge, or risk.
+                  {mode === 'agent'
+                    ? 'Give the agent a goal — it researches, then answers.'
+                    : 'Ask about your trades, edge, or risk.'}
                 </div>
                 <div className="text-jtp-xs text-jtp-textFaint">
                   e.g. “Where am I losing the most R?”
@@ -188,23 +314,31 @@ const Copilot: React.FC = () => {
               >
                 <div
                   className={[
-                    'max-w-[82%] px-3 py-2 rounded-jtp-xl text-jtp-sm whitespace-pre-wrap break-words',
+                    'max-w-[82%] px-3 py-2 rounded-jtp-xl text-jtp-sm break-words',
                     m.role === 'user'
                       ? 'bg-jtp-blue text-white'
                       : 'bg-jtp-active border border-jtp-borderSubtle text-jtp-text',
                   ].join(' ')}
                 >
-                  {m.content}
+                  <span className="whitespace-pre-wrap">{m.content}</span>
+                  {m.role === 'assistant' && (
+                    <AgentMeta steps={m.steps} actions={m.actions} />
+                  )}
                 </div>
               </div>
             ))}
 
             {sending && (
               <div className="flex justify-start">
-                <div className="bg-jtp-active border border-jtp-borderSubtle rounded-jtp-xl px-3 py-2 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-jtp-textDim animate-pulse" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-jtp-textDim animate-pulse [animation-delay:150ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-jtp-textDim animate-pulse [animation-delay:300ms]" />
+                <div className="bg-jtp-active border border-jtp-borderSubtle rounded-jtp-xl px-3 py-2 flex items-center gap-2">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-jtp-textDim animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-jtp-textDim animate-pulse [animation-delay:150ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-jtp-textDim animate-pulse [animation-delay:300ms]" />
+                  </span>
+                  {mode === 'agent' && (
+                    <span className="text-jtp-xs text-jtp-textDim">researching…</span>
+                  )}
                 </div>
               </div>
             )}
@@ -231,7 +365,7 @@ const Copilot: React.FC = () => {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder="Ask your copilot…"
+                placeholder={mode === 'agent' ? 'Give the agent a goal…' : 'Ask your copilot…'}
                 className="flex-1 resize-none max-h-28 bg-jtp-panel border border-jtp-border rounded-jtp-xl px-3 py-2 text-jtp-sm text-jtp-text placeholder:text-jtp-textFaint focus:outline-none focus:border-jtp-blue"
               />
               <button
