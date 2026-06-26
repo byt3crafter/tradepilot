@@ -8,36 +8,35 @@ interface StatusBadgeProps {
 const StatusBadge: React.FC<StatusBadgeProps> = ({ user }) => {
   const status = user.subscriptionStatus;
 
+  const hasGiftedAccess = user.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date();
+
   if (status === 'ACTIVE') {
     return (
-      <div className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-momentum-green/10 text-momentum-green border-momentum-green/30">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-semibold border bg-jtp-profit/10 text-jtp-profit border-jtp-profit/25">
         ACTIVE
-      </div>
+      </span>
     );
   }
-
-  const hasGiftedAccess = user.proAccessExpiresAt && new Date(user.proAccessExpiresAt) > new Date();
 
   if (hasGiftedAccess) {
     return (
-      <div className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-purple-500/10 text-purple-400 border-purple-400/30`}>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-semibold border bg-purple-500/10 text-purple-400 border-purple-400/25">
         PRO (GIFTED)
-      </div>
+      </span>
     );
   }
 
-
   const styles: Record<AdminUser['subscriptionStatus'], string> = {
-    TRIALING: 'bg-photonic-blue/10 text-photonic-blue border-photonic-blue/30',
-    ACTIVE: 'bg-momentum-green/10 text-momentum-green border-momentum-green/30',
-    PAST_DUE: 'bg-risk-medium/10 text-risk-medium border-risk-medium/30',
-    CANCELED: 'bg-risk-high/10 text-risk-high border-risk-high/30',
+    TRIALING: 'bg-jtp-blue/10 text-jtp-blue border-jtp-blue/25',
+    ACTIVE: 'bg-jtp-profit/10 text-jtp-profit border-jtp-profit/25',
+    PAST_DUE: 'bg-jtp-warning/10 text-jtp-warning border-jtp-warning/25',
+    CANCELED: 'bg-jtp-loss/10 text-jtp-loss border-jtp-loss/25',
   };
 
   return (
-    <div className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[status]}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-semibold border ${styles[status]}`}>
       {status}
-    </div>
+    </span>
   );
 };
 

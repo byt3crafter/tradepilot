@@ -19,6 +19,47 @@ import { MenuIcon } from '../components/icons/MenuIcon';
 
 type AdminView = 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes' | 'pricing_plans';
 
+const VIEW_LABELS: Record<AdminView, string> = {
+  dashboard: 'Dashboard',
+  users: 'User Management',
+  templates: 'Prop Firm Templates',
+  playbooks: 'Community Playbooks',
+  referrals: 'Referral Program',
+  promo_codes: 'Promo Codes',
+  pricing_plans: 'Pricing Plans',
+};
+
+/** Jtp-themed toggle row for system controls */
+const SystemToggleRow: React.FC<{
+  label: string;
+  description?: string;
+  isEnabled: boolean;
+  isLoading: boolean;
+  onToggle: () => void;
+}> = ({ label, description, isEnabled, isLoading, onToggle }) => (
+  <div className="flex items-start justify-between gap-6 py-4">
+    <div className="min-w-0">
+      <p className="text-jtp-md text-jtp-text font-medium">{label}</p>
+      {description && (
+        <p className="text-jtp-xs text-jtp-textDim mt-0.5">{description}</p>
+      )}
+    </div>
+    <div className="flex items-center gap-3 flex-shrink-0">
+      <span className={`text-jtp-xs font-medium ${isEnabled ? 'text-jtp-profit' : 'text-jtp-textDim'}`}>
+        {isEnabled ? 'Enabled' : 'Disabled'}
+      </span>
+      <Button
+        onClick={onToggle}
+        variant={isEnabled ? 'danger' : 'secondary'}
+        isLoading={isLoading}
+        className="h-7 px-3 text-jtp-xs"
+      >
+        {isEnabled ? 'Disable' : 'Enable'}
+      </Button>
+    </div>
+  </div>
+);
+
 const AdminPage: React.FC = () => {
   const { accessToken, logout } = useAuth();
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -175,88 +216,67 @@ const AdminPage: React.FC = () => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center h-64">
+        <div className="flex justify-center items-center h-48">
           <Spinner />
         </div>
       );
     }
 
     if (error) {
-      return <p className="text-risk-high text-center">{error}</p>;
+      return (
+        <div className="bg-jtp-loss/10 border border-jtp-loss/20 rounded-jtp-panel p-4 text-jtp-loss text-jtp-sm text-center">
+          {error}
+        </div>
+      );
     }
 
     if (currentView === 'dashboard') {
       return (
-        <>
-          <h1 className="text-2xl font-orbitron text-white mb-6">Admin Dashboard</h1>
+        <div className="space-y-6">
+          {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Total Users" value={stats?.totalUsers ?? 0} />
-            <StatCard title="Online Users" value={stats?.onlineUsers ?? 0} />
-            <StatCard title="Active Subscriptions" value={stats?.activeSubscriptions ?? 0} />
-            <StatCard title="MRR" value={`$${stats?.mrr.toFixed(2) ?? '0.00'}`} />
+            <StatCard title="Online Users" value={stats?.onlineUsers ?? 0} accent="blue" />
+            <StatCard title="Active Subscriptions" value={stats?.activeSubscriptions ?? 0} accent="profit" />
+            <StatCard
+              title="MRR"
+              value={`$${stats?.mrr.toFixed(2) ?? '0.00'}`}
+              accent="profit"
+            />
           </div>
 
-          <div className="mt-8 p-6 bg-white/5 border border-white/10 rounded-xl">
-            <h2 className="text-xl font-orbitron text-white mb-4">System Controls</h2>
-            <div className="flex flex-col gap-4 max-w-md">
-              {/* Maintenance Mode */}
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Maintenance Mode</span>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm ${systemConfig?.isMaintenanceMode ? 'text-red-500' : 'text-green-500'}`}>
-                    {systemConfig?.isMaintenanceMode ? 'Enabled' : 'Disabled'}
-                  </span>
-                  <Button
-                    onClick={handleToggleMaintenance}
-                    variant={systemConfig?.isMaintenanceMode ? 'danger' : 'secondary'}
-                    isLoading={isToggling}
-                    className="w-auto h-8 text-sm"
-                  >
-                    {systemConfig?.isMaintenanceMode ? 'Disable' : 'Enable'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Free Mode — paywall off, everyone gets full Pro access */}
-              <div className="flex items-start justify-between pt-3 border-t border-white/10">
-                <div>
-                  <span className="text-gray-400">Free Mode</span>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    Grants every user full Pro access. Hides upgrade prompts app-wide.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                  <span className={`text-sm ${systemConfig?.freeMode ? 'text-green-500' : 'text-gray-500'}`}>
-                    {systemConfig?.freeMode ? 'On — paywall off' : 'Off'}
-                  </span>
-                  <Button
-                    onClick={handleToggleFreeMode}
-                    variant={systemConfig?.freeMode ? 'danger' : 'secondary'}
-                    isLoading={isTogglingFreeMode}
-                    className="w-auto h-8 text-sm"
-                  >
-                    {systemConfig?.freeMode ? 'Disable' : 'Enable'}
-                  </Button>
-                </div>
-              </div>
+          {/* System Controls */}
+          <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
+            <div className="px-5 py-4 border-b border-jtp-border">
+              <h2 className="text-jtp-lg font-semibold text-jtp-text tracking-tight">System Controls</h2>
+            </div>
+            <div className="px-5 divide-y divide-jtp-borderSubtle max-w-2xl">
+              <SystemToggleRow
+                label="Maintenance Mode"
+                isEnabled={!!systemConfig?.isMaintenanceMode}
+                isLoading={isToggling}
+                onToggle={handleToggleMaintenance}
+              />
+              <SystemToggleRow
+                label="Free Mode"
+                description="Grants every user full Pro access. Hides upgrade prompts app-wide."
+                isEnabled={!!systemConfig?.freeMode}
+                isLoading={isTogglingFreeMode}
+                onToggle={handleToggleFreeMode}
+              />
             </div>
           </div>
-        </>
+        </div>
       );
     }
 
     if (currentView === 'users') {
       return (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-orbitron text-white">User Management</h1>
-          </div>
-          <UserManagementTable
-            users={users}
-            onGrantPro={handleOpenGrantModal}
-            onRefresh={fetchUsers}
-          />
-        </>
+        <UserManagementTable
+          users={users}
+          onGrantPro={handleOpenGrantModal}
+          onRefresh={fetchUsers}
+        />
       );
     }
 
@@ -296,7 +316,7 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-future-dark text-future-light flex overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-jtp-bg text-jtp-text flex overflow-hidden font-sans">
       <AdminSidebar
         currentView={currentView}
         onNavigate={setCurrentView}
@@ -305,35 +325,48 @@ const AdminPage: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      {/* Main content area - flex column layout */}
-      <div className="flex-1 flex flex-col overflow-hidden md:ml-64 transition-all duration-300">
-        {/* Fixed header - no scroll */}
-        <header className="flex-shrink-0 h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#08090A]">
-          <div className="flex items-center gap-4">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-56 transition-all duration-300">
+        {/* Topbar */}
+        <header className="flex-shrink-0 h-topbar border-b border-jtp-border flex items-center justify-between px-5 bg-jtp-shell">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden text-secondary hover:text-white transition-colors"
+              className="md:hidden text-jtp-textDim hover:text-jtp-text transition-colors p-1"
+              aria-label="Open sidebar"
             >
-              <MenuIcon className="w-6 h-6" />
+              <MenuIcon className="w-5 h-5" />
             </button>
-            <span className="font-orbitron text-lg text-secondary">
-              {currentView === 'dashboard' ? 'Dashboard' : currentView === 'users' ? 'Users' : currentView === 'templates' ? 'Templates' : currentView === 'playbooks' ? 'Playbooks' : currentView === 'referrals' ? 'Referrals' : currentView === 'promo_codes' ? 'Promo Codes' : 'Pricing Plans'}
+            <span className="text-jtp-sm font-medium text-jtp-textMuted">
+              {VIEW_LABELS[currentView]}
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <Button onClick={handleBackToApp} variant="link" className="hidden md:block">Back to App</Button>
-            <Button onClick={logout} className="w-auto text-xs md:text-sm">Logout</Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleBackToApp}
+              variant="link"
+              className="hidden md:flex text-jtp-sm"
+            >
+              Back to App
+            </Button>
+            <Button
+              onClick={logout}
+              variant="secondary"
+              className="h-7 px-3 text-jtp-xs"
+            >
+              Logout
+            </Button>
           </div>
         </header>
 
-        {/* Scrollable content area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-8 animate-fade-in-up">
+        {/* Scrollable content */}
+        <main className="flex-1 overflow-y-auto p-5 md:p-6 animate-jtp-fade-in">
           {renderContent()}
         </main>
       </div>
 
       {isModalOpen && selectedUser && (
-        <Modal title={`Manage Pro Access for ${selectedUser.fullName}`} onClose={handleCloseModal}>
+        <Modal title={`Manage Pro Access — ${selectedUser.fullName}`} onClose={handleCloseModal}>
           <GrantProAccessModal user={selectedUser} onSuccess={handleSuccess} />
         </Modal>
       )}

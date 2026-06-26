@@ -10,6 +10,10 @@ interface TemplateFormModalProps {
   onSuccess: () => void;
 }
 
+const inputClass = "w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-text text-jtp-md placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors font-sans";
+const selectClass = `${inputClass} [&>option]:bg-jtp-panel [&>option]:text-jtp-text`;
+const labelClass = "block text-jtp-xs text-jtp-textDim uppercase tracking-wider mb-1.5";
+
 const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSuccess }) => {
   const { accessToken } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,40 +84,40 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded p-3 text-red-400 text-sm">
+        <div className="bg-jtp-loss/10 border border-jtp-loss/20 rounded-jtp-md p-3 text-jtp-loss text-jtp-sm">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <label className="block text-sm text-secondary mb-2">Template Name</label>
+          <label className={labelClass}>Template Name</label>
           <input
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
             placeholder="e.g., FTMO $100k Challenge"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={inputClass}
             required
           />
         </div>
 
         <div className="col-span-2">
-          <label className="block text-sm text-secondary mb-2">Firm Name</label>
+          <label className={labelClass}>Firm Name</label>
           <input
             type="text"
             name="firmName"
             value={formData.firmName}
             onChange={handleChange}
             placeholder="e.g., FTMO"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={inputClass}
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm text-secondary mb-2">Account Size ($)</label>
+          <label className={labelClass}>Account Size ($)</label>
           <input
             type="number"
             name="accountSize"
@@ -121,13 +125,13 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
             onChange={handleChange}
             step="1000"
             min="0"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={`${inputClass} font-mono`}
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm text-secondary mb-2">Profit Target ($)</label>
+          <label className={labelClass}>Profit Target ($)</label>
           <input
             type="number"
             name="profitTarget"
@@ -135,13 +139,13 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
             onChange={handleChange}
             step="100"
             min="0"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={`${inputClass} font-mono`}
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm text-secondary mb-2">Daily Drawdown ($)</label>
+          <label className={labelClass}>Daily Drawdown ($)</label>
           <input
             type="number"
             name="dailyDrawdown"
@@ -149,13 +153,13 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
             onChange={handleChange}
             step="100"
             min="0"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={`${inputClass} font-mono`}
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm text-secondary mb-2">Max Drawdown ($)</label>
+          <label className={labelClass}>Max Drawdown ($)</label>
           <input
             type="number"
             name="maxDrawdown"
@@ -163,18 +167,18 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
             onChange={handleChange}
             step="100"
             min="0"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={`${inputClass} font-mono`}
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm text-secondary mb-2">Drawdown Type</label>
+          <label className={labelClass}>Drawdown Type</label>
           <select
             name="drawdownType"
             value={formData.drawdownType}
             onChange={handleChange}
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={selectClass}
             required
           >
             <option value="TRAILING">Trailing</option>
@@ -183,35 +187,38 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ template, onSucce
         </div>
 
         <div>
-          <label className="block text-sm text-secondary mb-2">Min Trading Days</label>
+          <label className={labelClass}>Min Trading Days</label>
           <input
             type="number"
             name="minTradingDays"
             value={formData.minTradingDays}
             onChange={handleChange}
             min="1"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm focus:outline-none focus:border-photonic-blue"
+            className={`${inputClass} font-mono`}
             required
           />
         </div>
 
-        <div className="col-span-2 flex items-center gap-2">
+        <div className="col-span-2 flex items-center gap-3 pt-1">
           <input
             type="checkbox"
+            id="isActive"
             name="isActive"
             checked={formData.isActive}
             onChange={handleChange}
-            className="w-4 h-4 bg-white/5 border border-white/10 rounded"
+            className="w-4 h-4 rounded-jtp-xs border-2 border-jtp-borderStrong bg-jtp-control checked:bg-jtp-blue checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-jtp-panel focus:ring-jtp-blue accent-jtp-blue"
           />
-          <label className="text-sm text-white">Active Template</label>
+          <label htmlFor="isActive" className="text-jtp-md text-jtp-text cursor-pointer">
+            Active Template
+          </label>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
+      <div className="flex justify-end gap-2 pt-2 border-t border-jtp-border">
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="w-auto"
+          className="w-auto text-jtp-sm h-8 px-4"
         >
           {isSubmitting ? <Spinner /> : template ? 'Update Template' : 'Create Template'}
         </Button>

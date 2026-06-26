@@ -57,6 +57,12 @@ const SettingsSvg = () => (
   </svg>
 );
 
+const AdminSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <path d="M8 2L3 4.5v4c0 2.9 2.2 5.4 5 6 2.8-.6 5-3.1 5-6v-4L8 2z" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
 const LogoutSvg = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
     <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3" strokeLinecap="round" />
@@ -83,27 +89,6 @@ const ChevronSvg = ({ open }: { open?: boolean }) => (
     <polyline points="4,6 8,10 12,6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
-
-// ─── Low Performance Mode toggle ────────────────────────────────────────────
-
-const useLowPerfMode = () => {
-  const [enabled, setEnabled] = useState(
-    () => localStorage.getItem('lowPerformanceMode') === 'true',
-  );
-
-  const toggle = () => {
-    setEnabled(prev => {
-      const next = !prev;
-      localStorage.setItem('lowPerformanceMode', String(next));
-      if (typeof window.showAnimatedBackground === 'function') {
-        window.showAnimatedBackground(!next);
-      }
-      return next;
-    });
-  };
-
-  return { enabled, toggle };
-};
 
 // ─── Account Switcher ────────────────────────────────────────────────────────
 
@@ -269,7 +254,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { openUserProfile } = useClerk();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const { enabled: lowPerfEnabled, toggle: toggleLowPerf } = useLowPerfMode();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -406,6 +390,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onClick={() => handleNav('settings')}
           />
 
+          {user?.role === 'ADMIN' && (
+            <NavItem
+              icon={<AdminSvg />}
+              label="Admin"
+              isActive={false}
+              isCollapsed={isSidebarCollapsed}
+              onClick={() => { window.location.hash = '#/admin-panel'; onClose(); }}
+            />
+          )}
+
           {!isSubscribed && (
             <NavItem
               icon={<span className="text-jtp-profit text-xs">↑</span>}
@@ -419,29 +413,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* ── Footer ── */}
         <div className="flex-shrink-0 border-t border-jtp-border px-[14px] py-[10px] flex flex-col gap-[10px]">
-          {/* Low performance mode toggle */}
-          {!isSidebarCollapsed && (
-            <label className="flex items-center justify-between cursor-pointer text-jtp-sm text-jtp-textMuted">
-              <span>Low performance mode</span>
-              <button
-                role="switch"
-                aria-checked={lowPerfEnabled}
-                onClick={toggleLowPerf}
-                className="relative flex-shrink-0 border-none cursor-pointer rounded-full transition-colors duration-150"
-                style={{
-                  width: '32px',
-                  height: '18px',
-                  background: lowPerfEnabled ? '#5b8def' : '#252b33',
-                }}
-              >
-                <span
-                  className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-jtp-text transition-all duration-150"
-                  style={{ left: lowPerfEnabled ? '16px' : '2px' }}
-                />
-              </button>
-            </label>
-          )}
-
           {/* User block */}
           <div className="relative" ref={profileRef}>
             <button

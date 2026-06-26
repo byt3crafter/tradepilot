@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../Card';
 import Button from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -14,6 +13,8 @@ interface PricingPlan {
     currency: string;
     isActive: boolean;
 }
+
+const inputClass = "w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-text text-jtp-md placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors font-sans";
 
 const AdminPricingPlans: React.FC = () => {
     const { accessToken } = useAuth();
@@ -71,72 +72,94 @@ const AdminPricingPlans: React.FC = () => {
         setEditForm({});
     };
 
-    if (isLoading) return <div className="text-center p-8 text-future-gray">Loading pricing plans...</div>;
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center p-12">
+                <span className="text-jtp-textMuted text-jtp-sm">Loading pricing plans…</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold font-orbitron text-white">Pricing Plans</h2>
-                <Button variant="outline" onClick={fetchPlans} size="sm">Refresh</Button>
+                <h2 className="text-jtp-xl font-semibold text-jtp-text tracking-tight">Pricing Plans</h2>
+                <Button variant="secondary" onClick={fetchPlans} className="text-jtp-sm h-8 px-3">
+                    Refresh
+                </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {plans.map((plan) => (
-                    <Card key={plan.id} className="border-white/10 relative group">
+                    <div key={plan.id} className="bg-jtp-panel border border-jtp-border rounded-jtp-panel p-5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                                <p className="text-sm text-future-gray uppercase tracking-wider">{plan.interval}</p>
+                                <h3 className="text-jtp-lg font-semibold text-jtp-text">{plan.name}</h3>
+                                <p className="text-jtp-xs text-jtp-textDim uppercase tracking-wider mt-0.5">{plan.interval}</p>
                             </div>
-                            <div className={`px-2 py-1 rounded text-xs font-mono ${plan.isActive ? 'bg-momentum-green/20 text-momentum-green' : 'bg-red-500/20 text-red-400'}`}>
+                            <span className={`px-2 py-0.5 rounded-jtp-xs text-jtp-xs font-mono font-semibold border ${
+                                plan.isActive
+                                    ? 'bg-jtp-profit/10 text-jtp-profit border-jtp-profit/25'
+                                    : 'bg-jtp-loss/10 text-jtp-loss border-jtp-loss/25'
+                            }`}>
                                 {plan.isActive ? 'ACTIVE' : 'INACTIVE'}
-                            </div>
+                            </span>
                         </div>
 
                         {editingId === plan.id ? (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 <div>
-                                    <label className="block text-xs text-future-gray mb-1">Paddle Price ID</label>
+                                    <label className="block text-jtp-xs text-jtp-textDim uppercase tracking-wider mb-1.5">
+                                        Paddle Price ID
+                                    </label>
                                     <input
                                         type="text"
                                         value={editForm.paddlePriceId || ''}
                                         onChange={(e) => setEditForm({ ...editForm, paddlePriceId: e.target.value })}
-                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-momentum-green focus:outline-none"
+                                        className={inputClass}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs text-future-gray mb-1">Amount ({plan.currency})</label>
+                                    <label className="block text-jtp-xs text-jtp-textDim uppercase tracking-wider mb-1.5">
+                                        Amount ({plan.currency})
+                                    </label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         value={editForm.amount || 0}
                                         onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) })}
-                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-momentum-green focus:outline-none"
+                                        className={`${inputClass} font-mono`}
                                     />
                                 </div>
-
-                                <div className="flex gap-2 pt-2">
-                                    <Button size="sm" onClick={() => handleSave(plan.id)}>Save Changes</Button>
-                                    <Button size="sm" variant="ghost" onClick={handleCancel}>Cancel</Button>
+                                <div className="flex gap-2 pt-1">
+                                    <Button onClick={() => handleSave(plan.id)} className="text-jtp-sm h-8 px-3">
+                                        Save Changes
+                                    </Button>
+                                    <Button variant="secondary" onClick={handleCancel} className="text-jtp-sm h-8 px-3">
+                                        Cancel
+                                    </Button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                <div className="flex justify-between border-b border-white/5 pb-2">
-                                    <span className="text-future-gray text-sm">Price ID</span>
-                                    <span className="text-white font-mono text-xs">{plan.paddlePriceId}</span>
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between items-center border-b border-jtp-borderSubtle pb-2.5">
+                                    <span className="text-jtp-sm text-jtp-textDim">Price ID</span>
+                                    <span className="font-mono text-jtp-xs text-jtp-textMuted">{plan.paddlePriceId}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-white/5 pb-2">
-                                    <span className="text-future-gray text-sm">Amount</span>
-                                    <span className="text-white font-bold">{plan.currency} {plan.amount.toFixed(2)}</span>
+                                <div className="flex justify-between items-center border-b border-jtp-borderSubtle pb-2.5">
+                                    <span className="text-jtp-sm text-jtp-textDim">Amount</span>
+                                    <span className="font-mono font-semibold text-jtp-text">
+                                        {plan.currency} {plan.amount.toFixed(2)}
+                                    </span>
                                 </div>
-
-                                <div className="pt-2">
-                                    <Button variant="secondary" className="w-full" onClick={() => handleEdit(plan)}>Edit Plan</Button>
+                                <div className="pt-1">
+                                    <Button variant="secondary" className="w-full text-jtp-sm h-8" onClick={() => handleEdit(plan)}>
+                                        Edit Plan
+                                    </Button>
                                 </div>
                             </div>
                         )}
-                    </Card>
+                    </div>
                 ))}
             </div>
         </div>

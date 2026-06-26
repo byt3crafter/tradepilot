@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../Card';
 import Button from '../ui/Button';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +16,10 @@ interface PromoCode {
     expiresAt?: string;
     isActive: boolean;
 }
+
+const inputClass = "w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-text text-jtp-md placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors font-sans";
+const selectClass = `${inputClass} [&>option]:bg-jtp-panel [&>option]:text-jtp-text`;
+const labelClass = "block text-jtp-xs text-jtp-textDim uppercase tracking-wider mb-1.5";
 
 const PromoCodesManagement: React.FC = () => {
     const { accessToken } = useAuth();
@@ -75,104 +78,122 @@ const PromoCodesManagement: React.FC = () => {
         }
     };
 
-    if (isLoading) return <div className="flex justify-center p-12"><Spinner /></div>;
+    if (isLoading) {
+        return (
+            <div className="flex justify-center p-12">
+                <Spinner />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-orbitron text-white">Promo Codes</h1>
-                <Button onClick={() => setIsCreating(true)}><PlusIcon className="w-4 h-4 mr-2" /> Create Code</Button>
+                <h1 className="text-jtp-xl font-semibold text-jtp-text tracking-tight">Promo Codes</h1>
+                <Button onClick={() => setIsCreating(true)} className="text-jtp-sm h-8 px-3">
+                    <PlusIcon className="w-3.5 h-3.5 mr-1.5" />
+                    Create Code
+                </Button>
             </div>
 
             {isCreating && (
-                <Card>
+                <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel p-5">
+                    <h3 className="text-jtp-md font-semibold text-jtp-text mb-4">New Promo Code</h3>
                     <form onSubmit={handleCreate} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm text-future-gray mb-1">Code</label>
+                                <label className={labelClass}>Code</label>
                                 <input
                                     required
                                     value={newCode.code}
                                     onChange={e => setNewCode({ ...newCode, code: e.target.value.toUpperCase() })}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white"
+                                    className={`${inputClass} font-mono uppercase`}
                                     placeholder="SUMMER2025"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm text-future-gray mb-1">Type</label>
+                                <label className={labelClass}>Type</label>
                                 <select
                                     value={newCode.type}
                                     onChange={e => setNewCode({ ...newCode, type: e.target.value as any })}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white"
+                                    className={selectClass}
                                 >
                                     <option value="PERCENTAGE">Percentage (%)</option>
                                     <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm text-future-gray mb-1">Value</label>
+                                <label className={labelClass}>Value</label>
                                 <input
                                     type="number"
                                     required
                                     value={newCode.value}
                                     onChange={e => setNewCode({ ...newCode, value: Number(e.target.value) })}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white"
+                                    className={`${inputClass} font-mono`}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm text-future-gray mb-1">Max Uses (Optional)</label>
+                                <label className={labelClass}>Max Uses (optional)</label>
                                 <input
                                     type="number"
                                     value={newCode.maxUses}
                                     onChange={e => setNewCode({ ...newCode, maxUses: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white"
+                                    className={`${inputClass} font-mono`}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm text-future-gray mb-1">Expires At (Optional)</label>
+                                <label className={labelClass}>Expires At (optional)</label>
                                 <input
                                     type="date"
                                     value={newCode.expiresAt}
                                     onChange={e => setNewCode({ ...newCode, expiresAt: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white"
+                                    className={inputClass}
                                 />
                             </div>
                         </div>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
-                            <Button type="submit">Create</Button>
+                        <div className="flex justify-end gap-2 pt-1">
+                            <Button variant="secondary" onClick={() => setIsCreating(false)} className="text-jtp-sm h-8 px-3">
+                                Cancel
+                            </Button>
+                            <Button type="submit" className="text-jtp-sm h-8 px-3">
+                                Create
+                            </Button>
                         </div>
                     </form>
-                </Card>
+                </div>
             )}
 
-            <Card>
+            <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-future-gray uppercase bg-white/5">
-                            <tr>
-                                <th className="px-4 py-3 rounded-l-lg">Code</th>
-                                <th className="px-4 py-3">Discount</th>
-                                <th className="px-4 py-3">Usage</th>
-                                <th className="px-4 py-3">Expires</th>
-                                <th className="px-4 py-3 rounded-r-lg text-right">Actions</th>
+                    <table className="w-full text-jtp-sm text-left">
+                        <thead>
+                            <tr className="bg-jtp-raised border-b border-jtp-border">
+                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Code</th>
+                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Discount</th>
+                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Usage</th>
+                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Expires</th>
+                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {codes.map(code => (
-                                <tr key={code.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
-                                    <td className="px-4 py-3 font-mono font-bold text-momentum-green">{code.code}</td>
-                                    <td className="px-4 py-3">
+                                <tr key={code.id} className="border-b border-jtp-borderSubtle last:border-0 hover:bg-jtp-hover transition-colors">
+                                    <td className="px-4 py-3 font-mono font-semibold text-jtp-profit">{code.code}</td>
+                                    <td className="px-4 py-3 font-mono text-jtp-text tabular-nums">
                                         {code.type === 'PERCENTAGE' ? `${code.value}%` : `$${code.value}`}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        {code.usedCount} {code.maxUses ? `/ ${code.maxUses}` : ''}
+                                    <td className="px-4 py-3 font-mono text-jtp-textMuted tabular-nums">
+                                        {code.usedCount}{code.maxUses ? ` / ${code.maxUses}` : ''}
                                     </td>
-                                    <td className="px-4 py-3 text-future-gray">
+                                    <td className="px-4 py-3 text-jtp-textDim">
                                         {code.expiresAt ? new Date(code.expiresAt).toLocaleDateString() : 'Never'}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <button onClick={() => handleDelete(code.id)} className="text-risk-high hover:text-white">
+                                        <button
+                                            onClick={() => handleDelete(code.id)}
+                                            className="p-1.5 text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-loss/10 rounded-jtp-sm transition-colors"
+                                            aria-label="Delete promo code"
+                                        >
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
                                     </td>
@@ -180,13 +201,15 @@ const PromoCodesManagement: React.FC = () => {
                             ))}
                             {codes.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-future-gray">No promo codes found.</td>
+                                    <td colSpan={5} className="px-4 py-10 text-center text-jtp-textDim">
+                                        No promo codes found.
+                                    </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
         </div>
     );
 };
