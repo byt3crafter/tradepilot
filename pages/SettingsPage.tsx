@@ -10,6 +10,7 @@ import { SettingsSubView } from './DashboardPage';
 import AssetManager from '../components/assets/AssetManager';
 import BillingSettings from '../components/settings/BillingSettings';
 import ProfileSettings from '../components/settings/ProfileSettings';
+import AiSettings from '../components/settings/AiSettings';
 import { useClerk } from '@clerk/clerk-react';
 
 const SecuritySettings: React.FC = () => {
@@ -67,6 +68,8 @@ const SettingsPage: React.FC = () => {
         return <SecuritySettings />;
       case 'billing':
         return <BillingSettings />;
+      case 'ai':
+        return <AiSettings />;
       default:
         return <ProfileSettings />;
     }
@@ -105,6 +108,7 @@ const SettingsPage: React.FC = () => {
                 { value: 'accounts', label: 'Accounts' },
                 { value: 'checklist', label: 'Checklist' },
                 { value: 'assets', label: 'Assets' },
+                { value: 'ai', label: 'AI' },
                 { value: 'billing', label: 'Billing' },
                 { value: 'security', label: 'Security' },
               ]}
@@ -117,6 +121,7 @@ const SettingsPage: React.FC = () => {
             <NavButton tab="accounts" label="Accounts" />
             <NavButton tab="checklist" label="Checklist" />
             <NavButton tab="assets" label="Assets" />
+            <NavButton tab="ai" label="AI" />
             <NavButton tab="billing" label="Billing" />
             <NavButton tab="security" label="Security" />
           </div>
