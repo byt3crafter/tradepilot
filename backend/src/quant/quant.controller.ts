@@ -27,6 +27,11 @@ export class QuantController {
     return this.quant.getWallet(address);
   }
 
+  @Get('wallet/:address/positions')
+  walletPositions(@Param('address') address: string) {
+    return this.quant.walletPositions(address);
+  }
+
   @Post('scan')
   scan(@Body('address') address: string) {
     return this.quant.scanWallet(address);

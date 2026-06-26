@@ -99,6 +99,7 @@ model ChatgptConnection {
   refreshToken    String    @default("")
   accountId       String?   // chatgpt_account_id from the JWT
   expiresAt       DateTime?
+  model           String?   // user-chosen model for Codex responses
   // what the connection is allowed to power across the app
   allowVerdict    Boolean   @default(true)  // Quant AI Verdict
   allowBot        Boolean   @default(true)  // Bot strategy AI

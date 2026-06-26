@@ -37,6 +37,11 @@ export class ChatgptController {
     return this.chatgpt.disconnect(req.user.sub);
   }
 
+  @Patch('model')
+  setModel(@Body('model') model: string, @Req() req: AuthedRequest) {
+    return this.chatgpt.setModel(req.user.sub, model);
+  }
+
   @Patch('permissions')
   setPermissions(
     @Body() body: { verdict?: boolean; bot?: boolean; analysis?: boolean },
