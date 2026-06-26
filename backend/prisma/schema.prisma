@@ -53,6 +53,29 @@ model User {
   ctraderConnection  CtraderConnection?
 }
 
+// Polymarket "Wallet Bank" — autonomously discovered wallets + edge-adjusted metrics.
+model PmWallet {
+  id             String    @id @default(uuid())
+  address        String    @unique
+  pseudonym      String?
+  profileImage   String?
+  pnl            Float     @default(0) // realized + unrealized (approx, from positions)
+  realizedPnl    Float     @default(0)
+  volume         Float     @default(0)
+  positionsValue Float     @default(0)
+  tradeCount     Int       @default(0)
+  winRate        Float     @default(0)
+  edgeScore      Float     @default(0) // PnL adjusted for sample size + win rate
+  marketFocus    String?
+  scanned        Boolean   @default(false)
+  firstSeen      DateTime  @default(now())
+  lastScanned    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([edgeScore])
+  @@index([scanned])
+}
+
 model CtraderConnection {
   id                  String   @id @default(uuid())
   userId              String   @unique
