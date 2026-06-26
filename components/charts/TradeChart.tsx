@@ -55,41 +55,44 @@ export default function TradeChart({
     const chart = createChart(el, {
       autoSize: true,
       layout: {
-        background: { color: "#14161C" },
-        textColor: "#EAEAEA",
+        background: { color: "transparent" },
+        textColor: "#9ca3af",
+        fontFamily: "Inter, system-ui, sans-serif",
+        fontSize: 11,
+        attributionLogo: false,
       },
       grid: {
-        vertLines: { color: "rgba(0, 191, 255, 0.05)" },
-        horzLines: { color: "rgba(0, 191, 255, 0.05)" },
+        vertLines: { color: "rgba(255, 255, 255, 0.04)" },
+        horzLines: { color: "rgba(255, 255, 255, 0.04)" },
       },
-      crosshair: { mode: CrosshairMode.Magnet },
+      crosshair: {
+        mode: CrosshairMode.Magnet,
+        vertLine: { color: "rgba(91,141,239,0.5)", labelBackgroundColor: "#5b8def" },
+        horzLine: { color: "rgba(91,141,239,0.5)", labelBackgroundColor: "#5b8def" },
+      },
+      rightPriceScale: { borderVisible: false },
       timeScale: {
+        borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        tickMarkFormatter: (time: Time) => {
-          const ts = time as number; // we feed unix seconds
-          const d = new Date(ts * 1000);
-          const hh = String(d.getUTCHours()).padStart(2, "0");
-          const mm = String(d.getUTCMinutes()).padStart(2, "0");
-          return `${hh}:${mm}`;
-        },
       },
     });
 
     chartRef.current = chart;
 
+    // TradingView's default candle palette — clean teal/red, not neon.
     const candleSeries = (chart as any).addCandlestickSeries({
-      upColor: "#39FF14",
-      downColor: "#FF003C",
-      borderDownColor: "#FF003C",
-      borderUpColor: "#39FF14",
-      wickDownColor: "#FF003C",
-      wickUpColor: "#39FF14",
+      upColor: "#26a69a",
+      downColor: "#ef5350",
+      borderUpColor: "#26a69a",
+      borderDownColor: "#ef5350",
+      wickUpColor: "#26a69a",
+      wickDownColor: "#ef5350",
     });
     candleSeriesRef.current = candleSeries;
 
     const lineSeries = (chart as any).addLineSeries({
-      color: "rgba(180, 180, 180, 0.7)",
+      color: "rgba(148, 163, 184, 0.6)",
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       crosshairMarkerVisible: false,
@@ -153,7 +156,7 @@ export default function TradeChart({
             time: t.time as UTCTimestamp,
             position: isBuy ? "belowBar" : "aboveBar",
             shape: isBuy ? "arrowUp" : "arrowDown",
-            color: isBuy ? "#39FF14" : "#FF003C",
+            color: isBuy ? "#26a69a" : "#ef5350",
             text: `${t.side} ${t.type} @ ${t.price.toFixed(2)}`,
           };
         });
@@ -183,9 +186,9 @@ export default function TradeChart({
     if (!lineSeriesRef.current) return;
     const color =
       result === TradeResult.Win
-        ? "rgba(57, 255, 20, 0.7)"
+        ? "rgba(38, 166, 154, 0.8)"
         : result === TradeResult.Loss
-        ? "rgba(255, 0, 60, 0.7)"
+        ? "rgba(239, 83, 80, 0.8)"
         : "rgba(180, 180, 180, 0.7)";
     lineSeriesRef.current.applyOptions({ color });
   }, [result]);
@@ -199,7 +202,7 @@ export default function TradeChart({
     for (const l of priceLinesRef.current) s.removePriceLine(l);
     priceLinesRef.current = [];
 
-    const entryColor = direction === "Buy" ? "#39FF14" : "#FF003C";
+    const entryColor = direction === "Buy" ? "#26a69a" : "#ef5350";
     priceLinesRef.current.push(
       s.createPriceLine({
         price: entryPrice,
