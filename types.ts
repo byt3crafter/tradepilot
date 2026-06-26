@@ -13,6 +13,7 @@ export interface User {
   proAccessExpiresAt?: string | null;
   featureFlags?: {
     analysisTrackerEnabled?: boolean;
+    freeMode?: boolean;
   };
   gravatarUrl?: string;
   preferences?: {
@@ -258,6 +259,7 @@ export interface SystemConfig {
   id: string;
   isMaintenanceMode: boolean;
   maintenanceMessage?: string | null;
+  freeMode?: boolean;
 }
 
 export interface AdminUser {
@@ -274,6 +276,7 @@ export interface AdminUser {
   apiUsageCost: number;
   apiUsageTokens: number;
   lastApiUsage: string | null;
+  botEnabled?: boolean;
 }
 
 // Trading Objectives Progress Type

@@ -30,6 +30,7 @@ const AdminPage: React.FC = () => {
   const [playbooks, setPlaybooks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
+  const [isTogglingFreeMode, setIsTogglingFreeMode] = useState(false);
   const [error, setError] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -113,6 +114,19 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const handleToggleFreeMode = async () => {
+    if (!accessToken || !systemConfig) return;
+    setIsTogglingFreeMode(true);
+    try {
+      const newConfig = await api.setFreeMode(!systemConfig.freeMode, accessToken);
+      setSystemConfig(newConfig);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsTogglingFreeMode(false);
+    }
+  };
+
   const handleOpenGrantModal = (user: AdminUser) => {
     setSelectedUser(user);
     setIsModalOpen(true);
@@ -184,20 +198,46 @@ const AdminPage: React.FC = () => {
 
           <div className="mt-8 p-6 bg-white/5 border border-white/10 rounded-xl">
             <h2 className="text-xl font-orbitron text-white mb-4">System Controls</h2>
-            <div className="flex items-center justify-between max-w-md">
-              <span className="text-gray-400">Maintenance Mode</span>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm ${systemConfig?.isMaintenanceMode ? 'text-red-500' : 'text-green-500'}`}>
-                  {systemConfig?.isMaintenanceMode ? 'Enabled' : 'Disabled'}
-                </span>
-                <Button
-                  onClick={handleToggleMaintenance}
-                  variant={systemConfig?.isMaintenanceMode ? 'danger' : 'secondary'}
-                  isLoading={isToggling}
-                  className="w-auto h-8 text-sm"
-                >
-                  {systemConfig?.isMaintenanceMode ? 'Disable' : 'Enable'}
-                </Button>
+            <div className="flex flex-col gap-4 max-w-md">
+              {/* Maintenance Mode */}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Maintenance Mode</span>
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm ${systemConfig?.isMaintenanceMode ? 'text-red-500' : 'text-green-500'}`}>
+                    {systemConfig?.isMaintenanceMode ? 'Enabled' : 'Disabled'}
+                  </span>
+                  <Button
+                    onClick={handleToggleMaintenance}
+                    variant={systemConfig?.isMaintenanceMode ? 'danger' : 'secondary'}
+                    isLoading={isToggling}
+                    className="w-auto h-8 text-sm"
+                  >
+                    {systemConfig?.isMaintenanceMode ? 'Disable' : 'Enable'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Free Mode — paywall off, everyone gets full Pro access */}
+              <div className="flex items-start justify-between pt-3 border-t border-white/10">
+                <div>
+                  <span className="text-gray-400">Free Mode</span>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Grants every user full Pro access. Hides upgrade prompts app-wide.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                  <span className={`text-sm ${systemConfig?.freeMode ? 'text-green-500' : 'text-gray-500'}`}>
+                    {systemConfig?.freeMode ? 'On — paywall off' : 'Off'}
+                  </span>
+                  <Button
+                    onClick={handleToggleFreeMode}
+                    variant={systemConfig?.freeMode ? 'danger' : 'secondary'}
+                    isLoading={isTogglingFreeMode}
+                    className="w-auto h-8 text-sm"
+                  >
+                    {systemConfig?.freeMode ? 'Disable' : 'Enable'}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

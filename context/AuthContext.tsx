@@ -3,6 +3,7 @@ import { User } from '../types';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import md5 from 'md5';
 import { DEV_AUTH_BYPASS, DEV_AUTH_TOKEN, DEV_MOCK_USER } from '../utils/devAuth';
+import api from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +14,8 @@ interface AuthContextType {
   isSubscribed: boolean;
   trialDaysRemaining: number;
   isTrialExpired: boolean;
+  /** True when the system-wide free mode flag is active — everyone gets full Pro access. */
+  freeMode: boolean;
   logout: () => void;
   refreshUser: () => Promise<User | undefined>;
   updateUserPreferences: (prefs: { useGravatar?: boolean }) => Promise<void>;
@@ -24,6 +27,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useUser();
   const { getToken, signOut } = useClerkAuth();
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [freeMode, setFreeMode] = useState(false);
 
   // Keep the access token fresh in the context state
   useEffect(() => {
@@ -55,6 +59,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (intervalId) clearInterval(intervalId);
     };
   }, [isSignedIn, getToken]);
+
+  // Fetch backend feature flags (including freeMode) whenever the token changes.
+  useEffect(() => {
+    if (!accessToken) {
+      setFreeMode(false);
+      return;
+    }
+    let cancelled = false;
+    api.getMe(accessToken)
+      .then(me => { if (!cancelled) setFreeMode(me.featureFlags?.freeMode ?? false); })
+      .catch(() => { if (!cancelled) setFreeMode(false); });
+    return () => { cancelled = true; };
+  }, [accessToken]);
 
   // Adapter to map Clerk user to our app's User type
   const appUser: User | null = useMemo(() => {
@@ -139,8 +156,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // hasGiftedAccess = true ONLY if proAccessExpiresAt is set AND in the future
     const hasGiftedAccess = appUser?.proAccessExpiresAt && new Date(appUser.proAccessExpiresAt) > new Date();
 
-    // Grant access if: Active Sub OR Gifted Time OR Admin Role OR Lifetime Flag
+    // Grant access if: Free Mode (system-wide) OR Active Sub OR Gifted Time OR Admin Role OR Lifetime Flag
     const isSubscribed =
+      freeMode ||
       appUser?.subscriptionStatus === 'ACTIVE' ||
       hasGiftedAccess ||
       appUser?.role === 'ADMIN' ||
@@ -152,7 +170,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isTrialExpired = false;
 
     return { isTrialing, isSubscribed, trialDaysRemaining, isTrialExpired };
-  }, [appUser]);
+  }, [appUser, freeMode]);
 
   // DEV-ONLY: short-circuit to a mock authenticated session (see utils/devAuth).
   // Dead-code-eliminated from production builds.
@@ -166,6 +184,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isSubscribed: true,
       trialDaysRemaining: 0,
       isTrialExpired: false,
+      freeMode: false,
       logout: () => {},
       refreshUser: async () => DEV_MOCK_USER,
       getToken: async () => DEV_AUTH_TOKEN,
@@ -180,6 +199,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated: !!isSignedIn,
     isLoading: !isUserLoaded,
     ...subscriptionState,
+    freeMode,
     logout,
     refreshUser,
     getToken,

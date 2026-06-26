@@ -14,6 +14,49 @@ interface UserManagementTableProps {
   onRefresh: () => void;
 }
 
+/** Inline toggle switch for the Bot column. */
+const BotToggle: React.FC<{ user: AdminUser; onRefresh: () => void }> = ({ user, onRefresh }) => {
+  const { accessToken } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    try {
+      await api.setUserBotEnabled(user.id, !user.botEnabled, accessToken);
+      onRefresh();
+    } catch (err: any) {
+      alert(`Failed to update bot access: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const enabled = !!user.botEnabled;
+
+  return (
+    <button
+      role="switch"
+      aria-checked={enabled}
+      aria-label={`Trading Bot for ${user.fullName}`}
+      onClick={handleToggle}
+      disabled={loading}
+      title={enabled ? 'Bot enabled — click to disable' : 'Bot disabled — click to enable'}
+      className="relative flex-shrink-0 border-none cursor-pointer rounded-full transition-colors duration-150 disabled:opacity-50"
+      style={{
+        width: '32px',
+        height: '18px',
+        background: enabled ? '#22c55e' : '#374151',
+      }}
+    >
+      <span
+        className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all duration-150"
+        style={{ left: enabled ? '16px' : '2px' }}
+      />
+    </button>
+  );
+};
+
 const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGrantPro, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { accessToken, user: currentUser } = useAuth();
@@ -81,6 +124,7 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Trial Expires</th>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">API Usage</th>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Last Login</th>
+              <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Bot (beta)</th>
               <th className="p-3 text-left font-orbitron text-white/80 uppercase tracking-wider text-xs">Actions</th>
             </tr>
           </thead>
@@ -133,6 +177,14 @@ const UserManagementTable: React.FC<UserManagementTableProps> = ({ users, onGran
                   </td>
                   <td className="p-3 font-tech-mono text-secondary text-xs">
                     {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-col gap-1">
+                      <BotToggle user={user} onRefresh={onRefresh} />
+                      <span className="text-[10px] text-secondary">
+                        {user.botEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-3">
                     <DropdownMenu>
