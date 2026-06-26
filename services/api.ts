@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -142,6 +142,13 @@ export interface ApiService {
   quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }>;
   quantWallet(address: string, token?: string | null): Promise<PmWallet>;
   quantScan(address: string, token?: string | null): Promise<PmWallet>;
+  quantVerdict(address: string, token?: string | null): Promise<QuantVerdict>;
+
+  // ChatGPT connection (paste-URL OAuth flow)
+  chatgptStart(token?: string | null): Promise<{ authUrl: string }>;
+  chatgptExchange(code: string, state: string, token?: string | null): Promise<{ connected: true }>;
+  chatgptStatus(token?: string | null): Promise<{ connected: boolean; connectedAt?: string }>;
+  chatgptDisconnect(token?: string | null): Promise<{ disconnected: true }>;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {
@@ -346,6 +353,13 @@ const api: ApiService = {
   quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }> { return this.get('/api/quant/stats', token); },
   quantWallet(address: string, token?: string | null): Promise<PmWallet> { return this.get(`/api/quant/wallet/${address}`, token); },
   quantScan(address: string, token?: string | null): Promise<PmWallet> { return this.post('/api/quant/scan', { address }, token); },
+  quantVerdict(address: string, token?: string | null): Promise<QuantVerdict> { return this.post('/api/quant/verdict', { address }, token); },
+
+  // ChatGPT Connection Methods (paste-URL OAuth flow)
+  chatgptStart(token?: string | null): Promise<{ authUrl: string }> { return this.post('/api/chatgpt/start', {}, token); },
+  chatgptExchange(code: string, state: string, token?: string | null): Promise<{ connected: true }> { return this.post('/api/chatgpt/exchange', { code, state }, token); },
+  chatgptStatus(token?: string | null): Promise<{ connected: boolean; connectedAt?: string }> { return this.get('/api/chatgpt/status', token); },
+  chatgptDisconnect(token?: string | null): Promise<{ disconnected: true }> { return this.post('/api/chatgpt/disconnect', {}, token); },
 };
 
 export default api;

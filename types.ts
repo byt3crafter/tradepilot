@@ -556,6 +556,16 @@ export interface PmWallet {
   lastScanned: string;    // ISO date string
 }
 
+// --- Quant AI Verdict (ChatGPT-powered) ---
+
+export interface QuantVerdict {
+  verdict: 'COPY' | 'WATCH' | 'AVOID';
+  edgeType: string;
+  copyable: boolean;
+  confidence: 'low' | 'medium' | 'high';
+  summary: string;
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
