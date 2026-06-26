@@ -1,0 +1,202 @@
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import * as crypto from 'crypto';
+
+// OpenAI Codex CLI public OAuth client (PKCE, no secret).
+const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
+const AUTH_URL = 'https://auth.openai.com/oauth/authorize';
+const TOKEN_URL = 'https://auth.openai.com/oauth/token';
+const REDIRECT_URI = 'http://localhost:1455/auth/callback'; // fixed by OpenAI's registration
+
+const b64url = (buf: Buffer) =>
+  buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+@Injectable()
+export class ChatgptService {
+  private readonly logger = new Logger(ChatgptService.name);
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Begin the PKCE flow: store verifier/state, return the authorize URL. */
+  async start(userId: string): Promise<{ authUrl: string }> {
+    const verifier = b64url(crypto.randomBytes(64));
+    const challenge = b64url(crypto.createHash('sha256').update(verifier).digest());
+    const state = b64url(crypto.randomBytes(32));
+    await this.prisma.chatgptConnection.upsert({
+      where: { userId },
+      create: { userId, pendingVerifier: verifier, pendingState: state },
+      update: { pendingVerifier: verifier, pendingState: state },
+    });
+    const params = [
+      'response_type=code',
+      `client_id=${CLIENT_ID}`,
+      `redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
+      `scope=${encodeURIComponent('openid profile email offline_access')}`,
+      `code_challenge=${challenge}`,
+      'code_challenge_method=S256',
+      `state=${state}`,
+      'codex_cli_simplified_flow=true',
+      'originator=codex_cli_rs',
+    ].join('&');
+    return { authUrl: `${AUTH_URL}?${params}` };
+  }
+
+  /** Exchange the pasted code (+state) for tokens. */
+  async exchange(userId: string, code: string, state: string) {
+    const conn = await this.prisma.chatgptConnection.findUnique({ where: { userId } });
+    if (!conn?.pendingVerifier) throw new BadRequestException('Start the connection again');
+    if (conn.pendingState && state && state !== conn.pendingState) {
+      throw new BadRequestException('State mismatch — restart the connection');
+    }
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+      client_id: CLIENT_ID,
+      code_verifier: conn.pendingVerifier,
+    });
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      this.logger.warn(`chatgpt token ${res.status}: ${t.slice(0, 200)}`);
+      throw new BadRequestException('Token exchange failed');
+    }
+    const tok: any = await res.json();
+    const accessToken = tok.access_token || '';
+    const accountId = this.accountIdFromJwt(accessToken);
+    await this.prisma.chatgptConnection.update({
+      where: { userId },
+      data: {
+        accessToken,
+        refreshToken: tok.refresh_token || '',
+        accountId,
+        expiresAt: tok.expires_in ? new Date(Date.now() + tok.expires_in * 1000) : null,
+        pendingVerifier: null,
+        pendingState: null,
+      },
+    });
+    return { connected: true };
+  }
+
+  private accountIdFromJwt(token: string): string | null {
+    try {
+      const p = token.split('.')[1];
+      if (!p) return null;
+      const json = JSON.parse(Buffer.from(p.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+      return json['https://api.openai.com/auth']?.chatgpt_account_id || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async refresh(userId: string): Promise<string | null> {
+    const conn = await this.prisma.chatgptConnection.findUnique({ where: { userId } });
+    if (!conn?.refreshToken) return null;
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: conn.refreshToken,
+      client_id: CLIENT_ID,
+    });
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!res.ok) return null;
+    const tok: any = await res.json();
+    const accessToken = tok.access_token || conn.accessToken;
+    await this.prisma.chatgptConnection.update({
+      where: { userId },
+      data: {
+        accessToken,
+        refreshToken: tok.refresh_token || conn.refreshToken,
+        expiresAt: tok.expires_in ? new Date(Date.now() + tok.expires_in * 1000) : conn.expiresAt,
+        accountId: this.accountIdFromJwt(accessToken) || conn.accountId,
+      },
+    });
+    return accessToken;
+  }
+
+  /** Valid access token (refreshing if near expiry), or null if not connected. */
+  async getValidToken(userId: string): Promise<{ token: string; accountId: string | null } | null> {
+    const conn = await this.prisma.chatgptConnection.findUnique({ where: { userId } });
+    if (!conn?.accessToken) return null;
+    if (conn.expiresAt && conn.expiresAt.getTime() < Date.now() + 60000) {
+      const t = await this.refresh(userId);
+      if (t) return { token: t, accountId: conn.accountId };
+    }
+    return { token: conn.accessToken, accountId: conn.accountId };
+  }
+
+  async status(userId: string) {
+    const c = await this.prisma.chatgptConnection.findUnique({
+      where: { userId },
+      select: { accessToken: true, updatedAt: true },
+    });
+    return { connected: !!c?.accessToken, connectedAt: c?.updatedAt ?? null };
+  }
+
+  async disconnect(userId: string) {
+    await this.prisma.chatgptConnection.deleteMany({ where: { userId } });
+    return { disconnected: true };
+  }
+
+  /**
+   * One-shot completion via the Codex responses endpoint using the user's token.
+   * Returns the accumulated output text. (Undocumented internal endpoint — may
+   * need iteration.)
+   */
+  async complete(userId: string, instructions: string, input: string): Promise<string> {
+    const auth = await this.getValidToken(userId);
+    if (!auth) throw new BadRequestException('CHATGPT_NOT_CONNECTED');
+    const res = await fetch('https://chatgpt.com/backend-api/codex/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        ...(auth.accountId ? { 'chatgpt-account-id': auth.accountId } : {}),
+        'Content-Type': 'application/json',
+        'OpenAI-Beta': 'responses=experimental',
+      },
+      body: JSON.stringify({
+        model: 'gpt-5.2',
+        instructions,
+        input,
+        stream: true,
+        store: false,
+      }),
+    });
+    if (!res.ok || !res.body) {
+      const t = await res.text().catch(() => '');
+      this.logger.warn(`codex responses ${res.status}: ${t.slice(0, 200)}`);
+      throw new BadRequestException('AI request failed');
+    }
+    // Parse the SSE stream: accumulate output_text deltas.
+    const reader = (res.body as any).getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let out = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s.startsWith('data:')) continue;
+        const payload = s.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(payload);
+          if (typeof evt.delta === 'string' && /output_text|text\.delta/.test(evt.type || '')) out += evt.delta;
+          else if (evt.type === 'response.completed' && evt.response?.output_text) out = evt.response.output_text;
+          else if (typeof evt.text === 'string' && evt.type?.includes('output_text.done')) out = out || evt.text;
+        } catch { /* skip non-JSON */ }
+      }
+    }
+    return out.trim();
+  }
+}

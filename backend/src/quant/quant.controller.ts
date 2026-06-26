@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { QuantService } from './quant.service';
 
@@ -25,6 +25,11 @@ export class QuantController {
   @Post('scan')
   scan(@Body('address') address: string) {
     return this.quant.scanWallet(address);
+  }
+
+  @Post('verdict')
+  verdict(@Body('address') address: string, @Req() req: any) {
+    return this.quant.aiVerdict(req.user.sub, address);
   }
 
   @Post('discover')
