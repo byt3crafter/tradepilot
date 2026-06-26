@@ -131,6 +131,11 @@ export interface ApiService {
   createNotebookEntry(body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry>;
   updateNotebookEntry(id: string, body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry>;
   deleteNotebookEntry(id: string, token: string): Promise<{ message: string }>;
+
+  // cTrader
+  ctraderConnect(token: string): Promise<{ url: string }>;
+  ctraderStatus(token: string): Promise<{ connected: boolean; configured: boolean; expiresAt?: string; scope?: string; connectedAt?: string }>;
+  ctraderDisconnect(token: string): Promise<{ disconnected: true }>;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {
@@ -321,6 +326,11 @@ const api: ApiService = {
     const params = new URLSearchParams({ symbol, interval, start, end });
     return this.get<CandlesResult>(`/api/market-data/candles?${params.toString()}`, token);
   },
+
+  // cTrader Methods
+  ctraderConnect(token: string): Promise<{ url: string }> { return this.get('/api/ctrader/connect', token); },
+  ctraderStatus(token: string): Promise<{ connected: boolean; configured: boolean; expiresAt?: string; scope?: string; connectedAt?: string }> { return this.get('/api/ctrader/status', token); },
+  ctraderDisconnect(token: string): Promise<{ disconnected: true }> { return this.post('/api/ctrader/disconnect', {}, token); },
 };
 
 export default api;
