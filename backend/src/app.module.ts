@@ -24,6 +24,8 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { MarketDataModule } from './market-data/market-data.module';
 import { NotebookModule } from './notebook/notebook.module';
 import { CtraderModule } from './ctrader/ctrader.module';
+import { QuantModule } from './quant/quant.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
@@ -66,6 +68,8 @@ import { CtraderModule } from './ctrader/ctrader.module';
     MarketDataModule,
     NotebookModule,
     CtraderModule,
+    QuantModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [],
   providers: [
