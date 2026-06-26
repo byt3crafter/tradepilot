@@ -568,6 +568,20 @@ export interface QuantVerdict {
   summary: string;
 }
 
+// --- Quant live trade feed (terminal ticker tape) ---
+
+export interface QuantFeedItem {
+  wallet: string;            // 0x… address
+  pseudonym: string;         // display name
+  side: 'BUY' | 'SELL';
+  size: number;              // share count
+  price: number;            // 0..1 implied probability
+  usd: number;              // notional in USD
+  title: string;             // market title
+  outcome: string;           // outcome label (Yes/No/…)
+  ts: number;               // UNIX timestamp (seconds or ms)
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {

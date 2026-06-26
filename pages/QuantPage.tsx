@@ -2,6 +2,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { PmWallet, QuantVerdict } from '../types';
+import QuantTerminal from '../components/quant/QuantTerminal';
+
+type QuantMode = 'leaderboard' | 'terminal';
+
+// ─── Mode toggle (segmented control) ────────────────────────────────────────────
+
+const ModeToggle: React.FC<{ mode: QuantMode; onChange: (m: QuantMode) => void }> = ({
+  mode,
+  onChange,
+}) => (
+  <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl">
+    {(['leaderboard', 'terminal'] as const).map((m) => (
+      <button
+        key={m}
+        type="button"
+        onClick={() => onChange(m)}
+        className={`px-4 py-1.5 rounded-jtp-lg text-jtp-xs font-semibold uppercase tracking-wide transition-colors ${
+          mode === m
+            ? 'bg-jtp-active text-jtp-text border border-jtp-borderFocus'
+            : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
+        }`}
+      >
+        {m === 'leaderboard' ? 'Leaderboard' : 'Terminal'}
+      </button>
+    ))}
+  </div>
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -468,6 +495,7 @@ const WalletCard: React.FC<{ wallet: PmWallet }> = ({ wallet }) => (
 const QuantPage: React.FC = () => {
   const { getToken } = useAuth();
 
+  const [mode, setMode] = useState<QuantMode>('leaderboard');
   const [stats, setStats] = useState<{ total: number; scanned: number; qualified: number } | null>(null);
   const [leaderboard, setLeaderboard] = useState<PmWallet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -531,7 +559,14 @@ const QuantPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 animate-jtp-fade-in max-w-6xl">
+    <div className={`space-y-5 animate-jtp-fade-in ${mode === 'terminal' ? 'max-w-7xl' : 'max-w-6xl'}`}>
+      {/* ── Mode toggle ── */}
+      <ModeToggle mode={mode} onChange={setMode} />
+
+      {mode === 'terminal' ? (
+        <QuantTerminal />
+      ) : (
+        <>
       {/* ── Header ── */}
       <div>
         <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
@@ -707,6 +742,8 @@ const QuantPage: React.FC = () => {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };
