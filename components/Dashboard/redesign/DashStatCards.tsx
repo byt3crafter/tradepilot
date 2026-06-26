@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Trade, TradeResult } from '../../../types';
+import StatTile from '../../ui/StatTile';
 
 interface DashStatCardsProps {
   closedTrades: Trade[];
@@ -8,7 +9,7 @@ interface DashStatCardsProps {
 function getISOWeekBounds(): { start: Date; end: Date } {
   const now = new Date();
   const day = now.getDay(); // 0 = Sun, 1 = Mon, …
-  const diffToMon = (day === 0 ? -6 : 1 - day);
+  const diffToMon = day === 0 ? -6 : 1 - day;
   const mon = new Date(now);
   mon.setDate(now.getDate() + diffToMon);
   mon.setHours(0, 0, 0, 0);
@@ -17,25 +18,6 @@ function getISOWeekBounds(): { start: Date; end: Date } {
   sun.setHours(23, 59, 59, 999);
   return { start: mon, end: sun };
 }
-
-interface StatCardProps {
-  label: string;
-  value: string;
-  color?: string; // Tailwind color class like 'text-jtp-profit'
-}
-
-const StatCard: React.FC<StatCardProps> = ({ label, value, color = 'text-jtp-text' }) => (
-  <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-4 py-[13px]">
-    <div
-      className="text-jtp-xs-plus uppercase tracking-[0.5px] text-jtp-textDim font-normal mb-[5px]"
-    >
-      {label}
-    </div>
-    <div className={`font-mono font-semibold text-jtp-3xl leading-none ${color}`}>
-      {value}
-    </div>
-  </div>
-);
 
 const DashStatCards: React.FC<DashStatCardsProps> = ({ closedTrades }) => {
   const stats = useMemo(() => {
@@ -48,12 +30,12 @@ const DashStatCards: React.FC<DashStatCardsProps> = ({ closedTrades }) => {
     });
 
     // Win rate (all time, wins vs losses, excluding breakeven)
-    const wins = closedTrades.filter(t => t.result === TradeResult.Win);
+    const wins   = closedTrades.filter(t => t.result === TradeResult.Win);
     const losses = closedTrades.filter(t => t.result === TradeResult.Loss);
     const ratable = wins.length + losses.length;
     const winRate = ratable > 0 ? (wins.length / ratable) * 100 : 0;
 
-    // Net R — sum of server-computed realised R (P&L ÷ account risk unit)
+    // Net R — sum of server-computed realised R
     const netR = closedTrades.reduce((sum, t) => sum + (t.realisedR ?? 0), 0);
 
     // Net P&L
@@ -62,12 +44,26 @@ const DashStatCards: React.FC<DashStatCardsProps> = ({ closedTrades }) => {
       return sum + pl;
     }, 0);
 
-    return { thisWeekCount: thisWeek.length, winRate, netR, netPL };
+    // All-time trade count
+    const totalTrades = closedTrades.length;
+
+    return {
+      thisWeekCount: thisWeek.length,
+      winRate,
+      netR,
+      netPL,
+      totalTrades,
+      winsCount: wins.length,
+      lossCount: losses.length,
+    };
   }, [closedTrades]);
 
   const formatCurrency = (v: number) => {
-    const sign = v >= 0 ? '+' : '';
-    return `${sign}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const sign = v >= 0 ? '+' : '-';
+    const abs  = Math.abs(v);
+    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+    if (abs >= 1_000)     return `${sign}$${(abs / 1_000).toFixed(1)}k`;
+    return `${sign}$${abs.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   const formatR = (v: number) => {
@@ -75,30 +71,36 @@ const DashStatCards: React.FC<DashStatCardsProps> = ({ closedTrades }) => {
     return `${sign}${v.toFixed(1)}R`;
   };
 
-  const plColor = stats.netPL >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
-  const rColor = stats.netR >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const plColor  = stats.netPL >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const rColor   = stats.netR  >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const wrColor  = stats.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss';
 
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      <StatCard
-        label="Trades This Week"
+      <StatTile
+        label="TRADES THIS WEEK"
         value={String(stats.thisWeekCount)}
-        color="text-jtp-text"
+        subValue={`${stats.totalTrades} all-time`}
       />
-      <StatCard
-        label="Win Rate"
+      <StatTile
+        label="WIN RATE"
         value={`${stats.winRate.toFixed(0)}%`}
-        color={stats.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'}
+        valueColor={wrColor}
+        subValue={`${stats.winsCount}W · ${stats.lossCount}L`}
       />
-      <StatCard
-        label="Net R"
+      <StatTile
+        label="NET R"
         value={formatR(stats.netR)}
-        color={rColor}
+        valueColor={rColor}
+        positive={stats.netR >= 0}
+        subValue="all-time"
       />
-      <StatCard
-        label="Net P&L"
+      <StatTile
+        label="NET P&L"
         value={formatCurrency(stats.netPL)}
-        color={plColor}
+        valueColor={plColor}
+        positive={stats.netPL >= 0}
+        subValue="after fees"
       />
     </div>
   );

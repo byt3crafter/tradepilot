@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -146,6 +146,7 @@ export interface ApiService {
   quantWalletPositions(address: string, token?: string | null): Promise<PmPosition[]>;
   quantScan(address: string, token?: string | null): Promise<PmWallet>;
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict>;
+  quantMarkets(q?: string, token?: string | null): Promise<PolymarketMarket[]>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -403,6 +404,10 @@ const api: ApiService = {
   quantWalletPositions(address: string, token?: string | null): Promise<PmPosition[]> { return this.get(`/api/quant/wallet/${address}/positions`, token); },
   quantScan(address: string, token?: string | null): Promise<PmWallet> { return this.post('/api/quant/scan', { address }, token); },
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict> { return this.post('/api/quant/verdict', { address }, token); },
+  quantMarkets(q?: string, token?: string | null): Promise<PolymarketMarket[]> {
+    const query = q ? `?q=${encodeURIComponent(q)}` : '';
+    return this.get(`/api/quant/markets${query}`, token);
+  },
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },

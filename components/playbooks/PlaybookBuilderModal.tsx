@@ -125,7 +125,7 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
 
   const footer = (
     <div className="space-y-2">
-      {error && <p className="text-risk-high text-jtp-sm text-center">{error}</p>}
+      {error && <p className="text-jtp-loss text-jtp-lg text-center">{error}</p>}
       <Button type="submit" form="playbook-builder-form" isLoading={isLoading} className="w-full">
         {isEditMode ? 'Save Playbook' : 'Create Playbook'}
       </Button>
@@ -141,22 +141,20 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
       width="xl"
       footer={footer}
     >
-      <form id="playbook-builder-form" onSubmit={handleSubmit} className="space-y-6">
-        {/* --- CORE DETAILS --- */}
-        <section>
-          <h3 className="text-jtp-base font-semibold text-jtp-text mb-3">Core Details</h3>
+      <form id="playbook-builder-form" onSubmit={handleSubmit} className="space-y-5">
+        {/* ── CORE DETAILS ── */}
+        <section className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-4">
+          <div className="jtp-label">CORE DETAILS</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Playbook Name" id="name" name="name" value={playbook.name} onChange={handleInputChange} required />
             <Input label="Core Idea" id="coreIdea" name="coreIdea" value={playbook.coreIdea || ''} onChange={handleInputChange} placeholder="e.g., Trend continuation on pullbacks" />
           </div>
-          <div className="mt-4">
-            <ToggleSwitch label="Make this playbook public" checked={!!playbook.isPublic} onChange={val => setPlaybook(p => ({ ...p, isPublic: val }))} />
-          </div>
+          <ToggleSwitch label="Make this playbook public" checked={!!playbook.isPublic} onChange={val => setPlaybook(p => ({ ...p, isPublic: val }))} />
         </section>
 
-        {/* --- TAGS --- */}
-        <section>
-          <h3 className="text-jtp-base font-semibold text-jtp-text mb-3">Tags</h3>
+        {/* ── TAGS ── */}
+        <section className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-4">
+          <div className="jtp-label">TAGS</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Trading Styles" id="tradingStyles" name="tradingStyles" placeholder="Swing, Day, Scalp" value={playbook.tradingStyles?.join(', ')} onChange={e => handleArrayChange('tradingStyles', e.target.value)} />
             <Input label="Instruments" id="instruments" name="instruments" placeholder="Forex, Crypto, Futures" value={playbook.instruments?.join(', ')} onChange={e => handleArrayChange('instruments', e.target.value)} />
@@ -164,65 +162,70 @@ const PlaybookBuilderModal: React.FC<PlaybookBuilderModalProps> = ({ playbookToE
           </div>
         </section>
 
-        {/* --- PROS & CONS --- */}
-        <section>
-          <h3 className="text-jtp-base font-semibold text-jtp-text mb-3">Pros &amp; Cons</h3>
+        {/* ── PROS & CONS ── */}
+        <section className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-4">
+          <div className="jtp-label">EDGE ANALYSIS</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Textarea label="Pros" id="pros" name="pros" placeholder="One per line..." value={playbook.pros?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, pros: e.target.value.split('\n') }))} />
-            <Textarea label="Cons" id="cons" name="cons" placeholder="One per line..." value={playbook.cons?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, cons: e.target.value.split('\n') }))} />
+            <Textarea label="Pros" id="pros" name="pros" placeholder="One per line…" value={playbook.pros?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, pros: e.target.value.split('\n') }))} />
+            <Textarea label="Cons" id="cons" name="cons" placeholder="One per line…" value={playbook.cons?.join('\n')} onChange={e => setPlaybook(p => ({ ...p, cons: e.target.value.split('\n') }))} />
           </div>
         </section>
 
-        {/* --- SETUPS --- */}
-        <section>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-jtp-base font-semibold text-jtp-text">Setups</h3>
-            <Button type="button" onClick={handleAddSetup} className="w-auto flex items-center gap-2 text-sm px-3 py-1.5">
+        {/* ── SETUPS ── */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="jtp-label">SETUPS</div>
+            <Button type="button" variant="secondary" onClick={handleAddSetup} className="flex items-center gap-1.5 text-jtp-md px-3 py-1.5">
               <PlusIcon className="w-4 h-4" /> Add Setup
             </Button>
           </div>
-          <div className="space-y-4">
-            {playbook.setups?.map((setup, index) => (
-              <div key={setup.id} className="p-4 bg-jtp-raised rounded-jtp-panel border border-jtp-border">
-                <Input label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
 
-                <div className="grid grid-cols-2 gap-4 my-4">
-                  <ImageUploader label="'Before' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotBeforeUrl', base64)} currentImage={setup.screenshotBeforeUrl} />
-                  <ImageUploader label="'After' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotAfterUrl', base64)} currentImage={setup.screenshotAfterUrl} />
-                </div>
+          {playbook.setups?.map((setup, index) => (
+            <div key={setup.id} className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-4">
+              <Input label="Setup Name" id={`setup-name-${index}`} value={setup.name} onChange={e => handleSetupChange(index, 'name', e.target.value)} />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <ChecklistInput title="Entry Criteria" items={setup.entryCriteria} onChange={items => handleSetupChange(index, 'entryCriteria', items)} />
-                  <ChecklistInput title="Confirmation Filters" items={setup.confirmationFilters || []} onChange={items => handleSetupChange(index, 'confirmationFilters', items)} />
-                </div>
+              <div className="grid grid-cols-2 gap-4">
+                <ImageUploader label="'Before' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotBeforeUrl', base64)} currentImage={setup.screenshotBeforeUrl} />
+                <ImageUploader label="'After' Chart" onImageUpload={base64 => handleSetupChange(index, 'screenshotAfterUrl', base64)} currentImage={setup.screenshotAfterUrl} />
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <ChecklistInput title="Exit Rules" items={setup.exitRules || []} onChange={items => handleSetupChange(index, 'exitRules', items)} />
-                  <ChecklistInput title="Risk Management Rules" items={setup.riskManagement} onChange={items => handleSetupChange(index, 'riskManagement', items)} />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ChecklistInput title="Entry Criteria" items={setup.entryCriteria} onChange={items => handleSetupChange(index, 'entryCriteria', items)} />
+                <ChecklistInput title="Confirmation Filters" items={setup.confirmationFilters || []} onChange={items => handleSetupChange(index, 'confirmationFilters', items)} />
+              </div>
 
-                {/* Risk Settings */}
-                <div className="mt-4 p-3 bg-jtp-shell/30 rounded-jtp-md border border-jtp-borderSubtle">
-                  <h4 className="text-jtp-sm font-semibold text-jtp-textSoft mb-2">Risk Parameters</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Risk % per Trade"
-                      type="number"
-                      step="0.1"
-                      value={setup.riskSettings?.riskPercent || ''}
-                      onChange={e => handleRiskSettingChange(index, 'riskPercent', parseFloat(e.target.value))}
-                    />
-                    <Input
-                      label="Stop Loss Type"
-                      placeholder="e.g. Technical, Fixed Pips"
-                      value={setup.riskSettings?.stopLossType || ''}
-                      onChange={e => handleRiskSettingChange(index, 'stopLossType', e.target.value)}
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ChecklistInput title="Exit Rules" items={setup.exitRules || []} onChange={items => handleSetupChange(index, 'exitRules', items)} />
+                <ChecklistInput title="Risk Management Rules" items={setup.riskManagement} onChange={items => handleSetupChange(index, 'riskManagement', items)} />
+              </div>
+
+              {/* Risk parameters */}
+              <div className="p-3 bg-jtp-shell rounded-jtp-md border border-jtp-borderSubtle space-y-3">
+                <div className="jtp-label">RISK PARAMETERS</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Risk % per Trade"
+                    type="number"
+                    step="0.1"
+                    value={setup.riskSettings?.riskPercent || ''}
+                    onChange={e => handleRiskSettingChange(index, 'riskPercent', parseFloat(e.target.value))}
+                  />
+                  <Input
+                    label="Stop Loss Type"
+                    placeholder="e.g. Technical, Fixed Pips"
+                    value={setup.riskSettings?.stopLossType || ''}
+                    onChange={e => handleRiskSettingChange(index, 'stopLossType', e.target.value)}
+                  />
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+
+          {(!playbook.setups || playbook.setups.length === 0) && (
+            <div className="border border-dashed border-jtp-borderSubtle rounded-jtp-panel px-4 py-6 text-center text-jtp-md text-jtp-textFaint">
+              No setups added yet. Click "Add Setup" to define your first trading pattern.
+            </div>
+          )}
         </section>
       </form>
     </Drawer>

@@ -1,28 +1,49 @@
 import React from 'react';
 import Drawer from '../ui/Drawer';
 import { CommunityPlaybook } from '../../types';
+import { Panel, Badge } from '../ui';
 
 interface CommunityPlaybookDetailModalProps {
   playbook: CommunityPlaybook;
   onClose: () => void;
 }
 
+// ─── Tag chip ────────────────────────────────────────────────────────────────
 const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="bg-photonic-blue/10 text-photonic-blue text-xs font-semibold px-2.5 py-1 rounded-full">
+  <span className="text-jtp-xs px-2.5 py-[3px] rounded-jtp-md bg-jtp-blue/10 text-jtp-blue font-medium">
     {children}
   </span>
 );
 
-const ChecklistDisplay: React.FC<{ title: string, items: { text: string }[] }> = ({ title, items }) => (
+// ─── Read-only checklist ──────────────────────────────────────────────────────
+const ChecklistDisplay: React.FC<{ title: string; items: { text: string }[] }> = ({ title, items }) => (
   <div>
-    <h4 className="font-semibold text-future-light mb-2">{title}</h4>
-    <ul className="list-disc list-inside space-y-1 text-sm text-future-gray">
-      {items.map((item, index) => <li key={index}>{item.text}</li>)}
-    </ul>
+    <div className="jtp-label mb-2">{title}</div>
+    {items.length === 0 ? (
+      <p className="text-jtp-md text-jtp-textFaint italic">Not defined</p>
+    ) : (
+      <ul className="space-y-1">
+        {items.map((item, index) => (
+          <li key={index} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+            <span className="text-jtp-textDim shrink-0 mt-px">·</span>
+            <span>{item.text}</span>
+          </li>
+        ))}
+      </ul>
+    )}
   </div>
 );
 
-const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> = ({ playbook, onClose }) => {
+const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> = ({
+  playbook,
+  onClose,
+}) => {
+  const allTags = [
+    ...playbook.tradingStyles,
+    ...playbook.instruments,
+    ...playbook.timeframes,
+  ];
+
   return (
     <Drawer
       isOpen
@@ -31,64 +52,102 @@ const CommunityPlaybookDetailModal: React.FC<CommunityPlaybookDetailModalProps> 
       subtitle={`by ${playbook.authorName}`}
       width="lg"
     >
-      <div className="space-y-6">
-        {/* --- HEADER --- */}
-        <section>
-          <p className="text-jtp-textMuted italic text-jtp-sm">{playbook.coreIdea}</p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {playbook.tradingStyles.map(tag => <Tag key={tag}>{tag}</Tag>)}
-            {playbook.instruments.map(tag => <Tag key={tag}>{tag}</Tag>)}
-            {playbook.timeframes.map(tag => <Tag key={tag}>{tag}</Tag>)}
+      <div className="space-y-5">
+        {/* Overview */}
+        <Panel label="OVERVIEW">
+          <div className="space-y-3">
+            {playbook.coreIdea && (
+              <p className="text-jtp-lg text-jtp-textMuted leading-relaxed">{playbook.coreIdea}</p>
+            )}
+            {allTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {allTags.map(tag => <Tag key={tag}>{tag}</Tag>)}
+              </div>
+            )}
           </div>
-        </section>
+        </Panel>
 
-        {/* --- PROS & CONS --- */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-jtp-border">
-          <div>
-            <h3 className="text-jtp-sm font-semibold text-jtp-profit mb-2">Pros</h3>
-            <ul className="list-disc list-inside space-y-1 text-jtp-sm text-jtp-textSoft">
-              {playbook.pros.map((pro, i) => <li key={i}>{pro}</li>)}
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-jtp-sm font-semibold text-jtp-loss mb-2">Cons to Manage</h3>
-            <ul className="list-disc list-inside space-y-1 text-jtp-sm text-jtp-textSoft">
-              {playbook.cons.map((con, i) => <li key={i}>{con}</li>)}
-            </ul>
-          </div>
-        </section>
+        {/* Pros & Cons */}
+        {(playbook.pros.length > 0 || playbook.cons.length > 0) && (
+          <Panel label="EDGE ANALYSIS">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <div className="jtp-label text-jtp-profit mb-2">PROS</div>
+                <ul className="space-y-1">
+                  {playbook.pros.filter(Boolean).map((pro, i) => (
+                    <li key={i} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+                      <span className="text-jtp-profit shrink-0 mt-px">+</span>
+                      <span>{pro}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="jtp-label text-jtp-loss mb-2">CONS TO MANAGE</div>
+                <ul className="space-y-1">
+                  {playbook.cons.filter(Boolean).map((con, i) => (
+                    <li key={i} className="flex gap-2 text-jtp-lg text-jtp-textSoft leading-snug">
+                      <span className="text-jtp-loss shrink-0 mt-px">−</span>
+                      <span>{con}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Panel>
+        )}
 
-        {/* --- SETUPS --- */}
-        <section>
-          <h2 className="text-jtp-base font-semibold text-jtp-text mb-4 border-t border-jtp-border pt-4">Setups</h2>
-          <div className="space-y-6">
-            {playbook.setups.map(setup => (
-              <div key={setup.id} className="p-4 bg-jtp-raised rounded-jtp-panel border border-jtp-border">
-                <h3 className="text-jtp-base font-semibold text-jtp-textSoft mb-4">{setup.name}</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <ChecklistDisplay title="Entry Criteria" items={setup.entryCriteria} />
-                    <ChecklistDisplay title="Risk Management" items={setup.riskManagement} />
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <span className="text-jtp-xs text-jtp-textDim">Ideal 'Before' Chart</span>
-                      {setup.screenshotBeforeUrl
-                        ? <img src={setup.screenshotBeforeUrl} alt="Before" className="mt-1 rounded-jtp-md border border-jtp-border" />
-                        : <div className="mt-1 h-24 bg-jtp-shell/30 rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint">Not provided</div>}
+        {/* Setups */}
+        {playbook.setups.length > 0 && (
+          <Panel label="SETUPS">
+            <div className="space-y-4">
+              {playbook.setups.map(setup => (
+                <div
+                  key={setup.id}
+                  className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4"
+                >
+                  <div className="font-semibold text-jtp-lg text-jtp-text mb-4">{setup.name}</div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div className="space-y-4">
+                      <ChecklistDisplay title="ENTRY CRITERIA"   items={setup.entryCriteria} />
+                      <ChecklistDisplay title="RISK MANAGEMENT"  items={setup.riskManagement} />
                     </div>
-                    <div>
-                      <span className="text-jtp-xs text-jtp-textDim">Ideal 'After' Chart</span>
-                      {setup.screenshotAfterUrl
-                        ? <img src={setup.screenshotAfterUrl} alt="After" className="mt-1 rounded-jtp-md border border-jtp-border" />
-                        : <div className="mt-1 h-24 bg-jtp-shell/30 rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint">Not provided</div>}
+                    <div className="space-y-3">
+                      <div>
+                        <div className="jtp-label mb-1">BEFORE CHART</div>
+                        {setup.screenshotBeforeUrl ? (
+                          <img
+                            src={setup.screenshotBeforeUrl}
+                            alt="Before"
+                            className="rounded-jtp-md border border-jtp-border w-full"
+                          />
+                        ) : (
+                          <div className="h-24 bg-jtp-shell rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint border border-jtp-borderSubtle">
+                            Not provided
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="jtp-label mb-1">AFTER CHART</div>
+                        {setup.screenshotAfterUrl ? (
+                          <img
+                            src={setup.screenshotAfterUrl}
+                            alt="After"
+                            className="rounded-jtp-md border border-jtp-border w-full"
+                          />
+                        ) : (
+                          <div className="h-24 bg-jtp-shell rounded-jtp-md flex items-center justify-center text-jtp-xs text-jtp-textFaint border border-jtp-borderSubtle">
+                            Not provided
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </Panel>
+        )}
       </div>
     </Drawer>
   );

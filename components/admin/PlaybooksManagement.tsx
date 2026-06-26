@@ -1,81 +1,172 @@
+/**
+ * PlaybooksManagement — Operator Console view for Community Playbooks.
+ *
+ * Panel + DataTable: name/author, trade count, win rate colored by sign,
+ * and a delete action.
+ */
 import React, { useState } from 'react';
 import { CommunityPlaybook } from '../../types';
-import Button from '../ui/Button';
+import {
+  Panel,
+  DataTable,
+  Badge,
+  Button,
+  EmptyState,
+  Modal,
+} from '../ui';
+import type { TableColumn } from '../ui';
 import { TrashIcon } from '../icons/TrashIcon';
 
 interface PlaybooksManagementProps {
-    playbooks: CommunityPlaybook[];
-    onRefresh: () => void;
-    onDelete: (id: string) => void;
+  playbooks: CommunityPlaybook[];
+  onRefresh: () => void;
+  onDelete: (id: string) => void;
 }
 
-const PlaybooksManagement: React.FC<PlaybooksManagementProps> = ({ playbooks, onRefresh, onDelete }) => {
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+const PlaybooksManagement: React.FC<PlaybooksManagementProps> = ({
+  playbooks,
+  onRefresh,
+  onDelete,
+}) => {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm('Are you sure you want to delete this playbook? This action cannot be undone.')) {
-            setDeletingId(id);
-            await onDelete(id);
-            setDeletingId(null);
-            onRefresh();
-        }
-    };
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    await onDelete(id);
+    setDeletingId(null);
+    setConfirmDelete(null);
+    onRefresh();
+  };
 
-    return (
-        <div className="space-y-5">
-            <div className="flex justify-between items-center">
-                <h2 className="text-jtp-xl font-semibold text-jtp-text tracking-tight">Community Playbooks</h2>
-                <Button onClick={onRefresh} variant="secondary" className="text-jtp-sm h-8 px-3">
-                    Refresh
-                </Button>
-            </div>
-
-            {playbooks.length === 0 ? (
-                <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-5 py-14 text-center">
-                    <p className="text-jtp-textDim text-jtp-sm">No community playbooks found.</p>
-                </div>
-            ) : (
-                <div className="flex flex-col gap-3">
-                    {playbooks.map((playbook) => (
-                        <div
-                            key={playbook.id}
-                            className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-5 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-                        >
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-jtp-lg font-semibold text-jtp-text truncate">{playbook.name}</h3>
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
-                                    <span className="text-jtp-sm text-jtp-textMuted">by {playbook.authorName}</span>
-                                    <span className="text-jtp-textDim">·</span>
-                                    <span className="font-mono text-jtp-sm text-jtp-textMuted tabular-nums">
-                                        {playbook.tradeCount} trades
-                                    </span>
-                                    <span className="text-jtp-textDim">·</span>
-                                    <span className={`font-mono text-jtp-sm font-semibold tabular-nums ${
-                                        playbook.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'
-                                    }`}>
-                                        {playbook.winRate}% win rate
-                                    </span>
-                                </div>
-                                {playbook.coreIdea && (
-                                    <p className="text-jtp-sm text-jtp-textDim mt-2 line-clamp-2">{playbook.coreIdea}</p>
-                                )}
-                            </div>
-
-                            <Button
-                                variant="danger"
-                                onClick={() => handleDelete(playbook.id)}
-                                isLoading={deletingId === playbook.id}
-                                className="flex-shrink-0 text-jtp-sm h-8 px-3"
-                            >
-                                <TrashIcon className="w-3.5 h-3.5 mr-1.5" />
-                                Delete
-                            </Button>
-                        </div>
-                    ))}
-                </div>
-            )}
+  const columns: TableColumn<CommunityPlaybook>[] = [
+    {
+      key: 'name',
+      header: 'PLAYBOOK',
+      render: (name, row) => (
+        <div>
+          <p className="font-medium text-jtp-text text-jtp-md leading-snug">{name}</p>
+          {row.coreIdea && (
+            <p className="text-jtp-xs text-jtp-textDim mt-0.5 line-clamp-1">{row.coreIdea}</p>
+          )}
         </div>
-    );
+      ),
+    },
+    {
+      key: 'authorName',
+      header: 'AUTHOR',
+      render: (author) => (
+        <span className="text-jtp-md text-jtp-textMuted">{author}</span>
+      ),
+    },
+    {
+      key: 'tradeCount',
+      header: 'TRADES',
+      align: 'right',
+      mono: true,
+      render: (count) => (
+        <span className="font-mono text-jtp-xs text-jtp-textMuted tabular-nums font-semibold">
+          {count}
+        </span>
+      ),
+    },
+    {
+      key: 'winRate',
+      header: 'WIN RATE',
+      align: 'right',
+      mono: true,
+      render: (rate) => {
+        const r = rate as number;
+        return (
+          <span
+            className={`font-mono text-jtp-xs tabular-nums font-bold ${
+              r >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'
+            }`}
+          >
+            {r}%
+          </span>
+        );
+      },
+    },
+    {
+      key: 'id',
+      header: '',
+      align: 'right',
+      width: '56px',
+      render: (_, row) => (
+        <button
+          onClick={() => setConfirmDelete(row.id)}
+          disabled={deletingId === row.id}
+          className="p-1.5 text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-loss/10 rounded-jtp-sm transition-colors disabled:opacity-40"
+          title="Delete playbook"
+          aria-label="Delete playbook"
+        >
+          <TrashIcon className="w-3.5 h-3.5" />
+        </button>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Panel
+        label={`COMMUNITY PLAYBOOKS${playbooks.length ? ` (${playbooks.length})` : ''}`}
+        noPadding
+        actions={
+          <Button
+            variant="secondary"
+            onClick={onRefresh}
+            className="h-7 px-3 text-jtp-xs"
+          >
+            Refresh
+          </Button>
+        }
+      >
+        {playbooks.length === 0 ? (
+          <EmptyState
+            title="No community playbooks"
+            description="Playbooks shared by users will appear here."
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={playbooks}
+            keyFn={(p) => p.id}
+            emptyMessage="No playbooks found."
+          />
+        )}
+      </Panel>
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <Modal title="Delete Playbook" onClose={() => setConfirmDelete(null)} size="md">
+          <div className="space-y-5">
+            <p className="text-jtp-lg text-jtp-textMuted leading-snug">
+              Are you sure you want to delete this playbook?{' '}
+              <span className="text-jtp-loss font-medium">This cannot be undone.</span>
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="secondary"
+                onClick={() => setConfirmDelete(null)}
+                className="text-jtp-sm h-8 px-4"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => handleDelete(confirmDelete)}
+                isLoading={!!deletingId}
+                className="text-jtp-sm h-8 px-4"
+              >
+                Delete Playbook
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
 };
 
 export default PlaybooksManagement;

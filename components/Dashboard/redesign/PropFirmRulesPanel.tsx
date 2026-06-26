@@ -1,61 +1,45 @@
 import React from 'react';
 import { BrokerAccount, ObjectiveProgress } from '../../../types';
+import Panel from '../../ui/Panel';
+import Badge, { BadgeVariant } from '../../ui/Badge';
 
 interface PropFirmRulesPanelProps {
   objectives: ObjectiveProgress[];
   account: BrokerAccount;
 }
 
-type BadgeVariant = 'passed' | 'ontrack' | 'safe' | 'breached' | 'progress';
-
-interface RuleBadgeProps {
-  variant: BadgeVariant;
-}
-
-const BADGE_STYLES: Record<BadgeVariant, { bg: string; text: string; label: string }> = {
-  passed:   { bg: 'bg-[rgba(76,195,138,.16)]',  text: 'text-jtp-profit',  label: 'Passed' },
-  ontrack:  { bg: 'bg-[rgba(91,141,239,.14)]',  text: 'text-jtp-blue',    label: 'On track' },
-  safe:     { bg: 'bg-[rgba(217,162,59,.14)]',  text: 'text-jtp-warning', label: 'Safe' },
-  breached: { bg: 'bg-[rgba(229,99,95,.16)]',   text: 'text-jtp-loss',    label: 'Breached' },
-  progress: { bg: 'bg-[rgba(91,141,239,.14)]',  text: 'text-jtp-blue',    label: 'In progress' },
-};
-
-const RuleBadge: React.FC<RuleBadgeProps> = ({ variant }) => {
-  const s = BADGE_STYLES[variant];
-  return (
-    <span
-      className={`text-jtp-2xs font-semibold px-[7px] py-[2px] rounded-jtp-md ${s.bg} ${s.text}`}
-      style={{ letterSpacing: '0.2px' }}
-    >
-      {s.label}
-    </span>
-  );
-};
+// ── Badge / bar logic ─────────────────────────────────────────────────────────
 
 function getBadgeVariant(obj: ObjectiveProgress): BadgeVariant {
   const isLossRule = obj.key === 'maxLoss' || obj.key === 'maxDailyLoss';
-  if (obj.status === 'Failed') return 'breached';
-  if (isLossRule) return 'safe';
-  if (obj.status === 'Success') return 'passed';
-  return 'ontrack';
+  if (obj.status === 'Failed')  return 'loss';
+  if (isLossRule)               return 'warning';
+  if (obj.status === 'Success') return 'profit';
+  return 'info';
+}
+
+function getBadgeLabel(obj: ObjectiveProgress): string {
+  const isLossRule = obj.key === 'maxLoss' || obj.key === 'maxDailyLoss';
+  if (obj.status === 'Failed')  return 'BREACHED';
+  if (isLossRule)               return 'SAFE';
+  if (obj.status === 'Success') return 'PASSED';
+  return 'ON TRACK';
 }
 
 function getBarColor(obj: ObjectiveProgress): string {
-  if (obj.status === 'Failed') return 'bg-jtp-loss';
+  if (obj.status === 'Failed') return '#e5635f'; // jtp-loss
   const isLossRule = obj.key === 'maxLoss' || obj.key === 'maxDailyLoss';
-  if (isLossRule) return 'bg-jtp-warning';
-  if (obj.status === 'Success') return 'bg-jtp-profit';
-  return 'bg-jtp-blue';
+  if (isLossRule)               return '#d9a23b'; // jtp-warning
+  if (obj.status === 'Success') return '#4cc38a'; // jtp-profit
+  return '#5b8def';                               // jtp-blue
 }
 
 function getProgressPct(obj: ObjectiveProgress): number {
   if (obj.targetValue === 0) return 0;
   const isLossRule = obj.key === 'maxLoss' || obj.key === 'maxDailyLoss';
   if (isLossRule) {
-    // currentValue is negative loss; targetValue is negative limit
-    // progress = how much of the limit has been consumed
     const consumed = Math.abs(obj.currentValue);
-    const limit = Math.abs(obj.targetValue);
+    const limit    = Math.abs(obj.targetValue);
     return limit > 0 ? Math.min(100, (consumed / limit) * 100) : 0;
   }
   return Math.min(100, (obj.currentValue / obj.targetValue) * 100);
@@ -66,9 +50,8 @@ function formatValue(obj: ObjectiveProgress): string {
   if (fmt === 'days') {
     return `${Math.round(obj.currentValue)} / ${Math.round(obj.targetValue)} days`;
   }
-  // currency
   const fmtCurrency = (v: number) => {
-    const abs = Math.abs(v);
+    const abs  = Math.abs(v);
     const sign = v < 0 ? '-' : '';
     return `${sign}$${abs.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
@@ -88,7 +71,7 @@ function getSubtext(obj: ObjectiveProgress): string {
       return `${Math.round(rem)} day${rem !== 1 ? 's' : ''} remaining`;
     }
     case 'maxLoss': {
-      const headroom = obj.targetValue - obj.currentValue; // targetValue is negative, currentValue is negative loss
+      const headroom = obj.targetValue - obj.currentValue;
       const head = Math.abs(headroom);
       if (obj.status === 'Failed') return 'limit breached';
       return `$${head.toLocaleString(undefined, { maximumFractionDigits: 0 })} headroom`;
@@ -102,62 +85,76 @@ function getSubtext(obj: ObjectiveProgress): string {
   }
 }
 
-function getAccountContextLabel(account: BrokerAccount): string {
-  const type = account.type === 'PROP_FIRM' ? 'Prop' : account.type === 'DEMO' ? 'Demo' : 'Live';
-  const balance = `balance $${account.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+function getAccountContext(account: BrokerAccount): string {
+  const type    = account.type === 'PROP_FIRM' ? 'Prop' : account.type === 'DEMO' ? 'Demo' : 'Live';
+  const balance = `$${account.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   return `${account.name} · ${type} · ${balance}`;
 }
 
-const PropFirmRulesPanel: React.FC<PropFirmRulesPanelProps> = ({ objectives, account }) => {
-  return (
-    <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel px-[18px] py-[15px]">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-[14px]">
-        <div className="text-jtp-base-minus font-semibold text-jtp-text" style={{ letterSpacing: '0.2px' }}>
-          Prop Firm Rules
-        </div>
-        <div className="text-jtp-sm-minus text-jtp-textDim font-mono">
-          {getAccountContextLabel(account)}
-        </div>
-      </div>
+// ── Component ─────────────────────────────────────────────────────────────────
 
-      {/* Rule columns */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-[22px]">
+const PropFirmRulesPanel: React.FC<PropFirmRulesPanelProps> = ({ objectives, account }) => {
+  const accountLabel = (
+    <span
+      className="font-mono text-jtp-xs-plus text-jtp-textDim"
+      style={{ fontVariantNumeric: 'tabular-nums' }}
+    >
+      {getAccountContext(account)}
+    </span>
+  );
+
+  return (
+    <Panel label="PROP FIRM RULES" actions={accountLabel}>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
         {objectives.map(obj => {
-          const pct = getProgressPct(obj);
+          const pct      = getProgressPct(obj);
           const barColor = getBarColor(obj);
-          const badge = getBadgeVariant(obj);
+          const variant  = getBadgeVariant(obj);
+          const badgeLabel = getBadgeLabel(obj);
+          const subtext  = getSubtext(obj);
 
           return (
             <div key={obj.key}>
-              {/* Label + badge */}
-              <div className="flex items-center justify-between mb-[7px]">
-                <span className="text-jtp-sm text-jtp-textMuted">{obj.title}</span>
-                <RuleBadge variant={badge} />
+              {/* Label + status badge */}
+              <div className="flex items-center justify-between mb-[8px]">
+                <span className="text-jtp-md text-jtp-textMuted font-medium">{obj.title}</span>
+                <Badge variant={variant} size="xs">{badgeLabel}</Badge>
               </div>
 
-              {/* Value string */}
-              <div className="font-mono text-jtp-md-plus font-medium text-jtp-text mb-[7px]">
+              {/* Value — mono, tabular */}
+              <div
+                className="font-mono text-jtp-lg font-semibold text-jtp-text mb-[8px]"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
                 {formatValue(obj)}
               </div>
 
               {/* Progress bar */}
-              <div className="h-[5px] rounded-jtp-xs bg-jtp-border overflow-hidden">
+              <div
+                className="h-[4px] rounded-full overflow-hidden"
+                style={{ backgroundColor: '#1c2128' }}
+                role="progressbar"
+                aria-valuenow={Math.round(pct)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <div
-                  className={`h-full rounded-jtp-xs ${barColor} transition-all`}
-                  style={{ width: `${Math.min(100, pct)}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, pct)}%`, backgroundColor: barColor }}
                 />
               </div>
 
               {/* Subtext */}
-              <div className="text-jtp-xs text-jtp-textFaint mt-[6px]">
-                {getSubtext(obj)}
-              </div>
+              {subtext && (
+                <div className="font-mono text-jtp-xs text-jtp-textFaint mt-[5px]">
+                  {subtext}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-    </div>
+    </Panel>
   );
 };
 

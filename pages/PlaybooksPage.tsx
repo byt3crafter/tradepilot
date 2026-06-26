@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { usePlaybook } from '../context/PlaybookContext';
 import { useTrade } from '../context/TradeContext';
 import { useAuth } from '../context/AuthContext';
-import Spinner from '../components/Spinner';
-import Button from '../components/ui/Button';
+import { Button, Tabs, Badge, Panel, EmptyState, Skeleton, DataTable } from '../components/ui';
+import type { Tab, TableColumn } from '../components/ui';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { CopyIcon } from '../components/icons/CopyIcon';
 import { EyeIcon } from '../components/icons/EyeIcon';
@@ -17,14 +17,20 @@ import SetupsList, { SetupItem } from '../components/playbooks/SetupsList';
 import SetupDetail from '../components/playbooks/SetupDetail';
 import { Playbook, CommunityPlaybook } from '../types';
 
-// ─── Tag chip ─────────────────────────────────────────────────────────────────
+// ─── Page tabs ────────────────────────────────────────────────────────────────
+const PAGE_TABS: Tab[] = [
+  { id: 'my',        label: 'My Playbooks' },
+  { id: 'community', label: 'Community' },
+];
+
+// ─── Community tag chip ───────────────────────────────────────────────────────
 const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="text-jtp-xs px-2.5 py-[3px] rounded-jtp-md bg-jtp-blue/10 text-jtp-blue font-medium mr-1 mb-1 inline-block">
     {children}
   </span>
 );
 
-// ─── Community tab row ────────────────────────────────────────────────────────
+// ─── Community table row ──────────────────────────────────────────────────────
 const CommunityRow: React.FC<{
   playbook: CommunityPlaybook;
   isOwnPlaybook: boolean;
@@ -37,27 +43,25 @@ const CommunityRow: React.FC<{
       <td className="px-4 py-3">
         <button
           onClick={onView}
-          className="font-medium text-jtp-base text-jtp-textSoft hover:text-jtp-blue transition-colors text-left"
+          className="font-medium text-jtp-lg text-jtp-textSoft hover:text-jtp-blue transition-colors text-left"
         >
           {playbook.name}
         </button>
         {playbook.coreIdea && (
-          <div className="text-jtp-xs text-jtp-textFaint mt-0.5 truncate max-w-xs">
+          <div className="text-jtp-md text-jtp-textDim mt-0.5 truncate max-w-xs">
             {playbook.coreIdea}
           </div>
         )}
       </td>
-      <td className="px-4 py-3 font-mono text-jtp-base-minus text-jtp-profit">
+      <td className="px-4 py-3 font-mono font-semibold text-jtp-lg text-jtp-profit" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {playbook.winRate !== undefined ? `${playbook.winRate}%` : '—'}
       </td>
-      <td className="px-4 py-3 font-mono text-jtp-base-minus text-jtp-textSoft">
+      <td className="px-4 py-3 font-mono text-jtp-lg text-jtp-textSoft" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {playbook.tradeCount !== undefined ? playbook.tradeCount : '—'}
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap">
-          {allTags.slice(0, 3).map(tag => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
+          {allTags.slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
         </div>
       </td>
       <td className="px-4 py-3">
@@ -65,7 +69,7 @@ const CommunityRow: React.FC<{
           {!isOwnPlaybook && (
             <button
               onClick={onCopy}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-jtp-md bg-jtp-raised border border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderHover text-jtp-xs font-medium transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-jtp-md bg-jtp-raised border border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderHover text-jtp-md font-medium transition-colors"
             >
               <CopyIcon className="w-3 h-3" />
               Copy
@@ -89,7 +93,7 @@ const PlaybooksPage: React.FC = () => {
   const { closedTrades } = useTrade();
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'my' | 'community'>('my');
+  const [activeTab, setActiveTab] = useState<string>('my');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingPlaybook, setEditingPlaybook] = useState<Playbook | null>(null);
   const [viewingPlaybook, setViewingPlaybook] = useState<Playbook | null>(null);
@@ -100,14 +104,7 @@ const PlaybooksPage: React.FC = () => {
   const setupItems = useMemo((): SetupItem[] => {
     return playbooks.flatMap(playbook => {
       if (playbook.setups.length === 0) {
-        return [
-          {
-            key: `playbook:${playbook.id}`,
-            name: playbook.name,
-            playbook,
-            setup: null,
-          },
-        ];
+        return [{ key: `playbook:${playbook.id}`, name: playbook.name, playbook, setup: null }];
       }
       return playbook.setups.map(setup => ({
         key: setup.id,
@@ -131,9 +128,14 @@ const PlaybooksPage: React.FC = () => {
     [setupItems, effectiveKey]
   );
 
-  const openAddModal = () => { setEditingPlaybook(null); setIsBuilderOpen(true); };
+  const openAddModal  = () => { setEditingPlaybook(null); setIsBuilderOpen(true); };
   const openEditModal = (pb: Playbook) => { setEditingPlaybook(pb); setViewingPlaybook(null); setIsBuilderOpen(true); };
-  const closeAllModals = () => { setIsBuilderOpen(false); setEditingPlaybook(null); setViewingPlaybook(null); setViewingCommunityPlaybook(null); };
+  const closeAllModals = () => {
+    setIsBuilderOpen(false);
+    setEditingPlaybook(null);
+    setViewingPlaybook(null);
+    setViewingCommunityPlaybook(null);
+  };
 
   const handleDelete = async (playbookId: string) => {
     if (window.confirm('Are you sure you want to delete this playbook? This will not affect any trades already logged with it.')) {
@@ -180,32 +182,37 @@ const PlaybooksPage: React.FC = () => {
   const renderMyPlaybooks = () => {
     if (isLoading) {
       return (
-        <div className="flex items-center justify-center h-64">
-          <Spinner />
+        <div className="flex gap-4 h-full p-4">
+          <div className="w-64 xl:w-72 shrink-0 space-y-2">
+            <Skeleton variant="text" lines={6} />
+          </div>
+          <div className="flex-1">
+            <Skeleton variant="panel" className="h-48" />
+          </div>
         </div>
       );
     }
 
     if (playbooks.length === 0) {
       return (
-        <div className="flex items-center justify-center py-24 px-6">
-          <div className="text-center max-w-sm">
-            <div className="w-12 h-12 mx-auto mb-5 rounded-jtp-panel bg-jtp-raised border border-jtp-border flex items-center justify-center">
-              <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="text-jtp-textDim">
+        <div className="flex items-center justify-center h-full py-12">
+          <EmptyState
+            icon={
+              <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                 <path d="M3 3h7l3 3v7H3z" />
                 <line x1="5.5" y1="7" x2="10.5" y2="7" />
                 <line x1="5.5" y1="10" x2="9" y2="10" />
               </svg>
-            </div>
-            <h3 className="font-semibold text-jtp-lg text-jtp-text mb-2">No setups yet</h3>
-            <p className="text-jtp-sm text-jtp-textMuted mb-6 leading-relaxed">
-              Create your first playbook and define your trading setups to start measuring your edge.
-            </p>
-            <Button onClick={openAddModal} className="flex items-center gap-2 mx-auto">
-              <PlusIcon className="w-4 h-4" />
-              Create a Playbook
-            </Button>
-          </div>
+            }
+            title="No setups yet"
+            description="Create your first playbook and define your trading setups to start measuring your edge."
+            action={
+              <Button onClick={openAddModal} className="flex items-center gap-2">
+                <PlusIcon className="w-4 h-4" />
+                Create a Playbook
+              </Button>
+            }
+          />
         </div>
       );
     }
@@ -216,9 +223,7 @@ const PlaybooksPage: React.FC = () => {
         {/* Left pane: setups list */}
         <div className="w-64 xl:w-72 shrink-0 border-r border-jtp-border flex flex-col overflow-hidden">
           <div className="px-4 py-2.5 border-b border-jtp-borderSubtle">
-            <span className="text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim">
-              Setups ({setupItems.length})
-            </span>
+            <span className="jtp-label">SETUPS ({setupItems.length})</span>
           </div>
           <div className="flex-1 overflow-y-auto">
             <SetupsList
@@ -232,23 +237,20 @@ const PlaybooksPage: React.FC = () => {
           {/* Playbook management link row */}
           <div className="border-t border-jtp-border px-4 py-2.5 flex flex-col gap-1">
             {playbooks.map(pb => (
-              <div
-                key={pb.id}
-                className="flex items-center justify-between group py-0.5"
-              >
+              <div key={pb.id} className="flex items-center justify-between group py-0.5">
                 <span className="text-jtp-xs text-jtp-textFaint truncate">{pb.name}</span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     title="Edit"
                     onClick={() => openEditModal(pb)}
-                    className="p-1 text-jtp-textDim hover:text-jtp-text rounded-jtp-sm"
+                    className="p-1 text-jtp-textDim hover:text-jtp-text rounded-jtp-sm transition-colors"
                   >
                     <PencilIcon className="w-3 h-3" />
                   </button>
                   <button
                     title="Delete"
                     onClick={() => handleDelete(pb.id)}
-                    className="p-1 text-jtp-textDim hover:text-jtp-loss rounded-jtp-sm"
+                    className="p-1 text-jtp-textDim hover:text-jtp-loss rounded-jtp-sm transition-colors"
                   >
                     <TrashIcon className="w-3 h-3" />
                   </button>
@@ -263,7 +265,7 @@ const PlaybooksPage: React.FC = () => {
           {selectedItem ? (
             <SetupDetail item={selectedItem} closedTrades={closedTrades} />
           ) : (
-            <div className="flex items-center justify-center h-full text-jtp-textFaint text-jtp-sm">
+            <div className="flex items-center justify-center h-full text-jtp-textFaint text-jtp-md">
               Select a setup to view details.
             </div>
           )}
@@ -276,33 +278,33 @@ const PlaybooksPage: React.FC = () => {
   const renderCommunityPlaybooks = () => {
     if (isLoading) {
       return (
-        <div className="flex items-center justify-center h-64">
-          <Spinner />
+        <div className="p-4 space-y-2">
+          <Skeleton variant="text" lines={5} />
         </div>
       );
     }
 
     if (communityPlaybooks.length === 0) {
       return (
-        <div className="flex items-center justify-center py-24 px-6">
-          <div className="text-center">
-            <p className="text-jtp-textDim text-jtp-base">No community playbooks available yet.</p>
-            <p className="text-jtp-textFaint text-jtp-sm mt-1">Check back later or make yours public to share.</p>
-          </div>
+        <div className="flex items-center justify-center py-16">
+          <EmptyState
+            title="No community playbooks yet"
+            description="Check back later, or make your own playbook public to share it."
+          />
         </div>
       );
     }
 
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-jtp-md">
           <thead>
-            <tr className="border-b border-jtp-border">
-              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Name</th>
-              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Win Rate</th>
-              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Trades</th>
-              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Tags</th>
-              <th className="px-4 py-2.5 text-left text-jtp-xs uppercase tracking-[0.5px] text-jtp-textDim font-medium">Actions</th>
+            <tr className="border-b border-jtp-border bg-jtp-raised">
+              <th className="px-4 py-2.5 text-left jtp-label">NAME</th>
+              <th className="px-4 py-2.5 text-left jtp-label">WIN RATE</th>
+              <th className="px-4 py-2.5 text-left jtp-label">TRADES</th>
+              <th className="px-4 py-2.5 text-left jtp-label">TAGS</th>
+              <th className="px-4 py-2.5 text-left jtp-label">ACTIONS</th>
             </tr>
           </thead>
           <tbody>
@@ -328,46 +330,28 @@ const PlaybooksPage: React.FC = () => {
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-jtp-border shrink-0">
         <div className="flex items-baseline gap-3">
           <h1 className="font-semibold text-jtp-xl text-jtp-text">Playbooks</h1>
-          <span className="text-jtp-sm text-jtp-textDim">Your setups, measured</span>
+          <span className="text-jtp-md text-jtp-textDim">Your setups, measured</span>
         </div>
-        <Button
-          onClick={openAddModal}
-          className="flex items-center gap-2 py-1.5 px-3 text-jtp-sm"
-        >
+        <Button onClick={openAddModal} className="flex items-center gap-2 py-1.5 px-3 text-jtp-md">
           <PlusIcon className="w-4 h-4" />
           New Playbook
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-0 px-5 border-b border-jtp-border shrink-0">
-        <button
-          onClick={() => setActiveTab('my')}
-          className={`py-2.5 px-1 mr-5 text-jtp-sm font-medium border-b-2 transition-colors
-            ${activeTab === 'my'
-              ? 'border-jtp-blue text-jtp-text'
-              : 'border-transparent text-jtp-textSubtle hover:text-jtp-textMuted'}`}
-        >
-          My Playbooks
-          <span className="ml-1.5 font-mono text-jtp-xs text-jtp-textFaint">
-            {playbooks.length}
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab('community')}
-          className={`py-2.5 px-1 text-jtp-sm font-medium border-b-2 transition-colors
-            ${activeTab === 'community'
-              ? 'border-jtp-blue text-jtp-text'
-              : 'border-transparent text-jtp-textSubtle hover:text-jtp-textMuted'}`}
-        >
-          Community
-          <span className="ml-1.5 font-mono text-jtp-xs text-jtp-textFaint">
-            {communityPlaybooks.length}
-          </span>
-        </button>
+      {/* Tabs row */}
+      <div className="px-5 border-b border-jtp-border shrink-0 bg-jtp-shell">
+        <Tabs
+          tabs={[
+            { id: 'my',        label: 'My Playbooks', badge: isLoading ? undefined : playbooks.length },
+            { id: 'community', label: 'Community',    badge: isLoading ? undefined : communityPlaybooks.length },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+          className="border-b-0"
+        />
       </div>
 
-      {/* Content */}
+      {/* Content area */}
       <div className="flex-1 min-h-0 bg-jtp-panel">
         {activeTab === 'my' ? renderMyPlaybooks() : renderCommunityPlaybooks()}
       </div>

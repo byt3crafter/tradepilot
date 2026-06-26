@@ -693,6 +693,25 @@ export interface ScheduledAgent {
   createdAt: string;
 }
 
+// --- Polymarket Market Browser ---
+
+export interface PolymarketOutcome {
+  label: string;     // e.g. "Yes", "No", "Trump", "Harris"
+  tokenId: string;   // CLOB ERC1155 outcome token id
+  price: number;     // implied probability 0..1 (e.g. 0.62 = 62¢)
+}
+
+export interface PolymarketMarket {
+  question: string;             // full market question text
+  slug: string;                 // URL slug
+  conditionId: string;          // market condition id (unique key)
+  image?: string;               // optional market icon / image URL
+  category?: string;            // e.g. "Politics", "Crypto", "Economics"
+  endDate?: string;             // ISO date when market closes
+  volume?: number;              // total traded volume in USD
+  outcomes: PolymarketOutcome[];
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {

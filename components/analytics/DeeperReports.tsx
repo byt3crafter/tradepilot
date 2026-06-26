@@ -12,15 +12,13 @@ import {
   Area,
 } from 'recharts';
 import { Trade, TradeResult, Direction, Playbook } from '../../types';
+import { Panel, SegmentedControl, EmptyState } from '../../components/ui';
 
-// ─── Shared style constants (mirror AnalyticsPage tokens) ─────────────────────
-const PANEL = 'bg-jtp-panel border border-jtp-border rounded-jtp-panel';
-const PANEL_PAD = 'px-[18px] py-[15px]';
-const PANEL_TITLE = 'text-jtp-base-minus font-semibold text-jtp-text';
+// ─── Chart style constants ────────────────────────────────────────────────────
 const AXIS_TICK = {
   fill: '#5b6370',
   fontSize: 9,
-  fontFamily: '"IBM Plex Mono"',
+  fontFamily: '"JetBrains Mono"',
 } as const;
 const PROFIT_CLR = '#4cc38a';
 const LOSS_CLR = '#e5635f';
@@ -110,31 +108,6 @@ function fmtPF(v: number): string {
   return v.toFixed(2);
 }
 
-// ─── $/R Toggle ──────────────────────────────────────────────────────────────
-const RToggle: React.FC<{ isR: boolean; setIsR: (v: boolean) => void }> = ({ isR, setIsR }) => (
-  <div className="flex bg-jtp-control border border-jtp-borderStrong rounded-jtp-md overflow-hidden text-jtp-xs">
-    <button
-      onClick={() => setIsR(false)}
-      className={`px-2.5 py-1 transition-colors ${!isR ? 'bg-jtp-blue text-white' : 'text-jtp-textDim hover:text-jtp-textMuted'}`}
-    >
-      $
-    </button>
-    <button
-      onClick={() => setIsR(true)}
-      className={`px-2.5 py-1 transition-colors ${isR ? 'bg-jtp-blue text-white' : 'text-jtp-textDim hover:text-jtp-textMuted'}`}
-    >
-      R
-    </button>
-  </div>
-);
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-const EmptySlate: React.FC<{ msg?: string }> = ({ msg = 'No data available' }) => (
-  <div className="min-h-[80px] flex items-center justify-center text-jtp-textFaint text-jtp-sm">
-    {msg}
-  </div>
-);
-
 // ─── Sortable column header ───────────────────────────────────────────────────
 const SortTh: React.FC<{
   label: string;
@@ -152,7 +125,7 @@ const SortTh: React.FC<{
   </th>
 );
 
-// ─── Shared stats mini-table (used by DoW and Session sections) ───────────────
+// ─── Shared stats mini-table ──────────────────────────────────────────────────
 const StatsTable: React.FC<{ rows: Metrics[]; isR: boolean }> = ({ rows, isR }) => (
   <div className="overflow-x-auto mt-[10px]">
     <table className="w-full border-collapse">
@@ -249,10 +222,7 @@ const DowSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, isR }
   }));
 
   return (
-    <div className={`${PANEL} ${PANEL_PAD}`}>
-      <div className={`${PANEL_TITLE} mb-[12px]`} style={{ letterSpacing: '0.2px' }}>
-        By Day of Week
-      </div>
+    <Panel label="BY DAY OF WEEK">
       <ResponsiveContainer width="100%" height={160}>
         <BarChart data={chartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
           <XAxis dataKey="shortLabel" axisLine={false} tickLine={false} tick={AXIS_TICK} />
@@ -277,7 +247,7 @@ const DowSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, isR }
         </BarChart>
       </ResponsiveContainer>
       <StatsTable rows={rows} isR={isR} />
-    </div>
+    </Panel>
   );
 };
 
@@ -311,10 +281,7 @@ const SessionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, i
   }));
 
   return (
-    <div className={`${PANEL} ${PANEL_PAD}`}>
-      <div className={`${PANEL_TITLE} mb-[12px]`} style={{ letterSpacing: '0.2px' }}>
-        By Session
-      </div>
+    <Panel label="BY SESSION">
       <ResponsiveContainer width="100%" height={160}>
         <BarChart data={chartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
           <XAxis dataKey="shortLabel" axisLine={false} tickLine={false} tick={AXIS_TICK} />
@@ -339,7 +306,7 @@ const SessionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, i
         </BarChart>
       </ResponsiveContainer>
       <StatsTable rows={rows} isR={isR} />
-    </div>
+    </Panel>
   );
 };
 
@@ -370,12 +337,9 @@ const SymbolSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, is
   const netSortKey: SortKey = isR ? 'netR' : 'netPL';
 
   return (
-    <div className={`${PANEL} ${PANEL_PAD}`}>
-      <div className={`${PANEL_TITLE} mb-[12px]`} style={{ letterSpacing: '0.2px' }}>
-        By Symbol
-      </div>
+    <Panel label="BY SYMBOL">
       {rows.length === 0 ? (
-        <EmptySlate />
+        <EmptyState title="No symbol data" description="No trades to display." className="py-6" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -393,7 +357,7 @@ const SymbolSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, is
                 const netVal = isR ? row.netR : row.netPL;
                 return (
                   <tr key={row.label} className="border-t border-jtp-borderSubtle hover:bg-jtp-hover/30 transition-colors">
-                    <td className="py-[6px] pr-3 text-jtp-sm font-medium text-jtp-text">{row.label}</td>
+                    <td className="py-[6px] pr-3 text-jtp-lg font-medium text-jtp-text">{row.label}</td>
                     <td className="py-[6px] pr-3 text-right font-mono text-jtp-xs-plus text-jtp-textSoft">{row.trades}</td>
                     <td className={`py-[6px] pr-3 text-right font-mono text-jtp-xs-plus ${row.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
                       {row.winRate.toFixed(0)}%
@@ -411,7 +375,7 @@ const SymbolSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, is
           </table>
         </div>
       )}
-    </div>
+    </Panel>
   );
 };
 
@@ -476,28 +440,22 @@ const SetupSection: React.FC<{
   const netSortKey: SortKey = isR ? 'netR' : 'netPL';
 
   return (
-    <div className={`${PANEL} ${PANEL_PAD}`}>
-      <div className="flex items-center justify-between mb-[12px]">
-        <div className={PANEL_TITLE} style={{ letterSpacing: '0.2px' }}>
-          By Setup / Playbook
-        </div>
-        <div className="flex bg-jtp-control border border-jtp-borderStrong rounded-jtp-md overflow-hidden text-jtp-xs">
-          {(['playbook', 'setup'] as const).map(v => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-2.5 py-1 transition-colors capitalize ${
-                view === v ? 'bg-jtp-blue text-white' : 'text-jtp-textDim hover:text-jtp-textMuted'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <Panel
+      label="BY SETUP / PLAYBOOK"
+      actions={
+        <SegmentedControl
+          segments={[
+            { value: 'playbook' as const, label: 'Playbook' },
+            { value: 'setup' as const, label: 'Setup' },
+          ]}
+          value={view}
+          onChange={(v) => setView(v as 'playbook' | 'setup')}
+          size="xs"
+        />
+      }
+    >
       {rows.length === 0 ? (
-        <EmptySlate />
+        <EmptyState title="No setup data" description="No trades to display." className="py-6" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -526,7 +484,7 @@ const SetupSection: React.FC<{
                     key={row.label}
                     className="border-t border-jtp-borderSubtle hover:bg-jtp-hover/30 transition-colors"
                   >
-                    <td className="py-[6px] pr-3 text-jtp-sm text-jtp-text truncate max-w-[200px]">
+                    <td className="py-[6px] pr-3 text-jtp-lg text-jtp-text truncate max-w-[200px]">
                       {row.label}
                     </td>
                     <td className="py-[6px] pr-3 text-right font-mono text-jtp-xs-plus text-jtp-textSoft">
@@ -560,7 +518,7 @@ const SetupSection: React.FC<{
           </table>
         </div>
       )}
-    </div>
+    </Panel>
   );
 };
 
@@ -571,9 +529,9 @@ const DirStatRow: React.FC<{ label: string; value: string; positive: boolean }> 
   positive,
 }) => (
   <div className="flex items-center justify-between">
-    <span className="text-jtp-xs text-jtp-textDim">{label}</span>
+    <span className="text-jtp-md text-jtp-textDim">{label}</span>
     <span
-      className={`font-mono text-jtp-xs-plus font-medium ${
+      className={`font-mono text-jtp-md font-semibold ${
         value === '—' ? 'text-jtp-textFaint' : positive ? 'text-jtp-profit' : 'text-jtp-loss'
       }`}
     >
@@ -593,10 +551,7 @@ const DirectionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades,
   );
 
   return (
-    <div className={`${PANEL} ${PANEL_PAD}`}>
-      <div className={`${PANEL_TITLE} mb-[12px]`} style={{ letterSpacing: '0.2px' }}>
-        Long vs Short
-      </div>
+    <Panel label="LONG VS SHORT">
       <div className="grid grid-cols-2 gap-3">
         {[long, short].map(m => {
           const isLong = m.label === 'Long';
@@ -620,7 +575,7 @@ const DirectionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades,
                     isLong ? 'bg-jtp-profit' : 'bg-jtp-loss'
                   }`}
                 />
-                <span className="text-jtp-sm font-semibold text-jtp-text">{m.label}</span>
+                <span className="text-jtp-lg font-semibold text-jtp-text">{m.label}</span>
                 <span className="text-jtp-xs text-jtp-textFaint font-mono ml-auto">
                   {m.trades} trade{m.trades !== 1 ? 's' : ''}
                 </span>
@@ -654,7 +609,7 @@ const DirectionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades,
           );
         })}
       </div>
-    </div>
+    </Panel>
   );
 };
 
@@ -717,30 +672,29 @@ const DrawdownSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, 
   const hasDrawdown = ddVal < 0;
 
   return (
-    <div className={`${PANEL} ${PANEL_PAD}`}>
-      <div className="flex items-center justify-between mb-[12px]">
-        <div>
-          <div className={PANEL_TITLE} style={{ letterSpacing: '0.2px' }}>
-            Drawdown
+    <Panel
+      label="DRAWDOWN"
+      actions={
+        hasDrawdown ? (
+          <div className="flex items-center gap-2">
+            <span className="jtp-label">MAX DD</span>
+            <span className="font-mono font-bold text-jtp-xs-plus text-jtp-loss">
+              {isR ? fmtR(ddVal) : fmtMoney(ddVal, false)}
+            </span>
           </div>
-          <div className="text-jtp-xs text-jtp-textDim mt-[2px]">
-            Running equity vs running peak
-          </div>
-        </div>
-        <div className="text-right shrink-0 ml-4">
-          <div className="text-jtp-xs text-jtp-textDim mb-[2px]">Max Drawdown</div>
-          <div
-            className={`font-mono font-semibold text-jtp-md ${
-              hasDrawdown ? 'text-jtp-loss' : 'text-jtp-textMuted'
-            }`}
-          >
-            {hasDrawdown ? (isR ? fmtR(ddVal) : fmtMoney(ddVal, false)) : '—'}
-          </div>
-        </div>
-      </div>
+        ) : undefined
+      }
+    >
+      <p className="text-jtp-md text-jtp-textFaint mb-3">
+        Running equity vs running peak
+      </p>
 
       {points.length === 0 ? (
-        <EmptySlate msg="Log some closed trades to see drawdown" />
+        <EmptyState
+          title="No drawdown data"
+          description="Close some trades to see drawdown."
+          className="py-6"
+        />
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={points} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
@@ -783,7 +737,7 @@ const DrawdownSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, 
           </AreaChart>
         </ResponsiveContainer>
       )}
-    </div>
+    </Panel>
   );
 };
 
@@ -801,17 +755,19 @@ const DeeperReports: React.FC<DeeperReportsProps> = ({ trades, playbooks }) => {
       {/* Section header + global $/R toggle */}
       <div className="flex items-center justify-between pt-1">
         <div>
-          <h2
-            className="text-[15px] font-semibold text-jtp-text"
-            style={{ letterSpacing: '0.2px' }}
-          >
+          <h2 className="text-jtp-xl font-semibold text-jtp-text tracking-tight">
             Deeper Reports
           </h2>
-          <p className="text-jtp-xs text-jtp-textDim mt-[2px]">
-            Filterable performance breakdowns
-          </p>
+          <p className="jtp-label mt-1">Filterable performance breakdowns</p>
         </div>
-        <RToggle isR={isR} setIsR={setIsR} />
+        <SegmentedControl
+          segments={[
+            { value: '$' as const, label: '$' },
+            { value: 'R' as const, label: 'R' },
+          ]}
+          value={isR ? 'R' : '$'}
+          onChange={v => setIsR(v === 'R')}
+        />
       </div>
 
       {/* Row 1: Day of Week + Session */}

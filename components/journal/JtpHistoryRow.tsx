@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Trade, Direction } from '../../types';
+import { Trade, Direction, TradeResult } from '../../types';
 import { usePlaybook } from '../../context/PlaybookContext';
 import { useAssets } from '../../context/AssetContext';
 import { usePriceFormatter } from '../../hooks/usePriceFormatter';
@@ -8,6 +8,7 @@ import { PencilIcon } from '../icons/PencilIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { DropdownMenu, DropdownMenuItem } from '../ui/DropdownMenu';
 import Checkbox from '../ui/Checkbox';
+import Badge from '../ui/Badge';
 
 interface JtpHistoryRowProps {
   trade: Trade;
@@ -164,6 +165,30 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSe
           )}
         </td>
 
+        {/* RESULT */}
+        <td className="px-3">
+          {trade.result ? (
+            <Badge
+              variant={
+                trade.result === TradeResult.Win
+                  ? 'profit'
+                  : trade.result === TradeResult.Loss
+                  ? 'loss'
+                  : 'neutral'
+              }
+              size="xs"
+            >
+              {trade.result === TradeResult.Win
+                ? 'WIN'
+                : trade.result === TradeResult.Loss
+                ? 'LOSS'
+                : 'BE'}
+            </Badge>
+          ) : (
+            <span className="font-mono text-jtp-textFaint text-jtp-xs">—</span>
+          )}
+        </td>
+
         {/* NET P&L */}
         <td className="px-3 text-right">
           <span className={`font-mono font-medium text-jtp-base-minus ${netPLColor}`}>
@@ -183,16 +208,11 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSe
         </td>
 
         {/* MISTAKES */}
-        <td className="px-3">
+        <td className="px-3 py-2">
           {mistakeTags.length > 0 ? (
             <div className="flex gap-1 flex-wrap">
               {mistakeTags.map((m, i) => (
-                <span
-                  key={i}
-                  className="text-jtp-xs px-1.5 py-0.5 rounded-jtp-md bg-jtp-loss/10 text-jtp-lossSoft whitespace-nowrap"
-                >
-                  {m}
-                </span>
+                <Badge key={i} variant="loss" size="xs">{m}</Badge>
               ))}
             </div>
           ) : (

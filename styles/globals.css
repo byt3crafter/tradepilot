@@ -2,11 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 
-  SYSTEM DESIGN: Viewport-based Layout
-  - html, body, #root all take 100% of viewport height
-  - body has overflow: hidden to prevent page-level scrolling
-  - Individual containers manage their own scroll
+/*
+  JTradePilot Operator Console — Global Styles
+  ─────────────────────────────────────────────
+  Layout: viewport-locked. html/body/#root all take 100vh.
+  Only individual scroll containers scroll (main content, drawers, tables).
+
+  Legibility rule: body ≥ 14px. Numbers use JetBrains Mono at high contrast.
+  Money = profit green or loss red, always bold, always mono.
 */
 
 html {
@@ -17,50 +20,60 @@ html {
 
 body {
   font-family: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 14px;                  /* minimum body text size — never go below this */
+  line-height: 1.5;
   background-color: #0b0c0e;
   color: #e8eaed;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   height: 100vh !important;
   max-height: 100vh !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
 }
 
 #root {
   height: 100vh !important;
   max-height: 100vh !important;
   overflow: hidden !important;
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
   position: relative;
   z-index: 20;
 }
 
-/* Modern Scrollbars */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ── Scrollbars — thin, dark, console style ────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: #232931; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #323942; }
+
+/* ── Number / money rendering ──────────────────────────────────────────────── */
+/*
+  Apply .jtp-num to any element containing a money value or stat number.
+  JetBrains Mono with tabular figures so columns align perfectly.
+*/
+.jtp-num {
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* ── Console section label ─────────────────────────────────────────────────── */
+/*
+  Apply .jtp-label to section headers inside panels.
+  Uppercase mono, tracked out, low-contrast to not compete with data.
+*/
+.jtp-label {
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  line-height: 1.2;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #2a2f37;
-  border-radius: 6px;
-  border: 2px solid #0b0c0e;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #3a4050;
-}
-
-/* JTP keyframes for drawers */
+/* ── Status dot animations ─────────────────────────────────────────────────── */
 @keyframes jtpSlideIn {
   from { transform: translateX(24px); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
@@ -69,6 +82,53 @@ body {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+.status-dot-live {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4cc38a;
+  animation: statusPulse 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.status-dot-warn {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d9a23b;
+  flex-shrink: 0;
+}
+.status-dot-dead {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e5635f;
+  flex-shrink: 0;
+}
+.status-dot-idle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6b7280;
+  flex-shrink: 0;
+}
+
+/* ── Glass panel ───────────────────────────────────────────────────────────── */
+.glass-panel {
+  background: rgba(8, 9, 10, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ── Form controls — dark overrides ───────────────────────────────────────── */
+select, option {
+  background-color: #0C0D0E !important;
+  color: #f5f5f5 !important;
+}
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
@@ -76,37 +136,13 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 
-.glass-panel {
-  background: rgba(8, 9, 10, 0.8);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Force Dark Dropdowns */
-select,
-option {
-  background-color: #0C0D0E !important;
-  color: #f5f5f5 !important;
-}
-
-/* Dark Theme for DateTime Picker */
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
-
-input[type="datetime-local"]::-webkit-datetime-edit {
-  color: #f5f5f5;
-}
-
-input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
-  background-color: transparent;
-}
-
-input[type="datetime-local"]::-webkit-datetime-edit-text {
-  color: #737373;
-}
-
+input[type="datetime-local"]::-webkit-datetime-edit       { color: #f5f5f5; }
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper { background-color: transparent; }
+input[type="datetime-local"]::-webkit-datetime-edit-text  { color: #737373; }
 input[type="datetime-local"]::-webkit-datetime-edit-month-field,
 input[type="datetime-local"]::-webkit-datetime-edit-day-field,
 input[type="datetime-local"]::-webkit-datetime-edit-year-field,

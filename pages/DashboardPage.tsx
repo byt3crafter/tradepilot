@@ -19,6 +19,7 @@ import { useTrade } from '../context/TradeContext';
 import BotPage from './BotPage';
 import QuantPage from './QuantPage';
 import Copilot from '../components/ai/Copilot';
+import StatusBar from '../components/StatusBar';
 
 export type DashboardView =
   | 'dashboard'
@@ -36,32 +37,36 @@ export type DashboardView =
 export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing' | 'ai';
 
 const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
-  dashboard:        { title: 'Dashboard',   subtitle: 'Account & rule status' },
-  journal:          { title: 'Journal',     subtitle: 'Log, review, learn' },
-  notebook:         { title: 'Notebook',    subtitle: 'Daily reflections & notes' },
-  analytics:        { title: 'Analytics',   subtitle: 'What your edge is made of' },
-  playbooks:        { title: 'Playbooks',   subtitle: 'Your setups, measured' },
-  quant:            { title: 'Quant',       subtitle: 'Polymarket wallet intelligence' },
-  settings:         { title: 'Settings',    subtitle: 'Profile & configuration' },
+  dashboard:        { title: 'Dashboard',       subtitle: 'Account & rule status' },
+  journal:          { title: 'Journal',         subtitle: 'Log · review · learn' },
+  notebook:         { title: 'Notebook',        subtitle: 'Daily reflections & notes' },
+  analytics:        { title: 'Analytics',       subtitle: 'What your edge is made of' },
+  playbooks:        { title: 'Playbooks',       subtitle: 'Your setups, measured' },
+  quant:            { title: 'Quant',           subtitle: 'Polymarket wallet intelligence' },
+  settings:         { title: 'Settings',        subtitle: 'Profile & configuration' },
   personalisation:  { title: 'Personalisation', subtitle: '' },
-  subscription:     { title: 'Subscription', subtitle: '' },
-  pricing:          { title: 'Pricing',     subtitle: '' },
-  bot:              { title: 'Bot',         subtitle: 'AI trading automation' },
+  subscription:     { title: 'Subscription',    subtitle: '' },
+  pricing:          { title: 'Pricing',         subtitle: '' },
+  bot:              { title: 'Bot',             subtitle: 'AI trading automation' },
 };
 
-// Small "+" icon inline SVG
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
 const PlusIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 20 20"
-    fill="currentColor"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
     <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
   </svg>
 );
 
-// App-level topbar (52 px)
+const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <circle cx="6.5" cy="6.5" r="4" />
+    <line x1="9.5" y1="9.5" x2="13" y2="13" strokeLinecap="round" />
+  </svg>
+);
+
+// ── App-level top command bar (52 px) ─────────────────────────────────────────
+
 const AppTopBar: React.FC = () => {
   const { currentView, navigateTo } = useView();
   const { requestAddTradeModalOpen } = useUI();
@@ -74,7 +79,7 @@ const AppTopBar: React.FC = () => {
     if (dated.length === 0) return null;
     const times = dated.map(t => new Date(t.exitDate!).getTime());
     const earliest = new Date(Math.min(...times));
-    const latest = new Date(Math.max(...times));
+    const latest   = new Date(Math.max(...times));
     const fmt = (d: Date) =>
       d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const year = latest.getFullYear();
@@ -91,45 +96,69 @@ const AppTopBar: React.FC = () => {
 
   return (
     <header
-      className="flex-shrink-0 h-topbar border-b border-jtp-border bg-jtp-shell flex items-center px-5 gap-4"
+      className="flex-shrink-0 h-topbar border-b border-jtp-border bg-jtp-shell flex items-center px-5 gap-3"
       style={{ minHeight: '52px', maxHeight: '52px' }}
     >
-      {/* Title */}
-      <div
-        className="text-jtp-xl font-semibold text-jtp-text"
-        style={{ letterSpacing: '-0.2px' }}
-      >
-        {meta.title}
+      {/* Section title */}
+      <div className="flex items-center gap-[10px] min-w-0">
+        <span
+          className="text-jtp-xl font-semibold text-jtp-text truncate"
+          style={{ letterSpacing: '-0.2px' }}
+        >
+          {meta.title}
+        </span>
+        {meta.subtitle && (
+          <span className="text-jtp-sm text-jtp-textDim hidden sm:block flex-shrink-0">
+            {meta.subtitle}
+          </span>
+        )}
       </div>
 
-      {/* Subtitle */}
-      {meta.subtitle && (
-        <div className="text-jtp-sm text-jtp-textDim hidden sm:block">
-          {meta.subtitle}
-        </div>
-      )}
-
+      {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Command / search trigger — visual affordance; Wave 2 wires up actual search */}
+      <button
+        className="hidden lg:flex items-center gap-[8px] px-[10px] py-[6px] bg-jtp-active border border-jtp-borderStrong rounded-jtp-xl text-jtp-textDim text-jtp-sm hover:border-jtp-borderFocus hover:text-jtp-textMuted transition-colors"
+        title="Search or run a command (coming soon)"
+        aria-label="Search or run a command"
+        onClick={() => {/* Wave 2: open command palette */}}
+      >
+        <SearchIcon className="w-3 h-3" />
+        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>Search or jump to…</span>
+        <kbd
+          className="ml-[2px] flex items-center gap-[2px] text-jtp-textDisabled"
+          style={{ fontSize: '10px', fontFamily: '"JetBrains Mono", monospace' }}
+          aria-hidden="true"
+        >
+          <span>⌘</span><span>K</span>
+        </kbd>
+      </button>
 
       {/* Date range chip */}
       {dateRange && (
-        <div className="flex items-center gap-[8px] px-[11px] py-[6px] bg-jtp-active border border-jtp-borderStrong rounded-jtp-xl text-jtp-textDim text-jtp-sm hidden md:flex">
-          <span className="w-[6px] h-[6px] rounded-full bg-jtp-profitDot flex-shrink-0" />
-          <span className="font-mono">{dateRange}</span>
+        <div className="flex items-center gap-[7px] px-[10px] py-[6px] bg-jtp-active border border-jtp-borderStrong rounded-jtp-xl text-jtp-textDim text-jtp-sm hidden md:flex flex-shrink-0">
+          <span className="w-[5px] h-[5px] rounded-full bg-jtp-profitDot flex-shrink-0" />
+          <span className="font-mono text-jtp-xs-plus" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {dateRange}
+          </span>
         </div>
       )}
 
       {/* Log Trade */}
       <button
         onClick={handleLogTrade}
-        className="flex items-center gap-[7px] px-[14px] py-[8px] bg-jtp-blue hover:bg-jtp-blueHover text-white font-semibold text-jtp-base rounded-jtp-xl border-none cursor-pointer transition-colors"
+        className="flex items-center gap-[6px] px-[13px] py-[7px] bg-jtp-blue hover:bg-jtp-blueHover text-white font-semibold text-jtp-base-minus rounded-jtp-xl border-none cursor-pointer transition-colors flex-shrink-0"
+        aria-label="Log a new trade"
       >
         <PlusIcon className="w-3.5 h-3.5" />
-        <span>Log Trade</span>
+        <span className="hidden sm:inline">Log Trade</span>
       </button>
     </header>
   );
 };
+
+// ── Main shell ────────────────────────────────────────────────────────────────
 
 const DashboardPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -165,63 +194,79 @@ const DashboardPage: React.FC = () => {
       case 'settings':         return <SettingsPage />;
       case 'subscription':     return <SubscriptionPage />;
       case 'pricing':          return <PricingPage />;
-      case 'bot':
-        return <BotPage />;
+      case 'bot':              return <BotPage />;
       case 'dashboard':
-      default:
-        return <Dashboard />;
+      default:                 return <Dashboard />;
     }
   };
 
-  // Sidebar offset: 228px when expanded, 64px (Tailwind w-16) when collapsed
+  // Sidebar offset: 228px expanded, w-16 (64px) collapsed
   const mainMargin = isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[228px]';
 
   return (
-    <div className="fixed inset-0 w-full h-full flex overflow-hidden bg-jtp-bg text-jtp-text">
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
+    /*
+     * Outer: flex-col so we can stack [app body] + [status bar]
+     * StatusBar is flex-shrink-0 at the bottom, always visible
+     */
+    <div className="fixed inset-0 w-full h-full flex flex-col overflow-hidden bg-jtp-bg text-jtp-text">
 
-      {/* Main column */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${mainMargin}`}>
+      {/* ── App body row: sidebar (fixed) + main column ── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
 
-        {/* Mobile header */}
-        <header className="flex-shrink-0 p-4 md:hidden border-b border-jtp-border flex items-center justify-between bg-jtp-shell">
-          <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <img src="/JTP_logo.png" alt="JTP Logo" className="h-5 w-auto" />
-            <span className="font-semibold text-jtp-lg text-jtp-text" style={{ letterSpacing: '-0.2px' }}>
-              JTradePilot
-            </span>
-          </a>
-          <div className="flex items-center gap-3">
-            <MobileProfileMenu />
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-1 rounded-jtp-xl text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text transition-colors"
-              aria-label="Open sidebar"
-            >
-              <MenuIcon className="w-5 h-5" />
-            </button>
+        {/* Main column */}
+        <div
+          className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${mainMargin}`}
+        >
+          {/* Mobile header */}
+          <header className="flex-shrink-0 p-4 md:hidden border-b border-jtp-border flex items-center justify-between bg-jtp-shell">
+            <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <img src="/JTP_logo.png" alt="JTP Logo" className="h-5 w-auto" />
+              <span
+                className="font-semibold text-jtp-lg text-jtp-text"
+                style={{ letterSpacing: '-0.2px' }}
+              >
+                JTradePilot
+              </span>
+            </a>
+            <div className="flex items-center gap-3">
+              <MobileProfileMenu />
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-1 rounded-jtp-xl text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text transition-colors"
+                aria-label="Open navigation sidebar"
+              >
+                <MenuIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </header>
+
+          {/* Desktop top command bar */}
+          <div className="hidden md:block flex-shrink-0">
+            <AppTopBar />
           </div>
-        </header>
 
-        {/* Desktop topbar */}
-        <div className="hidden md:block">
-          <AppTopBar />
+          {/* Scrollable view content */}
+          <main
+            className="flex-1 overflow-y-auto bg-jtp-bg"
+            id="main-content"
+            tabIndex={-1}
+          >
+            <div className="px-5 py-[18px] pb-10 min-h-full">
+              {renderView()}
+            </div>
+          </main>
         </div>
-
-        {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto bg-jtp-bg">
-          <div className="px-5 py-[18px] pb-8 min-h-full">
-            {renderView()}
-          </div>
-        </main>
       </div>
 
-      <UpgradeModal />
+      {/* ── Status bar — full width, always visible at bottom ── */}
+      <StatusBar />
 
-      {/* App-wide AI Copilot chat widget */}
+      {/* ── Portals / overlays (rendered outside layout flow) ── */}
+      <UpgradeModal />
       {isSubscribed && <Copilot />}
     </div>
   );

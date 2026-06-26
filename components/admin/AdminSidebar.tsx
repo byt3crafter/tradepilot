@@ -1,3 +1,10 @@
+/**
+ * AdminSidebar — Operator Console navigation for the admin area.
+ *
+ * Design: matches the main app Sidebar in structure but carries
+ * "ADMIN CONSOLE" branding. Active item uses the left-rail accent
+ * (inset box-shadow) from the design system.
+ */
 import React from 'react';
 import AuthLogo from '../auth/AuthLogo';
 import AuthMark from '../auth/AuthMark';
@@ -9,138 +16,165 @@ import { UsersIcon } from '../icons/UsersIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import { CreditCardIcon } from '../icons/CreditCardIcon';
 
+type AdminView =
+  | 'dashboard'
+  | 'users'
+  | 'templates'
+  | 'playbooks'
+  | 'referrals'
+  | 'promo_codes'
+  | 'pricing_plans';
+
 interface AdminSidebarProps {
-    currentView: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes' | 'pricing_plans';
-    onNavigate: (view: 'dashboard' | 'users' | 'templates' | 'playbooks' | 'referrals' | 'promo_codes' | 'pricing_plans') => void;
-    isCollapsed: boolean;
-    isOpen?: boolean;
-    onClose?: () => void;
+  currentView: AdminView;
+  onNavigate: (view: AdminView) => void;
+  isCollapsed: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const AdminNavItem: React.FC<{
-    icon: React.ReactNode;
-    label: string;
-    isActive: boolean;
-    isCollapsed: boolean;
-    onClick: () => void;
-}> = ({ icon, label, isActive, isCollapsed, onClick }) => {
-    return (
-        <button
-            onClick={onClick}
-            className={`relative flex items-center w-full px-3 py-2 rounded-jtp-md my-0.5 transition-all duration-150 group ${
-                isActive
-                    ? 'bg-jtp-blue/10 text-jtp-blue'
-                    : 'text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
-            } ${isCollapsed ? 'justify-center px-2' : ''}`}
-        >
-            {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-jtp-blue rounded-r-full" />
-            )}
-            <span className={`flex-shrink-0 ${isActive ? 'text-jtp-blue' : 'text-jtp-textDim group-hover:text-jtp-textMuted'}`}>
-                {icon}
-            </span>
-            {!isCollapsed && (
-                <span className={`ml-3 text-jtp-sm font-medium tracking-tight ${isActive ? 'text-jtp-blue' : ''}`}>
-                    {label}
-                </span>
-            )}
-        </button>
-    );
-};
+interface NavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  isActive: boolean;
+  isCollapsed: boolean;
+  onClick: () => void;
+}
 
-const AdminSidebar: React.FC<AdminSidebarProps> = ({ currentView, onNavigate, isCollapsed, isOpen = false, onClose }) => {
-    return (
-        <>
-            {/* Mobile Overlay */}
-            <div
-                className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                onClick={onClose}
-            />
+const AdminNavItem: React.FC<NavItemProps> = ({
+  icon,
+  label,
+  isActive,
+  isCollapsed,
+  onClick,
+}) => (
+  <button
+    onClick={onClick}
+    aria-current={isActive ? 'page' : undefined}
+    title={isCollapsed ? label : undefined}
+    className={[
+      'relative flex items-center w-full my-0.5 transition-all duration-150 group',
+      'rounded-jtp-md focus:outline-none focus:ring-1 focus:ring-jtp-blue/40',
+      isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
+      isActive
+        ? 'bg-[rgba(91,141,239,0.10)] text-jtp-blue'
+        : 'text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text',
+    ].join(' ')}
+    style={isActive ? { boxShadow: 'inset 2px 0 0 #5b8def' } : undefined}
+  >
+    {/* Icon */}
+    <span
+      className={`flex-shrink-0 ${
+        isActive
+          ? 'text-jtp-blue'
+          : 'text-jtp-textDim group-hover:text-jtp-textMuted'
+      }`}
+    >
+      {icon}
+    </span>
 
-            <aside
-                className={`fixed top-0 left-0 h-full bg-jtp-shell border-r border-jtp-border flex-shrink-0 flex flex-col z-50 transition-all duration-300 overflow-y-auto
-                ${isCollapsed ? 'md:w-16' : 'md:w-56'}
-                w-56 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
-            >
-                {/* Brand */}
-                <div className={`h-topbar flex items-center border-b border-jtp-border flex-shrink-0 ${isCollapsed ? 'justify-center px-2' : 'px-5'}`}>
-                    <a href="/" className="hover:opacity-80 transition-opacity">
-                        {isCollapsed ? <AuthMark size={18} /> : <AuthLogo />}
-                    </a>
-                </div>
+    {/* Label */}
+    {!isCollapsed && (
+      <span
+        className={`ml-3 text-jtp-md font-medium tracking-tight ${
+          isActive ? 'text-jtp-blue' : ''
+        }`}
+      >
+        {label}
+      </span>
+    )}
+  </button>
+);
 
-                {/* Admin Badge */}
-                <div className={`px-3 py-3 border-b border-jtp-border ${isCollapsed ? 'flex justify-center' : ''}`}>
-                    <div className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : ''}`}>
-                        <div className="w-7 h-7 rounded-jtp-md bg-jtp-blue/10 flex items-center justify-center border border-jtp-blue/20 flex-shrink-0">
-                            <AdminIcon className="w-3.5 h-3.5 text-jtp-blue" />
-                        </div>
-                        {!isCollapsed && (
-                            <div>
-                                <p className="text-jtp-xs font-semibold text-jtp-blue uppercase tracking-wider leading-none">
-                                    Admin Panel
-                                </p>
-                                <p className="text-jtp-xs text-jtp-textDim mt-0.5">System Management</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+const NAV_ITEMS: Array<{
+  view: AdminView;
+  label: string;
+  icon: (cls: string) => React.ReactNode;
+}> = [
+  { view: 'dashboard',     label: 'Dashboard',      icon: (c) => <AdminIcon className={c} /> },
+  { view: 'users',         label: 'Users',           icon: (c) => <UserIcon className={c} /> },
+  { view: 'templates',     label: 'Templates',       icon: (c) => <SettingsIcon className={c} /> },
+  { view: 'playbooks',     label: 'Playbooks',       icon: (c) => <PlaybookIcon className={c} /> },
+  { view: 'pricing_plans', label: 'Pricing',         icon: (c) => <CreditCardIcon className={c} /> },
+  { view: 'referrals',     label: 'Referrals',       icon: (c) => <UsersIcon className={c} /> },
+  { view: 'promo_codes',   label: 'Promo Codes',     icon: (c) => <SparklesIcon className={c} /> },
+];
 
-                {/* Navigation */}
-                <nav className="flex-1 flex flex-col px-2 py-3 gap-0.5">
-                    <AdminNavItem
-                        icon={<AdminIcon className="w-4 h-4" />}
-                        label="Dashboard"
-                        isActive={currentView === 'dashboard'}
-                        onClick={() => { onNavigate('dashboard'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
-                        icon={<UserIcon className="w-4 h-4" />}
-                        label="Users"
-                        isActive={currentView === 'users'}
-                        onClick={() => { onNavigate('users'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
-                        icon={<SettingsIcon className="w-4 h-4" />}
-                        label="Templates"
-                        isActive={currentView === 'templates'}
-                        onClick={() => { onNavigate('templates'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
-                        icon={<PlaybookIcon className="w-4 h-4" />}
-                        label="Playbooks"
-                        isActive={currentView === 'playbooks'}
-                        onClick={() => { onNavigate('playbooks'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
-                        icon={<CreditCardIcon className="w-4 h-4" />}
-                        label="Pricing"
-                        isActive={currentView === 'pricing_plans'}
-                        onClick={() => { onNavigate('pricing_plans'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
-                        icon={<UsersIcon className="w-4 h-4" />}
-                        label="Referrals"
-                        isActive={currentView === 'referrals'}
-                        onClick={() => { onNavigate('referrals'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                    <AdminNavItem
-                        icon={<SparklesIcon className="w-4 h-4" />}
-                        label="Promo Codes"
-                        isActive={currentView === 'promo_codes'}
-                        onClick={() => { onNavigate('promo_codes'); onClose?.(); }}
-                        isCollapsed={isCollapsed}
-                    />
-                </nav>
-            </aside>
-        </>
-    );
-};
+const AdminSidebar: React.FC<AdminSidebarProps> = ({
+  currentView,
+  onNavigate,
+  isCollapsed,
+  isOpen = false,
+  onClose,
+}) => (
+  <>
+    {/* Mobile backdrop */}
+    <div
+      className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden transition-opacity duration-200 ${
+        isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}
+      onClick={onClose}
+      aria-hidden="true"
+    />
+
+    <aside
+      className={[
+        'fixed top-0 left-0 h-full bg-jtp-shell border-r border-jtp-border',
+        'flex-shrink-0 flex flex-col z-50 transition-all duration-300 overflow-y-auto',
+        isCollapsed ? 'md:w-16' : 'md:w-56',
+        'w-56',
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+      ].join(' ')}
+    >
+      {/* Brand */}
+      <div
+        className={`h-topbar flex items-center border-b border-jtp-border flex-shrink-0 ${
+          isCollapsed ? 'justify-center px-2' : 'px-5'
+        }`}
+      >
+        <a href="/" className="hover:opacity-80 transition-opacity" aria-label="JTradePilot home">
+          {isCollapsed ? <AuthMark size={18} /> : <AuthLogo />}
+        </a>
+      </div>
+
+      {/* Admin Console badge */}
+      <div
+        className={`px-3 py-3 border-b border-jtp-border ${
+          isCollapsed ? 'flex justify-center' : ''
+        }`}
+      >
+        <div className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-7 h-7 rounded-jtp-md bg-jtp-blue/10 border border-jtp-blue/20 flex items-center justify-center flex-shrink-0">
+            <AdminIcon className="w-3.5 h-3.5 text-jtp-blue" />
+          </div>
+          {!isCollapsed && (
+            <div>
+              <p className="font-mono text-[10px] font-semibold text-jtp-blue uppercase tracking-[0.12em] leading-none">
+                Admin Console
+              </p>
+              <p className="text-jtp-xs text-jtp-textDim mt-0.5 leading-none">
+                System Management
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 flex flex-col px-2 py-3 gap-0" aria-label="Admin navigation">
+        {NAV_ITEMS.map(({ view, label, icon }) => (
+          <AdminNavItem
+            key={view}
+            icon={icon('w-4 h-4')}
+            label={label}
+            isActive={currentView === view}
+            isCollapsed={isCollapsed}
+            onClick={() => { onNavigate(view); onClose?.(); }}
+          />
+        ))}
+      </nav>
+    </aside>
+  </>
+);
 
 export default AdminSidebar;

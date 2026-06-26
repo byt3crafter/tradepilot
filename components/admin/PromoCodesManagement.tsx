@@ -1,217 +1,310 @@
+/**
+ * PromoCodesManagement — Operator Console promo codes section.
+ *
+ * Two Panels: create form (collapsible) + live codes DataTable.
+ * Uses Field/Input/SelectInput from the kit for the form.
+ */
 import React, { useState, useEffect } from 'react';
-import Button from '../ui/Button';
+import {
+  Panel,
+  DataTable,
+  Badge,
+  Button,
+  Field,
+  Input,
+  SelectInput,
+  EmptyState,
+  Skeleton,
+} from '../ui';
+import type { TableColumn } from '../ui';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import Spinner from '../Spinner';
 import { TrashIcon } from '../icons/TrashIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 
 interface PromoCode {
-    id: string;
-    code: string;
-    type: 'PERCENTAGE' | 'FIXED_AMOUNT';
-    value: number;
-    maxUses?: number;
-    usedCount: number;
-    expiresAt?: string;
-    isActive: boolean;
+  id: string;
+  code: string;
+  type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  value: number;
+  maxUses?: number;
+  usedCount: number;
+  expiresAt?: string;
+  isActive: boolean;
 }
 
-const inputClass = "w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-text text-jtp-md placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors font-sans";
-const selectClass = `${inputClass} [&>option]:bg-jtp-panel [&>option]:text-jtp-text`;
-const labelClass = "block text-jtp-xs text-jtp-textDim uppercase tracking-wider mb-1.5";
-
 const PromoCodesManagement: React.FC = () => {
-    const { accessToken } = useAuth();
-    const [codes, setCodes] = useState<PromoCode[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isCreating, setIsCreating] = useState(false);
-    const [newCode, setNewCode] = useState({
-        code: '',
-        type: 'PERCENTAGE',
-        value: 0,
-        maxUses: '',
-        expiresAt: '',
-    });
+  const { accessToken } = useAuth();
+  const [codes, setCodes] = useState<PromoCode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newCode, setNewCode] = useState({
+    code: '',
+    type: 'PERCENTAGE' as 'PERCENTAGE' | 'FIXED_AMOUNT',
+    value: 0,
+    maxUses: '',
+    expiresAt: '',
+  });
 
-    const fetchCodes = async () => {
-        if (!accessToken) return;
-        try {
-            const data = await api.getPromoCodes(accessToken);
-            setCodes(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchCodes();
-    }, [accessToken]);
-
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!accessToken) return;
-        try {
-            await api.createPromoCode({
-                ...newCode,
-                value: Number(newCode.value),
-                maxUses: newCode.maxUses ? Number(newCode.maxUses) : undefined,
-                expiresAt: newCode.expiresAt ? new Date(newCode.expiresAt) : undefined,
-            }, accessToken);
-            setIsCreating(false);
-            setNewCode({ code: '', type: 'PERCENTAGE', value: 0, maxUses: '', expiresAt: '' });
-            fetchCodes();
-        } catch (err: any) {
-            alert(err.message);
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!accessToken || !window.confirm('Are you sure?')) return;
-        try {
-            await api.deletePromoCode(id, accessToken);
-            fetchCodes();
-        } catch (err: any) {
-            alert(err.message);
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center p-12">
-                <Spinner />
-            </div>
-        );
+  const fetchCodes = async () => {
+    if (!accessToken) return;
+    try {
+      const data = await api.getPromoCodes(accessToken);
+      setCodes(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    return (
-        <div className="space-y-5">
-            <div className="flex justify-between items-center">
-                <h1 className="text-jtp-xl font-semibold text-jtp-text tracking-tight">Promo Codes</h1>
-                <Button onClick={() => setIsCreating(true)} className="text-jtp-sm h-8 px-3">
-                    <PlusIcon className="w-3.5 h-3.5 mr-1.5" />
-                    Create Code
-                </Button>
+  useEffect(() => {
+    fetchCodes();
+  }, [accessToken]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken) return;
+    try {
+      await api.createPromoCode(
+        {
+          ...newCode,
+          value: Number(newCode.value),
+          maxUses: newCode.maxUses ? Number(newCode.maxUses) : undefined,
+          expiresAt: newCode.expiresAt ? new Date(newCode.expiresAt) : undefined,
+        },
+        accessToken,
+      );
+      setIsCreating(false);
+      setNewCode({ code: '', type: 'PERCENTAGE', value: 0, maxUses: '', expiresAt: '' });
+      fetchCodes();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!accessToken || !window.confirm('Delete this promo code?')) return;
+    try {
+      await api.deletePromoCode(id, accessToken);
+      fetchCodes();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const columns: TableColumn<PromoCode>[] = [
+    {
+      key: 'code',
+      header: 'CODE',
+      mono: true,
+      render: (code) => (
+        <span className="font-mono text-jtp-md text-jtp-profit font-semibold tracking-wider uppercase">
+          {code}
+        </span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'TYPE',
+      width: '120px',
+      render: (type) => (
+        <Badge variant="neutral" size="xs">
+          {type === 'PERCENTAGE' ? 'PERCENTAGE' : 'FIXED $'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'value',
+      header: 'DISCOUNT',
+      align: 'right',
+      mono: true,
+      render: (v, row) => (
+        <span className="font-mono text-jtp-md text-jtp-text tabular-nums font-semibold">
+          {row.type === 'PERCENTAGE' ? `${v}%` : `$${v}`}
+        </span>
+      ),
+    },
+    {
+      key: 'usedCount',
+      header: 'USAGE',
+      align: 'right',
+      mono: true,
+      render: (used, row) => (
+        <span className="font-mono text-jtp-xs text-jtp-textMuted tabular-nums">
+          {used}
+          {row.maxUses ? ` / ${row.maxUses}` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'expiresAt',
+      header: 'EXPIRES',
+      render: (date) => (
+        <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+          {date ? new Date(date).toLocaleDateString() : 'Never'}
+        </span>
+      ),
+    },
+    {
+      key: 'isActive',
+      header: 'STATUS',
+      align: 'center',
+      width: '80px',
+      render: (active) => (
+        <Badge variant={active ? 'profit' : 'neutral'} size="xs">
+          {active ? 'ACTIVE' : 'INACTIVE'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'id',
+      header: '',
+      align: 'right',
+      width: '48px',
+      render: (_, row) => (
+        <button
+          onClick={() => handleDelete(row.id)}
+          className="p-1.5 text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-loss/10 rounded-jtp-sm transition-colors"
+          aria-label="Delete promo code"
+          title="Delete promo code"
+        >
+          <TrashIcon className="w-4 h-4" />
+        </button>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Create form panel (collapsible) */}
+      {isCreating && (
+        <Panel label="NEW PROMO CODE">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="CODE" htmlFor="promo-code" required>
+                <Input
+                  id="promo-code"
+                  required
+                  value={newCode.code}
+                  onChange={(e) =>
+                    setNewCode({ ...newCode, code: e.target.value.toUpperCase() })
+                  }
+                  className="font-mono uppercase tracking-widest"
+                  placeholder="SUMMER2025"
+                  containerClassName="mb-0"
+                />
+              </Field>
+
+              <SelectInput
+                id="promo-type"
+                label="TYPE"
+                value={newCode.type}
+                onChange={(e) =>
+                  setNewCode({ ...newCode, type: e.target.value as 'PERCENTAGE' | 'FIXED_AMOUNT' })
+                }
+                options={[
+                  { value: 'PERCENTAGE', label: 'Percentage (%)' },
+                  { value: 'FIXED_AMOUNT', label: 'Fixed Amount ($)' },
+                ]}
+                containerClassName="mb-0"
+              />
+
+              <Field label="VALUE" htmlFor="promo-value" required>
+                <Input
+                  id="promo-value"
+                  type="number"
+                  required
+                  value={newCode.value}
+                  onChange={(e) =>
+                    setNewCode({ ...newCode, value: Number(e.target.value) })
+                  }
+                  className="font-mono"
+                  containerClassName="mb-0"
+                />
+              </Field>
+
+              <Field label="MAX USES (optional)" htmlFor="promo-maxuses">
+                <Input
+                  id="promo-maxuses"
+                  type="number"
+                  value={newCode.maxUses}
+                  onChange={(e) => setNewCode({ ...newCode, maxUses: e.target.value })}
+                  className="font-mono"
+                  placeholder="Unlimited"
+                  containerClassName="mb-0"
+                />
+              </Field>
+
+              <Field label="EXPIRES AT (optional)" htmlFor="promo-expires">
+                <Input
+                  id="promo-expires"
+                  type="date"
+                  value={newCode.expiresAt}
+                  onChange={(e) => setNewCode({ ...newCode, expiresAt: e.target.value })}
+                  containerClassName="mb-0"
+                />
+              </Field>
             </div>
 
-            {isCreating && (
-                <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel p-5">
-                    <h3 className="text-jtp-md font-semibold text-jtp-text mb-4">New Promo Code</h3>
-                    <form onSubmit={handleCreate} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClass}>Code</label>
-                                <input
-                                    required
-                                    value={newCode.code}
-                                    onChange={e => setNewCode({ ...newCode, code: e.target.value.toUpperCase() })}
-                                    className={`${inputClass} font-mono uppercase`}
-                                    placeholder="SUMMER2025"
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Type</label>
-                                <select
-                                    value={newCode.type}
-                                    onChange={e => setNewCode({ ...newCode, type: e.target.value as any })}
-                                    className={selectClass}
-                                >
-                                    <option value="PERCENTAGE">Percentage (%)</option>
-                                    <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>Value</label>
-                                <input
-                                    type="number"
-                                    required
-                                    value={newCode.value}
-                                    onChange={e => setNewCode({ ...newCode, value: Number(e.target.value) })}
-                                    className={`${inputClass} font-mono`}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Max Uses (optional)</label>
-                                <input
-                                    type="number"
-                                    value={newCode.maxUses}
-                                    onChange={e => setNewCode({ ...newCode, maxUses: e.target.value })}
-                                    className={`${inputClass} font-mono`}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Expires At (optional)</label>
-                                <input
-                                    type="date"
-                                    value={newCode.expiresAt}
-                                    onChange={e => setNewCode({ ...newCode, expiresAt: e.target.value })}
-                                    className={inputClass}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-1">
-                            <Button variant="secondary" onClick={() => setIsCreating(false)} className="text-jtp-sm h-8 px-3">
-                                Cancel
-                            </Button>
-                            <Button type="submit" className="text-jtp-sm h-8 px-3">
-                                Create
-                            </Button>
-                        </div>
-                    </form>
-                </div>
-            )}
-
-            <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-jtp-sm text-left">
-                        <thead>
-                            <tr className="bg-jtp-raised border-b border-jtp-border">
-                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Code</th>
-                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Discount</th>
-                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Usage</th>
-                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider">Expires</th>
-                                <th className="px-4 py-2.5 text-jtp-xs font-semibold text-jtp-textDim uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {codes.map(code => (
-                                <tr key={code.id} className="border-b border-jtp-borderSubtle last:border-0 hover:bg-jtp-hover transition-colors">
-                                    <td className="px-4 py-3 font-mono font-semibold text-jtp-profit">{code.code}</td>
-                                    <td className="px-4 py-3 font-mono text-jtp-text tabular-nums">
-                                        {code.type === 'PERCENTAGE' ? `${code.value}%` : `$${code.value}`}
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-jtp-textMuted tabular-nums">
-                                        {code.usedCount}{code.maxUses ? ` / ${code.maxUses}` : ''}
-                                    </td>
-                                    <td className="px-4 py-3 text-jtp-textDim">
-                                        {code.expiresAt ? new Date(code.expiresAt).toLocaleDateString() : 'Never'}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <button
-                                            onClick={() => handleDelete(code.id)}
-                                            className="p-1.5 text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-loss/10 rounded-jtp-sm transition-colors"
-                                            aria-label="Delete promo code"
-                                        >
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {codes.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-10 text-center text-jtp-textDim">
-                                        No promo codes found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            <div className="flex justify-end gap-2 pt-1 border-t border-jtp-border">
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => setIsCreating(false)}
+                className="text-jtp-sm h-8 px-4"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="text-jtp-sm h-8 px-4">
+                Create Code
+              </Button>
             </div>
-        </div>
-    );
+          </form>
+        </Panel>
+      )}
+
+      {/* Codes table */}
+      <Panel
+        label={`PROMO CODES${codes.length ? ` (${codes.length})` : ''}`}
+        noPadding
+        actions={
+          !isCreating ? (
+            <Button
+              onClick={() => setIsCreating(true)}
+              className="h-7 px-3 text-jtp-xs"
+            >
+              <PlusIcon className="w-3 h-3 mr-1" />
+              Create Code
+            </Button>
+          ) : undefined
+        }
+      >
+        {isLoading ? (
+          <div className="p-4 space-y-3">
+            <Skeleton variant="text" lines={5} />
+          </div>
+        ) : codes.length === 0 ? (
+          <EmptyState
+            title="No promo codes"
+            description="Create the first promo code to offer discounts."
+            action={
+              <Button onClick={() => setIsCreating(true)} className="text-jtp-sm">
+                Create Code
+              </Button>
+            }
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={codes}
+            keyFn={(c) => c.id}
+            emptyMessage="No promo codes found."
+          />
+        )}
+      </Panel>
+    </div>
+  );
 };
 
 export default PromoCodesManagement;

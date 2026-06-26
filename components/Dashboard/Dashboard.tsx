@@ -43,7 +43,6 @@ const Dashboard: React.FC = () => {
     return <OnboardingQuestionnaire onComplete={() => setQuestionnaireCompleted(true)} />;
   }
 
-  // Has trades — show redesigned Dashboard
   const showPropFirmRules =
     activeAccount?.objectives?.isEnabled &&
     objectivesProgress &&
@@ -51,13 +50,14 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Row 1: 4 stat cards */}
+
+      {/* ── Row 1: Key metrics ── */}
       <DashStatCards closedTrades={closedTrades} />
 
-      {/* Row 2: Trading Health Score */}
+      {/* ── Row 2: Trading Health Score ── */}
       <TradingHealthScore closedTrades={closedTrades} />
 
-      {/* Row 3: Prop Firm Rules (only when account has objectives enabled) */}
+      {/* ── Row 3: Prop Firm Rules (conditional) ── */}
       {showPropFirmRules && activeAccount && (
         <PropFirmRulesPanel
           objectives={objectivesProgress!}
@@ -65,18 +65,22 @@ const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* Row 4: Equity Curve + Recent Activity */}
+      {/* ── Row 4: Equity Curve + Recent Activity ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2">
+        {/* Equity curve takes 2/3 width */}
+        <div className="xl:col-span-2 min-h-[320px]">
           <DashEquityCurve
             closedTrades={closedTrades}
             account={activeAccount}
           />
         </div>
-        <div className="xl:col-span-1">
+
+        {/* Recent activity takes 1/3 width */}
+        <div className="xl:col-span-1 min-h-[320px]">
           <DashRecentActivity closedTrades={closedTrades} />
         </div>
       </div>
+
     </div>
   );
 };

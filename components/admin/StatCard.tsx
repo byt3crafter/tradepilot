@@ -1,4 +1,9 @@
+/**
+ * StatCard — thin shim around the kit StatTile.
+ * Keeps the same public API so AdminPage.tsx doesn't need to change imports.
+ */
 import React from 'react';
+import { StatTile } from '../ui';
 
 interface StatCardProps {
   title: string;
@@ -7,31 +12,19 @@ interface StatCardProps {
   accent?: 'profit' | 'loss' | 'blue' | 'neutral';
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, accent = 'neutral' }) => {
-  const accentClasses = {
-    profit: 'text-jtp-profit',
-    loss: 'text-jtp-loss',
-    blue: 'text-jtp-blue',
-    neutral: 'text-jtp-text',
-  };
-
-  return (
-    <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-jtp-xs uppercase tracking-widest font-medium text-jtp-textDim">
-          {title}
-        </span>
-        {icon && (
-          <div className="text-jtp-textDim">
-            {icon}
-          </div>
-        )}
-      </div>
-      <p className={`text-jtp-4xl font-bold font-mono tabular-nums leading-none ${accentClasses[accent]}`}>
-        {value}
-      </p>
-    </div>
-  );
+const ACCENT_COLOR: Record<string, string> = {
+  profit: 'text-jtp-profit',
+  loss:   'text-jtp-loss',
+  blue:   'text-jtp-blue',
+  neutral: 'text-jtp-text',
 };
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, accent = 'neutral' }) => (
+  <StatTile
+    label={title.toUpperCase()}
+    value={String(value)}
+    valueColor={ACCENT_COLOR[accent]}
+  />
+);
 
 export default StatCard;

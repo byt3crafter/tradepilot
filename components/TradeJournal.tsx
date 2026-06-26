@@ -20,6 +20,7 @@ import Checkbox from './ui/Checkbox';
 import JtpHistoryRow from './journal/JtpHistoryRow';
 import CalendarHeatmap from './journal/CalendarHeatmap';
 import TradeDetail from './journal/TradeDetail';
+import { Tabs, SegmentedControl, Panel, EmptyState } from './ui';
 
 type TradeView = 'live' | 'pending' | 'history' | 'calendar';
 type AddTradeStep = 'closed' | 'form';
@@ -43,54 +44,6 @@ const resolveSetupName = (
 
 const fmtPL = (v: number) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
 
-// ─── Sub-tab bar ──────────────────────────────────────────────────────────────
-interface TabButtonProps {
-  label: string;
-  count?: number;
-  active: boolean;
-  onClick: () => void;
-}
-
-const TabButton: React.FC<TabButtonProps> = ({ label, count, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center gap-1.5 px-4 py-[13px] border-b-2 text-jtp-sm font-medium transition-colors whitespace-nowrap
-      ${active
-        ? 'border-jtp-blue text-jtp-text font-semibold'
-        : 'border-transparent text-jtp-textSubtle hover:text-jtp-textSoft'
-      }`}
-  >
-    {label}
-    {count != null && (
-      <span className="font-mono text-jtp-xs px-1.5 py-px rounded-full bg-jtp-border text-jtp-textMuted leading-none">
-        {count}
-      </span>
-    )}
-  </button>
-);
-
-// ─── Segmented result filter ──────────────────────────────────────────────────
-interface SegButtonProps {
-  label: string;
-  active: boolean;
-  first?: boolean;
-  onClick: () => void;
-}
-
-const SegButton: React.FC<SegButtonProps> = ({ label, active, first, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`px-3 py-[7px] text-jtp-base-minus cursor-pointer transition-colors
-      ${!first ? 'border-l border-jtp-borderStrong' : ''}
-      ${active
-        ? 'bg-jtp-blue/10 text-jtp-blue font-semibold'
-        : 'bg-jtp-control text-jtp-textSoft hover:text-jtp-text'
-      }`}
-  >
-    {label}
-  </button>
-);
-
 // ─── History column headers ───────────────────────────────────────────────────
 const HISTORY_COLS: Array<{ label: string; align?: string; className?: string }> = [
   { label: '',          className: 'w-8' },
@@ -102,6 +55,7 @@ const HISTORY_COLS: Array<{ label: string; align?: string; className?: string }>
   { label: 'SIZE',      align: 'right', className: 'min-w-[70px]' },
   { label: 'PLAN R',   align: 'right', className: 'min-w-[70px]' },
   { label: 'REAL R',   align: 'right', className: 'min-w-[70px]' },
+  { label: 'RESULT',   className: 'min-w-[64px]' },
   { label: 'NET P&L',  align: 'right', className: 'min-w-[80px]' },
   { label: 'ADH',      align: 'center', className: 'min-w-[50px]' },
   { label: 'MISTAKES', className: 'min-w-[100px]' },
@@ -409,26 +363,29 @@ const TradeJournal: React.FC = () => {
       }
       return (
         <tr>
-          <td colSpan={HISTORY_COLS.length} className="text-center px-4 py-14">
-            <p className="text-jtp-xl font-semibold text-jtp-text mb-1">No trades yet</p>
-            <p className="text-jtp-sm text-jtp-textMuted mb-6">
-              Import from your broker or add a trade manually.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-jtp-blue hover:bg-jtp-blueHover text-white font-semibold text-jtp-base rounded-jtp-xl transition-colors"
-              >
-                <ImportIcon className="w-4 h-4" />
-                Import trades
-              </button>
-              <button
-                onClick={handleOpenAddTrade}
-                className="flex items-center gap-2 px-5 py-2.5 bg-jtp-control border border-jtp-borderStrong hover:border-jtp-borderHover text-jtp-text font-medium text-jtp-base rounded-jtp-xl transition-colors"
-              >
-                Add manually
-              </button>
-            </div>
+          <td colSpan={HISTORY_COLS.length}>
+            <EmptyState
+              title="No trades yet"
+              description="Import from your broker or add a trade manually."
+              action={
+                <div className="flex items-center justify-center gap-3">
+                  <Button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="w-auto flex items-center gap-2"
+                  >
+                    <ImportIcon className="w-4 h-4" />
+                    Import trades
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleOpenAddTrade}
+                    className="w-auto"
+                  >
+                    Add manually
+                  </Button>
+                </div>
+              }
+            />
           </td>
         </tr>
       );
@@ -447,29 +404,16 @@ const TradeJournal: React.FC = () => {
   return (
     <>
       {/* Sub-tab bar — escapes the parent px-5 py-[18px] padding */}
-      <div className="-mx-5 -mt-[18px] bg-jtp-shell border-b border-jtp-border flex items-center px-5 overflow-x-auto no-scrollbar">
-        <TabButton
-          label="Live"
-          count={liveTrades.length}
-          active={currentView === 'live'}
-          onClick={() => setCurrentView('live')}
-        />
-        <TabButton
-          label="Pending"
-          count={pendingTrades.length}
-          active={currentView === 'pending'}
-          onClick={() => setCurrentView('pending')}
-        />
-        <TabButton
-          label="History"
-          count={filteredClosedTrades.length}
-          active={currentView === 'history'}
-          onClick={() => setCurrentView('history')}
-        />
-        <TabButton
-          label="Calendar"
-          active={currentView === 'calendar'}
-          onClick={() => setCurrentView('calendar')}
+      <div className="-mx-5 -mt-[18px] bg-jtp-shell px-5 overflow-x-auto no-scrollbar">
+        <Tabs
+          tabs={[
+            { id: 'live',     label: 'Live',     badge: liveTrades.length },
+            { id: 'pending',  label: 'Pending',  badge: pendingTrades.length },
+            { id: 'history',  label: 'History',  badge: filteredClosedTrades.length },
+            { id: 'calendar', label: 'Calendar' },
+          ]}
+          active={currentView}
+          onChange={(id) => setCurrentView(id as TradeView)}
         />
       </div>
 
@@ -522,24 +466,15 @@ const TradeJournal: React.FC = () => {
             </select>
 
             {/* Result filter */}
-            <div className="flex border border-jtp-borderStrong rounded-jtp-xl overflow-hidden">
-              <SegButton
-                label="All"
-                active={filterResult === 'all'}
-                first
-                onClick={() => setFilterResult('all')}
-              />
-              <SegButton
-                label="Wins"
-                active={filterResult === 'win'}
-                onClick={() => setFilterResult('win')}
-              />
-              <SegButton
-                label="Losses"
-                active={filterResult === 'loss'}
-                onClick={() => setFilterResult('loss')}
-              />
-            </div>
+            <SegmentedControl
+              segments={[
+                { value: 'all',  label: 'All' },
+                { value: 'win',  label: 'Wins' },
+                { value: 'loss', label: 'Losses' },
+              ]}
+              value={filterResult}
+              onChange={(v) => setFilterResult(v as ResultFilter)}
+            />
 
             <div className="flex-1" />
 
@@ -620,81 +555,87 @@ const TradeJournal: React.FC = () => {
           )}
 
           {/* History table */}
-          <div className="mt-3.5 border border-jtp-border rounded-jtp-panel overflow-x-auto bg-jtp-panel">
-            <table className="w-full min-w-[920px] border-collapse text-jtp-base">
-              <thead>
-                <tr className="bg-jtp-active border-b border-jtp-borderStrong">
-                  {/* Checkbox select-all */}
-                  <th className="px-3 w-8">
-                    <Checkbox
-                      id="select-all"
-                      onChange={handleToggleSelectAll}
-                      checked={isAllSelected}
-                      indeterminate={isPartiallySelected}
-                      disabled={displayedTrades.length === 0}
-                    />
-                  </th>
-                  {HISTORY_COLS.slice(1).map(col => (
-                    <th
-                      key={col.label}
-                      className={`px-3 py-[10px] text-jtp-xs-plus font-semibold tracking-[0.4px] uppercase text-jtp-textDim whitespace-nowrap ${
-                        col.align === 'right'
-                          ? 'text-right'
-                          : col.align === 'center'
-                          ? 'text-center'
-                          : 'text-left'
-                      } ${col.className ?? ''}`}
-                    >
-                      {col.label}
+          <Panel label="TRADE LOG" noPadding className="mt-3.5">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] border-collapse text-jtp-base">
+                <thead>
+                  <tr className="bg-jtp-raised border-b border-jtp-borderStrong">
+                    {/* Checkbox select-all */}
+                    <th className="px-3 w-8">
+                      <Checkbox
+                        id="select-all"
+                        onChange={handleToggleSelectAll}
+                        checked={isAllSelected}
+                        indeterminate={isPartiallySelected}
+                        disabled={displayedTrades.length === 0}
+                      />
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>{renderHistoryContent()}</tbody>
-              {/* Footer summary */}
-              {!isLoading && activeAccount && displayedTrades.length > 0 && (
-                <tfoot>
-                  <tr className="bg-jtp-raised border-t border-jtp-borderStrong">
-                    <td
-                      colSpan={7}
-                      className="px-3 py-[11px] text-jtp-xs text-jtp-textDim"
-                    >
-                      {summary.total} trade{summary.total !== 1 ? 's' : ''} · win rate{' '}
-                      {summary.winRate}
-                    </td>
-                    <td className="px-3 py-[11px] text-right text-jtp-xs text-jtp-textFaint">
-                      AVG R
-                    </td>
-                    <td
-                      className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus ${
-                        summary.avgR != null && summary.avgR > 0
-                          ? 'text-jtp-profit'
-                          : summary.avgR != null && summary.avgR < 0
-                          ? 'text-jtp-loss'
-                          : 'text-jtp-textDim'
-                      }`}
-                    >
-                      {summary.avgR != null
-                        ? `${summary.avgR >= 0 ? '+' : ''}${summary.avgR.toFixed(2)} R`
-                        : '—'}
-                    </td>
-                    <td
-                      className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus ${
-                        summary.netPL > 0
-                          ? 'text-jtp-profit'
-                          : summary.netPL < 0
-                          ? 'text-jtp-loss'
-                          : 'text-jtp-textDim'
-                      }`}
-                    >
-                      {fmtPL(summary.netPL)}
-                    </td>
-                    <td colSpan={3} />
+                    {HISTORY_COLS.slice(1).map(col => (
+                      <th
+                        key={col.label}
+                        className={`px-3 py-[9px] jtp-label font-medium whitespace-nowrap ${
+                          col.align === 'right'
+                            ? 'text-right'
+                            : col.align === 'center'
+                            ? 'text-center'
+                            : 'text-left'
+                        } ${col.className ?? ''}`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+                </thead>
+                <tbody>{renderHistoryContent()}</tbody>
+                {/* Footer summary — 14 cols total (checkbox + 13 from HISTORY_COLS.slice(1)) */}
+                {!isLoading && activeAccount && displayedTrades.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-jtp-raised border-t border-jtp-borderStrong">
+                      {/* DATE + ASSET + DIR + SETUP + ENTRY→EXIT + SIZE = cols 1-6, summary label */}
+                      <td colSpan={7} className="px-3 py-[11px] text-jtp-xs text-jtp-textDim">
+                        {summary.total} trade{summary.total !== 1 ? 's' : ''} · win rate{' '}
+                        {summary.winRate}
+                      </td>
+                      {/* PLAN R label */}
+                      <td className="px-3 py-[11px] text-right text-jtp-xs text-jtp-textFaint">
+                        AVG R
+                      </td>
+                      {/* REAL R value */}
+                      <td
+                        className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus ${
+                          summary.avgR != null && summary.avgR > 0
+                            ? 'text-jtp-profit'
+                            : summary.avgR != null && summary.avgR < 0
+                            ? 'text-jtp-loss'
+                            : 'text-jtp-textDim'
+                        }`}
+                      >
+                        {summary.avgR != null
+                          ? `${summary.avgR >= 0 ? '+' : ''}${summary.avgR.toFixed(2)} R`
+                          : '—'}
+                      </td>
+                      {/* RESULT — blank */}
+                      <td />
+                      {/* NET P&L total */}
+                      <td
+                        className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus ${
+                          summary.netPL > 0
+                            ? 'text-jtp-profit'
+                            : summary.netPL < 0
+                            ? 'text-jtp-loss'
+                            : 'text-jtp-textDim'
+                        }`}
+                      >
+                        {fmtPL(summary.netPL)}
+                      </td>
+                      {/* ADH + MISTAKES + ACTIONS */}
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </Panel>
         </>
       )}
 
@@ -705,41 +646,40 @@ const TradeJournal: React.FC = () => {
       {(currentView === 'live' || currentView === 'pending') && !selectedTrade && (
         <>
           {!activeAccount && !isLoading && (
-            <div className="mt-8 text-center text-jtp-textMuted text-jtp-sm">
-              <p className="text-jtp-xl font-semibold text-jtp-text mb-2">
-                Welcome to your Trade Journal
-              </p>
-              <p>Create or select a broker account to get started.</p>
-            </div>
+            <Panel label={currentView === 'live' ? 'LIVE TRADES' : 'PENDING ORDERS'} className="mt-4">
+              <EmptyState
+                title="No account selected"
+                description="Create or select a broker account to get started."
+              />
+            </Panel>
           )}
           {(activeAccount || isLoading) && (
-            <div className="mt-4 border border-jtp-border rounded-jtp-panel overflow-x-auto bg-jtp-panel">
-              <table className="w-full border-collapse text-jtp-base-minus">
-                <thead>
-                  <tr className="bg-jtp-active border-b border-jtp-borderStrong">
-                    {currentView === 'live'
-                      ? ['', 'Date', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'SL / TP', 'Actions'].map(h => (
-                          <th
-                            key={h}
-                            className="px-3 py-[10px] text-left text-jtp-xs-plus font-semibold tracking-[0.4px] uppercase text-jtp-textDim whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
-                        ))
-                      : ['', 'Date Created', 'Asset', 'Direction', 'Entry Price', 'Risk %', 'Playbook', 'Actions'].map(h => (
-                          <th
-                            key={h}
-                            className="px-3 py-[10px] text-left text-jtp-xs-plus font-semibold tracking-[0.4px] uppercase text-jtp-textDim whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
-                        ))
-                    }
-                  </tr>
-                </thead>
-                <tbody>{renderLivePendingContent()}</tbody>
-              </table>
-            </div>
+            <Panel
+              label={currentView === 'live' ? 'LIVE TRADES' : 'PENDING ORDERS'}
+              noPadding
+              className="mt-4"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-jtp-base-minus">
+                  <thead>
+                    <tr className="bg-jtp-raised border-b border-jtp-borderStrong">
+                      {(currentView === 'live'
+                        ? ['', 'DATE', 'ASSET', 'DIRECTION', 'ENTRY PRICE', 'RISK %', 'SL / TP', 'ACTIONS']
+                        : ['', 'DATE CREATED', 'ASSET', 'DIRECTION', 'ENTRY PRICE', 'RISK %', 'PLAYBOOK', 'ACTIONS']
+                      ).map(h => (
+                        <th
+                          key={h}
+                          className="px-3 py-[9px] text-left jtp-label font-medium whitespace-nowrap"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>{renderLivePendingContent()}</tbody>
+                </table>
+              </div>
+            </Panel>
           )}
         </>
       )}
