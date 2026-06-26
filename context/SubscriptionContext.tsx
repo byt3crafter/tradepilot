@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
 
 interface SubscriptionContextType {
   isUpgradeModalOpen: boolean;
@@ -9,9 +10,11 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { freeMode } = useAuth();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
-  const showUpgradeModal = () => setIsUpgradeModalOpen(true);
+  // When free mode is active the paywall is disabled — the modal must never show.
+  const showUpgradeModal = () => { if (!freeMode) setIsUpgradeModalOpen(true); };
   const hideUpgradeModal = () => setIsUpgradeModalOpen(false);
 
   const value = {

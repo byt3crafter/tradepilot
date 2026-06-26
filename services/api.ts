@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -81,9 +81,14 @@ export interface ApiService {
   createCheckoutTransaction(token: string, promoCode?: string, priceId?: string, customerEmail?: string): Promise<{ transactionId: string }>;
   syncSubscription(token: string): Promise<{ status: string }>;
 
+  // Auth / User
+  getMe(token: string): Promise<User>;
+
   // Admin
   getAdminStats(token: string): Promise<AdminStats>;
   getSystemConfig(token: string): Promise<SystemConfig>;
+  setFreeMode(enabled: boolean, token: string): Promise<SystemConfig>;
+  setUserBotEnabled(userId: string, enabled: boolean, token: string): Promise<AdminUser>;
   toggleMaintenance(enabled: boolean, token: string): Promise<SystemConfig>;
   getAdminUsers(token: string): Promise<AdminUser[]>;
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser>;
@@ -255,10 +260,15 @@ const api: ApiService = {
   getPublicPlans(): Promise<any[]> { return this.get('/api/billing/plans'); },
   getSystemStatus(): Promise<{ maintenance: boolean; message?: string }> { return this.get('/api/billing/status'); },
 
+  // User Methods
+  getMe(token: string): Promise<User> { return this.get('/api/users/me', token); },
+
   // Admin Methods
   getAdminStats(token: string): Promise<AdminStats> { return this.get('/api/admin/stats', token); },
   getSystemConfig(token: string): Promise<SystemConfig> { return this.get('/api/admin/system/config', token); },
   toggleMaintenance(enabled: boolean, token: string): Promise<SystemConfig> { return this.post('/api/admin/system/maintenance', { enabled }, token); },
+  setFreeMode(enabled: boolean, token: string): Promise<SystemConfig> { return this.post('/api/admin/system/free-mode', { enabled }, token); },
+  setUserBotEnabled(userId: string, enabled: boolean, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/bot`, { enabled }, token); },
   getAdminUsers(token: string): Promise<AdminUser[]> { return this.get('/api/admin/users', token); },
   grantProAccess(userId: string, data: { expiresAt?: string | null; reason?: string }, token: string): Promise<AdminUser> { return this.patch(`/api/admin/users/${userId}/grant-pro`, data, token); },
   revokeProAccess(userId: string, token: string): Promise<AdminUser> { return this.delete(`/api/admin/users/${userId}/grant-pro`, token); },
