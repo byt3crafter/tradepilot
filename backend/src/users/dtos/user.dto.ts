@@ -23,6 +23,9 @@ export class UserDto {
   role: string;
 
   @Expose()
+  botEnabled: boolean;
+
+  @Expose()
   subscriptionStatus: string;
 
   @Expose()
@@ -34,5 +37,6 @@ export class UserDto {
   @Expose()
   featureFlags: {
     analysisTrackerEnabled: boolean;
+    freeMode: boolean;
   };
 }

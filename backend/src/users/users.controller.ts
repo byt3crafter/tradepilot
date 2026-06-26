@@ -25,9 +25,11 @@ export class UsersController {
     async getMe(@Req() req: AuthenticatedRequest) {
         const userId = req.user.sub;
         const user = await this.usersService.findById(userId);
+        const freeMode = await this.usersService.getFreeMode();
 
         const featureFlags = {
             analysisTrackerEnabled: this.configService.get<boolean>('ANALYSIS_TRACKER_ENABLED'),
+            freeMode,
         };
 
         const userDto = plainToInstance(UserDto, user, {

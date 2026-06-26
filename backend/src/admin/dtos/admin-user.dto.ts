@@ -14,6 +14,9 @@ export class AdminUserDto {
   role: string;
 
   @Expose()
+  botEnabled: boolean;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()

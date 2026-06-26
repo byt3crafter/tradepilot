@@ -28,6 +28,15 @@ export class UsersService {
     return user;
   }
 
+  /** Global free-mode flag (paywall off for everyone). */
+  async getFreeMode(): Promise<boolean> {
+    const cfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'main' },
+      select: { freeMode: true },
+    });
+    return !!cfg?.freeMode;
+  }
+
   async update(id: string, data: Prisma.UserUpdateInput): Promise<User> {
     return this.prisma.user.update({
       where: { id },
