@@ -60,6 +60,28 @@ export class QuantService implements OnApplicationBootstrap {
     setTimeout(() => this.autoTick().catch(() => {}), 8000);
   }
 
+  /** A wallet's current OPEN positions — for "mirror this" from the report. */
+  async walletPositions(addressRaw: string) {
+    const address = String(addressRaw || '').toLowerCase();
+    const positions = await this.pm.positions(address);
+    return positions
+      .filter((p) => Number(p.size) > 0 && !p.redeemable)
+      .map((p) => ({
+        conditionId: p.conditionId,
+        tokenId: p.asset, // CLOB token id for this outcome
+        outcome: p.outcome,
+        outcomeIndex: Number(p.outcomeIndex) || 0,
+        title: p.title,
+        slug: p.slug,
+        eventSlug: p.eventSlug,
+        size: Number(p.size) || 0,
+        avgPrice: Number(p.avgPrice) || 0,
+        curPrice: Number(p.curPrice) || 0,
+        endDate: p.endDate,
+      }))
+      .slice(0, 50);
+  }
+
   /** Live recent trades across markets — for the terminal ticker tape. */
   async feed(limit = 40) {
     const trades = await this.pm.recentTrades(Math.min(limit, 100));

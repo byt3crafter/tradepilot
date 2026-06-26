@@ -134,17 +134,24 @@ export class ChatgptService {
   async status(userId: string) {
     const c = await this.prisma.chatgptConnection.findUnique({
       where: { userId },
-      select: { accessToken: true, updatedAt: true, allowVerdict: true, allowBot: true, allowAnalysis: true },
+      select: { accessToken: true, updatedAt: true, model: true, allowVerdict: true, allowBot: true, allowAnalysis: true },
     });
     return {
       connected: !!c?.accessToken,
       connectedAt: c?.updatedAt ?? null,
+      model: c?.model ?? null,
       permissions: {
         verdict: c?.allowVerdict ?? true,
         bot: c?.allowBot ?? true,
         analysis: c?.allowAnalysis ?? true,
       },
     };
+  }
+
+  /** Set the user-chosen Codex model. */
+  async setModel(userId: string, model: string) {
+    await this.prisma.chatgptConnection.update({ where: { userId }, data: { model: model || null } });
+    return this.status(userId);
   }
 
   /** Update what the connection is allowed to power. */
@@ -210,9 +217,12 @@ export class ChatgptService {
   async complete(userId: string, instructions: string, input: string): Promise<string> {
     const auth = await this.getValidToken(userId);
     if (!auth) throw new BadRequestException('CHATGPT_NOT_CONNECTED');
+    const conn = await this.prisma.chatgptConnection.findUnique({ where: { userId }, select: { model: true } });
+    // If the user picked a model, use exactly that; otherwise try known candidates.
+    const candidates = conn?.model ? [conn.model] : this.modelCandidates();
     let res: Response | null = null;
     let lastErr = '';
-    for (const model of this.modelCandidates()) {
+    for (const model of candidates) {
       res = await fetch('https://chatgpt.com/backend-api/codex/responses', {
         method: 'POST',
         headers: {
