@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, QuantVerdict, QuantFeedItem, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -171,6 +171,13 @@ export interface ApiService {
   aiDeleteTool(id: string, token?: string | null): Promise<{ message: string }>;
   aiRuns(token?: string | null): Promise<AgentRun[]>;
   aiRun(id: string, token?: string | null): Promise<AgentRun>;
+
+  // AI scheduled agents
+  aiSchedules(token?: string | null): Promise<ScheduledAgent[]>;
+  aiCreateSchedule(body: { name: string; goal: string; frequency: ScheduledAgentFrequency }, token?: string | null): Promise<ScheduledAgent>;
+  aiUpdateSchedule(id: string, body: { name?: string; goal?: string; frequency?: ScheduledAgentFrequency; enabled?: boolean }, token?: string | null): Promise<ScheduledAgent>;
+  aiDeleteSchedule(id: string, token?: string | null): Promise<{ message: string }>;
+  aiRunScheduleNow(id: string, token?: string | null): Promise<AiAgentResult>;
 }
 
 export interface ChatGptPermissions {
@@ -420,6 +427,12 @@ const api: ApiService = {
   aiDeleteTool(id: string, token?: string | null): Promise<{ message: string }> { return this.delete(`/api/ai/tools/${id}`, token); },
   aiRuns(token?: string | null): Promise<AgentRun[]> { return this.get('/api/ai/runs', token); },
   aiRun(id: string, token?: string | null): Promise<AgentRun> { return this.get(`/api/ai/runs/${id}`, token); },
+
+  aiSchedules(token?: string | null): Promise<ScheduledAgent[]> { return this.get('/api/ai/schedules', token); },
+  aiCreateSchedule(body: { name: string; goal: string; frequency: ScheduledAgentFrequency }, token?: string | null): Promise<ScheduledAgent> { return this.post('/api/ai/schedules', body, token); },
+  aiUpdateSchedule(id: string, body: { name?: string; goal?: string; frequency?: ScheduledAgentFrequency; enabled?: boolean }, token?: string | null): Promise<ScheduledAgent> { return this.patch(`/api/ai/schedules/${id}`, body, token); },
+  aiDeleteSchedule(id: string, token?: string | null): Promise<{ message: string }> { return this.delete(`/api/ai/schedules/${id}`, token); },
+  aiRunScheduleNow(id: string, token?: string | null): Promise<AiAgentResult> { return this.post(`/api/ai/schedules/${id}/run`, {}, token); },
 };
 
 export default api;

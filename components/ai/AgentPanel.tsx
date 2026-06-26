@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { AgentRun, AgentTool } from '../../types';
+import { AgentRun, AgentTool, ScheduledAgent, ScheduledAgentFrequency } from '../../types';
 import Card from '../Card';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
@@ -34,6 +34,22 @@ const relativeTime = (iso: string): string => {
   const d = Math.round(h / 24);
   if (d < 30) return `${d}d ago`;
   return new Date(iso).toLocaleDateString();
+};
+
+const relativeFuture = (iso: string | null): string => {
+  if (!iso) return '—';
+  const when = new Date(iso).getTime();
+  if (Number.isNaN(when)) return '—';
+  const diff = when - Date.now();
+  if (diff <= 0) return 'due now';
+  const s = Math.round(diff / 1000);
+  if (s < 60) return `in ${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `in ${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `in ${h}h`;
+  const d = Math.round(h / 24);
+  return `in ${d}d`;
 };
 
 const stringify = (value: unknown): string => {
@@ -339,6 +355,272 @@ const AgentToolsCard: React.FC = () => {
   );
 };
 
+// ─── Scheduled Agents card ──────────────────────────────────────────────────────
+
+const FREQUENCY_OPTIONS: { value: ScheduledAgentFrequency; label: string; chip: string }[] = [
+  { value: '15m', label: 'Every 15m', chip: '15m' },
+  { value: 'hourly', label: 'Hourly', chip: 'Hourly' },
+  { value: '6h', label: 'Every 6h', chip: '6h' },
+  { value: 'daily', label: 'Daily', chip: 'Daily' },
+];
+
+const frequencyChip = (f: ScheduledAgentFrequency): string =>
+  FREQUENCY_OPTIONS.find((o) => o.value === f)?.chip ?? f;
+
+const truncateGoal = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s);
+
+const ScheduledAgentsCard: React.FC = () => {
+  const { getToken } = useAuth();
+
+  const [schedules, setSchedules] = useState<ScheduledAgent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [runningId, setRunningId] = useState<string | null>(null);
+
+  // New-schedule form
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [goal, setGoal] = useState('');
+  const [frequency, setFrequency] = useState<ScheduledAgentFrequency>('daily');
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const list = await api.aiSchedules(token);
+      setSchedules(Array.isArray(list) ? list : []);
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load scheduled agents.');
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleToggle = useCallback(
+    async (schedule: ScheduledAgent, next: boolean) => {
+      setBusyId(schedule.id);
+      setError(null);
+      // optimistic
+      setSchedules((prev) => prev.map((s) => (s.id === schedule.id ? { ...s, enabled: next } : s)));
+      try {
+        const token = await getToken();
+        await api.aiUpdateSchedule(schedule.id, { enabled: next }, token);
+        await refresh();
+      } catch (e: any) {
+        setError(e?.message || 'Could not update that schedule.');
+        await refresh();
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [getToken, refresh],
+  );
+
+  const handleRunNow = useCallback(
+    async (schedule: ScheduledAgent) => {
+      setRunningId(schedule.id);
+      setError(null);
+      try {
+        const token = await getToken();
+        await api.aiRunScheduleNow(schedule.id, token);
+        await refresh();
+      } catch (e: any) {
+        setError(e?.message || 'Could not run that agent.');
+      } finally {
+        setRunningId(null);
+      }
+    },
+    [getToken, refresh],
+  );
+
+  const handleDelete = useCallback(
+    async (schedule: ScheduledAgent) => {
+      if (typeof window !== 'undefined' && !window.confirm(`Delete scheduled agent "${schedule.name}"?`)) return;
+      setBusyId(schedule.id);
+      setError(null);
+      try {
+        const token = await getToken();
+        await api.aiDeleteSchedule(schedule.id, token);
+        await refresh();
+      } catch (e: any) {
+        setError(e?.message || 'Could not delete that schedule.');
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [getToken, refresh],
+  );
+
+  const handleCreate = useCallback(async () => {
+    setFormError(null);
+    const n = name.trim();
+    const g = goal.trim();
+    if (!n) {
+      setFormError('Give the agent a name.');
+      return;
+    }
+    if (!g) {
+      setFormError('Describe what the agent should do.');
+      return;
+    }
+    setCreating(true);
+    try {
+      const token = await getToken();
+      await api.aiCreateSchedule({ name: n, goal: g, frequency }, token);
+      setName('');
+      setGoal('');
+      setFrequency('daily');
+      setShowForm(false);
+      await refresh();
+    } catch (e: any) {
+      setFormError(e?.message || 'Could not create the scheduled agent.');
+    } finally {
+      setCreating(false);
+    }
+  }, [name, goal, frequency, getToken, refresh]);
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h2 className="text-jtp-xl font-semibold text-jtp-text">Scheduled Agents</h2>
+        <button
+          type="button"
+          onClick={() => setShowForm((s) => !s)}
+          className="text-jtp-sm font-medium text-jtp-blue hover:underline whitespace-nowrap"
+        >
+          {showForm ? 'Cancel' : '+ New scheduled agent'}
+        </button>
+      </div>
+      <p className="text-jtp-md text-jtp-textDim mb-4">
+        Autonomous agents that run on a timer using your tools, then log to Activity and notify you.
+      </p>
+
+      {/* New-schedule form */}
+      {showForm && (
+        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg p-5 space-y-3 mb-4">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Agent name"
+            spellCheck={false}
+            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+          />
+          <textarea
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="What should this agent do each run? (e.g. Review my open trades and flag any that breach my risk rules)"
+            rows={3}
+            spellCheck={false}
+            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors resize-y"
+          />
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <select
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value as ScheduledAgentFrequency)}
+              className="bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            >
+              {FREQUENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={creating}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {creating ? <Spinner /> : null}
+              {creating ? 'Creating…' : 'Create agent'}
+            </button>
+          </div>
+          {formError && (
+            <p role="alert" className="text-jtp-xs text-jtp-loss">
+              {formError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="text-jtp-xs text-jtp-loss mb-2">
+          {error}
+        </p>
+      )}
+
+      {/* Schedules list */}
+      {loading ? (
+        <div className="flex items-center gap-2 text-jtp-textDim">
+          <Spinner />
+          <span className="text-jtp-sm">Loading scheduled agents…</span>
+        </div>
+      ) : schedules.length === 0 ? (
+        <p className="text-jtp-sm text-jtp-textDim">No scheduled agents yet.</p>
+      ) : (
+        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-lg divide-y divide-jtp-border">
+          {schedules.map((schedule) => (
+            <div key={schedule.id} className="flex items-start justify-between gap-4 p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-jtp-md font-medium text-jtp-text">{schedule.name}</span>
+                  <Chip className="bg-[rgba(59,130,246,0.12)] text-jtp-blue border-[rgba(59,130,246,0.25)]">
+                    {frequencyChip(schedule.frequency)}
+                  </Chip>
+                </div>
+                <p className="text-jtp-sm text-jtp-textDim mt-1">{truncateGoal(schedule.goal, 140)}</p>
+                <p className="text-jtp-xs text-jtp-textMuted mt-1">
+                  Last run: {schedule.lastRunAt ? relativeTime(schedule.lastRunAt) : 'never'} · Next run:{' '}
+                  {schedule.enabled ? relativeFuture(schedule.nextRunAt) : 'paused'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleRunNow(schedule)}
+                  disabled={runningId === schedule.id || busyId === schedule.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-jtp-xl text-jtp-xs font-semibold bg-jtp-control text-jtp-text border border-jtp-borderStrong hover:bg-jtp-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {runningId === schedule.id ? <Spinner /> : null}
+                  {runningId === schedule.id ? 'Running…' : 'Run now'}
+                </button>
+                <Toggle
+                  enabled={schedule.enabled}
+                  busy={busyId === schedule.id}
+                  label={`Enable ${schedule.name}`}
+                  onChange={(next) => handleToggle(schedule, next)}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleDelete(schedule)}
+                  disabled={busyId === schedule.id}
+                  aria-label={`Delete ${schedule.name}`}
+                  title="Delete scheduled agent"
+                  className="p-1.5 rounded-md text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-jtp-xs text-jtp-textMuted mt-3">
+        Scheduled runs use your connected ChatGPT/Codex quota.
+      </p>
+    </Card>
+  );
+};
+
 // ─── Agent Activity (audit / debug log) card ──────────────────────────────────
 
 const statusBadge = (status: AgentRun['status']): string => {
@@ -507,6 +789,7 @@ const AgentActivityCard: React.FC = () => {
 const AgentPanel: React.FC = () => (
   <>
     <AgentToolsCard />
+    <ScheduledAgentsCard />
     <AgentActivityCard />
   </>
 );
