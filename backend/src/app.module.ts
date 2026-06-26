@@ -22,6 +22,7 @@ import { PdfModule } from './pdf/pdf.module';
 import { InvitesModule } from './invites/invites.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { MarketDataModule } from './market-data/market-data.module';
+import { NotebookModule } from './notebook/notebook.module';
 
 
 @Module({
@@ -62,6 +63,7 @@ import { MarketDataModule } from './market-data/market-data.module';
     InvitesModule,
     PromoCodesModule,
     MarketDataModule,
+    NotebookModule,
   ],
   controllers: [],
   providers: [

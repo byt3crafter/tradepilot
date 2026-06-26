@@ -49,6 +49,21 @@ model User {
   apiUsage           ApiUsage[]
   usedInviteCodes    InviteCode[]
   mistakeTags        MistakeTag[]
+  notebookEntries    NotebookEntry[]
+}
+
+model NotebookEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @default(now()) // the trading day the note is about
+  title     String?
+  content   String   @default("")
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
 }
 
 model BrokerAccount {
