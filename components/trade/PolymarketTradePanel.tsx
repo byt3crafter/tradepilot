@@ -230,18 +230,42 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
       setAllowanceRaw(null);
       setCreds(null);
     };
+    // Re-sync the provider/signer for the new chain or account WITHOUT dropping the
+    // connection — connect() triggers a 1→137 switch, and a hard reset here would
+    // undo the connect we just made. Only fully reset when the wallet disconnects.
+    const reSync = async () => {
+      try {
+        const e = getEthereum();
+        if (!e) return reset();
+        const provider = new BrowserProvider(e);
+        const accs: string[] = await provider.send('eth_accounts', []);
+        if (!accs || accs.length === 0) return reset();
+        const net = await provider.getNetwork();
+        const signer = await provider.getSigner();
+        const addr = await signer.getAddress();
+        providerRef.current = provider;
+        signerRef.current = signer;
+        clobRef.current = null; // session creds are chain-bound → require re-init
+        setCreds(null);
+        setAddress(addr);
+        setChainId(Number(net.chainId));
+        await refreshBalances(addr, provider);
+      } catch {
+        reset();
+      }
+    };
     const onAccounts = (accs: string[]) => {
       if (!accs || accs.length === 0) reset();
-      else reset(); // force a clean re-connect on account switch
+      else reSync();
     };
-    const onChain = () => reset();
+    const onChain = () => reSync();
     eth.on('accountsChanged', onAccounts);
     eth.on('chainChanged', onChain);
     return () => {
       eth.removeListener?.('accountsChanged', onAccounts);
       eth.removeListener?.('chainChanged', onChain);
     };
-  }, []);
+  }, [refreshBalances]);
 
   // ── Initialise CLOB client + derive L2 creds (triggers a signature) ──
   const initClob = useCallback(async () => {
