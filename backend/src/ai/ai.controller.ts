@@ -26,4 +26,9 @@ export class AiController {
   chat(@Body('message') message: string, @Body('history') history: string, @Req() req: any) {
     return this.ai.chat(req.user.sub, message, history);
   }
+
+  @Post('agent')
+  agent(@Body('goal') goal: string, @Req() req: any) {
+    return this.ai.agent(req.user.sub, goal);
+  }
 }
