@@ -3,6 +3,9 @@ import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PolymarketClient } from './polymarket.client';
 
+const Z = 1.64; // one-sided 95% lower bound
+const MIN_CLOSED = 15; // display gate (v1; spec target 30 — relaxed while the bank warms)
+
 @Injectable()
 export class QuantService implements OnApplicationBootstrap {
   private readonly logger = new Logger(QuantService.name);
@@ -11,7 +14,6 @@ export class QuantService implements OnApplicationBootstrap {
   constructor(private readonly prisma: PrismaService, private readonly pm: PolymarketClient) {}
 
   onApplicationBootstrap() {
-    // Warm the bank shortly after boot so the leaderboard isn't empty.
     setTimeout(() => this.autoTick().catch(() => {}), 8000);
   }
 
@@ -33,66 +35,130 @@ export class QuantService implements OnApplicationBootstrap {
     return { discovered: added };
   }
 
-  /** Fetch a wallet's positions/activity/value, compute edge-adjusted metrics, persist. */
+  /** Resolutions with a global cache (each market fetched once). */
+  private async resolveMarkets(conds: string[]) {
+    const result: Record<string, { closed: boolean; winningIndex: number | null }> = {};
+    const cached = await this.prisma.pmMarket.findMany({ where: { conditionId: { in: conds } } });
+    const map = new Map(cached.map((m) => [m.conditionId, m]));
+    const missing: string[] = [];
+    for (const c of conds) {
+      const m = map.get(c);
+      if (m && (m.closed || Date.now() - m.fetchedAt.getTime() < 3600 * 1000)) {
+        result[c] = { closed: m.closed, winningIndex: m.winningIndex };
+      } else {
+        missing.push(c);
+      }
+    }
+    if (missing.length) {
+      const fetched = await this.pm.marketResolutions(missing);
+      for (const c of missing) {
+        const f = fetched[c] || { closed: false, winningIndex: null, outcomePrices: null };
+        result[c] = { closed: f.closed, winningIndex: f.winningIndex };
+        await this.prisma.pmMarket.upsert({
+          where: { conditionId: c },
+          create: { conditionId: c, closed: f.closed, winningIndex: f.winningIndex, outcomePrices: f.outcomePrices, fetchedAt: new Date() },
+          update: { closed: f.closed, winningIndex: f.winningIndex, outcomePrices: f.outcomePrices, fetchedAt: new Date() },
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * EdgeScore pipeline: reconstruct closed positions from fills, join resolutions,
+   * compute realized edge-per-share (how much they beat the market's implied price),
+   * then rank by the one-sided 95% lower confidence bound with clustered n_eff.
+   */
   async scanWallet(addressRaw: string) {
     const address = String(addressRaw || '').toLowerCase();
-    const [positions, activity, positionsValue] = await Promise.all([
-      this.pm.positions(address),
-      this.pm.activity(address),
+    const [activity, positionsValue] = await Promise.all([
+      this.pm.activity(address, 1000),
       this.pm.value(address),
     ]);
 
-    // PnL from cash-flow over the activity window + current holdings:
-    //   buys are cash out; sells/redeems/rebates are cash in; open positions add their value.
-    // (Approximate: the activity feed is page-capped, so very high-frequency wallets are
-    // understated — refined to full on-chain history in a later phase.)
-    let cashIn = 0, cashOut = 0, volume = 0;
+    // group fills into positions per (market, outcome)
+    type Pos = { cid: string; oi: number; eventSlug: string; buyShares: number; buyCost: number; sellShares: number; sellProceeds: number; redeemShares: number; redeemProceeds: number };
+    const pos = new Map<string, Pos>();
+    let volume = 0;
     for (const a of activity) {
       const usd = Number(a.usdcSize) || 0;
       volume += usd;
-      if (a.type === 'TRADE') {
-        if (a.side === 'BUY') cashOut += usd;
-        else if (a.side === 'SELL') cashIn += usd;
-      } else if (a.type === 'REDEEM' || a.type === 'MAKER_REBATE' || a.type === 'REWARD') {
-        cashIn += usd;
+      const cid = a.conditionId;
+      if (!cid) continue;
+      const oi = Number(a.outcomeIndex) || 0;
+      const key = `${cid}|${oi}`;
+      let p = pos.get(key);
+      if (!p) {
+        p = { cid, oi, eventSlug: a.eventSlug || a.slug || cid, buyShares: 0, buyCost: 0, sellShares: 0, sellProceeds: 0, redeemShares: 0, redeemProceeds: 0 };
+        pos.set(key, p);
       }
+      const size = Number(a.size) || 0;
+      if (a.type === 'TRADE' && a.side === 'BUY') { p.buyShares += size; p.buyCost += usd; }
+      else if (a.type === 'TRADE' && a.side === 'SELL') { p.sellShares += size; p.sellProceeds += usd; }
+      else if (a.type === 'REDEEM') { p.redeemShares += size; p.redeemProceeds += usd; }
     }
-    const realizedPnl = cashIn - cashOut;
-    const pnl = realizedPnl + positionsValue;
 
-    // Win rate from resolved positions (Polymarket's per-position realized PnL).
-    let wins = 0, resolved = 0;
-    for (const p of positions) {
-      const rp = Number(p.realizedPnl) || 0;
-      if (rp !== 0) {
-        resolved++;
-        if (rp > 0) wins++;
+    const conds = [...new Set([...pos.values()].map((p) => p.cid))];
+    const res = await this.resolveMarkets(conds);
+
+    // realized edge per closed position
+    const edges: { e: number; notional: number; eventSlug: string }[] = [];
+    let realizedPnl = 0, wins = 0;
+    for (const p of pos.values()) {
+      if (p.buyShares < 1e-6) continue; // only positions they actually entered (long)
+      // Truncation guard: if more shares were sold/redeemed than we saw bought, the
+      // buy side predates the activity window — entry price is unreliable, so skip.
+      if (p.sellShares + p.redeemShares > p.buyShares * 1.05) continue;
+      const entryAvg = p.buyCost / p.buyShares;
+      const r = res[p.cid] || { closed: false, winningIndex: null };
+      const held = Math.max(p.buyShares - p.sellShares - p.redeemShares, 0);
+      let proceeds = p.sellProceeds + p.redeemProceeds;
+      let closed = false;
+      if (r.closed) {
+        closed = true;
+        proceeds += held * (r.winningIndex === p.oi ? 1 : 0); // resolve held shares to {0,1}
+      } else if (p.sellShares + p.redeemShares >= p.buyShares * 0.99) {
+        closed = true; // fully exited before resolution
       }
+      if (!closed) continue; // never mark-to-mid open positions
+      // realized edge per share, clamped to [-1,1] (binary-outcome bound) as a backstop
+      const e = Math.max(-1, Math.min(1, proceeds / p.buyShares - entryAvg));
+      edges.push({ e, notional: p.buyCost, eventSlug: p.eventSlug });
+      realizedPnl += proceeds - p.buyCost;
+      if (proceeds > p.buyCost) wins++;
     }
-    const tradeCount = activity.length;
-    const winRate = resolved ? wins / resolved : 0;
-    const marketFocus = this.classifyFocus([...positions, ...activity]);
 
-    // Edge score: PnL anchored, but discounted for small samples and low win rate —
-    // so a $1M-over-3-trades fluke ranks below steady edge over hundreds of trades.
-    const sampleFactor = Math.min(tradeCount, 100) / 100;
-    const edgeScore = pnl * sampleFactor * (0.6 + 0.4 * winRate);
+    const nClosed = edges.length;
+    const winRate = nClosed ? wins / nClosed : 0;
+    let meanEdge = 0, stdEdge = 0, edgeLcb = 0, dollarEdge = 0, nEff = 0;
+    if (nClosed > 0) {
+      meanEdge = edges.reduce((s, x) => s + x.e, 0) / nClosed;
+      if (nClosed > 1) {
+        const v = edges.reduce((s, x) => s + (x.e - meanEdge) ** 2, 0) / (nClosed - 1);
+        stdEdge = Math.sqrt(v);
+      }
+      // n_eff: cluster correlated bets by event (15 same-day China-temp markets ≈ 1 event)
+      nEff = new Set(edges.map((x) => x.eventSlug)).size || nClosed;
+      const se = nEff > 0 ? stdEdge / Math.sqrt(nEff) : stdEdge;
+      edgeLcb = meanEdge - Z * se;
+      const tot = edges.reduce((s, x) => s + x.notional, 0);
+      dollarEdge = tot > 0 ? edges.reduce((s, x) => s + x.e * x.notional, 0) / tot : 0;
+    }
+    const qualified = nClosed >= MIN_CLOSED;
+    const marketFocus = this.classifyFocus(activity);
 
     const pseudonym = activity[0]?.pseudonym || activity[0]?.name || undefined;
     const profileImage = activity[0]?.profileImage || undefined;
-
+    const data = {
+      pnl: realizedPnl, realizedPnl, volume, positionsValue,
+      tradeCount: activity.length, winRate, marketFocus,
+      nClosed, nEff, meanEdge, stdEdge, edgeLcb, dollarEdge, edgeScore: edgeLcb, qualified,
+      scanned: true, lastScanned: new Date(),
+    };
     return this.prisma.pmWallet.upsert({
       where: { address },
-      create: {
-        address, pseudonym, profileImage, pnl, realizedPnl, volume, positionsValue,
-        tradeCount, winRate, edgeScore, marketFocus, scanned: true, lastScanned: new Date(),
-      },
-      update: {
-        pnl, realizedPnl, volume, positionsValue, tradeCount, winRate, edgeScore, marketFocus,
-        scanned: true, lastScanned: new Date(),
-        ...(pseudonym ? { pseudonym } : {}),
-        ...(profileImage ? { profileImage } : {}),
-      },
+      create: { address, pseudonym, profileImage, ...data },
+      update: { ...data, ...(pseudonym ? { pseudonym } : {}), ...(profileImage ? { profileImage } : {}) },
     });
   }
 
@@ -113,10 +179,11 @@ export class QuantService implements OnApplicationBootstrap {
     return counts[0][1] > 0 ? counts[0][0] : 'Mixed';
   }
 
+  /** Leaderboard: only statistically-qualified wallets, ranked by edge LCB. */
   leaderboard(limit = 50) {
     return this.prisma.pmWallet.findMany({
-      where: { scanned: true },
-      orderBy: { edgeScore: 'desc' },
+      where: { scanned: true, qualified: true },
+      orderBy: { edgeLcb: 'desc' },
       take: Math.min(Math.max(limit, 1), 200),
     });
   }
@@ -124,30 +191,31 @@ export class QuantService implements OnApplicationBootstrap {
   async getWallet(addressRaw: string) {
     const address = String(addressRaw || '').toLowerCase();
     const existing = await this.prisma.pmWallet.findUnique({ where: { address } });
-    if (existing?.scanned) return existing;
+    if (existing?.scanned && existing.lastScanned && Date.now() - existing.lastScanned.getTime() < 3600 * 1000) {
+      return existing;
+    }
     return this.scanWallet(address);
   }
 
   async stats() {
-    const [total, scanned] = await Promise.all([
+    const [total, scanned, qualified] = await Promise.all([
       this.prisma.pmWallet.count(),
       this.prisma.pmWallet.count({ where: { scanned: true } }),
+      this.prisma.pmWallet.count({ where: { qualified: true } }),
     ]);
-    return { total, scanned };
+    return { total, scanned, qualified };
   }
 
-  /** Autonomous loop: discover new wallets + scan a small stale batch, gently. */
   @Interval('quant-autodiscover', 5 * 60 * 1000)
   async autoTick() {
     if (this.ticking) return;
     this.ticking = true;
     try {
       const { discovered } = await this.discover(200);
-      // Scan a bigger batch while the bank is still cold, then settle to a gentle pace.
       const scannedCount = await this.prisma.pmWallet.count({ where: { scanned: true } });
-      const take = scannedCount < 80 ? 25 : 8;
+      const take = scannedCount < 120 ? 20 : 8;
       const batch = await this.prisma.pmWallet.findMany({
-        where: { OR: [{ scanned: false }, { lastScanned: { lt: new Date(Date.now() - 6 * 3600 * 1000) } }] },
+        where: { OR: [{ scanned: false }, { lastScanned: { lt: new Date(Date.now() - 12 * 3600 * 1000) } }] },
         orderBy: [{ scanned: 'asc' }, { lastScanned: 'asc' }],
         take,
       });
