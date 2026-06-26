@@ -110,6 +110,35 @@ model ChatgptConnection {
   updatedAt       DateTime  @updatedAt
 }
 
+// Agent tool/skill registry — built-in tools + user-installed HTTP skills.
+model AgentTool {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String
+  category    String   @default("quant")
+  builtin     Boolean  @default(false)
+  enabled     Boolean  @default(true)
+  kind        String   @default("builtin") // 'builtin' | 'http'
+  httpMethod  String?  // GET | POST  (for http skills)
+  httpUrl     String?  // endpoint (for http skills)
+  createdAt   DateTime @default(now())
+}
+
+// Audit/debug log of agent runs.
+model AgentRun {
+  id         String   @id @default(uuid())
+  userId     String
+  goal       String
+  answer     String?
+  status     String   @default("done") // done | error | limit
+  steps      Json     @default("[]")   // [{tool,args,result,error,ts}]
+  durationMs Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 // Cache of market resolutions (fetched once globally, not per wallet).
 model PmMarket {
   conditionId   String   @id

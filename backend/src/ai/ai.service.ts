@@ -1,7 +1,17 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatgptService } from '../chatgpt/chatgpt.service';
 import { QuantService } from '../quant/quant.service';
+
+// Built-in read-only tools seeded into the registry.
+const BUILTIN_TOOLS = [
+  { key: 'get_leaderboard', name: 'Get Leaderboard', description: 'Top edge-ranked Polymarket wallets {limit?}', category: 'quant' },
+  { key: 'scan_wallet', name: 'Scan Wallet', description: "Compute a wallet's edge metrics {address}", category: 'quant' },
+  { key: 'wallet_positions', name: 'Wallet Positions', description: "A wallet's open positions {address}", category: 'quant' },
+  { key: 'quant_stats', name: 'Quant Stats', description: 'Tracked/scanned/qualified counts {}', category: 'quant' },
+  { key: 'find_opportunities', name: 'Find Opportunities', description: 'AI-picked copyable edges {}', category: 'ai' },
+  { key: 'analyze_my_trades', name: 'Analyze My Trades', description: "Review the user's closed trades {}", category: 'journal' },
+];
 
 /**
  * Cross-cutting AI features, all powered by the user's connected ChatGPT/Codex
@@ -9,12 +19,63 @@ import { QuantService } from '../quant/quant.service';
  * and returns structured JSON.
  */
 @Injectable()
-export class AiService {
+export class AiService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(AiService.name);
   constructor(
     private readonly chatgpt: ChatgptService,
     private readonly prisma: PrismaService,
     private readonly quant: QuantService,
   ) {}
+
+  async onApplicationBootstrap() {
+    for (const t of BUILTIN_TOOLS) {
+      await this.prisma.agentTool.upsert({
+        where: { key: t.key },
+        create: { ...t, builtin: true, enabled: true, kind: 'builtin' },
+        update: { name: t.name, description: t.description, category: t.category, builtin: true },
+      });
+    }
+  }
+
+  // ── Tool registry management ────────────────────────────────────────────────
+  listTools() {
+    return this.prisma.agentTool.findMany({ orderBy: [{ builtin: 'desc' }, { createdAt: 'asc' }] });
+  }
+  async addTool(input: { name: string; description: string; method?: string; url: string; category?: string }) {
+    if (!/^https:\/\//i.test(input.url || '')) throw new BadRequestException('Skill URL must be https://');
+    if (this.isPrivateHost(input.url)) throw new BadRequestException('URL host not allowed');
+    const key = (input.name || 'skill').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) || `skill_${Date.now()}`;
+    return this.prisma.agentTool.create({
+      data: {
+        key, name: input.name, description: input.description, category: input.category || 'custom',
+        builtin: false, enabled: true, kind: 'http', httpMethod: (input.method || 'GET').toUpperCase(), httpUrl: input.url,
+      },
+    });
+  }
+  async toggleTool(id: string, enabled: boolean) {
+    return this.prisma.agentTool.update({ where: { id }, data: { enabled } });
+  }
+  async deleteTool(id: string) {
+    const t = await this.prisma.agentTool.findUnique({ where: { id } });
+    if (t?.builtin) throw new BadRequestException('Built-in tools cannot be deleted (disable instead).');
+    await this.prisma.agentTool.delete({ where: { id } });
+    return { deleted: true };
+  }
+  listRuns(userId: string) {
+    return this.prisma.agentRun.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 50 });
+  }
+  getRun(userId: string, id: string) {
+    return this.prisma.agentRun.findFirst({ where: { id, userId } });
+  }
+
+  private isPrivateHost(url: string): boolean {
+    try {
+      const h = new URL(url).hostname;
+      return /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/i.test(h) || h.endsWith('jtradepilot.com');
+    } catch {
+      return true;
+    }
+  }
 
   private async runJson(userId: string, cap: 'verdict' | 'bot' | 'analysis', instructions: string, input: string) {
     if (!(await this.chatgpt.isAllowed(userId, cap))) {
@@ -94,48 +155,59 @@ export class AiService {
    * and loop. Works over the plain text connection (no native function-calling
    * dependency). Tools are read-only — no trading/writes.
    */
-  private readonly AGENT_TOOLS = `
-- get_leaderboard {limit?:number}  -> top edge-ranked Polymarket wallets
-- scan_wallet {address:string}     -> compute a wallet's edge metrics
-- wallet_positions {address:string}-> a wallet's open positions
-- quant_stats {}                   -> tracked/scanned/qualified counts
-- find_opportunities {}            -> AI-picked copyable edges from the leaderboard
-- analyze_my_trades {}             -> review the user's own closed trades`;
-
   async agent(userId: string, goal: string) {
     if (!(await this.chatgpt.isAllowed(userId, 'analysis'))) {
       throw new BadRequestException('Connect ChatGPT/Codex in Settings → AI and enable Trade analysis.');
     }
+    const tools = await this.prisma.agentTool.findMany({ where: { enabled: true } });
+    const toolDesc = tools.map((t) => `- ${t.key} {args} -> ${t.description}`).join('\n');
     const system =
-      `You are JTradePilot's autonomous quant agent. You can use these READ-ONLY tools:${this.AGENT_TOOLS}\n` +
-      `Work step by step. To call a tool reply with ONLY JSON: {"tool":"name","args":{...}}. ` +
-      `When you have the answer reply with ONLY JSON: {"answer":"...","actions":["optional next steps"]}. ` +
+      `You are JTradePilot's autonomous quant agent. READ-ONLY tools available:\n${toolDesc}\n` +
+      `Work step by step. To call a tool reply with ONLY JSON: {"tool":"key","args":{...}}. ` +
+      `When done reply with ONLY JSON: {"answer":"...","actions":["optional next steps"]}. ` +
       `Be skeptical of survivorship bias and non-copyable (speed/insider) edges. No markdown.`;
+
+    const started = Date.now();
     let transcript = `GOAL: ${goal}`;
-    const steps: { tool: string; args: any }[] = [];
-    for (let i = 0; i < 6; i++) {
-      const out = await this.chatgpt.complete(userId, system, `${transcript}\n\nNext JSON action:`);
-      let act: any;
-      try {
-        act = JSON.parse(out.replace(/```json|```/g, '').trim());
-      } catch {
-        return { answer: out.slice(0, 1500), steps, raw: true };
+    const steps: any[] = [];
+    let answer = '';
+    let status = 'done';
+    try {
+      for (let i = 0; i < 6; i++) {
+        const out = await this.chatgpt.complete(userId, system, `${transcript}\n\nNext JSON action:`);
+        let act: any;
+        try {
+          act = JSON.parse(out.replace(/```json|```/g, '').trim());
+        } catch {
+          answer = out.slice(0, 1500);
+          break;
+        }
+        if (act.answer !== undefined) { answer = act.answer; break; }
+        if (!act.tool) { answer = 'No action returned.'; break; }
+        const tool = tools.find((t) => t.key === act.tool);
+        const result = tool ? await this.runTool(userId, tool, act.args || {}) : { error: `unknown or disabled tool: ${act.tool}` };
+        steps.push({ tool: act.tool, args: act.args || {}, result: JSON.stringify(result).slice(0, 1200), ts: Date.now() });
+        transcript += `\nTOOL ${act.tool}(${JSON.stringify(act.args || {})}) => ${JSON.stringify(result).slice(0, 1800)}`;
+        if (i === 5) { status = 'limit'; answer = answer || 'Reached the step limit. Refine the goal.'; }
       }
-      if (act.answer !== undefined) return { answer: act.answer, actions: act.actions, steps };
-      if (!act.tool) return { answer: 'No action returned.', steps };
-      steps.push({ tool: act.tool, args: act.args || {} });
-      const result = await this.runTool(userId, act.tool, act.args || {});
-      transcript += `\nTOOL ${act.tool}(${JSON.stringify(act.args || {})}) => ${JSON.stringify(result).slice(0, 1800)}`;
+    } catch (e: any) {
+      status = 'error';
+      answer = e?.message || 'agent failed';
     }
-    return { answer: 'Reached the step limit. Refine the goal.', steps };
+    await this.prisma.agentRun.create({
+      data: { userId, goal, answer, status, steps, durationMs: Date.now() - started },
+    }).catch(() => {});
+    return { answer, steps, status };
   }
 
-  private async runTool(userId: string, tool: string, args: any): Promise<any> {
+  /** Execute a registry tool (built-in switch, or an installed HTTP skill). */
+  private async runTool(userId: string, tool: { key: string; kind: string; httpMethod?: string | null; httpUrl?: string | null }, args: any): Promise<any> {
     try {
-      switch (tool) {
+      if (tool.kind === 'http') return this.runHttpTool(tool, args);
+      switch (tool.key) {
         case 'get_leaderboard': {
           const ws = await this.quant.leaderboard(Math.min(args.limit || 10, 25));
-          return ws.map((w) => ({ wallet: w.pseudonym || w.address.slice(0, 8), addr: w.address, edgeLcb: +w.edgeLcb.toFixed(3), nClosed: w.nClosed, winRate: +(w.winRate).toFixed(2), focus: w.marketFocus }));
+          return ws.map((w) => ({ wallet: w.pseudonym || w.address.slice(0, 8), addr: w.address, edgeLcb: +w.edgeLcb.toFixed(3), nClosed: w.nClosed, winRate: +w.winRate.toFixed(2), focus: w.marketFocus }));
         }
         case 'scan_wallet': {
           const w = await this.quant.scanWallet(args.address);
@@ -150,10 +222,30 @@ export class AiService {
         case 'analyze_my_trades':
           return this.journalAnalysis(userId);
         default:
-          return { error: `unknown tool: ${tool}` };
+          return { error: `unknown tool: ${tool.key}` };
       }
     } catch (e: any) {
       return { error: e?.message || 'tool failed' };
+    }
+  }
+
+  private async runHttpTool(tool: { httpMethod?: string | null; httpUrl?: string | null }, args: any): Promise<any> {
+    const url = tool.httpUrl || '';
+    if (!/^https:\/\//i.test(url) || this.isPrivateHost(url)) return { error: 'skill URL not allowed' };
+    try {
+      const method = (tool.httpMethod || 'GET').toUpperCase();
+      const u = new URL(url);
+      let res: Response;
+      if (method === 'GET') {
+        for (const [k, v] of Object.entries(args || {})) u.searchParams.set(k, String(v));
+        res = await fetch(u.toString(), { method, headers: { 'User-Agent': 'JTradePilot-Agent/1.0' } });
+      } else {
+        res = await fetch(u.toString(), { method, headers: { 'Content-Type': 'application/json', 'User-Agent': 'JTradePilot-Agent/1.0' }, body: JSON.stringify(args || {}) });
+      }
+      const text = await res.text();
+      try { return JSON.parse(text); } catch { return { status: res.status, body: text.slice(0, 1000) }; }
+    } catch (e: any) {
+      return { error: e?.message || 'skill request failed' };
     }
   }
 
