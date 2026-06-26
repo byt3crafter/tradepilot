@@ -544,6 +544,14 @@ export interface PmWallet {
   tradeCount: number;
   winRate: number;        // 0..1
   edgeScore: number;
+  // --- EdgeScore engine (statistical realized edge per share) ---
+  edgeLcb: number;        // PRIMARY rank metric: realized edge/share, one-sided 95% lower bound (e.g. 0.049 = ~4.9¢/share)
+  meanEdge: number;       // mean realized edge/share
+  stdEdge: number;        // std dev of realized edge/share
+  nClosed: number;        // closed positions scored
+  nEff: number;           // effective clustered sample size
+  dollarEdge: number;     // notional-weighted mean edge/share
+  qualified: boolean;     // nClosed >= 15 → statistically meaningful
   marketFocus: string;
   lastScanned: string;    // ISO date string
 }

@@ -139,7 +139,7 @@ export interface ApiService {
 
   // Quant (Polymarket wallet intelligence)
   quantLeaderboard(limit?: number, token?: string | null): Promise<PmWallet[]>;
-  quantStats(token?: string | null): Promise<{ total: number; scanned: number }>;
+  quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }>;
   quantWallet(address: string, token?: string | null): Promise<PmWallet>;
   quantScan(address: string, token?: string | null): Promise<PmWallet>;
 }
@@ -343,7 +343,7 @@ const api: ApiService = {
     const query = limit !== undefined ? `?limit=${limit}` : '';
     return this.get(`/api/quant/leaderboard${query}`, token);
   },
-  quantStats(token?: string | null): Promise<{ total: number; scanned: number }> { return this.get('/api/quant/stats', token); },
+  quantStats(token?: string | null): Promise<{ total: number; scanned: number; qualified: number }> { return this.get('/api/quant/stats', token); },
   quantWallet(address: string, token?: string | null): Promise<PmWallet> { return this.get(`/api/quant/wallet/${address}`, token); },
   quantScan(address: string, token?: string | null): Promise<PmWallet> { return this.post('/api/quant/scan', { address }, token); },
 };
