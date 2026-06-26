@@ -220,6 +220,10 @@ export class ChatgptService {
     const conn = await this.prisma.chatgptConnection.findUnique({ where: { userId }, select: { model: true } });
     // If the user picked a model, use exactly that; otherwise try known candidates.
     const candidates = conn?.model ? [conn.model] : this.modelCandidates();
+    // The Codex Responses API requires `input` as a list of message items.
+    const inputList = [
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: input }] },
+    ];
     let res: Response | null = null;
     let lastErr = '';
     for (const model of candidates) {
@@ -231,7 +235,7 @@ export class ChatgptService {
           'Content-Type': 'application/json',
           'OpenAI-Beta': 'responses=experimental',
         },
-        body: JSON.stringify({ model, instructions, input, stream: true, store: false }),
+        body: JSON.stringify({ model, instructions, input: inputList, stream: true, store: false }),
       });
       if (res.ok && res.body) {
         ChatgptService.workingModel = model; // remember the one that works
