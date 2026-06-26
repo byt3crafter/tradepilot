@@ -22,6 +22,11 @@ export class QuantController {
     return this.quant.feed(limit ? parseInt(limit, 10) : 40);
   }
 
+  @Get('markets')
+  markets(@Query('q') q?: string) {
+    return this.quant.markets(q);
+  }
+
   @Get('wallet/:address')
   wallet(@Param('address') address: string) {
     return this.quant.getWallet(address);
