@@ -173,6 +173,10 @@ const AppContent: React.FC = () => {
   // DEV-ONLY: render the authenticated app directly, skipping Clerk's SignedIn
   // gate (see utils/devAuth). Dead-code-eliminated from production builds.
   if (DEV_AUTH_BYPASS) {
+    // Still honor the admin route in dev bypass so admins can reach the panel.
+    if (locationHash.startsWith('#/admin-panel') && user?.role === 'ADMIN') {
+      return <AdminPage />;
+    }
     return <AuthenticatedApp />;
   }
 
@@ -185,12 +189,25 @@ const AppContent: React.FC = () => {
     }
   }
 
-  // Handle Admin Route specially (though ideally this is protected by Clerk too)
+  // Handle Admin Route specially — only ADMIN role users may access it
   if (locationHash.startsWith('#/admin-panel')) {
+    if (user?.role === 'ADMIN') {
+      return (
+        <SignedIn>
+          <AdminPage />
+        </SignedIn>
+      );
+    }
+    // Signed-in non-admin or still loading: render the normal app
     return (
-      <SignedIn>
-        <AdminPage />
-      </SignedIn>
+      <>
+        <SignedIn>
+          <AuthenticatedApp />
+        </SignedIn>
+        <SignedOut>
+          <UnauthenticatedApp />
+        </SignedOut>
+      </>
     );
   }
 
