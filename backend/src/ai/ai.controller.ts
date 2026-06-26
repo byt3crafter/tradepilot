@@ -33,6 +33,28 @@ export class AiController {
     return this.ai.getRun(req.user.sub, id);
   }
 
+  // ── Scheduled agents ──
+  @Get('schedules')
+  schedules(@Req() req: any) {
+    return this.ai.listSchedules(req.user.sub);
+  }
+  @Post('schedules')
+  createSchedule(@Body() body: { name: string; goal: string; frequency?: string }, @Req() req: any) {
+    return this.ai.createSchedule(req.user.sub, body);
+  }
+  @Patch('schedules/:id')
+  updateSchedule(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    return this.ai.updateSchedule(req.user.sub, id, body);
+  }
+  @Delete('schedules/:id')
+  deleteSchedule(@Param('id') id: string, @Req() req: any) {
+    return this.ai.deleteSchedule(req.user.sub, id);
+  }
+  @Post('schedules/:id/run')
+  runScheduleNow(@Param('id') id: string, @Req() req: any) {
+    return this.ai.runScheduleNow(req.user.sub, id);
+  }
+
   @Post('opportunities')
   opportunities(@Req() req: any) {
     return this.ai.opportunities(req.user.sub);

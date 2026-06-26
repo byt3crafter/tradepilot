@@ -125,6 +125,23 @@ model AgentTool {
   createdAt   DateTime @default(now())
 }
 
+// User-defined autonomous agents that run on a schedule.
+model ScheduledAgent {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String
+  goal       String
+  frequency  String    @default("daily") // 15m | hourly | 6h | daily
+  enabled    Boolean   @default(true)
+  lastRunAt  DateTime?
+  lastRunId  String?
+  nextRunAt  DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([enabled, nextRunAt])
+}
+
 // Audit/debug log of agent runs.
 model AgentRun {
   id         String   @id @default(uuid())

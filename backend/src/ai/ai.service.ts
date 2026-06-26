@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, OnApplicationBootstrap, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatgptService } from '../chatgpt/chatgpt.service';
 import { QuantService } from '../quant/quant.service';
@@ -66,6 +67,60 @@ export class AiService implements OnApplicationBootstrap {
   }
   getRun(userId: string, id: string) {
     return this.prisma.agentRun.findFirst({ where: { id, userId } });
+  }
+
+  // ── Scheduled autonomous agents ─────────────────────────────────────────────
+  private freqToMs(f: string): number {
+    return ({ '15m': 15 * 60000, hourly: 3600000, '6h': 6 * 3600000, daily: 86400000 } as Record<string, number>)[f] || 86400000;
+  }
+  listSchedules(userId: string) {
+    return this.prisma.scheduledAgent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  }
+  createSchedule(userId: string, input: { name: string; goal: string; frequency?: string }) {
+    const frequency = ['15m', 'hourly', '6h', 'daily'].includes(input.frequency || '') ? input.frequency! : 'daily';
+    return this.prisma.scheduledAgent.create({
+      data: { userId, name: input.name || 'Agent', goal: input.goal, frequency, nextRunAt: new Date(Date.now() + this.freqToMs(frequency)) },
+    });
+  }
+  async updateSchedule(userId: string, id: string, data: { name?: string; goal?: string; frequency?: string; enabled?: boolean }) {
+    const s = await this.prisma.scheduledAgent.findFirst({ where: { id, userId } });
+    if (!s) throw new BadRequestException('Not found');
+    return this.prisma.scheduledAgent.update({ where: { id }, data });
+  }
+  async deleteSchedule(userId: string, id: string) {
+    await this.prisma.scheduledAgent.deleteMany({ where: { id, userId } });
+    return { deleted: true };
+  }
+  /** Run a schedule immediately (manual trigger). */
+  async runScheduleNow(userId: string, id: string) {
+    const s = await this.prisma.scheduledAgent.findFirst({ where: { id, userId } });
+    if (!s) throw new BadRequestException('Not found');
+    return this.executeSchedule(s);
+  }
+
+  private async executeSchedule(s: { id: string; userId: string; name: string; goal: string; frequency: string }) {
+    const next = new Date(Date.now() + this.freqToMs(s.frequency));
+    try {
+      const result = await this.agent(s.userId, s.goal);
+      const last = await this.prisma.agentRun.findFirst({ where: { userId: s.userId }, orderBy: { createdAt: 'desc' }, select: { id: true } });
+      await this.prisma.scheduledAgent.update({ where: { id: s.id }, data: { lastRunAt: new Date(), lastRunId: last?.id, nextRunAt: next } });
+      await this.prisma.notification.create({ data: { userId: s.userId, message: `🤖 ${s.name}: ${(result.answer || 'done').slice(0, 200)}` } });
+      return result;
+    } catch (e: any) {
+      await this.prisma.scheduledAgent.update({ where: { id: s.id }, data: { lastRunAt: new Date(), nextRunAt: next } });
+      this.logger.warn(`scheduled agent ${s.id} failed: ${e?.message}`);
+      return { answer: e?.message || 'failed', steps: [], status: 'error' };
+    }
+  }
+
+  @Interval('agent-scheduler', 5 * 60 * 1000)
+  async pollSchedules() {
+    const due = await this.prisma.scheduledAgent.findMany({
+      where: { enabled: true, nextRunAt: { lte: new Date() } },
+      orderBy: { nextRunAt: 'asc' },
+      take: 8,
+    });
+    for (const s of due) await this.executeSchedule(s);
   }
 
   private isPrivateHost(url: string): boolean {
