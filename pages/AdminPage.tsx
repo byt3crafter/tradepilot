@@ -137,9 +137,10 @@ const AdminPage: React.FC = () => {
     fetchData();
   }, [accessToken]);
 
-  const handleBackToApp = () => {
-    window.history.pushState({}, '', '/');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+  const handleBackToDashboard = () => {
+    // Clear the admin-panel hash — the App's hashchange listener will re-render
+    // DashboardPage, which defaults to the 'dashboard' view.
+    window.location.hash = '';
   };
 
   const handleToggleMaintenance = async () => {
@@ -343,11 +344,11 @@ const AdminPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <Button
-              onClick={handleBackToApp}
+              onClick={handleBackToDashboard}
               variant="link"
               className="hidden md:flex text-jtp-sm"
             >
-              Back to App
+              &larr; Back to Dashboard
             </Button>
             <Button
               onClick={logout}

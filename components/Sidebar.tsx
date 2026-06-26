@@ -63,6 +63,17 @@ const AdminSvg = () => (
   </svg>
 );
 
+const BotSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <rect x="2" y="5" width="12" height="8" rx="2" />
+    <circle cx="5.5" cy="9" r="1" fill="currentColor" stroke="none" />
+    <circle cx="10.5" cy="9" r="1" fill="currentColor" stroke="none" />
+    <line x1="5.5" y1="12" x2="10.5" y2="12" strokeLinecap="round" />
+    <path d="M8 5V3" strokeLinecap="round" />
+    <circle cx="8" cy="2.5" r="0.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 const LogoutSvg = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
     <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3" strokeLinecap="round" />
@@ -247,7 +258,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, isSubscribed, logout } = useAuth();
+  const { user, isSubscribed, logout, botEnabled } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed } = useUI();
   const { activeAccount } = useAccount();
@@ -379,6 +390,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 isCollapsed={isSidebarCollapsed}
                 onClick={() => handleNav('playbooks')}
               />
+              {botEnabled && (
+                <NavItem
+                  icon={<BotSvg />}
+                  label="Bot"
+                  isActive={currentView === 'bot'}
+                  isCollapsed={isSidebarCollapsed}
+                  onClick={() => handleNav('bot')}
+                />
+              )}
             </>
           )}
 
@@ -458,6 +478,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 >
                   <ManageAccountSvg /> Manage Account
                 </button>
+                {user?.role === 'ADMIN' && (
+                  <>
+                    <div className="border-t border-jtp-border my-1" />
+                    <button
+                      onClick={() => { window.location.hash = '#/admin-panel'; setIsProfileOpen(false); }}
+                      className="w-full text-left px-3 py-2 text-jtp-xs text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text rounded-jtp-xl transition-colors flex items-center gap-2"
+                    >
+                      <AdminSvg /> Admin
+                    </button>
+                  </>
+                )}
                 <div className="border-t border-jtp-border my-1" />
                 <button
                   onClick={() => { logout(); setIsProfileOpen(false); }}
