@@ -617,6 +617,20 @@ export interface AiJournalAnalysis {
   note?: string;
 }
 
+// --- AI Agent (autonomous mode: researches with read-only tools, then answers) ---
+
+export interface AiAgentStep {
+  tool: string;
+  args?: Record<string, unknown>;
+}
+
+export interface AiAgentResult {
+  answer: string;
+  actions?: string[];
+  steps: AiAgentStep[];
+  raw?: unknown;
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
