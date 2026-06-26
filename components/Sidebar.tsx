@@ -44,6 +44,15 @@ const AnalyticsSvg = () => (
   </svg>
 );
 
+const QuantSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <circle cx="8" cy="8" r="6" />
+    <circle cx="8" cy="8" r="3" />
+    <path d="M8 8L13 4" strokeLinecap="round" />
+    <circle cx="8" cy="8" r="0.75" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 const PlaybookSvg = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
     <path d="M3 3h10v2H3zM3 7h7v2H3zM3 11h5v2H3z" strokeLinejoin="round" />
@@ -389,6 +398,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 isActive={currentView === 'playbooks'}
                 isCollapsed={isSidebarCollapsed}
                 onClick={() => handleNav('playbooks')}
+              />
+              <NavItem
+                icon={<QuantSvg />}
+                label="Quant"
+                isActive={currentView === 'quant'}
+                isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('quant')}
               />
               {botEnabled && (
                 <NavItem

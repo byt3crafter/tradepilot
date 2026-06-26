@@ -1,0 +1,345 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import { PmWallet } from '../types';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const truncateAddress = (addr: string) =>
+  addr && addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
+
+const fmtMoney = (n: number) => {
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
+};
+
+const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
+const fmtNum = (n: number) => n.toLocaleString('en-US');
+const profileUrl = (addr: string) => `https://polymarket.com/profile/${addr}`;
+const isAddress = (s: string) => /^0x[a-fA-F0-9]{40}$/.test(s.trim());
+
+const moneyClass = (n: number) => (n > 0 ? 'text-jtp-profit' : n < 0 ? 'text-jtp-loss' : 'text-jtp-textMuted');
+
+// ─── Spinner ──────────────────────────────────────────────────────────────────
+
+const Spinner: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={`animate-spin text-jtp-textDim ${className ?? 'w-4 h-4'}`}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+  </svg>
+);
+
+// ─── Market focus chip ────────────────────────────────────────────────────────
+
+const FocusChip: React.FC<{ label: string }> = ({ label }) =>
+  label ? (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-jtp-xs font-medium bg-jtp-active border border-jtp-border text-jtp-textMuted">
+      {label}
+    </span>
+  ) : (
+    <span className="text-jtp-textDim text-jtp-xs">—</span>
+  );
+
+// ─── Edge score badge ─────────────────────────────────────────────────────────
+
+const EdgeBadge: React.FC<{ score: number }> = ({ score }) => (
+  <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-jtp-sm font-semibold bg-[rgba(91,141,239,0.12)] text-jtp-blue border border-[rgba(91,141,239,0.2)]">
+    {score.toFixed(1)}
+  </span>
+);
+
+// ─── Wallet metric card (scan result) ─────────────────────────────────────────
+
+const Metric: React.FC<{ label: string; value: React.ReactNode; valueClass?: string }> = ({
+  label,
+  value,
+  valueClass,
+}) => (
+  <div className="flex flex-col gap-1">
+    <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">{label}</span>
+    <span className={`font-mono text-jtp-lg font-semibold ${valueClass ?? 'text-jtp-text'}`}>{value}</span>
+  </div>
+);
+
+const WalletCard: React.FC<{ wallet: PmWallet }> = ({ wallet }) => (
+  <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
+    <div className="px-5 py-4 border-b border-jtp-border flex items-center gap-3">
+      {wallet.profileImage ? (
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        <img
+          src={wallet.profileImage}
+          alt=""
+          className="w-9 h-9 rounded-full bg-jtp-active object-cover flex-shrink-0"
+        />
+      ) : (
+        <div className="w-9 h-9 rounded-full bg-jtp-active flex-shrink-0" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="text-jtp-base font-semibold text-jtp-text truncate">
+          {wallet.pseudonym || 'Unknown wallet'}
+        </div>
+        <div className="font-mono text-jtp-xs text-jtp-textDim truncate">
+          {truncateAddress(wallet.address)}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <EdgeBadge score={wallet.edgeScore} />
+        <a
+          href={profileUrl(wallet.address)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-jtp-xs font-medium text-jtp-blue hover:underline"
+        >
+          Polymarket ↗
+        </a>
+      </div>
+    </div>
+    <div className="px-5 py-5 grid grid-cols-2 sm:grid-cols-3 gap-y-5 gap-x-4">
+      <Metric label="PnL" value={fmtMoney(wallet.pnl)} valueClass={moneyClass(wallet.pnl)} />
+      <Metric label="Win Rate" value={fmtPct(wallet.winRate)} />
+      <Metric label="Volume" value={fmtMoney(wallet.volume)} />
+      <Metric label="Trades" value={fmtNum(wallet.tradeCount)} />
+      <Metric label="Edge Score" value={wallet.edgeScore.toFixed(1)} valueClass="text-jtp-blue" />
+      <div className="flex flex-col gap-1">
+        <span className="text-jtp-xs text-jtp-textDim uppercase tracking-wide">Market Focus</span>
+        <span className="mt-0.5">
+          <FocusChip label={wallet.marketFocus} />
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Main QuantPage ───────────────────────────────────────────────────────────
+
+const QuantPage: React.FC = () => {
+  const { getToken } = useAuth();
+
+  const [stats, setStats] = useState<{ total: number; scanned: number } | null>(null);
+  const [leaderboard, setLeaderboard] = useState<PmWallet[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [scanInput, setScanInput] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<PmWallet | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const [board, s] = await Promise.all([
+        api.quantLeaderboard(50, token),
+        api.quantStats(token),
+      ]);
+      setLeaderboard(board);
+      setStats(s);
+    } catch {
+      // keep prior state; surfaced via empty states below
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleScan = useCallback(
+    async (addrArg?: string) => {
+      const address = (addrArg ?? scanInput).trim();
+      setScanError(null);
+      if (!isAddress(address)) {
+        setScanError('Enter a valid Polymarket wallet address (0x followed by 40 hex characters).');
+        return;
+      }
+      setScanning(true);
+      setScanResult(null);
+      try {
+        const token = await getToken();
+        const wallet = await api.quantScan(address, token);
+        setScanResult(wallet);
+        // refresh leaderboard/stats so the freshly-scanned wallet appears
+        load();
+      } catch (e: any) {
+        setScanError(e?.message || 'Could not scan that wallet. Please try again.');
+      } finally {
+        setScanning(false);
+      }
+    },
+    [scanInput, getToken, load],
+  );
+
+  const handleRowClick = (wallet: PmWallet) => {
+    setScanInput(wallet.address);
+    setScanResult(wallet);
+    setScanError(null);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="space-y-5 animate-jtp-fade-in max-w-6xl">
+      {/* ── Header ── */}
+      <div>
+        <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
+          Quant — Polymarket Wallet Intelligence
+        </h1>
+        <p className="text-jtp-sm text-jtp-textMuted mt-1.5 max-w-2xl">
+          Edge Score = PnL adjusted for sample size and win rate — so lucky 3-trade flukes rank
+          below consistent edge.
+        </p>
+        <p className="text-jtp-xs text-jtp-textDim mt-2 font-mono">
+          {stats
+            ? `${fmtNum(stats.total)} wallets tracked · ${fmtNum(stats.scanned)} scanned`
+            : loading
+              ? 'Loading stats…'
+              : '— wallets tracked · — scanned'}
+        </p>
+      </div>
+
+      {/* ── Scan box ── */}
+      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
+        <div className="px-5 py-4 border-b border-jtp-border">
+          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">Scan a wallet</h2>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <form
+            className="flex flex-col sm:flex-row gap-2.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleScan();
+            }}
+          >
+            <input
+              type="text"
+              value={scanInput}
+              onChange={(e) => setScanInput(e.target.value)}
+              placeholder="Paste a Polymarket wallet address (0x…)"
+              spellCheck={false}
+              autoComplete="off"
+              className="flex-1 bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-3.5 py-2.5 text-jtp-sm font-mono text-jtp-text placeholder:text-jtp-textDim placeholder:font-sans focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={scanning}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-jtp-xl text-jtp-sm font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {scanning ? <Spinner /> : null}
+              {scanning ? 'Scanning…' : 'Scan'}
+            </button>
+          </form>
+
+          {scanError && (
+            <p role="alert" className="text-jtp-xs text-jtp-loss">
+              {scanError}
+            </p>
+          )}
+
+          {scanResult && <WalletCard wallet={scanResult} />}
+        </div>
+      </div>
+
+      {/* ── Leaderboard ── */}
+      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
+        <div className="px-5 py-4 border-b border-jtp-border flex items-center justify-between">
+          <h2 className="text-jtp-base font-semibold text-jtp-text tracking-tight">
+            Leaderboard
+          </h2>
+          <span className="text-jtp-xs text-jtp-textDim font-mono">Ranked by Edge Score</span>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-jtp-textDim">
+            <Spinner />
+            <span className="text-jtp-sm">Loading leaderboard…</span>
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2 text-center px-5">
+            <p className="text-jtp-sm text-jtp-textMuted font-medium">No wallets tracked yet</p>
+            <p className="text-jtp-xs text-jtp-textDim max-w-sm">
+              Scan a Polymarket wallet address above to start building the leaderboard.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-jtp-sm">
+              <thead>
+                <tr className="text-jtp-xs text-jtp-textDim uppercase tracking-wide border-b border-jtp-border">
+                  <th className="text-left font-medium px-5 py-2.5 w-12">#</th>
+                  <th className="text-left font-medium px-3 py-2.5">Wallet</th>
+                  <th className="text-right font-medium px-3 py-2.5">Edge</th>
+                  <th className="text-right font-medium px-3 py-2.5">PnL</th>
+                  <th className="text-right font-medium px-3 py-2.5">Win Rate</th>
+                  <th className="text-right font-medium px-3 py-2.5">Trades</th>
+                  <th className="text-right font-medium px-3 py-2.5">Volume</th>
+                  <th className="text-left font-medium px-3 py-2.5 pr-5">Focus</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((w, i) => (
+                  <tr
+                    key={w.id || w.address}
+                    onClick={() => handleRowClick(w)}
+                    className="border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover cursor-pointer transition-colors"
+                  >
+                    <td className="px-5 py-3 font-mono text-jtp-textDim">{i + 1}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {w.profileImage ? (
+                          <img
+                            src={w.profileImage}
+                            alt=""
+                            className="w-6 h-6 rounded-full bg-jtp-active object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-jtp-active flex-shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-jtp-text font-medium truncate">
+                            {w.pseudonym || 'Unknown'}
+                          </div>
+                          <div className="font-mono text-jtp-xs text-jtp-textDim truncate">
+                            {truncateAddress(w.address)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <EdgeBadge score={w.edgeScore} />
+                    </td>
+                    <td className={`px-3 py-3 text-right font-mono ${moneyClass(w.pnl)}`}>
+                      {fmtMoney(w.pnl)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono text-jtp-textMuted">
+                      {fmtPct(w.winRate)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono text-jtp-textMuted">
+                      {fmtNum(w.tradeCount)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono text-jtp-textMuted">
+                      {fmtMoney(w.volume)}
+                    </td>
+                    <td className="px-3 py-3 pr-5">
+                      <FocusChip label={w.marketFocus} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default QuantPage;

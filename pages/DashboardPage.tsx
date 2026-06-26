@@ -17,6 +17,7 @@ import NotebookPage from './NotebookPage';
 import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 import { useTrade } from '../context/TradeContext';
 import BotPage from './BotPage';
+import QuantPage from './QuantPage';
 
 export type DashboardView =
   | 'dashboard'
@@ -24,6 +25,7 @@ export type DashboardView =
   | 'notebook'
   | 'playbooks'
   | 'analytics'
+  | 'quant'
   | 'personalisation'
   | 'settings'
   | 'subscription'
@@ -38,6 +40,7 @@ const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
   notebook:         { title: 'Notebook',    subtitle: 'Daily reflections & notes' },
   analytics:        { title: 'Analytics',   subtitle: 'What your edge is made of' },
   playbooks:        { title: 'Playbooks',   subtitle: 'Your setups, measured' },
+  quant:            { title: 'Quant',       subtitle: 'Polymarket wallet intelligence' },
   settings:         { title: 'Settings',    subtitle: 'Profile & configuration' },
   personalisation:  { title: 'Personalisation', subtitle: '' },
   subscription:     { title: 'Subscription', subtitle: '' },
@@ -156,6 +159,7 @@ const DashboardPage: React.FC = () => {
       case 'notebook':         return <NotebookPage />;
       case 'playbooks':        return <PlaybooksPage />;
       case 'analytics':        return <AnalyticsPage />;
+      case 'quant':            return <QuantPage />;
       case 'personalisation':  return <PersonalisationPage />;
       case 'settings':         return <SettingsPage />;
       case 'subscription':     return <SubscriptionPage />;

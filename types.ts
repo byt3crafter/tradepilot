@@ -530,6 +530,24 @@ export interface CreatePropFirmTemplateDto {
   isActive?: boolean;
 }
 
+// --- Quant (Polymarket wallet intelligence) ---
+
+export interface PmWallet {
+  id: string;
+  address: string;
+  pseudonym: string;
+  profileImage: string;
+  pnl: number;
+  realizedPnl: number;
+  volume: number;
+  positionsValue: number;
+  tradeCount: number;
+  winRate: number;        // 0..1
+  edgeScore: number;
+  marketFocus: string;
+  lastScanned: string;    // ISO date string
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {

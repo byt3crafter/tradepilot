@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -136,6 +136,12 @@ export interface ApiService {
   ctraderConnect(token: string): Promise<{ url: string }>;
   ctraderStatus(token: string): Promise<{ connected: boolean; configured: boolean; expiresAt?: string; scope?: string; connectedAt?: string }>;
   ctraderDisconnect(token: string): Promise<{ disconnected: true }>;
+
+  // Quant (Polymarket wallet intelligence)
+  quantLeaderboard(limit?: number, token?: string | null): Promise<PmWallet[]>;
+  quantStats(token?: string | null): Promise<{ total: number; scanned: number }>;
+  quantWallet(address: string, token?: string | null): Promise<PmWallet>;
+  quantScan(address: string, token?: string | null): Promise<PmWallet>;
 }
 
 const buildHeaders = (token?: string | null): HeadersInit => {
@@ -331,6 +337,15 @@ const api: ApiService = {
   ctraderConnect(token: string): Promise<{ url: string }> { return this.get('/api/ctrader/connect', token); },
   ctraderStatus(token: string): Promise<{ connected: boolean; configured: boolean; expiresAt?: string; scope?: string; connectedAt?: string }> { return this.get('/api/ctrader/status', token); },
   ctraderDisconnect(token: string): Promise<{ disconnected: true }> { return this.post('/api/ctrader/disconnect', {}, token); },
+
+  // Quant Methods (Polymarket wallet intelligence)
+  quantLeaderboard(limit?: number, token?: string | null): Promise<PmWallet[]> {
+    const query = limit !== undefined ? `?limit=${limit}` : '';
+    return this.get(`/api/quant/leaderboard${query}`, token);
+  },
+  quantStats(token?: string | null): Promise<{ total: number; scanned: number }> { return this.get('/api/quant/stats', token); },
+  quantWallet(address: string, token?: string | null): Promise<PmWallet> { return this.get(`/api/quant/wallet/${address}`, token); },
+  quantScan(address: string, token?: string | null): Promise<PmWallet> { return this.post('/api/quant/scan', { address }, token); },
 };
 
 export default api;
