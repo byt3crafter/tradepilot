@@ -37,4 +37,40 @@ export class PolymarketClient {
     const d = await this.get(`/value?user=${address}`);
     return Array.isArray(d) && d[0]?.value ? Number(d[0].value) : 0;
   }
+
+  /**
+   * Resolution status for markets, via gamma. Returns a map conditionId ->
+   * { closed, winningIndex, outcomePrices }. Fetched in chunks.
+   */
+  async marketResolutions(
+    conditionIds: string[],
+  ): Promise<Record<string, { closed: boolean; winningIndex: number | null; outcomePrices: string | null }>> {
+    const out: Record<string, { closed: boolean; winningIndex: number | null; outcomePrices: string | null }> = {};
+    const chunk = 20;
+    for (let i = 0; i < conditionIds.length; i += chunk) {
+      const ids = conditionIds.slice(i, i + chunk);
+      const qs = ids.map((c) => `condition_ids=${c}`).join('&');
+      try {
+        const res = await fetch(`https://gamma-api.polymarket.com/markets?${qs}&limit=${chunk}`, {
+          headers: { 'User-Agent': 'JTradePilot/1.0' },
+        });
+        if (!res.ok) continue;
+        const markets: any[] = await res.json();
+        for (const m of markets || []) {
+          const cid = m.conditionId;
+          if (!cid) continue;
+          let prices: number[] = [];
+          try { prices = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { /* ignore */ }
+          const winningIndex = m.closed ? prices.findIndex((p) => p >= 0.99) : null;
+          out[cid] = {
+            closed: !!m.closed,
+            winningIndex: winningIndex != null && winningIndex >= 0 ? winningIndex : null,
+            outcomePrices: m.outcomePrices || null,
+          };
+        }
+      } catch { /* skip chunk */ }
+    }
+    return out;
+  }
 }
+

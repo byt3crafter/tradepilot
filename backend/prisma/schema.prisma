@@ -59,21 +59,40 @@ model PmWallet {
   address        String    @unique
   pseudonym      String?
   profileImage   String?
-  pnl            Float     @default(0) // realized + unrealized (approx, from positions)
+  // legacy / secondary metrics
+  pnl            Float     @default(0) // realized PnL from closed positions
   realizedPnl    Float     @default(0)
   volume         Float     @default(0)
   positionsValue Float     @default(0)
   tradeCount     Int       @default(0)
   winRate        Float     @default(0)
-  edgeScore      Float     @default(0) // PnL adjusted for sample size + win rate
   marketFocus    String?
+  // EdgeScore engine (primary): realized edge-per-trade vs the market's implied price
+  nClosed        Int       @default(0)  // closed positions scored
+  nEff           Float     @default(0)  // effective (clustered) sample size
+  meanEdge       Float     @default(0)  // mean realized edge per share
+  stdEdge        Float     @default(0)
+  edgeLcb        Float     @default(0)  // mean - 1.64*SE  (one-sided 95% lower bound) — PRIMARY RANKER
+  dollarEdge     Float     @default(0)  // notional-weighted mean edge
+  edgeScore      Float     @default(0)  // mirror of edgeLcb (kept for the frontend contract)
+  qualified      Boolean   @default(false) // nClosed >= display threshold
   scanned        Boolean   @default(false)
   firstSeen      DateTime  @default(now())
   lastScanned    DateTime?
   updatedAt      DateTime  @updatedAt
 
-  @@index([edgeScore])
+  @@index([edgeLcb])
   @@index([scanned])
+  @@index([qualified])
+}
+
+// Cache of market resolutions (fetched once globally, not per wallet).
+model PmMarket {
+  conditionId   String   @id
+  closed        Boolean  @default(false)
+  winningIndex  Int?     // index into outcomes whose price resolved to 1
+  outcomePrices String?  // raw JSON, e.g. ["1","0"]
+  fetchedAt     DateTime @default(now())
 }
 
 model CtraderConnection {
