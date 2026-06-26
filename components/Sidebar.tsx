@@ -267,7 +267,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, isSubscribed, logout, botEnabled } = useAuth();
+  const { user, isSubscribed, logout, botEnabled, quantEnabled } = useAuth();
   const { currentView, navigateTo } = useView();
   const { isSidebarCollapsed } = useUI();
   const { activeAccount } = useAccount();
@@ -399,13 +399,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 isCollapsed={isSidebarCollapsed}
                 onClick={() => handleNav('playbooks')}
               />
-              <NavItem
-                icon={<QuantSvg />}
-                label="Quant"
-                isActive={currentView === 'quant'}
-                isCollapsed={isSidebarCollapsed}
-                onClick={() => handleNav('quant')}
-              />
+              {quantEnabled && (
+                <NavItem
+                  icon={<QuantSvg />}
+                  label="Quant"
+                  isActive={currentView === 'quant'}
+                  isCollapsed={isSidebarCollapsed}
+                  onClick={() => handleNav('quant')}
+                />
+              )}
               {botEnabled && (
                 <NavItem
                   icon={<BotSvg />}

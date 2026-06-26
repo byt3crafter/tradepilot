@@ -21,6 +21,7 @@ export interface User {
   };
   isLifetimeAccess?: boolean;
   botEnabled?: boolean;
+  quantEnabled?: boolean;
 }
 
 export enum BrokerAccountType {
@@ -278,6 +279,7 @@ export interface AdminUser {
   apiUsageTokens: number;
   lastApiUsage: string | null;
   botEnabled?: boolean;
+  quantEnabled?: boolean;
 }
 
 // Trading Objectives Progress Type

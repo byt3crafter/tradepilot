@@ -18,6 +18,8 @@ interface AuthContextType {
   freeMode: boolean;
   /** True when the current user has the trading bot enabled (from DB via /me). */
   botEnabled: boolean;
+  /** True when the current user has the Quant section enabled (from DB via /me). */
+  quantEnabled: boolean;
   logout: () => void;
   refreshUser: () => Promise<User | undefined>;
   updateUserPreferences: (prefs: { useGravatar?: boolean }) => Promise<void>;
@@ -33,6 +35,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // DB-sourced overrides fetched from /me — null means "not yet loaded"
   const [meRole, setMeRole] = useState<'USER' | 'ADMIN' | null>(null);
   const [meBotEnabled, setMeBotEnabled] = useState(false);
+  const [meQuantEnabled, setMeQuantEnabled] = useState(false);
 
   // Keep the access token fresh in the context state
   useEffect(() => {
@@ -71,6 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setFreeMode(false);
       setMeRole(null);
       setMeBotEnabled(false);
+      setMeQuantEnabled(false);
       return;
     }
     let cancelled = false;
@@ -83,12 +87,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setMeRole(me.role);
         }
         setMeBotEnabled((me as any).botEnabled ?? false);
+        setMeQuantEnabled((me as any).quantEnabled ?? false);
       })
       .catch(() => {
         if (cancelled) return;
         setFreeMode(false);
         setMeRole(null);
         setMeBotEnabled(false);
+        setMeQuantEnabled(false);
       });
     return () => { cancelled = true; };
   }, [accessToken]);
@@ -119,8 +125,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       preferences: (clerkUser.unsafeMetadata?.preferences as any) || { useGravatar: false },
       isLifetimeAccess: (clerkUser.publicMetadata?.isLifetimeAccess as boolean) || false,
       botEnabled: meBotEnabled,
+      quantEnabled: meQuantEnabled,
     };
-  }, [clerkUser, meRole, meBotEnabled]);
+  }, [clerkUser, meRole, meBotEnabled, meQuantEnabled]);
 
   const logout = () => { signOut(); };
 
@@ -211,6 +218,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isTrialExpired: false,
       freeMode: false,
       botEnabled: true,
+      quantEnabled: true,
       logout: () => {},
       refreshUser: async () => DEV_MOCK_USER,
       getToken: async () => DEV_AUTH_TOKEN,
@@ -227,6 +235,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ...subscriptionState,
     freeMode,
     botEnabled: meBotEnabled,
+    quantEnabled: meQuantEnabled,
     logout,
     refreshUser,
     getToken,
