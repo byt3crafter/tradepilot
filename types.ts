@@ -528,3 +528,15 @@ export interface CreatePropFirmTemplateDto {
   consistencyRule?: number;
   isActive?: boolean;
 }
+
+// --- Notebook ---
+
+export interface NotebookEntry {
+  id: string;
+  date: string;        // ISO date string, e.g. "2026-06-25"
+  title: string | null;
+  content: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
