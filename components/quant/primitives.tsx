@@ -40,6 +40,18 @@ export const fmtUsd = (n: number) => {
 };
 
 export const fmtPct = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : '—');
+
+/** Compact relative time since an ISO timestamp, e.g. "12s", "4m", "3h", "2d". */
+export const relTime = (iso?: string) => {
+  if (!iso) return '—';
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '—';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return `${Math.floor(s)}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
+};
 export const fmtCents = (edgePerShare: number) =>
   Number.isFinite(edgePerShare) ? `${(edgePerShare * 100).toFixed(1)}¢` : '—';
 

@@ -29,7 +29,7 @@ const QuantTerminal: React.FC = () => {
   const [selected, setSelected] = useState<PmWallet | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  // ── Live feed (ticker tape) — refresh ~10s ──
+  // ── Live feed (ticker tape) — refresh ~4s ──
   const loadFeed = useCallback(async () => {
     try {
       const token = await getToken();
@@ -43,7 +43,7 @@ const QuantTerminal: React.FC = () => {
     }
   }, [getToken]);
 
-  // ── Leaderboard + stats — refresh ~30s ──
+  // ── Leaderboard + stats — refresh ~12s ──
   const loadBoard = useCallback(async () => {
     try {
       const token = await getToken();
@@ -64,8 +64,8 @@ const QuantTerminal: React.FC = () => {
     loadBoard();
   }, [loadFeed, loadBoard]);
 
-  useInterval(loadFeed, 10000);
-  useInterval(loadBoard, 30000);
+  useInterval(loadFeed, 4000);
+  useInterval(loadBoard, 12000);
 
   return (
     <div className="qt-root animate-jtp-fade-in -mx-1 space-y-2 text-[var(--qt-text)]">
@@ -84,6 +84,7 @@ const QuantTerminal: React.FC = () => {
             loading={boardLoading}
             selected={selected?.address}
             onSelect={setSelected}
+            lastUpdate={lastUpdate}
           />
         </div>
 

@@ -47,7 +47,7 @@
   display: inline-block;
   white-space: nowrap;
   will-change: transform;
-  animation: qt-marquee 60s linear infinite;
+  animation: qt-marquee 160s linear infinite;
 }
 .qt-ticker-mask:hover .qt-ticker-track {
   animation-play-state: paused;

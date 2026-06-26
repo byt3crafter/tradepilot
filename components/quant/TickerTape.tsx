@@ -23,6 +23,10 @@ const TickerTape: React.FC<{ feed: QuantFeedItem[]; loading: boolean }> = ({ fee
   // Duplicate the list so the -50% marquee loop is seamless.
   const doubled = useMemo(() => (feed.length ? [...feed, ...feed] : []), [feed]);
 
+  // Tie the loop duration to item count so it's always a steady, readable crawl
+  // (~4.5s per item) — roughly 2.5–3x slower than the old fixed 60s loop.
+  const durationS = useMemo(() => Math.max(80, Math.round(feed.length * 4.5)), [feed.length]);
+
   return (
     <div className="qt-panel flex items-stretch h-9 overflow-hidden">
       <div className="flex items-center gap-1.5 px-3 border-r border-[var(--qt-border-bright)] bg-[#0c0f12] flex-shrink-0">
@@ -35,7 +39,7 @@ const TickerTape: React.FC<{ feed: QuantFeedItem[]; loading: boolean }> = ({ fee
             {loading ? 'Streaming live trades…' : 'No live trades on the wire right now.'}
           </span>
         ) : (
-          <div className="qt-ticker-track">
+          <div className="qt-ticker-track" style={{ animationDuration: `${durationS}s` }}>
             {doubled.map((t, i) => (
               <Item key={`${t.wallet}-${t.ts}-${i}`} t={t} />
             ))}
