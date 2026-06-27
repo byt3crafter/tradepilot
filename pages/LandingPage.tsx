@@ -317,7 +317,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
   }, []);
 
   return (
-    <div className="w-full min-h-screen bg-jtp-bg text-jtp-text overflow-x-hidden">
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-jtp-bg text-jtp-text">
 
       {/* 1. Nav */}
       <MarketingNav
