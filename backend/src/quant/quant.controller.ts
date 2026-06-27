@@ -28,8 +28,12 @@ export class QuantController {
   }
 
   @Get('simulation')
-  simulation(@Query('bankroll') bankroll?: string, @Query('risk') risk?: string) {
-    return this.quant.simulate(bankroll ? parseFloat(bankroll) : 50, risk ? parseFloat(risk) : 0.05);
+  simulation(@Query('bankroll') bankroll?: string, @Query('risk') risk?: string, @Query('sample') sample?: string) {
+    return this.quant.simulate(
+      bankroll ? parseFloat(bankroll) : 50,
+      risk ? parseFloat(risk) : 0.05,
+      sample === 'historical' ? 'historical' : 'live',
+    );
   }
 
   @Get('feed')

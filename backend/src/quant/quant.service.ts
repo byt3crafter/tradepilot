@@ -456,11 +456,19 @@ export class QuantService implements OnApplicationBootstrap {
    * decisions at risk-fraction per trade, what would you have now?" Computes a
    * compounding equity curve over resolved decisions in time order.
    */
-  async simulate(bankroll = 50, risk = 0.05) {
+  /**
+   * sample: 'live' = honest out-of-sample (forward paper loop only, decisions logged
+   * BEFORE resolution); 'historical' = in-sample backfill (HINDSIGHT — the wallets'
+   * own already-won trades, optimistic, NOT achievable). Default 'live'.
+   * Includes a fees+slippage haircut per trade for realism.
+   */
+  async simulate(bankroll = 50, risk = 0.05, sample: 'live' | 'historical' = 'live') {
     const start = Math.max(1, bankroll);
     const frac = Math.min(Math.max(risk, 0.005), 0.5);
+    const FEE = 0.02; // per-trade fee + slippage haircut (fraction of stake)
+    const modeFilter = sample === 'historical' ? { mode: 'backfill' } : { mode: { not: 'backfill' } };
     const outs = await this.prisma.agentOutcome.findMany({
-      where: { decision: { kind: 'paper_copy' } },
+      where: { decision: { kind: 'paper_copy', ...modeFilter } },
       include: { decision: { select: { meta: true } } },
       take: 5000,
     });
@@ -475,7 +483,7 @@ export class QuantService implements OnApplicationBootstrap {
     const curve: { t: number; balance: number }[] = [];
     for (const it of items) {
       const stake = bal * frac;
-      bal = Math.max(0, bal + stake * it.roi);
+      bal = Math.max(0, bal + stake * it.roi - stake * FEE); // pnl minus fee/slippage
       if (it.win) wins++;
       peak = Math.max(peak, bal);
       maxDD = Math.max(maxDD, peak > 0 ? (peak - bal) / peak : 0);
@@ -483,6 +491,7 @@ export class QuantService implements OnApplicationBootstrap {
     }
     const n = items.length;
     return {
+      sample,
       startBalance: start,
       finalBalance: +bal.toFixed(2),
       returnPct: +(((bal - start) / start) * 100).toFixed(1),
@@ -491,6 +500,9 @@ export class QuantService implements OnApplicationBootstrap {
       maxDrawdownPct: +(maxDD * 100).toFixed(1),
       riskFraction: frac,
       curve: curve.slice(-500),
+      note: sample === 'historical'
+        ? 'HINDSIGHT backtest — copies the wallets\' own already-won past trades. Optimistic and NOT achievable forward.'
+        : 'Out-of-sample: forward copy signals logged before the market resolved. The honest test.',
     };
   }
 
