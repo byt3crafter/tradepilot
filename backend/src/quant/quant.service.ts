@@ -348,7 +348,10 @@ export class QuantService implements OnApplicationBootstrap {
     const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
     // Measured leak (paper): Mixed (-18% ROI, 33% win) and Politics (-3.9%, 38%) are the
     // only negative-ROI focuses; everything else is positive. Skip those wallets' signals.
-    const FOCUS_BLOCK = new Set(['Mixed', 'Politics']);
+    // Forward (out-of-sample) measured: Sports +28%, BTC/Crypto Up-Down positive; but
+    // Weather (-57%) and Crypto Price (-100%) LOSE forward (they were in-sample illusions),
+    // and Mixed/Politics also negative. Copy only the forward-positive focuses.
+    const FOCUS_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price']);
     const okWallet = new Set(
       (await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true, marketFocus: true } }))
         .filter((w) => !FOCUS_BLOCK.has(w.marketFocus || 'Mixed'))
