@@ -342,13 +342,18 @@ export class QuantService implements OnApplicationBootstrap {
     const trades = await this.pm.recentTrades(200);
     if (!trades.length) return 0;
     const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
-    const qualified = new Set(
-      (await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true } })).map((w) => w.address),
+    // Measured leak (paper): Mixed (-18% ROI, 33% win) and Politics (-3.9%, 38%) are the
+    // only negative-ROI focuses; everything else is positive. Skip those wallets' signals.
+    const FOCUS_BLOCK = new Set(['Mixed', 'Politics']);
+    const okWallet = new Set(
+      (await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true, marketFocus: true } }))
+        .filter((w) => !FOCUS_BLOCK.has(w.marketFocus || 'Mixed'))
+        .map((w) => w.address),
     );
     let created = 0;
     for (const t of trades) {
       const addr = String(t.proxyWallet || '').toLowerCase();
-      if (!qualified.has(addr)) continue;
+      if (!okWallet.has(addr)) continue;
       if (String(t.side).toUpperCase() !== 'BUY') continue; // copy entries only
       const price = Number(t.price);
       if (!(price > 0.02 && price < 0.98)) continue; // skip near-resolved
