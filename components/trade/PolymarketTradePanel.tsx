@@ -570,12 +570,12 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
       )}
 
       {/* ── Three-column canvas ── */}
-      <div className="flex gap-3 items-start">
+      <div className="flex flex-col lg:flex-row gap-3 lg:items-start">
 
         {/* ════════════════════════════════════════════════════════════
             LEFT — market browser (search + market cards)
         ════════════════════════════════════════════════════════════ */}
-        <aside className="w-[220px] flex-shrink-0 flex flex-col gap-3">
+        <aside className="w-full lg:w-[220px] lg:flex-shrink-0 flex flex-col gap-3">
           <Panel label="MARKETS" noPadding>
             {/* Search input — inside panel body, p-3 */}
             <div className="p-3 border-b border-jtp-border">
@@ -995,7 +995,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
         {/* ════════════════════════════════════════════════════════════
             RIGHT — wallet / session status + order results
         ════════════════════════════════════════════════════════════ */}
-        <aside className="w-[280px] flex-shrink-0 flex flex-col gap-3">
+        <aside className="w-full lg:w-[280px] lg:flex-shrink-0 flex flex-col gap-3">
           <Panel label="WALLET">
             <div className="space-y-4">
               {!hasWallet ? (

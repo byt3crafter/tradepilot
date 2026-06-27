@@ -46,7 +46,7 @@ const Panel: React.FC<PanelProps> = ({
   >
     {/* Console header — amber top-accent + terminal label */}
     <header
-      className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-[9px] border-b border-jtp-border relative"
+      className="flex-shrink-0 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-[9px] border-b border-jtp-border relative"
       style={{ borderTop: '2px solid rgba(232,162,61,0.55)' }}
     >
       <span className="jtp-label select-none tracking-[0.12em]">
