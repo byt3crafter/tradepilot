@@ -95,6 +95,24 @@ export class PolymarketClient {
     return out;
   }
 
+  /** End timestamps (ms) per conditionId, via gamma — for short-horizon signal biasing. */
+  async marketEndDates(conditionIds: string[]): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    const chunk = 20;
+    for (let i = 0; i < conditionIds.length; i += chunk) {
+      const ids = conditionIds.slice(i, i + chunk);
+      const qs = ids.map((c) => `condition_ids=${c}`).join('&');
+      const d = await this.gget(`https://gamma-api.polymarket.com/markets?${qs}&limit=${chunk}`);
+      for (const m of d || []) {
+        if (m?.conditionId && m?.endDate) {
+          const t = Date.parse(m.endDate);
+          if (!isNaN(t)) out[m.conditionId] = t;
+        }
+      }
+    }
+    return out;
+  }
+
   /**
    * Resolution status for markets, via gamma. Returns a map conditionId ->
    * { closed, winningIndex, outcomePrices }. Fetched in chunks.
