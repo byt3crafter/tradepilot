@@ -1,3 +1,10 @@
+/*
+  Font loading:
+  - Inter (body / prose) ─ loaded via index.html Google Fonts link
+  - JetBrains Mono (data / numbers) ─ loaded here for reliable CSS-level availability
+*/
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,8 +15,15 @@
   Layout: viewport-locked. html/body/#root all take 100vh.
   Only individual scroll containers scroll (main content, drawers, tables).
 
-  Legibility rule: body ≥ 14px. Numbers use JetBrains Mono at high contrast.
-  Money = profit green or loss red, always bold, always mono.
+  Bloomberg/terminal type strategy:
+    BODY (default): Inter — proportional, for descriptive text, modal copy,
+                    form hints, journal notes, explanatory paragraphs.
+    DATA / MONO:    JetBrains Mono — all numbers, prices, P&L, table cells,
+                    nav labels, panel headers, tickers, codes, status text,
+                    badges. Use font-mono or .jtp-num/.jtp-label utilities.
+
+  Money = profit green (#3ddc84) or loss red (#ff5b52), always bold mono,
+  always paired with a ▲/▼ glyph for CVD (colour-vision deficiency) safety.
 */
 
 html {
@@ -20,10 +34,10 @@ html {
 
 body {
   font-family: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 14px;                  /* minimum body text size — never go below this */
+  font-size: 13px;
   line-height: 1.5;
-  background-color: #0b0c0e;
-  color: #e8eaed;
+  background-color: #08090b;
+  color: #e6e9ee;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   height: 100vh !important;
@@ -44,8 +58,8 @@ body {
 /* ── Scrollbars — thin, dark, console style ────────────────────────────────── */
 ::-webkit-scrollbar        { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: #232931; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #323942; }
+::-webkit-scrollbar-thumb  { background: #262c34; border-radius: 1px; }
+::-webkit-scrollbar-thumb:hover { background: #e8a23d; }
 
 /* ── Number / money rendering ──────────────────────────────────────────────── */
 /*
@@ -69,7 +83,7 @@ body {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #6b7280;
+  color: #69727c;
   line-height: 1.2;
 }
 
@@ -86,12 +100,16 @@ body {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.35; }
 }
+@keyframes blinkCursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
 
 .status-dot-live {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4cc38a;
+  background: #3ddc84;
   animation: statusPulse 2.4s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -99,21 +117,21 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #d9a23b;
+  background: #e8a23d;
   flex-shrink: 0;
 }
 .status-dot-dead {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #e5635f;
+  background: #ff5b52;
   flex-shrink: 0;
 }
 .status-dot-idle {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #6b7280;
+  background: #404850;
   flex-shrink: 0;
 }
 
@@ -122,6 +140,34 @@ body {
   background: rgba(8, 9, 10, 0.8);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ── Amber glow utility ────────────────────────────────────────────────────── */
+.amber-glow {
+  box-shadow: 0 0 8px rgba(232,162,61,0.3), 0 0 2px rgba(232,162,61,0.5);
+}
+
+/* ── Terminal cursor ───────────────────────────────────────────────────────── */
+.terminal-cursor::after {
+  content: '▊';
+  color: #e8a23d;
+  animation: blinkCursor 1s step-end infinite;
+  margin-left: 2px;
+}
+
+/* ── Panel header amber accent ─────────────────────────────────────────────── */
+.panel-header-accent {
+  position: relative;
+}
+.panel-header-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e8a23d;
+  opacity: 0.6;
 }
 
 /* ── Form controls — dark overrides ───────────────────────────────────────── */

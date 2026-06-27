@@ -20,7 +20,7 @@ import Checkbox from './ui/Checkbox';
 import JtpHistoryRow from './journal/JtpHistoryRow';
 import CalendarHeatmap from './journal/CalendarHeatmap';
 import TradeDetail from './journal/TradeDetail';
-import { Tabs, SegmentedControl, Panel, EmptyState } from './ui';
+import { Tabs, SegmentedControl, Panel, EmptyState, StatTile } from './ui';
 
 type TradeView = 'live' | 'pending' | 'history' | 'calendar';
 type AddTradeStep = 'closed' | 'form';
@@ -42,7 +42,8 @@ const resolveSetupName = (
   return pb.name;
 };
 
-const fmtPL = (v: number) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
+const fmtPL = (v: number) =>
+  v > 0 ? `▲ +$${v.toFixed(2)}` : v < 0 ? `▼ -$${Math.abs(v).toFixed(2)}` : `$0.00`;
 
 // ─── History column headers ───────────────────────────────────────────────────
 const HISTORY_COLS: Array<{ label: string; align?: string; className?: string }> = [
@@ -438,10 +439,63 @@ const TradeJournal: React.FC = () => {
       {/* ── HISTORY VIEW ─────────────────────────────────────────────────── */}
       {currentView === 'history' && !selectedTrade && (
         <>
-          {/* Toolbar */}
-          <div className="flex items-center gap-2.5 flex-wrap pt-4 pb-0">
+          {/* ── Summary strip ──────────────────────────────────────────────── */}
+          {activeAccount && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+              <StatTile
+                label="NET P&L"
+                value={fmtPL(summary.netPL)}
+                valueColor={
+                  summary.netPL > 0
+                    ? 'text-jtp-profit'
+                    : summary.netPL < 0
+                    ? 'text-jtp-loss'
+                    : 'text-jtp-text'
+                }
+                subValue={`${summary.total} trade${summary.total !== 1 ? 's' : ''}`}
+              />
+              <StatTile
+                label="WIN RATE"
+                value={summary.winRate}
+                subValue="closed"
+              />
+              <StatTile
+                label="TRADES"
+                value={String(summary.total)}
+                subValue={
+                  dateFilter === 'all-time'
+                    ? 'all time'
+                    : dateFilter === 'custom-range'
+                    ? 'custom range'
+                    : dateFilter.replace(/-/g, ' ')
+                }
+              />
+              <StatTile
+                label="AVG R"
+                value={
+                  summary.avgR != null
+                    ? summary.avgR > 0
+                      ? `▲ +${summary.avgR.toFixed(2)} R`
+                      : summary.avgR < 0
+                      ? `▼ ${summary.avgR.toFixed(2)} R`
+                      : `${summary.avgR.toFixed(2)} R`
+                    : '—'
+                }
+                valueColor={
+                  summary.avgR != null && summary.avgR > 0
+                    ? 'text-jtp-profit'
+                    : summary.avgR != null && summary.avgR < 0
+                    ? 'text-jtp-loss'
+                    : 'text-jtp-text'
+                }
+              />
+            </div>
+          )}
+
+          {/* ── Filter bar ─────────────────────────────────────────────────── */}
+          <div className={`bg-jtp-control border border-jtp-border rounded-[2px] px-3 py-2 flex items-center gap-2.5 flex-wrap ${activeAccount ? 'mt-3' : 'mt-4'}`}>
             {/* Search */}
-            <div className="flex items-center gap-2 px-[11px] py-[7px] bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl min-w-[220px] flex-1 max-w-[320px]">
+            <div className="flex items-center gap-2 px-[9px] py-[5px] bg-jtp-raised border border-jtp-borderStrong rounded-[2px] min-w-[200px] flex-1 max-w-[300px]">
               <span className="text-jtp-textDim text-jtp-lg">⌕</span>
               <input
                 value={searchQuery}
@@ -602,7 +656,7 @@ const TradeJournal: React.FC = () => {
                       </td>
                       {/* REAL R value */}
                       <td
-                        className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus ${
+                        className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus tabular-nums ${
                           summary.avgR != null && summary.avgR > 0
                             ? 'text-jtp-profit'
                             : summary.avgR != null && summary.avgR < 0
@@ -611,14 +665,18 @@ const TradeJournal: React.FC = () => {
                         }`}
                       >
                         {summary.avgR != null
-                          ? `${summary.avgR >= 0 ? '+' : ''}${summary.avgR.toFixed(2)} R`
+                          ? summary.avgR > 0
+                            ? `▲ +${summary.avgR.toFixed(2)} R`
+                            : summary.avgR < 0
+                            ? `▼ ${summary.avgR.toFixed(2)} R`
+                            : `${summary.avgR.toFixed(2)} R`
                           : '—'}
                       </td>
                       {/* RESULT — blank */}
                       <td />
                       {/* NET P&L total */}
                       <td
-                        className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus ${
+                        className={`px-3 py-[11px] text-right font-mono font-semibold text-jtp-base-minus tabular-nums ${
                           summary.netPL > 0
                             ? 'text-jtp-profit'
                             : summary.netPL < 0

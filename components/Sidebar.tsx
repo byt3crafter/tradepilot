@@ -196,7 +196,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
                 onClick={() => { switchAccount(acc.id); setIsOpen(false); }}
                 className={`w-full text-left px-3 py-2 text-jtp-base-minus rounded-jtp-xl transition-colors ${
                   acc.id === activeAccount.id
-                    ? 'text-jtp-blue bg-[rgba(91,141,239,0.1)]'
+                    ? 'text-jtp-blue bg-[rgba(232,162,61,0.1)]'
                     : 'text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
                 }`}
               >
@@ -242,13 +242,13 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, badge, isActive, isColla
     onClick={onClick}
     className={`w-full flex items-center gap-[11px] px-[10px] py-[8px] rounded-jtp-xl border-none cursor-pointer text-left text-jtp-md font-medium transition-colors ${
       isActive
-        ? 'bg-[rgba(91,141,239,0.10)] text-jtp-blue'
+        ? 'text-jtp-blue'
         : 'bg-transparent text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text'
     } ${isCollapsed ? 'justify-center' : ''}`}
     title={isCollapsed ? label : undefined}
     aria-current={isActive ? 'page' : undefined}
     /* Left rail accent via inset box-shadow — stays within border-radius */
-    style={isActive ? { boxShadow: 'inset 2px 0 0 #5b8def' } : undefined}
+    style={isActive ? { boxShadow: 'inset 3px 0 0 #e8a23d', backgroundColor: 'rgba(232,162,61,0.08)' } : undefined}
   >
     <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center">{icon}</span>
     {!isCollapsed && (
@@ -339,8 +339,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             style={{
               width: '24px',
               height: '24px',
-              background: 'linear-gradient(135deg, #5b8def 0%, #3f6fd6 100%)',
-              boxShadow: '0 0 8px rgba(91,141,239,0.35)',
+              background: 'linear-gradient(135deg, #e8a23d 0%, #c47e1e 100%)',
+              boxShadow: '0 0 8px rgba(232,162,61,0.35)',
             }}
           >
             <div
@@ -361,7 +361,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 className="font-mono text-jtp-2xs text-jtp-textDim uppercase tracking-[0.08em]"
                 style={{ marginTop: '2px' }}
               >
-                Operator Console
+                PRO TRADING TERMINAL
               </span>
             </div>
           )}

@@ -73,12 +73,12 @@ function DataTable<T extends Record<string, any>>({
       <table className="w-full border-collapse" style={{ fontSize: '13px' }}>
         {/* Sticky header */}
         <thead className="sticky top-0 z-10 bg-jtp-raised">
-          <tr className="border-b border-jtp-border">
+          <tr style={{ borderBottom: '1px solid rgba(232,162,61,0.3)' }}>
             {columns.map((col) => (
               <th
                 key={col.key}
                 scope="col"
-                className={`px-3 py-[8px] jtp-label whitespace-nowrap font-medium ${alignClass(col.align)}`}
+                className={`px-3 py-[7px] jtp-label whitespace-nowrap font-medium font-mono tracking-[0.1em] ${alignClass(col.align)}`}
                 style={col.width ? { width: col.width } : undefined}
               >
                 {col.header}
@@ -119,10 +119,9 @@ function DataTable<T extends Record<string, any>>({
                     <td
                       key={col.key}
                       className={[
-                        'px-3 py-[9px] text-jtp-text',
-                        col.mono
-                          ? 'font-mono'
-                          : '',
+                        // All table cells are mono — trading data is always data, not prose.
+                        // col.mono adds tabular-nums alignment for numeric/money columns.
+                        'px-3 py-[9px] text-jtp-text font-mono',
                         alignClass(col.align),
                         col.cellClassName ?? '',
                       ]

@@ -54,9 +54,9 @@ const Tabs: React.FC<TabsProps> = ({ tabs, active, onChange, className = '' }) =
           disabled={tab.disabled}
           onClick={() => !tab.disabled && onChange(tab.id)}
           className={[
-            'relative px-4 py-[10px] text-jtp-md font-medium whitespace-nowrap',
+            'relative px-4 py-[10px] font-mono font-medium whitespace-nowrap uppercase tracking-[0.08em] text-[11px]',
             'transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed',
-            isActive ? 'text-jtp-text' : 'text-jtp-textSubtle hover:text-jtp-textMuted',
+            isActive ? 'text-jtp-text brightness-110' : 'text-jtp-textSubtle hover:text-jtp-textMuted',
           ]
             .filter(Boolean)
             .join(' ')}

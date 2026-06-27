@@ -239,7 +239,7 @@ const AdminPage: React.FC = () => {
     /* Error */
     if (error) {
       return (
-        <div className="bg-jtp-loss/10 border border-jtp-loss/20 rounded-jtp-panel px-5 py-6 text-center">
+        <div className="bg-jtp-loss/10 border border-jtp-loss/20 rounded-[2px] px-5 py-6 text-center">
           <p className="text-jtp-lg text-jtp-loss font-medium">{error}</p>
           <Button
             variant="secondary"

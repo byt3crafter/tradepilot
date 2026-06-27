@@ -75,7 +75,7 @@ const EdgeLeaderboardPanel: React.FC<{
                     onClick={() => onSelect(w)}
                     className={`cursor-pointer border-b border-[var(--qt-border)] last:border-0 transition-colors ${
                       active
-                        ? 'bg-[rgba(91,141,239,0.12)]'
+                        ? 'bg-[rgba(232,162,61,0.12)]'
                         : flash
                           ? 'qt-flash'
                           : 'hover:bg-[rgba(255,255,255,0.03)]'

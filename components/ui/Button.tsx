@@ -10,10 +10,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', className = '', isLoading = false, ...props }) => {
-  const baseClasses = "font-medium rounded-jtp-md text-jtp-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-jtp-bg focus:ring-jtp-blue/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
+  const baseClasses = "font-medium rounded-[2px] text-jtp-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-jtp-bg focus:ring-jtp-blue/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
 
   const variantClasses = {
-    primary: "bg-jtp-blue text-white hover:bg-jtp-blueHover active:scale-[0.98] shadow-none",
+    primary: "bg-jtp-blue text-[#08090b] hover:bg-jtp-blueHover active:scale-[0.98] font-mono tracking-wider uppercase text-[11px] shadow-none",
     secondary: "bg-jtp-control border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover hover:border-jtp-borderHover active:scale-[0.98]",
     danger: "bg-jtp-loss/10 text-jtp-loss border border-jtp-loss/20 hover:bg-jtp-loss/20 hover:border-jtp-loss/40 active:scale-[0.98]",
     link: "text-jtp-textMuted hover:text-jtp-text p-0 h-auto font-normal hover:underline justify-start",

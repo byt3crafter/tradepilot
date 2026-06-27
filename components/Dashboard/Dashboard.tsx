@@ -51,33 +51,34 @@ const Dashboard: React.FC = () => {
   return (
     <div className="flex flex-col gap-4">
 
-      {/* ── Row 1: Key metrics ── */}
+      {/* ── Row 1: KPI StatTile grid (top third — most important numbers, scannable) ── */}
       <DashStatCards closedTrades={closedTrades} />
 
-      {/* ── Row 2: Trading Health Score ── */}
-      <TradingHealthScore closedTrades={closedTrades} />
-
-      {/* ── Row 3: Prop Firm Rules (conditional) ── */}
-      {showPropFirmRules && activeAccount && (
-        <PropFirmRulesPanel
-          objectives={objectivesProgress!}
-          account={activeAccount}
-        />
-      )}
-
-      {/* ── Row 4: Equity Curve + Recent Activity ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Equity curve takes 2/3 width */}
-        <div className="xl:col-span-2 min-h-[320px]">
+      {/* ── Row 2: Primary — equity curve (flex-1) + prop firm rules (fixed ~320px) ── */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+        <div className="flex-1 min-w-0 flex flex-col">
           <DashEquityCurve
             closedTrades={closedTrades}
             account={activeAccount}
           />
         </div>
+        {showPropFirmRules && activeAccount && (
+          <div className="w-full lg:w-80 flex-shrink-0 flex flex-col">
+            <PropFirmRulesPanel
+              objectives={objectivesProgress!}
+              account={activeAccount}
+            />
+          </div>
+        )}
+      </div>
 
-        {/* Recent activity takes 1/3 width */}
-        <div className="xl:col-span-1 min-h-[320px]">
+      {/* ── Row 3: Secondary — recent activity DataTable (flex-1) + trading health (fixed ~320px) ── */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+        <div className="flex-1 min-w-0 flex flex-col">
           <DashRecentActivity closedTrades={closedTrades} />
+        </div>
+        <div className="w-full lg:w-80 flex-shrink-0 flex flex-col">
+          <TradingHealthScore closedTrades={closedTrades} />
         </div>
       </div>
 

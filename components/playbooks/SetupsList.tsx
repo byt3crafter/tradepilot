@@ -114,7 +114,7 @@ const SetupsList: React.FC<SetupsListProps> = ({
             onClick={() => onSelect(item.key)}
             className={`w-full text-left px-4 py-3 transition-colors duration-100 focus:outline-none
               ${isSelected
-                ? 'bg-[rgba(91,141,239,.10)] border-l-2 border-l-jtp-blue'
+                ? 'bg-[rgba(232,162,61,.10)] border-l-2 border-l-jtp-blue'
                 : 'border-l-2 border-l-transparent hover:bg-jtp-hover'}
             `}
           >

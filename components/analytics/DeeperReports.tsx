@@ -10,18 +10,21 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from 'recharts';
 import { Trade, TradeResult, Direction, Playbook } from '../../types';
 import { Panel, SegmentedControl, EmptyState } from '../../components/ui';
 
 // ─── Chart style constants ────────────────────────────────────────────────────
 const AXIS_TICK = {
-  fill: '#5b6370',
+  fill: '#69727c',
   fontSize: 9,
   fontFamily: '"JetBrains Mono"',
 } as const;
-const PROFIT_CLR = '#4cc38a';
-const LOSS_CLR = '#e5635f';
+const PROFIT_CLR = '#3ddc84';
+const LOSS_CLR   = '#ff5b52';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type SortKey = 'trades' | 'winRate' | 'netPL' | 'netR' | 'avgR';
@@ -29,14 +32,14 @@ type SortKey = 'trades' | 'winRate' | 'netPL' | 'netR' | 'avgR';
 interface Metrics {
   label: string;
   trades: number;
-  winRate: number;      // 0–100
+  winRate: number;
   netPL: number;
   netR: number;
   avgR: number;
   profitFactor: number;
   profitFactorR: number;
-  expectancy: number;   // $ / trade
-  expectancyR: number;  // R / trade
+  expectancy: number;
+  expectancyR: number;
 }
 
 interface BarDatum extends Metrics {
@@ -47,8 +50,14 @@ interface BarDatum extends Metrics {
 interface DdPoint {
   idx: number;
   dateLabel: string;
-  dd: number;   // $ drawdown ≤ 0
-  ddR: number;  // R drawdown ≤ 0
+  dd: number;
+  ddR: number;
+}
+
+interface ScatterPoint {
+  x: number;
+  y: number;
+  win: boolean;
 }
 
 // ─── Utility functions ────────────────────────────────────────────────────────
@@ -130,7 +139,7 @@ const StatsTable: React.FC<{ rows: Metrics[]; isR: boolean }> = ({ rows, isR }) 
   <div className="overflow-x-auto mt-[10px]">
     <table className="w-full border-collapse">
       <thead>
-        <tr className="text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
+        <tr className="font-mono text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
           <th className="text-left pb-2 font-normal pr-2 w-28">Segment</th>
           <th className="text-right pb-2 font-normal pr-2 w-12">Trades</th>
           <th className="text-right pb-2 font-normal pr-2 w-14">Win%</th>
@@ -150,7 +159,7 @@ const StatsTable: React.FC<{ rows: Metrics[]; isR: boolean }> = ({ rows, isR }) 
           const exVal = isR ? row.expectancyR : row.expectancy;
           return (
             <tr key={row.label} className="border-t border-jtp-borderSubtle">
-              <td className={`py-[5px] pr-2 text-jtp-xs-plus truncate ${empty ? 'text-jtp-textFaint' : 'text-jtp-text'}`}>
+              <td className={`py-[5px] pr-2 font-mono text-jtp-xs-plus truncate ${empty ? 'text-jtp-textFaint' : 'text-jtp-text'}`}>
                 {row.label}
               </td>
               <td className="py-[5px] pr-2 text-right font-mono text-jtp-xs text-jtp-textSoft">
@@ -189,7 +198,7 @@ const BarTip: React.FC<{
   const d = payload[0].payload;
   const val = isR ? d.netR : d.netPL;
   return (
-    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-jtp-2xl px-3 py-2 text-jtp-xs shadow-jtp-drawer">
+    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-xs shadow-jtp-drawer">
       <div className="text-jtp-textDim font-mono mb-[3px]">{d.label}</div>
       <div className={`font-mono font-semibold ${val >= 0 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
         {isR ? fmtR(val) : fmtMoney(val)}
@@ -233,8 +242,8 @@ const DowSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, isR }
             tickFormatter={v => isR ? `${v}R` : `$${v}`}
             width={isR ? 24 : 34}
           />
-          <ReferenceLine y={0} stroke="#232931" strokeWidth={1} />
-          <Tooltip content={<BarTip isR={isR} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <ReferenceLine y={0} stroke="#1a2028" strokeWidth={1} />
+          <Tooltip content={<BarTip isR={isR} />} cursor={{ fill: 'rgba(232,162,61,0.04)' }} />
           <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>
             {chartData.map((entry, idx) => (
               <Cell
@@ -292,8 +301,8 @@ const SessionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, i
             tickFormatter={v => isR ? `${v}R` : `$${v}`}
             width={isR ? 24 : 34}
           />
-          <ReferenceLine y={0} stroke="#232931" strokeWidth={1} />
-          <Tooltip content={<BarTip isR={isR} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <ReferenceLine y={0} stroke="#1a2028" strokeWidth={1} />
+          <Tooltip content={<BarTip isR={isR} />} cursor={{ fill: 'rgba(232,162,61,0.04)' }} />
           <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>
             {chartData.map((entry, idx) => (
               <Cell
@@ -344,7 +353,7 @@ const SymbolSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, is
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
+              <tr className="font-mono text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
                 <th className="text-left pb-2 font-normal pr-3">Symbol</th>
                 <SortTh label="Trades" k="trades" current={sortKey} dir={sortDir} onSort={toggleSort} />
                 <SortTh label="Win%" k="winRate" current={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -357,7 +366,7 @@ const SymbolSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, is
                 const netVal = isR ? row.netR : row.netPL;
                 return (
                   <tr key={row.label} className="border-t border-jtp-borderSubtle hover:bg-jtp-hover/30 transition-colors">
-                    <td className="py-[6px] pr-3 text-jtp-lg font-medium text-jtp-text">{row.label}</td>
+                    <td className="py-[6px] pr-3 font-mono text-jtp-xs-plus font-medium text-jtp-text">{row.label}</td>
                     <td className="py-[6px] pr-3 text-right font-mono text-jtp-xs-plus text-jtp-textSoft">{row.trades}</td>
                     <td className={`py-[6px] pr-3 text-right font-mono text-jtp-xs-plus ${row.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
                       {row.winRate.toFixed(0)}%
@@ -460,7 +469,7 @@ const SetupSection: React.FC<{
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
+              <tr className="font-mono text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
                 <th className="text-left pb-2 font-normal pr-3 capitalize">
                   {view === 'playbook' ? 'Playbook' : 'Setup'}
                 </th>
@@ -484,31 +493,19 @@ const SetupSection: React.FC<{
                     key={row.label}
                     className="border-t border-jtp-borderSubtle hover:bg-jtp-hover/30 transition-colors"
                   >
-                    <td className="py-[6px] pr-3 text-jtp-lg text-jtp-text truncate max-w-[200px]">
+                    <td className="py-[6px] pr-3 font-mono text-jtp-xs-plus text-jtp-text truncate max-w-[200px]">
                       {row.label}
                     </td>
                     <td className="py-[6px] pr-3 text-right font-mono text-jtp-xs-plus text-jtp-textSoft">
                       {row.trades}
                     </td>
-                    <td
-                      className={`py-[6px] pr-3 text-right font-mono text-jtp-xs-plus ${
-                        row.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'
-                      }`}
-                    >
+                    <td className={`py-[6px] pr-3 text-right font-mono text-jtp-xs-plus ${row.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
                       {row.winRate.toFixed(0)}%
                     </td>
-                    <td
-                      className={`py-[6px] pr-3 text-right font-mono text-jtp-xs-plus ${
-                        netVal >= 0 ? 'text-jtp-profit' : 'text-jtp-loss'
-                      }`}
-                    >
+                    <td className={`py-[6px] pr-3 text-right font-mono text-jtp-xs-plus ${netVal >= 0 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
                       {isR ? fmtR(netVal) : fmtMoney(netVal)}
                     </td>
-                    <td
-                      className={`py-[6px] text-right font-mono text-jtp-xs-plus ${
-                        row.avgR >= 0 ? 'text-jtp-profit' : 'text-jtp-loss'
-                      }`}
-                    >
+                    <td className={`py-[6px] text-right font-mono text-jtp-xs-plus ${row.avgR >= 0 ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
                       {fmtR(row.avgR)}
                     </td>
                   </tr>
@@ -529,9 +526,9 @@ const DirStatRow: React.FC<{ label: string; value: string; positive: boolean }> 
   positive,
 }) => (
   <div className="flex items-center justify-between">
-    <span className="text-jtp-md text-jtp-textDim">{label}</span>
+    <span className="font-mono text-jtp-xs text-jtp-textDim">{label}</span>
     <span
-      className={`font-mono text-jtp-md font-semibold ${
+      className={`font-mono text-jtp-xs font-semibold ${
         value === '—' ? 'text-jtp-textFaint' : positive ? 'text-jtp-profit' : 'text-jtp-loss'
       }`}
     >
@@ -563,10 +560,10 @@ const DirectionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades,
           return (
             <div
               key={m.label}
-              className={`border rounded-jtp-xl px-4 py-[14px] flex flex-col gap-[8px] ${
+              className={`border rounded-[2px] px-4 py-[14px] flex flex-col gap-[8px] ${
                 isLong
-                  ? 'border-jtp-profit/20 bg-[rgba(76,195,138,0.04)]'
-                  : 'border-jtp-loss/20 bg-[rgba(229,99,95,0.04)]'
+                  ? 'border-jtp-profit/20 bg-[rgba(61,220,132,0.04)]'
+                  : 'border-jtp-loss/20 bg-[rgba(255,91,82,0.04)]'
               }`}
             >
               <div className="flex items-center gap-2 mb-[2px]">
@@ -575,8 +572,8 @@ const DirectionSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades,
                     isLong ? 'bg-jtp-profit' : 'bg-jtp-loss'
                   }`}
                 />
-                <span className="text-jtp-lg font-semibold text-jtp-text">{m.label}</span>
-                <span className="text-jtp-xs text-jtp-textFaint font-mono ml-auto">
+                <span className="font-mono text-jtp-xs-plus font-semibold text-jtp-text">{m.label}</span>
+                <span className="font-mono text-jtp-xs text-jtp-textFaint ml-auto">
                   {m.trades} trade{m.trades !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -623,7 +620,7 @@ const DdTip: React.FC<{
   const d = payload[0].payload;
   const val = isR ? d.ddR : d.dd;
   return (
-    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-jtp-2xl px-3 py-2 text-jtp-xs shadow-jtp-drawer">
+    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-xs shadow-jtp-drawer">
       <div className="text-jtp-textDim font-mono mb-[2px]">
         Trade #{d.idx} · {d.dateLabel}
       </div>
@@ -700,8 +697,8 @@ const DrawdownSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, 
           <AreaChart data={points} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
             <defs>
               <linearGradient id="ddFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#e5635f" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#e5635f" stopOpacity={0.04} />
+                <stop offset="0%" stopColor={LOSS_CLR} stopOpacity={0.35} />
+                <stop offset="100%" stopColor={LOSS_CLR} stopOpacity={0.04} />
               </linearGradient>
             </defs>
             <XAxis
@@ -719,7 +716,7 @@ const DrawdownSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, 
               tickFormatter={v => (isR ? `${v}R` : `$${v}`)}
               width={isR ? 24 : 34}
             />
-            <ReferenceLine y={0} stroke="#232931" strokeWidth={1} />
+            <ReferenceLine y={0} stroke="#1a2028" strokeWidth={1} />
             <Tooltip
               content={<DdTip isR={isR} />}
               cursor={{ stroke: LOSS_CLR, strokeWidth: 1, strokeDasharray: '3 3' }}
@@ -741,32 +738,183 @@ const DrawdownSection: React.FC<{ trades: Trade[]; isR: boolean }> = ({ trades, 
   );
 };
 
+// ─── Section 7 · MAE / MFE ────────────────────────────────────────────────────
+const MaeMfeTooltip: React.FC<{
+  active?: boolean;
+  payload?: Array<{ payload: ScatterPoint }>;
+}> = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-xs shadow-jtp-drawer">
+      <div className={`font-mono font-semibold mb-1 ${d.win ? 'text-jtp-profit' : 'text-jtp-loss'}`}>
+        {d.win ? 'Win' : 'Loss'}
+      </div>
+      <div className="text-jtp-textDim font-mono">MFE {d.x.toFixed(2)}R</div>
+      <div className="text-jtp-textDim font-mono">MAE {d.y.toFixed(2)}R</div>
+    </div>
+  );
+};
+
+const MaeMfePanel: React.FC<{ trades: Trade[] }> = ({ trades }) => {
+  // TODO: Once Trade.mae and Trade.mfe are added to the Prisma schema and returned
+  // by the API, remove the `(t as any)` casts. The chart will populate automatically.
+  const points = useMemo<ScatterPoint[]>(() => {
+    return trades
+      .filter(
+        t => (t as any).mae != null && (t as any).mfe != null // eslint-disable-line @typescript-eslint/no-explicit-any
+      )
+      .map(t => ({
+        x: (t as any).mfe as number, // eslint-disable-line @typescript-eslint/no-explicit-any
+        y: Math.abs((t as any).mae as number), // eslint-disable-line @typescript-eslint/no-explicit-any
+        win: t.result === TradeResult.Win,
+      }));
+  }, [trades]);
+
+  const winsData = points.filter(p => p.win);
+  const lossesData = points.filter(p => !p.win);
+
+  return (
+    <Panel label="MAE / MFE">
+      <p className="text-jtp-md text-jtp-textFaint mb-3">
+        Adverse vs favourable excursion (R)
+      </p>
+
+      {points.length === 0 ? (
+        <EmptyState
+          title="No excursion data"
+          description="No MAE/MFE data captured yet."
+          className="py-6"
+        />
+      ) : (
+        <>
+          <div className="flex gap-4 mb-[10px] text-jtp-xs-plus text-jtp-textDim">
+            <span className="flex items-center gap-[5px]">
+              <span className="inline-block w-2 h-2 rounded-full bg-jtp-profit" />
+              <span className="font-mono">Win</span>
+            </span>
+            <span className="flex items-center gap-[5px]">
+              <span className="inline-block w-2 h-2 rounded-full bg-jtp-loss" />
+              <span className="font-mono">Loss</span>
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <ScatterChart margin={{ top: 8, right: 8, left: 0, bottom: 20 }}>
+              <XAxis
+                dataKey="x"
+                type="number"
+                name="MFE"
+                axisLine={false}
+                tickLine={false}
+                tick={AXIS_TICK}
+                label={{
+                  value: 'MFE (R)',
+                  position: 'insideBottom',
+                  offset: -12,
+                  fill: '#69727c',
+                  fontSize: 9,
+                  fontFamily: '"JetBrains Mono"',
+                }}
+              />
+              <YAxis
+                dataKey="y"
+                type="number"
+                name="MAE"
+                axisLine={false}
+                tickLine={false}
+                tick={AXIS_TICK}
+                width={30}
+                label={{
+                  value: 'MAE (R)',
+                  angle: -90,
+                  position: 'insideLeft',
+                  fill: '#69727c',
+                  fontSize: 9,
+                  fontFamily: '"JetBrains Mono"',
+                }}
+              />
+              <ZAxis range={[28, 28]} />
+              <Tooltip
+                content={<MaeMfeTooltip />}
+                cursor={{ strokeDasharray: '3 3', stroke: '#323942' }}
+              />
+              <Scatter
+                data={winsData}
+                fill={PROFIT_CLR}
+                fillOpacity={0.75}
+                isAnimationActive={false}
+              />
+              <Scatter
+                data={lossesData}
+                fill={LOSS_CLR}
+                fillOpacity={0.75}
+                isAnimationActive={false}
+              />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </>
+      )}
+    </Panel>
+  );
+};
+
+// ─── Section 8 · Adherence Impact ────────────────────────────────────────────
+const AdherencePanel: React.FC = () => {
+  // TODO: When a boolean `checklistFollowed` field is added to the Trade model and
+  // returned by the API, compute real per-group stats here:
+  //   followed = closedTrades.filter(t => t.checklistFollowed === true)
+  //   broken   = closedTrades.filter(t => t.checklistFollowed === false)
+  return (
+    <Panel label="ADHERENCE IMPACT">
+      <div className="flex gap-3">
+        {(
+          [
+            { label: 'Checklist followed', accentClass: 'bg-jtp-profit' },
+            { label: 'Checklist broken', accentClass: 'bg-jtp-loss' },
+          ] as const
+        ).map(({ label, accentClass }) => (
+          <div
+            key={label}
+            className="flex-1 border border-jtp-borderSubtle rounded-[2px] px-4 py-6 flex flex-col items-center gap-[10px] opacity-40"
+          >
+            <div className={`w-[6px] h-[6px] rounded-full ${accentClass}`} />
+            <div className="font-mono text-jtp-xs-plus text-jtp-textMuted text-center">
+              {label}
+            </div>
+            <div className="text-jtp-md text-jtp-textFaint text-center leading-snug">
+              No checklist-adherence data yet
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+};
+
 // ─── Root export ──────────────────────────────────────────────────────────────
 interface DeeperReportsProps {
   trades: Trade[];
   playbooks: Playbook[];
+  isR: boolean;
+  onIsRChange: (v: boolean) => void;
 }
 
-const DeeperReports: React.FC<DeeperReportsProps> = ({ trades, playbooks }) => {
-  const [isR, setIsR] = useState(false);
-
+const DeeperReports: React.FC<DeeperReportsProps> = ({ trades, playbooks, isR, onIsRChange }) => {
   return (
     <section className="space-y-4">
       {/* Section header + global $/R toggle */}
-      <div className="flex items-center justify-between pt-1">
-        <div>
-          <h2 className="text-jtp-xl font-semibold text-jtp-text tracking-tight">
-            Deeper Reports
-          </h2>
-          <p className="jtp-label mt-1">Filterable performance breakdowns</p>
-        </div>
+      <div className="flex items-center justify-between">
+        <span className="jtp-label tracking-[0.12em]">
+          <span style={{ color: '#e8a23d', marginRight: '6px' }}>▸</span>
+          BREAKDOWN ANALYTICS
+        </span>
         <SegmentedControl
           segments={[
             { value: '$' as const, label: '$' },
             { value: 'R' as const, label: 'R' },
           ]}
           value={isR ? 'R' : '$'}
-          onChange={v => setIsR(v === 'R')}
+          onChange={v => onIsRChange(v === 'R')}
         />
       </div>
 
@@ -786,6 +934,12 @@ const DeeperReports: React.FC<DeeperReportsProps> = ({ trades, playbooks }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DirectionSection trades={trades} isR={isR} />
         <DrawdownSection trades={trades} isR={isR} />
+      </div>
+
+      {/* Row 4: MAE/MFE + Adherence */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MaeMfePanel trades={trades} />
+        <AdherencePanel />
       </div>
     </section>
   );

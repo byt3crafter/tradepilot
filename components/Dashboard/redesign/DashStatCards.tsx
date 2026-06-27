@@ -1,107 +1,171 @@
 import React, { useMemo } from 'react';
 import { Trade, TradeResult } from '../../../types';
-import StatTile from '../../ui/StatTile';
+import { StatTile } from '../../ui';
 
 interface DashStatCardsProps {
   closedTrades: Trade[];
 }
 
-function getISOWeekBounds(): { start: Date; end: Date } {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sun, 1 = Mon, …
-  const diffToMon = day === 0 ? -6 : 1 - day;
-  const mon = new Date(now);
-  mon.setDate(now.getDate() + diffToMon);
-  mon.setHours(0, 0, 0, 0);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  sun.setHours(23, 59, 59, 999);
-  return { start: mon, end: sun };
-}
+const netOf = (t: Trade) =>
+  (t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0);
 
 const DashStatCards: React.FC<DashStatCardsProps> = ({ closedTrades }) => {
   const stats = useMemo(() => {
-    const { start, end } = getISOWeekBounds();
-
-    // Trades this week
-    const thisWeek = closedTrades.filter(t => {
-      const d = new Date(t.exitDate ?? t.entryDate);
-      return d >= start && d <= end;
-    });
-
-    // Win rate (all time, wins vs losses, excluding breakeven)
     const wins   = closedTrades.filter(t => t.result === TradeResult.Win);
     const losses = closedTrades.filter(t => t.result === TradeResult.Loss);
     const ratable = wins.length + losses.length;
     const winRate = ratable > 0 ? (wins.length / ratable) * 100 : 0;
 
-    // Net R — sum of server-computed realised R
-    const netR = closedTrades.reduce((sum, t) => sum + (t.realisedR ?? 0), 0);
+    // Net P&L (after fees)
+    const netPL = closedTrades.reduce((s, t) => s + netOf(t), 0);
 
-    // Net P&L
-    const netPL = closedTrades.reduce((sum, t) => {
-      const pl = (t.profitLoss ?? 0) - (t.commission ?? 0) - (t.swap ?? 0);
-      return sum + pl;
-    }, 0);
+    // Profit Factor
+    const grossProfit = wins.reduce((s, t) => s + Math.max(0, netOf(t)), 0);
+    const grossLoss   = losses.reduce((s, t) => s + Math.abs(Math.min(0, netOf(t))), 0);
+    const pf: number | null =
+      grossLoss > 0 ? grossProfit / grossLoss
+      : grossProfit > 0 ? Infinity
+      : closedTrades.length === 0 ? null
+      : 1;
 
-    // All-time trade count
-    const totalTrades = closedTrades.length;
+    // Avg R (mean of server-computed realised R)
+    const tradesWithR = closedTrades.filter(t => t.realisedR != null);
+    const avgR: number | null =
+      tradesWithR.length > 0
+        ? tradesWithR.reduce((s, t) => s + (t.realisedR ?? 0), 0) / tradesWithR.length
+        : null;
+
+    // Expectancy in R: (winRate × avgWinR) + (lossRate × avgLossR)  — avgLossR is negative
+    const winsWithR  = wins.filter(t => t.realisedR != null);
+    const lossWithR  = losses.filter(t => t.realisedR != null);
+    const avgWinR  = winsWithR.length  > 0
+      ? winsWithR.reduce((s, t)  => s + (t.realisedR ?? 0), 0) / winsWithR.length  : 0;
+    const avgLossR = lossWithR.length > 0
+      ? lossWithR.reduce((s, t) => s + (t.realisedR ?? 0), 0) / lossWithR.length : 0;
+    const expectancy: number | null =
+      ratable > 0
+        ? (wins.length / ratable) * avgWinR + (losses.length / ratable) * avgLossR
+        : null;
+
+    // Today P&L
+    const todayStr = new Date().toDateString();
+    const todayTrades = closedTrades.filter(t =>
+      new Date(t.exitDate ?? t.entryDate).toDateString() === todayStr,
+    );
+    const todayPL    = todayTrades.reduce((s, t) => s + netOf(t), 0);
+    const todayCount = todayTrades.length;
 
     return {
-      thisWeekCount: thisWeek.length,
-      winRate,
-      netR,
       netPL,
-      totalTrades,
+      winRate,
       winsCount: wins.length,
       lossCount: losses.length,
+      ratable,
+      pf,
+      avgR,
+      rCount: tradesWithR.length,
+      expectancy,
+      todayPL,
+      todayCount,
+      totalTrades: closedTrades.length,
     };
   }, [closedTrades]);
 
-  const formatCurrency = (v: number) => {
+  // ── Format helpers ─────────────────────────────────────────────────────────
+  const fmtCurrency = (v: number) => {
     const sign = v >= 0 ? '+' : '-';
     const abs  = Math.abs(v);
     if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
     if (abs >= 1_000)     return `${sign}$${(abs / 1_000).toFixed(1)}k`;
-    return `${sign}$${abs.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    return `${sign}$${abs.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   };
 
-  const formatR = (v: number) => {
-    const sign = v >= 0 ? '+' : '';
-    return `${sign}${v.toFixed(1)}R`;
+  const fmtR = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`;
+
+  const fmtPF = (v: number | null): string => {
+    if (v === null)     return '—';
+    if (v === Infinity) return '∞';
+    return v.toFixed(2);
   };
 
-  const plColor  = stats.netPL >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
-  const rColor   = stats.netR  >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+  // ── Derived colours ────────────────────────────────────────────────────────
+  const plColor  = stats.netPL  >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
   const wrColor  = stats.winRate >= 50 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const pfColor  = (stats.pf ?? 0) >= 1 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const arColor  = (stats.avgR ?? 0) >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const exColor  = (stats.expectancy ?? 0) >= 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+  const tdColor  =
+    stats.todayCount > 0
+      ? (stats.todayPL >= 0 ? 'text-jtp-profit' : 'text-jtp-loss')
+      : 'text-jtp-textDim';
+
+  const noData = stats.totalTrades === 0;
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      <StatTile
-        label="TRADES THIS WEEK"
-        value={String(stats.thisWeekCount)}
-        subValue={`${stats.totalTrades} all-time`}
-      />
-      <StatTile
-        label="WIN RATE"
-        value={`${stats.winRate.toFixed(0)}%`}
-        valueColor={wrColor}
-        subValue={`${stats.winsCount}W · ${stats.lossCount}L`}
-      />
-      <StatTile
-        label="NET R"
-        value={formatR(stats.netR)}
-        valueColor={rColor}
-        positive={stats.netR >= 0}
-        subValue="all-time"
-      />
+    /*
+     * §6b KPI grid: 4-col on default, 6-col on xl (one dense row).
+     * Mobile: 2-col (3 rows). Sm: 4-col (2 rows). XL: 6-col (1 row).
+     */
+    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3">
+
+      {/* 1 — NET P&L */}
       <StatTile
         label="NET P&L"
-        value={formatCurrency(stats.netPL)}
-        valueColor={plColor}
-        positive={stats.netPL >= 0}
+        value={noData ? '—' : fmtCurrency(stats.netPL)}
+        valueColor={noData ? 'text-jtp-textDim' : plColor}
+        positive={noData ? undefined : stats.netPL >= 0}
         subValue="after fees"
       />
+
+      {/* 2 — WIN RATE */}
+      <StatTile
+        label="WIN RATE"
+        value={stats.ratable > 0 ? `${stats.winRate.toFixed(0)}%` : '—'}
+        valueColor={stats.ratable > 0 ? wrColor : 'text-jtp-textDim'}
+        positive={stats.ratable > 0 ? stats.winRate >= 50 : undefined}
+        subValue={`${stats.winsCount}W · ${stats.lossCount}L`}
+      />
+
+      {/* 3 — PROFIT FACTOR */}
+      <StatTile
+        label="PROFIT FACTOR"
+        value={fmtPF(stats.pf)}
+        valueColor={stats.pf === null ? 'text-jtp-textDim' : pfColor}
+        positive={stats.pf === null ? undefined : stats.pf >= 1}
+        subValue={stats.pf !== null && stats.pf !== Infinity ? 'gross W/L' : undefined}
+      />
+
+      {/* 4 — AVG R */}
+      <StatTile
+        label="AVG R"
+        value={stats.avgR === null ? '—' : fmtR(stats.avgR)}
+        valueColor={stats.avgR === null ? 'text-jtp-textDim' : arColor}
+        positive={stats.avgR === null ? undefined : stats.avgR >= 0}
+        subValue={stats.avgR !== null ? `${stats.rCount} trades` : undefined}
+      />
+
+      {/* 5 — EXPECTANCY */}
+      <StatTile
+        label="EXPECTANCY"
+        value={stats.expectancy === null ? '—' : fmtR(stats.expectancy)}
+        valueColor={stats.expectancy === null ? 'text-jtp-textDim' : exColor}
+        positive={stats.expectancy === null ? undefined : stats.expectancy >= 0}
+        subValue="per trade (R)"
+      />
+
+      {/* 6 — TODAY */}
+      <StatTile
+        label="TODAY"
+        value={stats.todayCount > 0 ? fmtCurrency(stats.todayPL) : '—'}
+        valueColor={tdColor}
+        positive={stats.todayCount > 0 ? stats.todayPL >= 0 : undefined}
+        subValue={
+          stats.todayCount > 0
+            ? `${stats.todayCount} trade${stats.todayCount !== 1 ? 's' : ''}`
+            : 'no trades today'
+        }
+      />
+
     </div>
   );
 };

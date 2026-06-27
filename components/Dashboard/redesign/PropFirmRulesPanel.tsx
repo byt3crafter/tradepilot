@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrokerAccount, ObjectiveProgress } from '../../../types';
-import Panel from '../../ui/Panel';
-import Badge, { BadgeVariant } from '../../ui/Badge';
+import { Panel, Badge } from '../../ui';
+import type { BadgeVariant } from '../../ui';
 
 interface PropFirmRulesPanelProps {
   objectives: ObjectiveProgress[];
@@ -31,7 +31,7 @@ function getBarColor(obj: ObjectiveProgress): string {
   const isLossRule = obj.key === 'maxLoss' || obj.key === 'maxDailyLoss';
   if (isLossRule)               return '#d9a23b'; // jtp-warning
   if (obj.status === 'Success') return '#4cc38a'; // jtp-profit
-  return '#5b8def';                               // jtp-blue
+  return '#e8a23d';                               // jtp-blue
 }
 
 function getProgressPct(obj: ObjectiveProgress): number {
@@ -104,8 +104,8 @@ const PropFirmRulesPanel: React.FC<PropFirmRulesPanelProps> = ({ objectives, acc
   );
 
   return (
-    <Panel label="PROP FIRM RULES" actions={accountLabel}>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
+    <Panel label="PROP FIRM RULES" actions={accountLabel} className="h-full">
+      <div className="grid grid-cols-1 gap-y-4">
         {objectives.map(obj => {
           const pct      = getProgressPct(obj);
           const barColor = getBarColor(obj);

@@ -57,10 +57,10 @@ const AdminNavItem: React.FC<NavItemProps> = ({
       'rounded-jtp-md focus:outline-none focus:ring-1 focus:ring-jtp-blue/40',
       isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
       isActive
-        ? 'bg-[rgba(91,141,239,0.10)] text-jtp-blue'
+        ? 'bg-[rgba(232,162,61,0.10)] text-jtp-blue'
         : 'text-jtp-textMuted hover:bg-jtp-hover hover:text-jtp-text',
     ].join(' ')}
-    style={isActive ? { boxShadow: 'inset 2px 0 0 #5b8def' } : undefined}
+    style={isActive ? { boxShadow: 'inset 2px 0 0 #e8a23d' } : undefined}
   >
     {/* Icon */}
     <span

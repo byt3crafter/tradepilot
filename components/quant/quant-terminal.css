@@ -9,7 +9,7 @@
   --qt-green: #4cc38a;
   --qt-red: #e5635f;
   --qt-amber: #e0a44c;
-  --qt-blue: #5b8def;
+  --qt-blue: #e8a23d;
   --qt-text: #d6dae0;
   --qt-dim: #6b7280;
   --qt-faint: #454d57;
@@ -88,14 +88,14 @@
 /* LED glow for big numbers */
 .qt-led-green { color: var(--qt-green); text-shadow: 0 0 12px rgba(76, 195, 138, 0.35); }
 .qt-led-red   { color: var(--qt-red);   text-shadow: 0 0 12px rgba(229, 99, 95, 0.35); }
-.qt-led-blue  { color: var(--qt-blue);  text-shadow: 0 0 12px rgba(91, 141, 239, 0.30); }
+.qt-led-blue  { color: var(--qt-blue);  text-shadow: 0 0 12px rgba(232, 162, 61, 0.30); }
 
 /* subtle scanline / flicker on refresh */
 .qt-flash {
   animation: qt-flash 0.5s ease-out;
 }
 @keyframes qt-flash {
-  0%   { background-color: rgba(91, 141, 239, 0.10); }
+  0%   { background-color: rgba(232, 162, 61, 0.10); }
   100% { background-color: transparent; }
 }
 

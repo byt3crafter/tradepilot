@@ -38,54 +38,66 @@ export default {
         // ── JTradePilot Operator Console token system ──────────────────────
         jtp: {
           // ── Backgrounds / layers ──
-          bg:            '#0b0c0e',   // App / body background
-          shell:         '#0e1013',   // Sidebar + topbar
-          panel:         '#0f1216',   // Cards, panels, drawers
+          bg:            '#08090b',   // App / body background
+          shell:         '#0a0c0e',   // Sidebar + topbar
+          panel:         '#0d0f12',   // Cards, panels, drawers
           raised:        '#121519',   // Summary rows, computed panels
           control:       '#131619',   // Toolbar inputs, search, inactive seg-controls
           active:        '#15181d',   // Account switcher, selected rows, form controls
-          hover:         '#181c22',   // Nav hover, row hover
-          avatar:        '#222933',   // User avatar background
-          accountTag:    '#1d242e',   // Account tag tile
-          statusbar:     '#0c0e11',   // Bottom status bar (slightly darker than shell)
+          hover:         '#171b20',   // Nav hover, row hover
+          avatar:        '#1d2229',   // User avatar background
+          accountTag:    '#1a2030',   // Account tag tile
+          statusbar:     '#090a0c',   // Bottom status bar (slightly darker than shell)
           // ── Borders ──
-          border:        '#1c2128',   // Shell borders, panel borders, row separators
-          borderSubtle:  '#16191e',   // Table row dividers
-          borderStrong:  '#232931',   // Inputs, buttons, seg-controls
-          borderFocus:   '#2a313a',   // Form field focus, secondary button border
-          borderHover:   '#323942',   // Secondary hover border
+          border:        '#1b2026',   // Shell borders, panel borders, row separators
+          borderSubtle:  '#14171c',   // Table row dividers
+          borderStrong:  '#262c34',   // Inputs, buttons, seg-controls
+          borderFocus:   '#e8a23d',   // Form field focus — AMBER accent
+          borderHover:   '#2e3540',   // Secondary hover border
           // ── Text scale (high-contrast, legible on dark) ──
-          text:          '#e8eaed',   // Primary text (≈ white-ish)
-          textSoft:      '#cdd2d9',   // Secondary values
-          textNote:      '#b8bec7',   // Drawer notes
-          textMuted:     '#9aa1ab',   // Default secondary labels
-          textSubtle:    '#8b929c',   // Inactive tabs
-          textDim:       '#6b7280',   // Labels, metadata
-          textFaint:     '#5b6370',   // Timestamps, helper copy
-          textDisabled:  '#454d57',   // Disabled, dropzone helper
-          // ── Brand / interaction ──
-          blue:          '#5b8def',   // Primary action, active nav, equity line
-          blueHover:     '#6f9bf2',   // Primary action hover
-          blueDeep:      '#3f6fd6',   // Brand gradient end
+          text:          '#e6e9ee',   // Primary text (≈ white-ish)
+          textSoft:      '#ccd1d8',   // Secondary values
+          textNote:      '#b5bbc4',   // Drawer notes
+          textMuted:     '#9aa3ad',   // Default secondary labels
+          textSubtle:    '#88909a',   // Inactive tabs
+          textDim:       '#69727c',   // Labels, metadata
+          textFaint:     '#565d66',   // Timestamps, helper copy
+          textDisabled:  '#404850',   // Disabled, dropzone helper
+          // ── Brand / interaction — AMBER replaces blue ──
+          blue:          '#e8a23d',   // Primary action, active nav, equity line (AMBER)
+          blueHover:     '#ffb838',   // Primary action hover (AMBER BRIGHT)
+          blueDeep:      '#c47e1e',   // Brand gradient end (AMBER DEEP)
+          // ── Amber aliases (explicit) ──
+          amber:         '#e8a23d',   // Primary amber accent
+          amberBright:   '#ffb838',   // Emphasis amber
+          amberDim:      '#a06a1a',   // Dimmed amber
+          // ── Secondary accent ──
+          cyan:          '#4fd1e0',   // Secondary accent (sparingly)
+          // ── Scanline overlay ──
+          scanline:      'rgba(0,0,0,0.15)',
           // ── Trading semantics (money tokens — highest contrast) ──
-          profit:        '#4cc38a',   // Positive P&L/R, long, profit target
-          profitDot:     '#3fb37f',   // Live dot, clean execution
-          loss:          '#e5635f',   // Negative P&L/R, short, max loss
-          lossSoft:      '#e5847f',   // Mistake chips, MAE label
-          warning:       '#d9a23b',   // Safe / headroom badges
+          profit:        '#3ddc84',   // Positive P&L/R, long, profit target
+          profitDot:     '#2dc574',   // Live dot, clean execution
+          loss:          '#ff5b52',   // Negative P&L/R, short, max loss
+          lossSoft:      '#ff8078',   // Mistake chips, MAE label
+          warning:       '#e8a23d',   // Safe / headroom badges (amber)
         },
       },
       fontFamily: {
-        // Inter = body / UI; JetBrains Mono = all numbers/money/codes
+        // Inter is the BODY/DEFAULT font — proportional, for prose/descriptive text
         sans:        ['Inter', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        // JetBrains Mono — explicit for all DATA: numbers, tickers, labels, nav, table cells
         mono:        ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
-        // Aliases for legacy classes — map to same stack
-        orbitron:    ['Inter', '"IBM Plex Sans"', 'sans-serif'],
+        // Semantic alias: font-data → same as font-mono; clarifies intent at call sites
+        data:        ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
+        // inter kept as explicit alias for legacy call-sites that used font-inter
+        inter:       ['Inter', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        orbitron:    ['"JetBrains Mono"', 'monospace'],
         'tech-mono': ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
       },
       fontSize: {
         // ── JTP Operator Console type scale ──────────────────────────────
-        // Rule: body text ≥ 14px, labels ≥ 10px, numbers use mono + bold + high contrast
+        // Rule: body text ≥ 13px (mono), labels ≥ 10px, numbers use mono + bold + high contrast
         'jtp-2xs':        ['9.5px',  { lineHeight: '1.2' }],   // micro labels, status bar
         'jtp-xs':         ['10px',   { lineHeight: '1.2' }],   // tiny badges, timestamps
         'jtp-xs-plus':    ['10.5px', { lineHeight: '1.3' }],   // section labels (UPPERCASE MONO)
@@ -111,14 +123,14 @@ export default {
         'jtp-row':    '43px',
       },
       borderRadius: {
-        'jtp-xs':    '3px',
-        'jtp-sm':    '4px',
-        'jtp-md':    '5px',
-        'jtp-lg':    '6px',
-        'jtp-xl':    '7px',
-        'jtp-2xl':   '8px',
-        'jtp-3xl':   '9px',
-        'jtp-panel': '10px',
+        'jtp-xs':    '1px',
+        'jtp-sm':    '2px',
+        'jtp-md':    '2px',
+        'jtp-lg':    '3px',
+        'jtp-xl':    '3px',
+        'jtp-2xl':   '4px',
+        'jtp-3xl':   '4px',
+        'jtp-panel': '4px',
       },
       boxShadow: {
         'jtp-drawer': '-20px 0 50px rgba(0,0,0,.4)',
@@ -126,12 +138,15 @@ export default {
         'jtp-float':  '0 8px 32px rgba(0,0,0,.5)',
       },
       animation: {
-        'fade-in':      'fadeIn 0.5s ease-out forwards',
-        'fade-in-up':   'fadeInUp 0.5s ease-out forwards',
-        'slide-up':     'slideUp 0.5s ease-out forwards',
-        'jtp-slide-in': 'jtpSlideIn 0.18s ease forwards',
-        'jtp-fade-in':  'jtpFadeIn 0.12s ease forwards',
-        'pulse-dot':    'pulseDot 2s ease-in-out infinite',
+        'fade-in':        'fadeIn 0.5s ease-out forwards',
+        'fade-in-up':     'fadeInUp 0.5s ease-out forwards',
+        'slide-up':       'slideUp 0.5s ease-out forwards',
+        'jtp-slide-in':   'jtpSlideIn 0.18s ease forwards',
+        'jtp-fade-in':    'jtpFadeIn 0.12s ease forwards',
+        'pulse-dot':      'pulseDot 2s ease-in-out infinite',
+        'ticker-scroll':  'tickerScroll 30s linear infinite',
+        'blink-cursor':   'blinkCursor 1s step-end infinite',
+        'amber-pulse':    'amberPulse 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -157,6 +172,18 @@ export default {
         pulseDot: {
           '0%, 100%': { opacity: '1' },
           '50%':      { opacity: '0.4' },
+        },
+        tickerScroll: {
+          '0%':   { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        blinkCursor: {
+          '0%, 100%': { opacity: '1' },
+          '50%':      { opacity: '0' },
+        },
+        amberPulse: {
+          '0%, 100%': { opacity: '1', boxShadow: '0 0 4px rgba(232,162,61,0.4)' },
+          '50%':      { opacity: '0.6', boxShadow: '0 0 8px rgba(232,162,61,0.7)' },
         },
       },
     },

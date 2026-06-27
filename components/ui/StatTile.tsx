@@ -52,9 +52,15 @@ const StatTile: React.FC<StatTileProps> = ({
         ? 'text-jtp-profit'
         : 'text-jtp-loss';
 
+  // CVD-safe: pair colour with a directional glyph so red/green-blind users
+  // can read direction from shape, not colour alone.
+  const deltaGlyph =
+    positive === undefined ? '' : positive ? '▲ ' : '▼ ';
+
   return (
     <div
-      className={`bg-jtp-panel border border-jtp-border rounded-jtp-panel px-4 py-[15px] flex flex-col ${className}`}
+      className={`bg-jtp-panel border border-jtp-border rounded-[2px] px-4 py-[15px] flex flex-col ${className}`}
+      style={{ borderLeft: '2px solid rgba(232,162,61,0.6)' }}
     >
       {/* Label */}
       <div className="jtp-label mb-[7px]">{label}</div>
@@ -71,8 +77,11 @@ const StatTile: React.FC<StatTileProps> = ({
       {(delta !== undefined || subValue !== undefined) && (
         <div className="flex items-baseline gap-[6px] mt-[7px]">
           {delta !== undefined && (
-            <span className={`font-mono text-jtp-xs font-semibold ${deltaColor}`}>
-              {delta}
+            <span
+              className={`font-mono text-jtp-xs font-semibold ${deltaColor}`}
+              aria-label={`${positive === true ? 'up' : positive === false ? 'down' : ''} ${delta}`}
+            >
+              {deltaGlyph}{delta}
             </span>
           )}
           {subValue !== undefined && (

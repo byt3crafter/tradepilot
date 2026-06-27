@@ -9,6 +9,7 @@ import {
 } from '@polymarket/clob-client';
 import { PmPosition, PolymarketMarket, PolymarketOutcome } from '../../types';
 import api from '../../services/api';
+import { Panel, Badge, Button, EmptyState } from '../../components/ui';
 
 // ─── Polygon mainnet constants (chainId 137) ─────────────────────────────────
 const CHAIN_ID = 137;
@@ -98,9 +99,9 @@ const AmountChip: React.FC<{ label: string; onClick: () => void; active?: boolea
   <button
     type="button"
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-jtp-lg text-sm font-semibold transition-colors ${
+    className={`px-3 py-1.5 rounded-[2px] text-sm font-mono font-semibold transition-colors ${
       active
-        ? 'bg-jtp-blue text-white'
+        ? 'bg-jtp-blue text-[#08090b]'
         : 'bg-jtp-active border border-jtp-borderStrong text-jtp-textSoft hover:bg-jtp-hover hover:text-jtp-text'
     }`}
   >
@@ -441,7 +442,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
     setPlaceError(null);
     setPlaceResult(null);
     setShowAdvanced(false);
-    // Scroll to ticket
+    // Scroll ticket into view in the center column
     setTimeout(() => {
       document.getElementById('poly-trade-ticket')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
@@ -475,538 +476,10 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
   const canSubmit =
     !!creds && !!tradeTokenId && validTradePrice && validTradeSize && !placing && !approving;
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render — three-column canvas ────────────────────────────────────────────
   return (
-    <div className="space-y-5">
-      {/* ── Disclaimer banner ── */}
-      <div className="rounded-jtp-panel border border-[rgba(229,99,95,0.35)] bg-[rgba(229,99,95,0.08)] px-4 py-3">
-        <p className="text-base font-semibold text-jtp-loss">Live trading — real funds on Polygon mainnet</p>
-        <p className="text-sm text-jtp-textMuted mt-1 leading-relaxed">
-          Non-custodial: you sign every action with your own wallet. JTradePilot never holds your
-          keys or funds. Orders place real trades on Polymarket using your USDC.e.
-        </p>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1 — WALLET                                                    */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-jtp-border flex items-center gap-2">
-          <span className="text-jtp-textDim text-sm font-medium uppercase tracking-wide">Step 1</span>
-          <span className="text-base font-semibold text-jtp-text">Wallet</span>
-        </div>
-
-        <div className="px-5 py-4">
-          {!hasWallet ? (
-            <p className="text-base text-jtp-textMuted">
-              No injected wallet detected.{' '}
-              <a
-                href="https://metamask.io/download/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-jtp-blue hover:underline font-semibold"
-              >
-                Install MetaMask
-              </a>{' '}
-              or another Polygon wallet to continue.
-            </p>
-          ) : !address ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-base text-jtp-textSoft">Connect your Polygon wallet to browse markets and trade.</p>
-              <button
-                type="button"
-                onClick={connect}
-                disabled={connecting}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-jtp-xl text-base font-semibold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 w-fit"
-              >
-                {connecting ? <Spinner className="w-4 h-4 text-white" /> : null}
-                {connecting ? 'Connecting…' : 'Connect wallet'}
-              </button>
-            </div>
-          ) : (
-            /* Compact connected state */
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                {/* Status pill */}
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-[rgba(76,195,138,0.12)] text-jtp-profit border border-[rgba(76,195,138,0.3)]">
-                  <span className="w-2 h-2 rounded-full bg-jtp-profitDot" />
-                  Connected
-                </span>
-                {/* Address */}
-                <span className="font-mono text-base text-jtp-text font-medium">{truncate(address)}</span>
-                {/* Chain */}
-                {onPolygon ? (
-                  <span className="text-sm text-jtp-textDim font-mono">Polygon · 137</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={connect}
-                    className="text-sm font-semibold px-3 py-1 rounded-jtp-lg bg-[rgba(229,99,95,0.12)] text-jtp-loss border border-[rgba(229,99,95,0.3)] hover:bg-[rgba(229,99,95,0.18)] transition-colors"
-                  >
-                    Wrong network — switch to Polygon
-                  </button>
-                )}
-              </div>
-
-              {/* USDC Balance — prominent */}
-              <div className="flex items-baseline gap-2">
-                <span className="text-base text-jtp-textDim">USDC.e balance</span>
-                <span className="font-mono text-2xl font-bold text-jtp-text">
-                  {usdcBalance != null ? parseFloat(usdcBalance).toFixed(2) : '—'}
-                </span>
-                {usdcBalance != null && (
-                  <span className="text-sm text-jtp-textMuted font-semibold">USDC.e</span>
-                )}
-              </div>
-
-              {/* Session init (inline when address ok, Polygon ok, but no creds yet) */}
-              {onPolygon && !creds && (
-                <div className="flex flex-col gap-2 pt-1">
-                  <p className="text-sm text-jtp-textMuted">
-                    One-time signature needed (no gas) to start your Polymarket CLOB session.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={initClob}
-                    disabled={initializingClob}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-jtp-xl text-base font-semibold bg-jtp-active border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50 w-fit"
-                  >
-                    {initializingClob ? <Spinner className="w-4 h-4 text-jtp-textDim" /> : null}
-                    {initializingClob ? 'Signing…' : 'Initialise trading session'}
-                  </button>
-                  {clobError && (
-                    <p role="alert" className="text-sm text-jtp-loss">{clobError}</p>
-                  )}
-                </div>
-              )}
-
-              {/* All ready banner */}
-              {onPolygon && creds && (
-                <div className="flex items-center gap-2 text-base text-jtp-profit font-semibold">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 shrink-0">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
-                  </svg>
-                  Session ready — you can place live orders
-                </div>
-              )}
-            </div>
-          )}
-
-          {walletError && (
-            <p role="alert" className="text-sm text-jtp-loss mt-3">{walletError}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 2 — MARKET BROWSER                                            */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-jtp-border flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-jtp-textDim text-sm font-medium uppercase tracking-wide">Step 2</span>
-            <span className="text-base font-semibold text-jtp-text">Browse markets</span>
-          </div>
-          {selectedOutcome && (
-            <span className="text-sm text-jtp-textDim">
-              Viewing <span className="text-jtp-text font-medium">{selectedOutcome.label}</span> selected
-            </span>
-          )}
-        </div>
-
-        <div className="px-5 py-4 space-y-4">
-          {/* Search box */}
-          <div className="relative">
-            <svg
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-jtp-textDim pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search Polymarket…  e.g. Trump, Bitcoin, Fed"
-              className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl pl-10 pr-4 py-3 text-base text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
-              aria-label="Search markets"
-            />
-            {loadingMarkets && (
-              <Spinner className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-jtp-textDim" />
-            )}
-          </div>
-
-          {/* Error */}
-          {marketsError && (
-            <p role="alert" className="text-sm text-jtp-loss">{marketsError}</p>
-          )}
-
-          {/* Empty / loading */}
-          {!loadingMarkets && markets.length === 0 && !marketsError && (
-            <p className="text-base text-jtp-textMuted text-center py-8">
-              {searchQuery ? `No markets found for "${searchQuery}"` : 'Loading trending markets…'}
-            </p>
-          )}
-
-          {/* Market cards */}
-          {markets.length > 0 && (
-            <div className="space-y-3">
-              {markets.map((market) => (
-                <MarketCard
-                  key={market.conditionId}
-                  market={market}
-                  selectedOutcomeIdx={
-                    selectedMarket?.conditionId === market.conditionId
-                      ? selectedOutcomeIdx
-                      : null
-                  }
-                  onSelectOutcome={(idx) => selectOutcome(market, idx)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 3 — TRADE TICKET (appears when outcome selected)              */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {selectedOutcome && selectedMarket && (
-        <div
-          id="poly-trade-ticket"
-          className="bg-jtp-panel border border-jtp-borderStrong rounded-jtp-panel overflow-hidden animate-jtp-fade-in"
-        >
-          <div className="px-5 py-3.5 border-b border-jtp-border flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-jtp-textDim text-sm font-medium uppercase tracking-wide">Step 3</span>
-              <span className="text-base font-semibold text-jtp-text">Trade ticket</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedMarket(null);
-                setSelectedOutcomeIdx(null);
-                setPlaceError(null);
-                setPlaceResult(null);
-              }}
-              className="text-sm text-jtp-textDim hover:text-jtp-textSoft transition-colors"
-            >
-              ← Back to markets
-            </button>
-          </div>
-
-          <div className="px-5 py-5 space-y-5">
-            {/* Market header */}
-            <div className="space-y-2">
-              <p className="text-lg font-semibold text-jtp-text leading-snug">
-                {selectedMarket.question}
-              </p>
-              <div className="flex items-center gap-3">
-                {/* Chosen outcome badge */}
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-jtp-lg text-base font-bold ${
-                    selectedOutcome.label.toUpperCase() === 'YES' || selectedOutcome.label.toUpperCase() === 'NO'
-                      ? selectedOutcome.label.toUpperCase() === 'YES'
-                        ? 'bg-[rgba(76,195,138,0.15)] text-jtp-profit border border-[rgba(76,195,138,0.35)]'
-                        : 'bg-[rgba(229,99,95,0.12)] text-jtp-loss border border-[rgba(229,99,95,0.3)]'
-                      : 'bg-jtp-active border border-jtp-borderStrong text-jtp-textSoft'
-                  }`}
-                >
-                  {selectedOutcome.label}
-                  <span className="font-mono text-xl font-bold">
-                    {fmtCents(selectedOutcome.price)}
-                  </span>
-                </span>
-                {selectedMarket.category && (
-                  <span className="text-sm text-jtp-textDim">{selectedMarket.category}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Side toggle */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-jtp-textDim uppercase tracking-wide">Side</label>
-              <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl">
-                {(['BUY', 'SELL'] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSide(s)}
-                    className={`px-6 py-2 rounded-jtp-lg text-sm font-bold uppercase tracking-wide transition-colors ${
-                      side === s
-                        ? s === 'BUY'
-                          ? 'bg-[rgba(76,195,138,0.15)] text-jtp-profit border border-[rgba(76,195,138,0.35)]'
-                          : 'bg-[rgba(229,99,95,0.15)] text-jtp-loss border border-[rgba(229,99,95,0.35)]'
-                        : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* USD Amount input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-jtp-textDim uppercase tracking-wide">
-                Amount (USDC)
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-jtp-textDim font-mono pointer-events-none">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={usdAmount}
-                  onChange={(e) => setUsdAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl pl-8 pr-4 py-3.5 text-2xl font-bold font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
-                  aria-label="USD amount to spend"
-                />
-              </div>
-              {/* Quick chips */}
-              <div className="flex flex-wrap items-center gap-2">
-                {['5', '25', '100'].map((v) => (
-                  <AmountChip
-                    key={v}
-                    label={`$${v}`}
-                    active={usdAmount === v}
-                    onClick={() => setUsdAmount(v)}
-                  />
-                ))}
-                {usdcBalance && parseFloat(usdcBalance) > 0 && (
-                  <AmountChip
-                    label="Max"
-                    active={usdAmount === parseFloat(usdcBalance).toFixed(2)}
-                    onClick={() => setUsdAmount(parseFloat(usdcBalance).toFixed(2))}
-                  />
-                )}
-              </div>
-              {/* Shares helper */}
-              {usdNum > 0 && tradePriceNum > 0 && (
-                <p className="text-sm text-jtp-textDim">
-                  ≈{' '}
-                  <span className="font-mono font-semibold text-jtp-textSoft">
-                    {(usdNum / tradePriceNum).toFixed(2)}
-                  </span>{' '}
-                  shares at {fmtCents(tradePriceNum)}
-                </p>
-              )}
-            </div>
-
-            {/* Order summary */}
-            <div className="rounded-jtp-xl border border-jtp-border bg-jtp-bg overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-jtp-borderSubtle">
-                <p className="text-sm font-semibold text-jtp-textDim uppercase tracking-wide">Order summary</p>
-              </div>
-              <div className="divide-y divide-jtp-borderSubtle">
-                <SummaryRow label="Price" value={tradePriceNum > 0 ? fmtCents(tradePriceNum) : '—'} mono />
-                <SummaryRow
-                  label={side === 'BUY' ? 'Cost (USDC)' : 'Proceeds (USDC)'}
-                  value={cost > 0 ? fmtUsd(cost) : '—'}
-                  mono
-                  emphasis
-                />
-                <SummaryRow
-                  label="Shares"
-                  value={tradeSizeNum > 0 ? tradeSizeNum.toFixed(2) : '—'}
-                  mono
-                />
-                <SummaryRow
-                  label="Max payout"
-                  value={maxPayout > 0 ? fmtUsd(maxPayout) : '—'}
-                  mono
-                  positive
-                />
-                <SummaryRow
-                  label="Potential profit"
-                  value={potentialProfit > 0 ? `+${fmtUsd(potentialProfit)}` : '—'}
-                  mono
-                  positive={potentialProfit > 0}
-                />
-              </div>
-            </div>
-
-            {/* Guards */}
-            {overMaxGuard && (
-              <p className="text-sm text-jtp-warning font-medium">
-                This order is {fmtUsd(cost)} — above the {fmtUsd(MAX_SIZE_WARN_USD)} safety guard. Double-check your amount.
-              </p>
-            )}
-            {side === 'BUY' && needsApproval && creds && (
-              <p className="text-sm text-jtp-textMuted">
-                First BUY needs a one-time USDC.e approval for the exchange — this happens automatically when you confirm.
-              </p>
-            )}
-            {side === 'SELL' && (
-              <p className="text-sm text-jtp-textMuted">
-                SELL spends the outcome tokens you already hold — no USDC approval needed.
-              </p>
-            )}
-
-            {/* Submit */}
-            <button
-              type="button"
-              onClick={() => {
-                setPlaceError(null);
-                setPlaceResult(null);
-                setConfirmOpen(true);
-              }}
-              disabled={!canSubmit}
-              className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-jtp-xl text-lg font-bold bg-jtp-blue text-white hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {placing || approving ? <Spinner className="w-5 h-5 text-white" /> : null}
-              {!creds
-                ? 'Connect & initialise wallet first'
-                : approving
-                  ? 'Approving USDC…'
-                  : placing
-                    ? 'Placing order…'
-                    : `Review ${side} order →`}
-            </button>
-
-            {placeError && (
-              <p role="alert" className="text-base text-jtp-loss font-medium">{placeError}</p>
-            )}
-            {placeResult && (
-              <p className="text-base text-jtp-profit font-semibold">Order placed — {placeResult}</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ADVANCED FALLBACK — collapsed by default                              */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((v) => !v)}
-          className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-jtp-hover transition-colors"
-          aria-expanded={showAdvanced}
-        >
-          <span className="text-sm font-medium text-jtp-textDim">Advanced: paste outcome token id manually</span>
-          <svg
-            className={`w-4 h-4 text-jtp-textDim transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {showAdvanced && (
-          <div className="px-5 pb-5 space-y-4 border-t border-jtp-border">
-            <p className="text-sm text-jtp-textMuted pt-4">
-              For power users: manually enter a token id, price, and size to trade any outcome directly.
-            </p>
-
-            {/* Token id */}
-            <div className="space-y-1.5">
-              <label className="text-sm text-jtp-textDim font-medium">Outcome token id</label>
-              <input
-                type="text"
-                value={advTokenId}
-                onChange={(e) => setAdvTokenId(e.target.value)}
-                placeholder="Paste a Polymarket outcome token id…"
-                spellCheck={false}
-                autoComplete="off"
-                className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-4 py-3 text-sm font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
-              />
-            </div>
-
-            {/* Price + size */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm text-jtp-textDim font-medium">Price (0.01–0.99)</label>
-                <input
-                  type="number"
-                  min="0.01"
-                  max="0.99"
-                  step="0.01"
-                  value={advPrice}
-                  onChange={(e) => setAdvPrice(e.target.value)}
-                  className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-4 py-3 text-base font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm text-jtp-textDim font-medium">Size (shares)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={advSize}
-                  onChange={(e) => setAdvSize(e.target.value)}
-                  className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-jtp-xl px-4 py-3 text-base font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Side toggle (advanced) */}
-            <div className="space-y-1.5">
-              <label className="text-sm text-jtp-textDim font-medium">Side</label>
-              <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-xl">
-                {(['BUY', 'SELL'] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSide(s)}
-                    className={`px-5 py-2 rounded-jtp-lg text-sm font-bold uppercase tracking-wide transition-colors ${
-                      side === s
-                        ? s === 'BUY'
-                          ? 'bg-[rgba(76,195,138,0.15)] text-jtp-profit border border-[rgba(76,195,138,0.35)]'
-                          : 'bg-[rgba(229,99,95,0.15)] text-jtp-loss border border-[rgba(229,99,95,0.35)]'
-                        : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Submit (advanced) */}
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedMarket(null);
-                setSelectedOutcomeIdx(null);
-                setPlaceError(null);
-                setPlaceResult(null);
-                setConfirmOpen(true);
-              }}
-              disabled={
-                !creds ||
-                !advTokenId.trim() ||
-                !(parseFloat(advPrice) >= 0.01 && parseFloat(advPrice) <= 0.99) ||
-                !(parseFloat(advSize) > 0) ||
-                placing ||
-                approving
-              }
-              className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-jtp-xl text-base font-bold bg-jtp-active border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {placing || approving ? <Spinner className="w-4 h-4 text-jtp-textDim" /> : null}
-              {!creds ? 'Initialise session first' : `Review ${side} order (advanced)`}
-            </button>
-
-            {placeError && !selectedOutcome && (
-              <p role="alert" className="text-base text-jtp-loss font-medium">{placeError}</p>
-            )}
-            {placeResult && !selectedOutcome && (
-              <p className="text-base text-jtp-profit font-semibold">Order placed — {placeResult}</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── Confirmation modal (safety rail — existing logic preserved) ── */}
+    <>
+      {/* ── Confirmation modal (safety rail — portal overlay) ── */}
       {confirmOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
@@ -1015,27 +488,26 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
           onClick={() => !placing && !approving && setConfirmOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-jtp-panel border border-jtp-borderStrong rounded-jtp-panel overflow-hidden shadow-xl"
+            className="w-full max-w-md bg-jtp-panel border border-jtp-borderStrong rounded-[2px] overflow-hidden shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 py-5 border-b border-jtp-border">
-              <h3 className="text-xl font-bold text-jtp-text">Confirm live order</h3>
+            <div className="px-6 py-5 border-b border-jtp-border"
+              style={{ borderTop: '2px solid rgba(232,162,61,0.55)' }}>
+              <h3 className="text-jtp-2xl font-bold text-jtp-text font-mono tracking-tight">
+                Confirm live order
+              </h3>
             </div>
             <div className="px-6 py-5 space-y-4">
               {/* Danger banner */}
-              <div className="rounded-jtp-lg border border-[rgba(229,99,95,0.4)] bg-[rgba(229,99,95,0.1)] px-4 py-3">
-                <p className="text-sm font-bold text-jtp-loss uppercase tracking-wide">
+              <div className="rounded-[2px] border border-[rgba(229,99,95,0.4)] bg-[rgba(229,99,95,0.1)] px-4 py-3">
+                <p className="text-jtp-xs font-bold text-jtp-loss uppercase tracking-wider font-mono">
                   Real funds on Polygon mainnet — this places a live order
                 </p>
               </div>
 
               <dl className="space-y-3">
                 {(selectedMarket?.question || usingAdvanced) && (
-                  <ConfirmRow
-                    label="Market"
-                    value={selectedMarket?.question ?? '—'}
-                    truncate
-                  />
+                  <ConfirmRow label="Market" value={selectedMarket?.question ?? '—'} truncate />
                 )}
                 {selectedOutcome && (
                   <ConfirmRow label="Outcome" value={selectedOutcome.label} />
@@ -1046,11 +518,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
                   value={side}
                   className={side === 'BUY' ? 'font-bold text-jtp-profit' : 'font-bold text-jtp-loss'}
                 />
-                <ConfirmRow
-                  label="Price"
-                  value={tradePriceNum > 0 ? fmtCents(tradePriceNum) : '—'}
-                  mono
-                />
+                <ConfirmRow label="Price" value={tradePriceNum > 0 ? fmtCents(tradePriceNum) : '—'} mono />
                 <ConfirmRow
                   label="Shares"
                   value={tradeSizeNum > 0 ? `${tradeSizeNum.toFixed(2)} shares` : '—'}
@@ -1067,12 +535,12 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
               </dl>
 
               {overMaxGuard && (
-                <p className="text-sm text-jtp-warning font-medium">
+                <p className="text-jtp-xs text-jtp-warning font-mono font-medium">
                   Above the {fmtUsd(MAX_SIZE_WARN_USD)} safety guard — are you sure?
                 </p>
               )}
               {side === 'BUY' && needsApproval && (
-                <p className="text-sm text-jtp-textMuted">
+                <p className="text-jtp-xs text-jtp-textMuted">
                   A USDC.e approval transaction will be requested before the order.
                 </p>
               )}
@@ -1082,7 +550,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
                   type="button"
                   onClick={() => setConfirmOpen(false)}
                   disabled={placing || approving}
-                  className="flex-1 px-4 py-3 rounded-jtp-xl text-base font-semibold bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-[2px] text-jtp-md font-semibold font-mono bg-jtp-active border border-jtp-border text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1090,7 +558,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
                   type="button"
                   onClick={placeOrder}
                   disabled={placing || approving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-jtp-xl text-base font-bold bg-jtp-loss text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-[2px] text-jtp-md font-bold font-mono bg-jtp-loss text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {placing || approving ? <Spinner className="w-4 h-4 text-white" /> : null}
                   {approving ? 'Approving USDC…' : placing ? 'Placing order…' : `Place ${side} order`}
@@ -1100,11 +568,560 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
           </div>
         </div>
       )}
-    </div>
+
+      {/* ── Three-column canvas ── */}
+      <div className="flex gap-3 items-start">
+
+        {/* ════════════════════════════════════════════════════════════
+            LEFT — market browser (search + market cards)
+        ════════════════════════════════════════════════════════════ */}
+        <aside className="w-[220px] flex-shrink-0 flex flex-col gap-3">
+          <Panel label="MARKETS" noPadding>
+            {/* Search input — inside panel body, p-3 */}
+            <div className="p-3 border-b border-jtp-border">
+              <div className="relative">
+                <svg
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-jtp-textDim pointer-events-none"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search markets…"
+                  className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] pl-7 pr-3 py-1.5 text-jtp-xs font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                  aria-label="Search markets"
+                />
+                {loadingMarkets && (
+                  <Spinner className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-jtp-textDim" />
+                )}
+              </div>
+            </div>
+
+            {/* Market list — compact cards, scrollable */}
+            <div className="overflow-y-auto max-h-[560px]">
+              {marketsError && (
+                <p role="alert" className="px-3 py-2 text-jtp-xs text-jtp-loss">{marketsError}</p>
+              )}
+              {!loadingMarkets && markets.length === 0 && !marketsError && (
+                <p className="px-3 py-6 text-jtp-xs text-jtp-textDim text-center">
+                  {searchQuery ? `No results for "${searchQuery}"` : 'Loading markets…'}
+                </p>
+              )}
+              {markets.length > 0 && (
+                <div className="p-2 space-y-1.5">
+                  {markets.map((market) => (
+                    <MarketCardCompact
+                      key={market.conditionId}
+                      market={market}
+                      selectedOutcomeIdx={
+                        selectedMarket?.conditionId === market.conditionId
+                          ? selectedOutcomeIdx
+                          : null
+                      }
+                      onSelectOutcome={(idx) => selectOutcome(market, idx)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </Panel>
+        </aside>
+
+        {/* ════════════════════════════════════════════════════════════
+            CENTER — disclaimer + trade ticket + advanced
+        ════════════════════════════════════════════════════════════ */}
+        <main className="flex-1 min-w-0 flex flex-col gap-3">
+
+          {/* Disclaimer banner */}
+          <div className="rounded-[2px] border border-[rgba(229,99,95,0.35)] bg-[rgba(229,99,95,0.08)] px-4 py-3">
+            <p className="text-jtp-md font-semibold text-jtp-loss font-mono">
+              Live trading — real funds on Polygon mainnet
+            </p>
+            <p className="text-jtp-base-minus text-jtp-textMuted mt-1 leading-relaxed">
+              Non-custodial: you sign every action with your own wallet. JTradePilot never holds your
+              keys or funds. Orders place real trades on Polymarket using your USDC.e.
+            </p>
+          </div>
+
+          {/* Trade ticket — appears when an outcome is selected */}
+          {selectedOutcome && selectedMarket ? (
+            <div
+              id="poly-trade-ticket"
+              className="bg-jtp-panel border border-jtp-borderStrong rounded-[2px] overflow-hidden animate-jtp-fade-in"
+              style={{ borderTop: '2px solid rgba(232,162,61,0.55)' }}
+            >
+              {/* Panel header */}
+              <div className="px-4 py-[9px] border-b border-jtp-border flex items-center justify-between gap-3">
+                <span className="jtp-label tracking-[0.12em]">
+                  <span style={{ color: '#e8a23d', marginRight: '6px' }}>▸</span>
+                  TRADE TICKET
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedMarket(null);
+                    setSelectedOutcomeIdx(null);
+                    setPlaceError(null);
+                    setPlaceResult(null);
+                  }}
+                  className="text-jtp-xs text-jtp-textDim hover:text-jtp-textSoft font-mono transition-colors"
+                >
+                  ← clear
+                </button>
+              </div>
+
+              <div className="px-4 py-4 space-y-4">
+                {/* Market + selected outcome */}
+                <div className="space-y-2">
+                  <p className="text-jtp-lg font-semibold text-jtp-text leading-snug">
+                    {selectedMarket.question}
+                  </p>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* Selected outcome badge */}
+                    <span
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[2px] text-jtp-md font-bold font-mono ${
+                        selectedOutcome.label.toUpperCase() === 'YES'
+                          ? 'bg-[rgba(76,195,138,0.15)] text-jtp-profit border border-[rgba(76,195,138,0.35)]'
+                          : selectedOutcome.label.toUpperCase() === 'NO'
+                            ? 'bg-[rgba(229,99,95,0.12)] text-jtp-loss border border-[rgba(229,99,95,0.3)]'
+                            : 'bg-jtp-active border border-jtp-borderStrong text-jtp-textSoft'
+                      }`}
+                    >
+                      {selectedOutcome.label}
+                      <span className="font-mono text-jtp-3xl font-bold tabular-nums">
+                        {fmtCents(selectedOutcome.price)}
+                      </span>
+                    </span>
+                    {selectedMarket.category && (
+                      <span className="text-jtp-xs text-jtp-textDim font-mono">{selectedMarket.category}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Side toggle BUY / SELL */}
+                <div className="space-y-1.5">
+                  <span className="jtp-label">SIDE</span>
+                  <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-[2px]">
+                    {(['BUY', 'SELL'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSide(s)}
+                        className={`px-6 py-2 rounded-[2px] text-jtp-xs font-bold font-mono uppercase tracking-wider transition-colors ${
+                          side === s
+                            ? s === 'BUY'
+                              ? 'bg-[rgba(76,195,138,0.15)] text-jtp-profit border border-[rgba(76,195,138,0.35)]'
+                              : 'bg-[rgba(229,99,95,0.15)] text-jtp-loss border border-[rgba(229,99,95,0.35)]'
+                            : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* USD amount — big mono money figure */}
+                <div className="space-y-2">
+                  <span className="jtp-label">AMOUNT (USDC)</span>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-jtp-3xl font-bold text-jtp-textDim font-mono pointer-events-none">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={usdAmount}
+                      onChange={(e) => setUsdAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] pl-9 pr-4 py-3 text-jtp-5xl font-bold font-mono tabular-nums text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                      aria-label="USD amount to spend"
+                    />
+                  </div>
+                  {/* Quick chips */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {['5', '25', '100'].map((v) => (
+                      <AmountChip
+                        key={v}
+                        label={`$${v}`}
+                        active={usdAmount === v}
+                        onClick={() => setUsdAmount(v)}
+                      />
+                    ))}
+                    {usdcBalance && parseFloat(usdcBalance) > 0 && (
+                      <AmountChip
+                        label="Max"
+                        active={usdAmount === parseFloat(usdcBalance).toFixed(2)}
+                        onClick={() => setUsdAmount(parseFloat(usdcBalance).toFixed(2))}
+                      />
+                    )}
+                  </div>
+                  {/* Shares helper */}
+                  {usdNum > 0 && tradePriceNum > 0 && (
+                    <p className="text-jtp-xs text-jtp-textDim font-mono">
+                      ≈{' '}
+                      <span className="font-semibold text-jtp-textSoft">
+                        {(usdNum / tradePriceNum).toFixed(2)}
+                      </span>{' '}
+                      shares at {fmtCents(tradePriceNum)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Order summary */}
+                <div className="rounded-[2px] border border-jtp-border bg-jtp-bg overflow-hidden">
+                  <div className="px-3 py-2 border-b border-jtp-borderSubtle"
+                    style={{ borderTop: '1px solid rgba(232,162,61,0.2)' }}>
+                    <span className="jtp-label text-jtp-2xs">ORDER SUMMARY</span>
+                  </div>
+                  <div className="divide-y divide-jtp-borderSubtle">
+                    <SummaryRow label="Price" value={tradePriceNum > 0 ? fmtCents(tradePriceNum) : '—'} mono />
+                    <SummaryRow
+                      label={side === 'BUY' ? 'Cost (USDC)' : 'Proceeds (USDC)'}
+                      value={cost > 0 ? fmtUsd(cost) : '—'}
+                      mono
+                      emphasis
+                    />
+                    <SummaryRow label="Shares" value={tradeSizeNum > 0 ? tradeSizeNum.toFixed(2) : '—'} mono />
+                    <SummaryRow
+                      label="Max payout"
+                      value={maxPayout > 0 ? fmtUsd(maxPayout) : '—'}
+                      mono
+                      positive
+                    />
+                    <SummaryRow
+                      label="Potential profit"
+                      value={potentialProfit > 0 ? `+${fmtUsd(potentialProfit)}` : '—'}
+                      mono
+                      positive={potentialProfit > 0}
+                    />
+                  </div>
+                </div>
+
+                {/* Guards */}
+                {overMaxGuard && (
+                  <p className="text-jtp-xs text-jtp-warning font-mono font-medium">
+                    This order is {fmtUsd(cost)} — above the {fmtUsd(MAX_SIZE_WARN_USD)} safety guard. Double-check your amount.
+                  </p>
+                )}
+                {side === 'BUY' && needsApproval && creds && (
+                  <p className="text-jtp-xs text-jtp-textMuted">
+                    First BUY needs a one-time USDC.e approval — happens automatically when you confirm.
+                  </p>
+                )}
+                {side === 'SELL' && (
+                  <p className="text-jtp-xs text-jtp-textMuted">
+                    SELL spends outcome tokens you already hold — no USDC approval needed.
+                  </p>
+                )}
+
+                {/* Submit */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlaceError(null);
+                    setPlaceResult(null);
+                    setConfirmOpen(true);
+                  }}
+                  disabled={!canSubmit}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-[2px] text-jtp-lg font-bold font-mono uppercase tracking-wider bg-jtp-blue text-[#08090b] hover:bg-jtp-blueHover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {placing || approving ? <Spinner className="w-5 h-5 text-[#08090b]" /> : null}
+                  {!creds
+                    ? 'Connect & initialise wallet first'
+                    : approving
+                      ? 'Approving USDC…'
+                      : placing
+                        ? 'Placing order…'
+                        : `Review ${side} order →`}
+                </button>
+
+                {placeError && (
+                  <p role="alert" className="text-jtp-md text-jtp-loss font-medium">{placeError}</p>
+                )}
+                {placeResult && (
+                  <p className="text-jtp-md text-jtp-profit font-semibold font-mono">
+                    Order placed — {placeResult}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* No outcome selected — empty state hint */
+            <Panel label="TRADE TICKET">
+              <EmptyState
+                title="No outcome selected"
+                description="Pick a market and outcome from the browser on the left to open the trade ticket."
+              />
+            </Panel>
+          )}
+
+          {/* Advanced fallback — collapsed by default */}
+          <div className="bg-jtp-panel border border-jtp-border rounded-[2px] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-jtp-hover transition-colors"
+              aria-expanded={showAdvanced}
+            >
+              <span className="jtp-label text-jtp-xs">Advanced: paste outcome token id manually</span>
+              <svg
+                className={`w-3.5 h-3.5 text-jtp-textDim transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showAdvanced && (
+              <div className="px-4 pb-4 space-y-4 border-t border-jtp-border">
+                <p className="text-jtp-xs text-jtp-textMuted pt-3">
+                  For power users: manually enter a token id, price, and size to trade any outcome directly.
+                </p>
+
+                {/* Token id */}
+                <div className="space-y-1.5">
+                  <label className="jtp-label text-jtp-xs">Outcome token id</label>
+                  <input
+                    type="text"
+                    value={advTokenId}
+                    onChange={(e) => setAdvTokenId(e.target.value)}
+                    placeholder="Paste a Polymarket outcome token id…"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-xs font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                  />
+                </div>
+
+                {/* Price + size */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="jtp-label text-jtp-xs">Price (0.01–0.99)</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      max="0.99"
+                      step="0.01"
+                      value={advPrice}
+                      onChange={(e) => setAdvPrice(e.target.value)}
+                      className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-md font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="jtp-label text-jtp-xs">Size (shares)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={advSize}
+                      onChange={(e) => setAdvSize(e.target.value)}
+                      className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-md font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Side toggle (advanced) */}
+                <div className="space-y-1.5">
+                  <span className="jtp-label text-jtp-xs">Side</span>
+                  <div className="inline-flex items-center gap-1 p-1 bg-jtp-control border border-jtp-borderStrong rounded-[2px]">
+                    {(['BUY', 'SELL'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSide(s)}
+                        className={`px-5 py-2 rounded-[2px] text-jtp-xs font-bold font-mono uppercase tracking-wider transition-colors ${
+                          side === s
+                            ? s === 'BUY'
+                              ? 'bg-[rgba(76,195,138,0.15)] text-jtp-profit border border-[rgba(76,195,138,0.35)]'
+                              : 'bg-[rgba(229,99,95,0.15)] text-jtp-loss border border-[rgba(229,99,95,0.35)]'
+                            : 'text-jtp-textDim hover:text-jtp-textMuted border border-transparent'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Submit (advanced) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedMarket(null);
+                    setSelectedOutcomeIdx(null);
+                    setPlaceError(null);
+                    setPlaceResult(null);
+                    setConfirmOpen(true);
+                  }}
+                  disabled={
+                    !creds ||
+                    !advTokenId.trim() ||
+                    !(parseFloat(advPrice) >= 0.01 && parseFloat(advPrice) <= 0.99) ||
+                    !(parseFloat(advSize) > 0) ||
+                    placing ||
+                    approving
+                  }
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-[2px] text-jtp-xs font-bold font-mono uppercase tracking-wider bg-jtp-active border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {placing || approving ? <Spinner className="w-4 h-4 text-jtp-textDim" /> : null}
+                  {!creds ? 'Initialise session first' : `Review ${side} order (advanced)`}
+                </button>
+
+                {placeError && !selectedOutcome && (
+                  <p role="alert" className="text-jtp-md text-jtp-loss font-medium">{placeError}</p>
+                )}
+                {placeResult && !selectedOutcome && (
+                  <p className="text-jtp-md text-jtp-profit font-semibold font-mono">
+                    Order placed — {placeResult}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* ════════════════════════════════════════════════════════════
+            RIGHT — wallet / session status + order results
+        ════════════════════════════════════════════════════════════ */}
+        <aside className="w-[280px] flex-shrink-0 flex flex-col gap-3">
+          <Panel label="WALLET">
+            <div className="space-y-4">
+              {!hasWallet ? (
+                <p className="text-jtp-md text-jtp-textMuted">
+                  No injected wallet detected.{' '}
+                  <a
+                    href="https://metamask.io/download/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-jtp-blue hover:underline font-medium"
+                  >
+                    Install MetaMask
+                  </a>{' '}
+                  or another Polygon wallet.
+                </p>
+              ) : !address ? (
+                <div className="flex flex-col gap-3">
+                  <p className="text-jtp-md text-jtp-textSoft">
+                    Connect your Polygon wallet to browse markets and trade.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={connect}
+                    disabled={connecting}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-jtp-blue text-[#08090b] hover:bg-jtp-blueHover transition-colors disabled:opacity-50"
+                  >
+                    {connecting ? <Spinner className="w-3.5 h-3.5 text-[#08090b]" /> : null}
+                    {connecting ? 'Connecting…' : 'Connect wallet'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Status pill */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] text-jtp-xs font-mono font-semibold bg-[rgba(76,195,138,0.12)] text-jtp-profit border border-[rgba(76,195,138,0.3)]">
+                      <span className="status-dot-live" />
+                      Connected
+                    </span>
+                    {onPolygon ? (
+                      <span className="text-jtp-xs text-jtp-textDim font-mono">Polygon · 137</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={connect}
+                        className="text-jtp-xs font-semibold font-mono px-2.5 py-1 rounded-[2px] bg-[rgba(229,99,95,0.12)] text-jtp-loss border border-[rgba(229,99,95,0.3)] hover:bg-[rgba(229,99,95,0.18)] transition-colors"
+                      >
+                        Wrong network — switch to Polygon
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Address */}
+                  <div className="font-mono text-jtp-base-minus text-jtp-textSoft">{truncate(address)}</div>
+
+                  {/* USDC balance — prominent mono figure */}
+                  <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-2">
+                    <span className="jtp-label text-jtp-2xs">USDC.e BALANCE</span>
+                    <div className="font-mono text-jtp-3xl font-bold text-jtp-text tabular-nums mt-1">
+                      {usdcBalance != null ? parseFloat(usdcBalance).toFixed(2) : '—'}
+                      <span className="text-jtp-xs text-jtp-textDim font-normal ml-1.5">USDC</span>
+                    </div>
+                  </div>
+
+                  {/* Session init */}
+                  {onPolygon && !creds && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-jtp-xs text-jtp-textMuted">
+                        One-time signature needed (no gas) to start your Polymarket CLOB session.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={initClob}
+                        disabled={initializingClob}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-[2px] text-jtp-xs font-bold font-mono uppercase tracking-wider bg-jtp-active border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50"
+                      >
+                        {initializingClob ? <Spinner className="w-3.5 h-3.5 text-jtp-textDim" /> : null}
+                        {initializingClob ? 'Signing…' : 'Initialise session'}
+                      </button>
+                      {clobError && (
+                        <p role="alert" className="text-jtp-xs text-jtp-loss">{clobError}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* All ready */}
+                  {onPolygon && creds && (
+                    <div className="flex items-center gap-2 text-jtp-md text-jtp-profit font-semibold">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
+                      </svg>
+                      <span className="font-mono text-jtp-xs uppercase tracking-wider">
+                        Session ready — live orders enabled
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {walletError && (
+                <p role="alert" className="text-jtp-xs text-jtp-loss mt-1">{walletError}</p>
+              )}
+            </div>
+          </Panel>
+
+          {/* Order status — shows after order is placed or on error */}
+          {(placeResult || placeError) && sessionReady && (
+            <Panel label="LAST ORDER">
+              {placeResult && (
+                <p className="text-jtp-md text-jtp-profit font-semibold font-mono">
+                  {placeResult}
+                </p>
+              )}
+              {placeError && (
+                <p role="alert" className="text-jtp-md text-jtp-loss">{placeError}</p>
+              )}
+            </Panel>
+          )}
+        </aside>
+
+      </div>
+    </>
   );
 };
 
-// ─── Market Card ─────────────────────────────────────────────────────────────
+// ─── Market Card (full) ───────────────────────────────────────────────────────
+// Used in original stacked layout — kept but not rendered in the three-col view.
 
 interface MarketCardProps {
   market: PolymarketMarket;
@@ -1118,36 +1135,33 @@ const MarketCard: React.FC<MarketCardProps> = ({ market, selectedOutcomeIdx, onS
 
   return (
     <div
-      className={`rounded-jtp-panel border transition-colors ${
+      className={`rounded-[2px] border transition-colors ${
         selectedOutcomeIdx !== null
-          ? 'border-jtp-blue bg-[rgba(91,141,239,0.05)]'
+          ? 'border-jtp-blue bg-[rgba(232,162,61,0.05)]'
           : 'border-jtp-border bg-jtp-bg hover:border-jtp-borderStrong'
       }`}
     >
       <div className="px-4 pt-4 pb-3">
-        {/* Header row */}
         <div className="flex items-start gap-3">
           {market.image && (
             <img
               src={market.image}
               alt=""
-              className="w-10 h-10 rounded-jtp-lg object-cover shrink-0 mt-0.5"
+              className="w-10 h-10 rounded-[2px] object-cover shrink-0 mt-0.5"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-lg font-semibold text-jtp-text leading-snug">{market.question}</p>
+            <p className="text-jtp-lg font-semibold text-jtp-text leading-snug">{market.question}</p>
             <div className="flex items-center gap-3 mt-1.5 flex-wrap">
               {market.category && (
-                <span className="text-sm text-jtp-textDim px-2 py-0.5 rounded-full bg-jtp-active border border-jtp-borderSubtle">
+                <span className="text-jtp-xs text-jtp-textDim px-2 py-0.5 rounded-[2px] bg-jtp-active border border-jtp-borderSubtle">
                   {market.category}
                 </span>
               )}
-              {vol && (
-                <span className="text-sm text-jtp-textMuted font-mono">{vol} Vol</span>
-              )}
+              {vol && <span className="text-jtp-xs text-jtp-textMuted font-mono">{vol} Vol</span>}
               {market.endDate && (
-                <span className="text-sm text-jtp-textFaint">
+                <span className="text-jtp-xs text-jtp-textFaint">
                   Closes {new Date(market.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               )}
@@ -1155,35 +1169,104 @@ const MarketCard: React.FC<MarketCardProps> = ({ market, selectedOutcomeIdx, onS
           </div>
         </div>
 
-        {/* Outcome buttons */}
         <div className={`mt-3 ${isBinary ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-2'}`}>
           {market.outcomes.map((outcome, idx) => {
             const isSelected = selectedOutcomeIdx === idx;
             const isYes = outcome.label.toUpperCase() === 'YES';
             const isNo = outcome.label.toUpperCase() === 'NO';
             const pct = Math.round(outcome.price * 100);
-
             return (
               <button
                 key={outcome.tokenId}
                 type="button"
                 onClick={() => onSelectOutcome(idx)}
-                className={`flex items-center justify-between px-4 py-3 rounded-jtp-xl border font-semibold transition-all ${
+                className={`flex items-center justify-between px-4 py-3 rounded-[2px] border font-semibold transition-all ${
                   isSelected
                     ? isYes || (!isNo && idx === 0)
                       ? 'bg-[rgba(76,195,138,0.2)] border-[rgba(76,195,138,0.5)] text-jtp-profit'
                       : 'bg-[rgba(229,99,95,0.15)] border-[rgba(229,99,95,0.4)] text-jtp-loss'
                     : isYes || (!isNo && !isBinary && idx === 0)
-                      ? 'bg-[rgba(76,195,138,0.06)] border-[rgba(76,195,138,0.2)] text-jtp-profit hover:bg-[rgba(76,195,138,0.12)] hover:border-[rgba(76,195,138,0.35)]'
+                      ? 'bg-[rgba(76,195,138,0.06)] border-[rgba(76,195,138,0.2)] text-jtp-profit hover:bg-[rgba(76,195,138,0.12)]'
                       : isNo
-                        ? 'bg-[rgba(229,99,95,0.06)] border-[rgba(229,99,95,0.2)] text-jtp-loss hover:bg-[rgba(229,99,95,0.12)] hover:border-[rgba(229,99,95,0.35)]'
+                        ? 'bg-[rgba(229,99,95,0.06)] border-[rgba(229,99,95,0.2)] text-jtp-loss hover:bg-[rgba(229,99,95,0.12)]'
                         : 'bg-jtp-active border-jtp-borderStrong text-jtp-textSoft hover:bg-jtp-hover hover:text-jtp-text'
                 }`}
                 aria-pressed={isSelected}
                 aria-label={`Select ${outcome.label} at ${pct}¢`}
               >
-                <span className="text-base font-bold">{outcome.label}</span>
-                <span className="font-mono text-xl font-bold tabular-nums">{pct}¢</span>
+                <span className="text-jtp-md font-bold">{outcome.label}</span>
+                <span className="font-mono text-jtp-2xl font-bold tabular-nums">{pct}¢</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Market Card Compact (narrow left column, 220px) ─────────────────────────
+
+const MarketCardCompact: React.FC<MarketCardProps> = ({ market, selectedOutcomeIdx, onSelectOutcome }) => {
+  const vol = market.volume != null ? fmtVol(market.volume) : null;
+
+  return (
+    <div
+      className={`rounded-[2px] border transition-colors ${
+        selectedOutcomeIdx !== null
+          ? 'border-jtp-blue bg-[rgba(232,162,61,0.05)]'
+          : 'border-jtp-border bg-jtp-bg hover:border-jtp-borderHover hover:bg-jtp-hover'
+      }`}
+    >
+      <div className="px-2.5 pt-2.5 pb-2">
+        {/* Question — 2-line clamp */}
+        <p
+          className="text-jtp-base-minus font-medium text-jtp-text leading-snug mb-1.5"
+          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        >
+          {market.question}
+        </p>
+
+        {/* Meta: category + vol */}
+        {(market.category || vol) && (
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            {market.category && (
+              <span className="text-jtp-2xs text-jtp-textDim">{market.category}</span>
+            )}
+            {vol && (
+              <span className="font-mono text-jtp-2xs text-jtp-textFaint">{vol}</span>
+            )}
+          </div>
+        )}
+
+        {/* Compact outcome buttons — stacked vertically */}
+        <div className="flex flex-col gap-1">
+          {market.outcomes.map((outcome, idx) => {
+            const isSelected = selectedOutcomeIdx === idx;
+            const isYes = outcome.label.toUpperCase() === 'YES';
+            const isNo = outcome.label.toUpperCase() === 'NO';
+            const pct = Math.round(outcome.price * 100);
+            return (
+              <button
+                key={outcome.tokenId}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onSelectOutcome(idx); }}
+                className={`flex items-center justify-between px-2 py-1.5 rounded-[2px] border transition-all ${
+                  isSelected
+                    ? isYes || (!isNo && idx === 0)
+                      ? 'bg-[rgba(76,195,138,0.2)] border-[rgba(76,195,138,0.5)] text-jtp-profit'
+                      : 'bg-[rgba(229,99,95,0.15)] border-[rgba(229,99,95,0.4)] text-jtp-loss'
+                    : isYes
+                      ? 'bg-[rgba(76,195,138,0.04)] border-[rgba(76,195,138,0.15)] text-jtp-profit hover:bg-[rgba(76,195,138,0.1)]'
+                      : isNo
+                        ? 'bg-[rgba(229,99,95,0.04)] border-[rgba(229,99,95,0.15)] text-jtp-loss hover:bg-[rgba(229,99,95,0.1)]'
+                        : 'bg-jtp-active border-jtp-borderStrong text-jtp-textSoft hover:bg-jtp-hover'
+                }`}
+                aria-pressed={isSelected}
+                aria-label={`Select ${outcome.label} at ${pct}¢`}
+              >
+                <span className="text-jtp-xs font-semibold font-mono">{outcome.label}</span>
+                <span className="font-mono text-jtp-md font-bold tabular-nums">{pct}¢</span>
               </button>
             );
           })}
@@ -1204,12 +1287,12 @@ interface SummaryRowProps {
 }
 
 const SummaryRow: React.FC<SummaryRowProps> = ({ label, value, mono, emphasis, positive }) => (
-  <div className="flex items-center justify-between px-4 py-3">
-    <span className="text-sm text-jtp-textDim">{label}</span>
+  <div className="flex items-center justify-between px-3 py-2.5">
+    <span className="jtp-label text-jtp-xs">{label}</span>
     <span
       className={[
-        mono ? 'font-mono' : '',
-        emphasis ? 'text-xl font-bold text-jtp-text' : 'text-base font-semibold',
+        mono ? 'font-mono tabular-nums' : '',
+        emphasis ? 'text-jtp-3xl font-bold text-jtp-text' : 'text-jtp-md font-semibold',
         positive ? 'text-jtp-profit' : emphasis ? 'text-jtp-text' : 'text-jtp-textSoft',
       ].join(' ')}
     >
@@ -1231,12 +1314,12 @@ interface ConfirmRowProps {
 
 const ConfirmRow: React.FC<ConfirmRowProps> = ({ label, value, mono, emphasis, truncate: trunc, className }) => (
   <div className="flex items-baseline justify-between gap-3">
-    <dt className="text-base text-jtp-textDim shrink-0">{label}</dt>
+    <dt className="text-jtp-md text-jtp-textDim shrink-0">{label}</dt>
     <dd
       className={[
         'text-right',
-        mono ? 'font-mono' : '',
-        emphasis ? 'text-xl font-bold text-jtp-text' : 'text-base text-jtp-text',
+        mono ? 'font-mono tabular-nums' : '',
+        emphasis ? 'text-jtp-3xl font-bold text-jtp-text' : 'text-jtp-md text-jtp-text',
         trunc ? 'truncate max-w-[60%]' : '',
         className ?? '',
       ].join(' ')}
@@ -1245,5 +1328,9 @@ const ConfirmRow: React.FC<ConfirmRowProps> = ({ label, value, mono, emphasis, t
     </dd>
   </div>
 );
+
+// MarketCard is defined but used only if callers need the full-size version.
+// In the three-column layout we use MarketCardCompact for the left column.
+void MarketCard; // suppress "unused" warning while keeping it available
 
 export default PolymarketTradePanel;

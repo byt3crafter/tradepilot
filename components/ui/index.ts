@@ -8,6 +8,7 @@
  *   Panel            — titled container (the fundamental layout unit)
  *   StatTile         — large mono metric display
  *   DataTable        — dense, monospace, sortable table
+ *   Ticker           — horizontally scrolling live-feed tape
  *
  * Navigation / flow control:
  *   Tabs             — horizontal tab switcher
@@ -44,6 +45,8 @@ export { default as Panel } from './Panel';
 export { default as StatTile } from './StatTile';
 export { default as DataTable } from './DataTable';
 export type { TableColumn } from './DataTable';
+export { default as Ticker } from './Ticker';
+export type { TickerItem, TickerProps } from './Ticker';
 
 // ── Navigation / flow control ─────────────────────────────────────────────────
 export { default as Tabs } from './Tabs';

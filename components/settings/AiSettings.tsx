@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api, { ChatGptPermissions, ChatGptStatus } from '../../services/api';
-import { Panel, Badge, ToggleSwitch, Button } from '../ui';
+import { Panel, Badge, ToggleSwitch, Button, Input } from '../ui';
 import AgentPanel from '../ai/AgentPanel';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ const AiSettings: React.FC = () => {
           ChatGPT Plus/Pro.
         </p>
 
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3">
+        <div className="bg-jtp-raised border border-jtp-border rounded-[2px] p-4 space-y-3">
           {statusLoading ? (
             <div className="flex items-center gap-2 text-jtp-textMuted">
               <Spinner />
@@ -240,15 +240,16 @@ const AiSettings: React.FC = () => {
                     After signing in, OpenAI redirects to a page that won't load (localhost:1455).
                     Copy that full URL from the address bar and paste it below.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-2.5">
-                    <input
+                  <div className="flex flex-col sm:flex-row gap-2.5 items-end">
+                    <Input
+                      id="paste-url"
                       type="text"
                       value={pasted}
                       onChange={(e) => setPasted(e.target.value)}
                       placeholder="http://localhost:1455/?code=…&state=…"
                       spellCheck={false}
                       autoComplete="off"
-                      className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3.5 py-2 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+                      containerClassName="flex-1 mb-0"
                     />
                     <Button
                       onClick={handleExchange}
@@ -287,27 +288,30 @@ const AiSettings: React.FC = () => {
             ). Our guesses failed for your account, so set it explicitly.
           </p>
 
-          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <input
-                type="text"
-                list="chatgpt-model-options"
-                value={modelInput}
-                onChange={(e) => {
-                  setModelInput(e.target.value);
-                  setModelSaved(false);
-                  setModelError(null);
-                }}
-                placeholder={status.model ?? 'e.g. gpt-5.3-codex'}
-                spellCheck={false}
-                autoComplete="off"
-                className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3.5 py-2 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
-              />
-              <datalist id="chatgpt-model-options">
-                {suggestions.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
+          <div className="bg-jtp-raised border border-jtp-border rounded-[2px] p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2.5 items-end">
+              <div className="flex-1">
+                <Input
+                  id="model-name"
+                  type="text"
+                  list="chatgpt-model-options"
+                  value={modelInput}
+                  onChange={(e) => {
+                    setModelInput(e.target.value);
+                    setModelSaved(false);
+                    setModelError(null);
+                  }}
+                  placeholder={status.model ?? 'e.g. gpt-5.3-codex'}
+                  spellCheck={false}
+                  autoComplete="off"
+                  containerClassName="mb-0"
+                />
+                <datalist id="chatgpt-model-options">
+                  {suggestions.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </div>
               <Button
                 onClick={handleSaveModel}
                 disabled={savingModel || !modelInput.trim()}
@@ -338,9 +342,9 @@ const AiSettings: React.FC = () => {
                         setModelSaved(false);
                         setModelError(null);
                       }}
-                      className={`px-2.5 py-1 rounded-md text-jtp-xs font-mono border transition-colors ${
+                      className={`px-2.5 py-1 rounded-[2px] text-jtp-xs font-mono border transition-colors ${
                         modelInput.trim() === m
-                          ? 'bg-jtp-blue text-white border-jtp-blue'
+                          ? 'bg-jtp-blue text-[#08090b] border-jtp-blue'
                           : 'bg-jtp-control text-jtp-text border-jtp-borderStrong hover:border-jtp-borderFocus'
                       }`}
                     >
@@ -378,7 +382,7 @@ const AiSettings: React.FC = () => {
             <p role="alert" className="text-jtp-md text-jtp-loss mb-2">{permError}</p>
           )}
 
-          <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel divide-y divide-jtp-border">
+          <div className="bg-jtp-raised border border-jtp-border rounded-[2px] divide-y divide-jtp-border">
             <div className="flex items-start justify-between gap-4 px-4 py-4">
               <div className="min-w-0">
                 <p className="text-jtp-md font-medium text-jtp-text">AI Verdict (Quant)</p>

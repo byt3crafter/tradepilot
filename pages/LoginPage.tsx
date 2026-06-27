@@ -19,7 +19,7 @@ const LoginPage: React.FC = () => {
           appearance={{
             baseTheme: dark,
             variables: {
-              colorPrimary: '#5b8def',
+              colorPrimary: '#e8a23d',
               colorBackground: '#0b0c0e',
               colorText: '#e8eaed',
               colorTextSecondary: '#9aa1ab',

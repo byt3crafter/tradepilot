@@ -57,11 +57,11 @@ function SegmentedControl<T extends string = string>({
             aria-pressed={isActive}
             title={seg.title}
             className={[
-              `${padClass} ${textClass} font-mono font-medium`,
+              `${padClass} ${textClass} font-mono font-medium tracking-wide`,
               'transition-colors duration-120 whitespace-nowrap',
               isActive
-                ? 'bg-jtp-blue text-white'
-                : 'text-jtp-textDim hover:text-jtp-textMuted',
+                ? 'bg-jtp-blue text-[#08090b]'
+                : 'text-jtp-textDim/60 hover:text-jtp-textDim',
             ]
               .filter(Boolean)
               .join(' ')}

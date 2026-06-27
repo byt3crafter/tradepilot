@@ -24,11 +24,13 @@ const toDateTimeLocal = (dateString?: string | null): string => {
 };
 
 const fmtPL = (v: number): string =>
-  `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
+  v > 0 ? `▲ +$${v.toFixed(2)}` : v < 0 ? `▼ -$${Math.abs(v).toFixed(2)}` : `$0.00`;
 
 const fmtR = (v: number | null | undefined): string => {
   if (v == null) return '—';
-  return `${v >= 0 ? '+' : ''}${v.toFixed(2)} R`;
+  if (v > 0) return `▲ +${v.toFixed(2)} R`;
+  if (v < 0) return `▼ ${v.toFixed(2)} R`;
+  return `${v.toFixed(2)} R`;
 };
 
 const calcDuration = (start?: string | null, end?: string | null): string => {
