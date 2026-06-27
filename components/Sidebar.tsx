@@ -324,7 +324,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen bg-jtp-shell border-r border-jtp-border flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] w-[228px] ${sidebarWidth} ${
+        className={`fixed top-0 bottom-[28px] left-0 bg-jtp-shell border-r border-jtp-border flex-shrink-0 flex flex-col z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] w-[228px] ${sidebarWidth} ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0`}
       >
