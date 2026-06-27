@@ -6,6 +6,7 @@ import api from '../services/api';
 import { PmWallet, PmPosition, QuantVerdict } from '../types';
 import QuantTerminal from '../components/quant/QuantTerminal';
 import AiQuantPanel from '../components/quant/AiQuantPanel';
+import WhatWorksPanel from '../components/quant/WhatWorksPanel';
 import PolymarketTradePanel, { TradePrefill } from '../components/trade/PolymarketTradePanel';
 import {
   Panel,
@@ -18,7 +19,7 @@ import {
 } from '../components/ui';
 import type { Segment } from '../components/ui';
 
-type QuantMode = 'leaderboard' | 'terminal' | 'trade';
+type QuantMode = 'leaderboard' | 'terminal' | 'trade' | 'learning';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ const MODE_SEGMENTS: Segment<QuantMode>[] = [
   { value: 'leaderboard', label: 'Leaderboard' },
   { value: 'terminal',    label: 'Terminal' },
   { value: 'trade',       label: 'Trade' },
+  { value: 'learning',    label: 'What Works' },
 ];
 
 // ─── ChatGPT connection status ─────────────────────────────────────────────────
@@ -767,6 +769,10 @@ const QuantPage: React.FC = () => {
           </div>
           <PolymarketTradePanel prefill={tradePrefill} />
         </>
+
+      ) : mode === 'learning' ? (
+        /* ── What Works — predictions vs outcomes transparency view ── */
+        <WhatWorksPanel />
 
       ) : (
         /* ── Leaderboard — three-column canvas ── */
