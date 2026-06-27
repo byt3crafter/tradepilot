@@ -108,16 +108,12 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
           className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue rounded-[2px]"
           aria-label="JTradePilot — home"
         >
-          <div
-            className="w-7 h-7 rounded-[2px] flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #e8a23d 0%, #c47e1e 100%)' }}
+          <img
+            src="/JTP_logo.png"
+            alt="JTradePilot"
+            className="w-7 h-7 flex-shrink-0"
             aria-hidden="true"
-          >
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none">
-              <polyline points="2,14 7,8 11,11 18,4" stroke="#08090b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="18" cy="4" r="1.8" fill="#08090b" />
-            </svg>
-          </div>
+          />
           <div className="flex flex-col leading-none">
             <span className="font-mono font-bold text-jtp-text text-[13px] tracking-[0.03em]">
               JTradePilot

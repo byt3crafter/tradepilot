@@ -333,21 +333,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           className="flex-shrink-0 flex items-center border-b border-jtp-border"
           style={{ height: '52px', padding: '0 16px', gap: '10px' }}
         >
-          {/* Gradient mark — square console unit indicator */}
-          <div
-            className="flex-shrink-0 flex items-center justify-center rounded-jtp-md"
-            style={{
-              width: '24px',
-              height: '24px',
-              background: 'linear-gradient(135deg, #e8a23d 0%, #c47e1e 100%)',
-              boxShadow: '0 0 8px rgba(232,162,61,0.35)',
-            }}
-          >
-            <div
-              className="rounded-jtp-xs bg-jtp-bg"
-              style={{ width: '8px', height: '8px' }}
-            />
-          </div>
+          {/* Brand mark — JTP app icon */}
+          <img
+            src="/JTP_logo.png"
+            alt="JTradePilot"
+            className="flex-shrink-0"
+            style={{ width: '24px', height: '24px' }}
+          />
 
           {!isSidebarCollapsed && (
             <div className="flex flex-col leading-none">
