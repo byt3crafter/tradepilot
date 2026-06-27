@@ -166,10 +166,13 @@ export class PolymarketClient {
           if (!cid) continue;
           let prices: number[] = [];
           try { prices = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { /* ignore */ }
-          const winningIndex = m.closed ? prices.findIndex((p) => p >= 0.99) : null;
+          // Resolution from DECISIVE prices (one outcome ≈ $1), not gamma's lagging
+          // `closed` flag — which was hiding resolution losses and faking ~100% win rates.
+          const wi = prices.findIndex((p) => p >= 0.99);
+          const decisive = wi >= 0;
           out[cid] = {
-            closed: !!m.closed,
-            winningIndex: winningIndex != null && winningIndex >= 0 ? winningIndex : null,
+            closed: !!m.closed || decisive,
+            winningIndex: decisive ? wi : null,
             outcomePrices: m.outcomePrices || null,
           };
         }
