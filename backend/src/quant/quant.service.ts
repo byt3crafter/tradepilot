@@ -398,6 +398,32 @@ export class QuantService implements OnApplicationBootstrap {
     return { overall: { resolved: n, pending, winRate: n ? wins / n : 0, avgRoi }, wallets };
   }
 
+  /** Prediction → outcome ledger: each paper decision + what actually happened. */
+  async learningDecisions(limit = 60) {
+    const rows = await this.prisma.agentDecision.findMany({
+      where: { kind: 'paper_copy' },
+      include: { outcome: true },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 200),
+    });
+    return rows.map((d) => {
+      const meta: any = d.meta || {};
+      return {
+        id: d.id,
+        createdAt: d.createdAt,
+        wallet: d.subjectAddr,
+        market: d.market,
+        prediction: d.rationale, // what the engine "called"
+        outcomeLabel: meta.outcome ?? null,
+        entryPrice: meta.entryPrice ?? null,
+        title: meta.title ?? null,
+        status: d.outcome ? (d.outcome.success ? 'win' : 'loss') : 'pending',
+        roiPct: d.outcome?.roiPct ?? null,
+        resolvedAt: d.outcome?.resolvedAt ?? null,
+      };
+    });
+  }
+
   @Interval('quant-paper-loop', 10 * 60 * 1000)
   async paperTick() {
     try {
