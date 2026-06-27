@@ -27,6 +27,11 @@ export class QuantController {
     return this.quant.learningDecisions(limit ? parseInt(limit, 10) : 60);
   }
 
+  @Get('simulation')
+  simulation(@Query('bankroll') bankroll?: string, @Query('risk') risk?: string) {
+    return this.quant.simulate(bankroll ? parseFloat(bankroll) : 50, risk ? parseFloat(risk) : 0.05);
+  }
+
   @Get('feed')
   feed(@Query('limit') limit?: string) {
     return this.quant.feed(limit ? parseInt(limit, 10) : 40);
