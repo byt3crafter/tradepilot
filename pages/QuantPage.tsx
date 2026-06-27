@@ -662,7 +662,13 @@ const WalletDetailCenter: React.FC<{
 const QuantPage: React.FC = () => {
   const { getToken } = useAuth();
 
-  const [mode, setMode] = useState<QuantMode>('leaderboard');
+  const [mode, setModeRaw] = useState<QuantMode>(() => {
+    try { return (localStorage.getItem('jtp.quantMode') as QuantMode) || 'leaderboard'; } catch { return 'leaderboard'; }
+  });
+  const setMode = (m: QuantMode) => {
+    setModeRaw(m);
+    try { localStorage.setItem('jtp.quantMode', m); } catch { /* ignore */ }
+  };
   const [stats, setStats] = useState<{ total: number; scanned: number; qualified: number } | null>(null);
   const [leaderboard, setLeaderboard] = useState<PmWallet[]>([]);
   const [loading, setLoading] = useState(true);
