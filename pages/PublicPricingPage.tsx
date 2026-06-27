@@ -75,7 +75,7 @@ const PublicPricingPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full min-h-screen bg-jtp-bg text-jtp-text overflow-x-hidden">
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-jtp-bg text-jtp-text">
 
       {/* Nav (no navigate callbacks — use PublicLink fallback) */}
       <MarketingNav />
