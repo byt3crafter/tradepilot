@@ -764,6 +764,10 @@ export interface QuantSimulation {
   maxDrawdownPct: number;
   riskFraction: number;
   curve: QuantSimulationPoint[];
+  /** Which dataset the backend used: 'live' = out-of-sample forward signals, 'historical' = in-sample hindsight */
+  sample?: 'live' | 'historical';
+  /** Human-readable explanation from the backend about this result */
+  note?: string;
 }
 
 // --- Notebook ---
