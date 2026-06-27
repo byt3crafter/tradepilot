@@ -22,6 +22,11 @@ export class QuantController {
     return this.quant.learningStats();
   }
 
+  @Get('learning/decisions')
+  learningDecisions(@Query('limit') limit?: string) {
+    return this.quant.learningDecisions(limit ? parseInt(limit, 10) : 60);
+  }
+
   @Get('feed')
   feed(@Query('limit') limit?: string) {
     return this.quant.feed(limit ? parseInt(limit, 10) : 40);
