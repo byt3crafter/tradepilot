@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTrade } from '../../context/TradeContext';
 import { useAccount } from '../../context/AccountContext';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +12,15 @@ import DashEquityCurve from './redesign/DashEquityCurve';
 import DashRecentActivity from './redesign/DashRecentActivity';
 import TradingHealthScore from './redesign/TradingHealthScore';
 import QuantDashPanel from './redesign/QuantDashPanel';
+import QuantLivePredictions from './redesign/QuantLivePredictions';
+import SegmentedControl from '../ui/SegmentedControl';
+
+type DashView = 'journal' | 'quant';
+
+const DASH_SEGMENTS = [
+  { value: 'journal' as DashView, label: 'Trading Journal' },
+  { value: 'quant'   as DashView, label: 'Quant' },
+];
 
 const Dashboard: React.FC = () => {
   const {
@@ -26,6 +35,9 @@ const Dashboard: React.FC = () => {
     'onboardingQuestionnaireCompleted',
     false,
   );
+
+  // Which dashboard is active — defaults to 'journal'; Quant segment only shown when enabled.
+  const [activeDash, setActiveDash] = useState<DashView>('journal');
 
   const hasTrades = closedTrades.length > 0 || liveTrades.length > 0;
   const isLoading = accountLoading || tradesLoading || !isTradesSynced;
@@ -54,39 +66,68 @@ const Dashboard: React.FC = () => {
   return (
     <div className="flex flex-col gap-4">
 
-      {/* ── Row 1: KPI StatTile grid (top third — most important numbers, scannable) ── */}
-      <DashStatCards closedTrades={closedTrades} />
-
-      {/* ── Row 2: Primary — equity curve (flex-1) + prop firm rules (fixed ~320px) ── */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
-        <div className="flex-1 min-w-0 flex flex-col">
-          <DashEquityCurve
-            closedTrades={closedTrades}
-            account={activeAccount}
+      {/* ── Dashboard toggle (only when Quant is enabled) ── */}
+      {quantEnabled && (
+        <div className="flex items-center">
+          <SegmentedControl
+            segments={DASH_SEGMENTS}
+            value={activeDash}
+            onChange={setActiveDash}
+            size="sm"
           />
         </div>
-        {showPropFirmRules && activeAccount && (
-          <div className="w-full lg:w-80 flex-shrink-0 flex flex-col">
-            <PropFirmRulesPanel
-              objectives={objectivesProgress!}
-              account={activeAccount}
-            />
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+          TRADING JOURNAL VIEW
+          ════════════════════════════════════════════════════════════════ */}
+      {activeDash === 'journal' && (
+        <>
+          {/* ── Row 1: KPI StatTile grid (top third — most important numbers, scannable) ── */}
+          <DashStatCards closedTrades={closedTrades} />
+
+          {/* ── Row 2: Primary — equity curve (flex-1) + prop firm rules (fixed ~320px) ── */}
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+            <div className="flex-1 min-w-0 flex flex-col">
+              <DashEquityCurve
+                closedTrades={closedTrades}
+                account={activeAccount}
+              />
+            </div>
+            {showPropFirmRules && activeAccount && (
+              <div className="w-full lg:w-80 flex-shrink-0 flex flex-col">
+                <PropFirmRulesPanel
+                  objectives={objectivesProgress!}
+                  account={activeAccount}
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* ── Row 3: Secondary — recent activity DataTable (flex-1) + trading health (fixed ~320px) ── */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
-        <div className="flex-1 min-w-0 flex flex-col">
-          <DashRecentActivity closedTrades={closedTrades} />
-        </div>
-        <div className="w-full lg:w-80 flex-shrink-0 flex flex-col">
-          <TradingHealthScore closedTrades={closedTrades} />
-        </div>
-      </div>
+          {/* ── Row 3: Secondary — recent activity DataTable (flex-1) + trading health (fixed ~320px) ── */}
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+            <div className="flex-1 min-w-0 flex flex-col">
+              <DashRecentActivity closedTrades={closedTrades} />
+            </div>
+            <div className="w-full lg:w-80 flex-shrink-0 flex flex-col">
+              <TradingHealthScore closedTrades={closedTrades} />
+            </div>
+          </div>
+        </>
+      )}
 
-      {/* ── Row 4: Quant — shown only when quantEnabled ── */}
-      {quantEnabled && <QuantDashPanel />}
+      {/* ════════════════════════════════════════════════════════════════
+          QUANT VIEW  (quantEnabled only — toggle hides this segment when not enabled)
+          ════════════════════════════════════════════════════════════════ */}
+      {activeDash === 'quant' && quantEnabled && (
+        <>
+          {/* ── Quant stat tiles + top wallets ── */}
+          <QuantDashPanel />
+
+          {/* ── Live predictions strip ── */}
+          <QuantLivePredictions />
+        </>
+      )}
 
     </div>
   );
