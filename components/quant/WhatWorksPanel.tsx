@@ -5,16 +5,25 @@
  * so the user can see where the system is right and where it's wrong.
  *
  * Sections:
+ *   0. Paper Wallet Simulation card (top)
  *   1. Overall stat tiles (resolved, pending, win rate, avg ROI)
  *   2. Per-wallet DataTable sorted by avgRoi desc
  *   3. Predictions → Outcomes feed with All/Wins/Losses/Pending filter
  *
  * REAL DATA ONLY. Sparse or empty is expected and handled gracefully.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import type { QuantLearning, QuantLearningWallet, QuantDecision } from '../../types';
+import type { QuantLearning, QuantLearningWallet, QuantDecision, QuantSimulation } from '../../types';
 import Panel from '../ui/Panel';
 import StatTile from '../ui/StatTile';
 import Badge from '../ui/Badge';
@@ -133,6 +142,288 @@ const STATUS_VARIANT: Record<string, 'profit' | 'loss' | 'warning'> = {
   pending: 'warning',
 };
 
+// ─── Risk segments ────────────────────────────────────────────────────────────
+
+type RiskValue = '0.01' | '0.03' | '0.05' | '0.10';
+
+const RISK_SEGMENTS: Segment<RiskValue>[] = [
+  { value: '0.01', label: '1%',  title: '1% risk per trade' },
+  { value: '0.03', label: '3%',  title: '3% risk per trade' },
+  { value: '0.05', label: '5%',  title: '5% risk per trade' },
+  { value: '0.10', label: '10%', title: '10% risk per trade' },
+];
+
+// ─── Simulation chart tooltip ─────────────────────────────────────────────────
+
+const SimTooltip: React.FC<any> = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const bal: number = payload[0]?.value;
+  return (
+    <div
+      style={{ background: '#0d0f12', border: '1px solid #1b2026', borderRadius: 2 }}
+      className="px-3 py-2"
+    >
+      <span className="font-mono text-jtp-xs text-jtp-text">
+        ${bal !== undefined ? bal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+      </span>
+    </div>
+  );
+};
+
+// ─── Paper Wallet Simulation card ─────────────────────────────────────────────
+
+const PaperWalletSimCard: React.FC = () => {
+  const { getToken } = useAuth();
+
+  const [bankrollInput, setBankrollInput] = useState<string>('50');
+  const [risk, setRisk] = useState<RiskValue>('0.05');
+  const [sim, setSim] = useState<QuantSimulation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Debounce bankroll fetch: wait 600ms after last keystroke
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSim = useCallback(
+    async (bankroll: number, riskFrac: number) => {
+      if (bankroll <= 0 || isNaN(bankroll)) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const token = await getToken();
+        const data = await api.quantSimulation(bankroll, riskFrac, token);
+        setSim(data);
+      } catch (e: any) {
+        setError(e?.message || 'Simulation unavailable.');
+        setSim(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [getToken],
+  );
+
+  // Initial fetch
+  useEffect(() => {
+    fetchSim(50, 0.05);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch when risk changes immediately
+  useEffect(() => {
+    const bankroll = parseFloat(bankrollInput);
+    if (!isNaN(bankroll) && bankroll > 0) {
+      fetchSim(bankroll, parseFloat(risk));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [risk]);
+
+  const handleBankrollChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setBankrollInput(raw);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const val = parseFloat(raw);
+      if (!isNaN(val) && val > 0) {
+        fetchSim(val, parseFloat(risk));
+      }
+    }, 600);
+  };
+
+  // Derived display values
+  const isUp = sim ? sim.finalBalance >= sim.startBalance : true;
+  const lineColor = isUp ? '#3ddc84' : '#ff5b52';
+  const areaId = isUp ? 'simAreaUp' : 'simAreaDown';
+
+  const fmtBalance = (n: number) =>
+    '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const chartData =
+    sim?.curve?.map((pt) => ({ t: pt.t, balance: pt.balance })) ?? [];
+
+  const hasCurve = chartData.length >= 2;
+
+  return (
+    <Panel
+      label="PAPER WALLET SIMULATION"
+      actions={
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Bankroll input */}
+          <div className="flex items-center gap-0 border border-jtp-borderStrong rounded-jtp-sm overflow-hidden bg-jtp-control">
+            <span className="px-2 font-mono text-jtp-xs text-jtp-textDim select-none border-r border-jtp-borderStrong h-full flex items-center">
+              $
+            </span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={1}
+              step={10}
+              value={bankrollInput}
+              onChange={handleBankrollChange}
+              aria-label="Bankroll amount in dollars"
+              className="
+                w-[68px] px-2 py-[4px]
+                bg-transparent font-mono text-jtp-xs text-jtp-text
+                outline-none
+                [appearance:textfield]
+                [&::-webkit-outer-spin-button]:appearance-none
+                [&::-webkit-inner-spin-button]:appearance-none
+              "
+            />
+          </div>
+          {/* Risk per trade */}
+          <SegmentedControl<RiskValue>
+            size="xs"
+            segments={RISK_SEGMENTS}
+            value={risk}
+            onChange={(v) => setRisk(v)}
+          />
+        </div>
+      }
+    >
+      {loading ? (
+        <div className="flex flex-col gap-4" aria-busy="true">
+          {/* Headline skeleton */}
+          <div className="flex items-baseline gap-3">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+          {/* Stat tiles skeleton */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} variant="stat" />
+            ))}
+          </div>
+          {/* Chart skeleton */}
+          <Skeleton className="h-36 w-full" />
+        </div>
+      ) : error ? (
+        <p role="alert" className="text-jtp-md text-jtp-loss py-4">
+          {error}
+        </p>
+      ) : !sim || sim.nTrades === 0 ? (
+        <EmptyState
+          title="No resolved trades yet"
+          description="Simulation builds as markets settle — check back once the engine has closed its first positions."
+          className="py-8"
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+
+          {/* ── Headline: $X → $Y + return badge ── */}
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <div
+              className="font-mono font-bold text-jtp-5xl leading-none tracking-tight"
+              style={{ fontVariantNumeric: 'tabular-nums' }}
+            >
+              <span className="text-jtp-textMuted">{fmtBalance(sim.startBalance)}</span>
+              <span className="text-jtp-textDim mx-3 font-normal">→</span>
+              <span style={{ color: lineColor }}>{fmtBalance(sim.finalBalance)}</span>
+            </div>
+
+            {/* Return % badge — CVD: ▲▼ glyph alongside colour */}
+            <span
+              className="inline-flex items-center gap-1 font-mono text-jtp-sm font-semibold px-2 py-[3px] rounded-jtp-sm"
+              style={{
+                color: lineColor,
+                background: isUp ? 'rgba(61,220,132,0.12)' : 'rgba(255,91,82,0.12)',
+              }}
+              aria-label={`${isUp ? 'up' : 'down'} ${Math.abs(sim.returnPct).toFixed(1)}%`}
+            >
+              {isUp ? '▲' : '▼'} {Math.abs(sim.returnPct).toFixed(1)}%
+            </span>
+          </div>
+
+          {/* ── StatTiles row ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatTile
+              label="TRADES"
+              value={sim.nTrades.toLocaleString('en-US')}
+              subValue="total resolved"
+            />
+            <StatTile
+              label="WIN RATE"
+              value={`${(sim.winRate * 100).toFixed(1)}%`}
+              valueColor={sim.winRate >= 0.5 ? 'text-jtp-profit' : 'text-jtp-loss'}
+              positive={sim.winRate >= 0.5}
+            />
+            <StatTile
+              label="MAX DRAWDOWN"
+              value={`${sim.maxDrawdownPct.toFixed(1)}%`}
+              valueColor="text-jtp-loss"
+            />
+            <StatTile
+              label="RISK/TRADE"
+              value={`${(sim.riskFraction * 100).toFixed(0)}%`}
+              valueColor="text-jtp-textMuted"
+            />
+          </div>
+
+          {/* ── Equity curve ── */}
+          {hasCurve ? (
+            <div
+              className="rounded-jtp-sm overflow-hidden"
+              style={{ background: '#090b0d', height: 140 }}
+              aria-label="Equity curve over time"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={lineColor} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={lineColor} stopOpacity={0.03} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="t"
+                    hide
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) =>
+                      '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                    }
+                    tick={{ fill: '#565d66', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={56}
+                  />
+                  <RechartsTooltip
+                    content={<SimTooltip />}
+                    cursor={{ stroke: '#1b2026', strokeWidth: 1 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="balance"
+                    stroke={lineColor}
+                    strokeWidth={1.5}
+                    fill={`url(#${areaId})`}
+                    dot={false}
+                    activeDot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="font-mono text-jtp-xs text-jtp-textFaint py-2">
+              Building history… more data points accumulate as markets settle.
+            </p>
+          )}
+
+          {/* ── Honest caption ── */}
+          <p className="text-jtp-sm text-jtp-textFaint leading-relaxed">
+            Paper simulation on historical + live copy signals — not a guarantee of future
+            results. Fixed-fraction sizing, compounding.
+          </p>
+        </div>
+      )}
+    </Panel>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const WhatWorksPanel: React.FC = () => {
@@ -197,6 +488,9 @@ const WhatWorksPanel: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 animate-jtp-fade-in">
+
+      {/* ── Paper Wallet Simulation ── */}
+      <PaperWalletSimCard />
 
       {/* ── Header + disclaimer ── */}
       <div>

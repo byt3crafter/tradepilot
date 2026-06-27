@@ -748,6 +748,24 @@ export interface QuantDecision {
   resolvedAt: string | null;
 }
 
+// --- Quant Simulation ---
+
+export interface QuantSimulationPoint {
+  t: number;       // ms epoch
+  balance: number;
+}
+
+export interface QuantSimulation {
+  startBalance: number;
+  finalBalance: number;
+  returnPct: number;
+  nTrades: number;
+  winRate: number;         // 0..1
+  maxDrawdownPct: number;
+  riskFraction: number;
+  curve: QuantSimulationPoint[];
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
