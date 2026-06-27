@@ -153,23 +153,6 @@ const RISK_SEGMENTS: Segment<RiskValue>[] = [
   { value: '0.10', label: '10%', title: '10% risk per trade' },
 ];
 
-// ─── Sample mode segments ─────────────────────────────────────────────────────
-
-type SampleMode = 'live' | 'historical';
-
-const SAMPLE_SEGMENTS: Segment<SampleMode>[] = [
-  {
-    value: 'live',
-    label: 'Live (out-of-sample)',
-    title: 'Forward signals logged before resolution — the honest number',
-  },
-  {
-    value: 'historical',
-    label: 'Historical (hindsight)',
-    title: "In-sample backfill from wallets' own already-won trades — optimistic, not achievable forward",
-  },
-];
-
 // ─── Simulation chart tooltip ─────────────────────────────────────────────────
 
 const SimTooltip: React.FC<any> = ({ active, payload }) => {
@@ -194,7 +177,6 @@ const PaperWalletSimCard: React.FC = () => {
 
   const [bankrollInput, setBankrollInput] = useState<string>('50');
   const [risk, setRisk] = useState<RiskValue>('0.05');
-  const [sample, setSample] = useState<SampleMode>('live');
   const [sim, setSim] = useState<QuantSimulation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -203,13 +185,13 @@ const PaperWalletSimCard: React.FC = () => {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSim = useCallback(
-    async (bankroll: number, riskFrac: number, sampleMode: SampleMode) => {
+    async (bankroll: number, riskFrac: number) => {
       if (bankroll <= 0 || isNaN(bankroll)) return;
       setLoading(true);
       setError(null);
       try {
         const token = await getToken();
-        const data = await api.quantSimulation(bankroll, riskFrac, sampleMode, token);
+        const data = await api.quantSimulation(bankroll, riskFrac, 'live', token);
         setSim(data);
       } catch (e: any) {
         setError(e?.message || 'Simulation unavailable.');
@@ -221,20 +203,20 @@ const PaperWalletSimCard: React.FC = () => {
     [getToken],
   );
 
-  // Initial fetch — default to live (honest)
+  // Initial fetch
   useEffect(() => {
-    fetchSim(50, 0.05, 'live');
+    fetchSim(50, 0.05);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-fetch immediately when risk or sample changes
+  // Re-fetch immediately when risk changes
   useEffect(() => {
     const bankroll = parseFloat(bankrollInput);
     if (!isNaN(bankroll) && bankroll > 0) {
-      fetchSim(bankroll, parseFloat(risk), sample);
+      fetchSim(bankroll, parseFloat(risk));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [risk, sample]);
+  }, [risk]);
 
   const handleBankrollChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -243,7 +225,7 @@ const PaperWalletSimCard: React.FC = () => {
     debounceRef.current = setTimeout(() => {
       const val = parseFloat(raw);
       if (!isNaN(val) && val > 0) {
-        fetchSim(val, parseFloat(risk), sample);
+        fetchSim(val, parseFloat(risk));
       }
     }, 600);
   };
@@ -261,25 +243,30 @@ const PaperWalletSimCard: React.FC = () => {
 
   const hasCurve = chartData.length >= 2;
 
+  // "Since" label — derived from first curve point (ms epoch)
+  const sinceLabel: string | null = (() => {
+    if (!sim?.curve || sim.curve.length === 0) return null;
+    const firstMs = sim.curve[0].t;
+    if (!firstMs) return null;
+    const firstDate = new Date(firstMs);
+    if (isNaN(firstDate.getTime())) return null;
+    const monthName = firstDate.toLocaleString('en-US', { month: 'short' });
+    const day = firstDate.getDate();
+    const spanDays = Math.max(0, Math.floor((Date.now() - firstMs) / 86_400_000));
+    const daysPart = spanDays > 0 ? ` (${spanDays}d)` : '';
+    return `OUT-OF-SAMPLE · since ${monthName} ${day}${daysPart}`;
+  })();
+
   // Caption: use backend note if provided, otherwise fall back
   const caption = sim?.note
     ? sim.note
-    : sample === 'live'
-    ? 'Forward out-of-sample signals only — no hindsight. Fixed-fraction sizing, compounding. Not a guarantee of future results.'
-    : 'In-sample historical backfill — not a guarantee of future results. Fixed-fraction sizing, compounding.';
+    : 'Forward out-of-sample signals only — no hindsight. Fixed-fraction sizing, compounding. Not a guarantee of future results.';
 
   return (
     <Panel
       label="PAPER WALLET SIMULATION"
       actions={
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Sample mode toggle */}
-          <SegmentedControl<SampleMode>
-            size="xs"
-            segments={SAMPLE_SEGMENTS}
-            value={sample}
-            onChange={(v) => setSample(v)}
-          />
           {/* Bankroll input */}
           <div className="flex items-center gap-0 border border-jtp-borderStrong rounded-jtp-sm overflow-hidden bg-jtp-control">
             <span className="px-2 font-mono text-jtp-xs text-jtp-textDim select-none border-r border-jtp-borderStrong h-full flex items-center">
@@ -334,38 +321,20 @@ const PaperWalletSimCard: React.FC = () => {
           {error}
         </p>
       ) : !sim || sim.nTrades === 0 ? (
-        sample === 'live' ? (
-          /* Honest empty state for live/out-of-sample — no fake data */
-          <EmptyState
-            title="Out-of-sample test is building"
-            description="Forward copy signals resolve as their markets settle. This is the honest number; check back as data accumulates."
-            className="py-8"
-          />
-        ) : (
-          <EmptyState
-            title="No historical data yet"
-            description="Simulation builds as markets settle — check back once the engine has closed its first positions."
-            className="py-8"
-          />
-        )
+        /* Honest empty state — no fake data */
+        <EmptyState
+          title="Out-of-sample test is building"
+          description="Forward copy signals resolve as their markets settle. This is the honest number; check back as data accumulates."
+          className="py-8"
+        />
       ) : (
         <div className="flex flex-col gap-4">
 
-          {/* ── Hindsight warning banner (historical mode only) ── */}
-          {sample === 'historical' && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-jtp-sm border border-[#ff5b52]/40 bg-[rgba(255,91,82,0.08)] px-3 py-2.5"
-            >
-              <span className="text-[#ff5b52] text-jtp-sm leading-snug mt-px select-none" aria-hidden="true">
-                &#9888;
-              </span>
-              <p className="text-jtp-sm text-[#ff5b52] leading-snug">
-                <strong className="font-semibold">Hindsight backtest</strong> — copies wallets&apos; own
-                already-won past trades. Optimistic and{' '}
-                <strong className="font-semibold">NOT achievable forward.</strong>
-              </p>
-            </div>
+          {/* ── Since label ── */}
+          {sinceLabel && (
+            <p className="font-mono text-jtp-2xs text-jtp-textFaint tracking-wider uppercase">
+              {sinceLabel}
+            </p>
           )}
 
           {/* ── Headline: $X → $Y + return badge ── */}
