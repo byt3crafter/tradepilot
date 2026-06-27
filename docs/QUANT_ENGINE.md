@@ -30,3 +30,6 @@ A managed (or per-user delegated) wallet that trades the validated edge, sized b
 - Real-money autonomy is safety-critical: every live action behind per-trade caps, daily-loss limits, max exposure, slippage caps, confirm/kill-switch.
 - Activity-data cap makes today's numbers understate active wallets — P2 (on-chain) is the fix.
 - Copy-trading/managed execution may be regulated → legal review before P5/P6.
+
+## Optimization log (autonomous passes)
+- **2026-06-27 — pass 1:** Measured paper performance by market focus (in-sample/backfill, n≈8.5k): only **Mixed (-18% ROI, 33% win)** and **Politics (-3.9%, 38%)** are negative; Sports +107%, Weather +164%, Crypto +38–165% positive. **Change:** `recordPaperSignals` now skips copy signals from wallets whose `marketFocus` is Mixed or Politics (null focus treated as Mixed → blocked). Forward before/after pending (live loop sparse); expected to remove negative-EV categories from future signals.
