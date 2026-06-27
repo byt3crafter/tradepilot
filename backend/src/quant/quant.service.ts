@@ -243,16 +243,20 @@ export class QuantService implements OnApplicationBootstrap {
     const qualified = nClosed >= MIN_CLOSED;
     const marketFocus = this.classifyFocus(activity);
 
-    // Capital actually deployed (cost basis of closed positions) + realized ROI.
-    // Real, from the wallet's own fills — note the activity window is capped, so for
-    // hyper-active wallets this understates total lifetime capital.
-    const invested = edges.reduce((s, x) => s + x.notional, 0);
-    const roiPct = invested > 0 ? (realizedPnl / invested) * 100 : 0;
+    // HONEST total return — mark-to-market, NO survivorship: cash out (sells + redeems)
+    // PLUS current holdings value (positionsValue, authoritative from /value) MINUS cash in
+    // (all buys). This captures the LOSING positions the wallet is still holding — which the
+    // realized-only view excluded, producing the fake ~100% win / inflated ROI.
+    let totalBuys = 0, totalSells = 0, totalRedeems = 0;
+    for (const p of pos.values()) { totalBuys += p.buyCost; totalSells += p.sellProceeds; totalRedeems += p.redeemProceeds; }
+    const invested = totalBuys;
+    const netPnl = totalSells + totalRedeems + positionsValue - totalBuys;
+    const roiPct = invested > 0 ? (netPnl / invested) * 100 : 0;
 
     const pseudonym = activity[0]?.pseudonym || activity[0]?.name || undefined;
     const profileImage = activity[0]?.profileImage || undefined;
     const data = {
-      pnl: realizedPnl, realizedPnl, volume, positionsValue, invested, roiPct,
+      pnl: netPnl, realizedPnl: netPnl, volume, positionsValue, invested, roiPct,
       tradeCount: activity.length, winRate, marketFocus,
       nClosed, nEff, meanEdge, stdEdge, edgeLcb, dollarEdge, edgeScore: edgeLcb, qualified,
       scanned: true, lastScanned: new Date(),
@@ -265,7 +269,7 @@ export class QuantService implements OnApplicationBootstrap {
     // Time-series snapshot (qualified wallets only) — feeds analytics + edge-decay + learning.
     if (qualified) {
       await this.prisma.pmWalletSnapshot.create({
-        data: { address, edgeLcb, meanEdge, roiPct, invested, pnl: realizedPnl, nClosed, nEff, winRate, volume, marketFocus },
+        data: { address, edgeLcb, meanEdge, roiPct, invested, pnl: netPnl, nClosed, nEff, winRate, volume, marketFocus },
       }).catch(() => {});
 
       // Backfill this wallet's closed positions as resolved paper-copy decisions ONCE
