@@ -714,6 +714,40 @@ export interface PolymarketMarket {
   outcomes: PolymarketOutcome[];
 }
 
+// --- Quant Learning (predictions vs outcomes) ---
+
+export interface QuantLearningWallet {
+  address: string;
+  n: number;
+  winRate: number;   // 0..1
+  avgRoi: number;    // percent, e.g. 12.5 = 12.5%
+  verdict: 'validated' | 'disabled' | 'watch' | 'learning';
+}
+
+export interface QuantLearning {
+  overall: {
+    resolved: number;
+    pending: number;
+    winRate: number;   // 0..1
+    avgRoi: number;    // percent, e.g. 12.5 = 12.5%
+  };
+  wallets: QuantLearningWallet[];
+}
+
+export interface QuantDecision {
+  id: string;
+  createdAt: string;
+  wallet: string;
+  market: string;
+  prediction: string;
+  outcomeLabel: string;
+  entryPrice: number;
+  title: string;
+  status: 'win' | 'loss' | 'pending';
+  roiPct: number | null;
+  resolvedAt: string | null;
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
