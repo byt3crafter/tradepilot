@@ -66,6 +66,8 @@ model PmWallet {
   realizedPnl    Float     @default(0)
   volume         Float     @default(0)
   positionsValue Float     @default(0)
+  invested       Float     @default(0)  // capital deployed (cost basis of closed positions)
+  roiPct         Float     @default(0)  // realized ROI % = realizedPnl / invested
   tradeCount     Int       @default(0)
   winRate        Float     @default(0)
   marketFocus    String?

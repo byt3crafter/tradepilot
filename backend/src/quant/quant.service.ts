@@ -233,10 +233,16 @@ export class QuantService implements OnApplicationBootstrap {
     const qualified = nClosed >= MIN_CLOSED;
     const marketFocus = this.classifyFocus(activity);
 
+    // Capital actually deployed (cost basis of closed positions) + realized ROI.
+    // Real, from the wallet's own fills — note the activity window is capped, so for
+    // hyper-active wallets this understates total lifetime capital.
+    const invested = edges.reduce((s, x) => s + x.notional, 0);
+    const roiPct = invested > 0 ? (realizedPnl / invested) * 100 : 0;
+
     const pseudonym = activity[0]?.pseudonym || activity[0]?.name || undefined;
     const profileImage = activity[0]?.profileImage || undefined;
     const data = {
-      pnl: realizedPnl, realizedPnl, volume, positionsValue,
+      pnl: realizedPnl, realizedPnl, volume, positionsValue, invested, roiPct,
       tradeCount: activity.length, winRate, marketFocus,
       nClosed, nEff, meanEdge, stdEdge, edgeLcb, dollarEdge, edgeScore: edgeLcb, qualified,
       scanned: true, lastScanned: new Date(),
