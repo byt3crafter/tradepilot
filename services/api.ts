@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -149,6 +149,7 @@ export interface ApiService {
   quantMarkets(q?: string, token?: string | null): Promise<PolymarketMarket[]>;
   quantLearning(token?: string | null): Promise<QuantLearning>;
   quantLearningDecisions(limit?: number, token?: string | null): Promise<QuantDecision[]>;
+  quantSimulation(bankroll: number, risk: number, token?: string | null): Promise<QuantSimulation>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -414,6 +415,9 @@ const api: ApiService = {
   quantLearningDecisions(limit?: number, token?: string | null): Promise<QuantDecision[]> {
     const query = limit !== undefined ? `?limit=${limit}` : '';
     return this.get(`/api/quant/learning/decisions${query}`, token);
+  },
+  quantSimulation(bankroll: number, risk: number, token?: string | null): Promise<QuantSimulation> {
+    return this.get(`/api/quant/simulation?bankroll=${bankroll}&risk=${risk}`, token);
   },
 
   // Quant AI features (ChatGPT-powered)
