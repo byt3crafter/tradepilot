@@ -153,6 +153,23 @@ const RISK_SEGMENTS: Segment<RiskValue>[] = [
   { value: '0.10', label: '10%', title: '10% risk per trade' },
 ];
 
+// ─── Sample mode segments ─────────────────────────────────────────────────────
+
+type SampleMode = 'live' | 'historical';
+
+const SAMPLE_SEGMENTS: Segment<SampleMode>[] = [
+  {
+    value: 'live',
+    label: 'Live (out-of-sample)',
+    title: 'Forward signals logged before resolution — the honest number',
+  },
+  {
+    value: 'historical',
+    label: 'Historical (hindsight)',
+    title: "In-sample backfill from wallets' own already-won trades — optimistic, not achievable forward",
+  },
+];
+
 // ─── Simulation chart tooltip ─────────────────────────────────────────────────
 
 const SimTooltip: React.FC<any> = ({ active, payload }) => {
@@ -177,6 +194,7 @@ const PaperWalletSimCard: React.FC = () => {
 
   const [bankrollInput, setBankrollInput] = useState<string>('50');
   const [risk, setRisk] = useState<RiskValue>('0.05');
+  const [sample, setSample] = useState<SampleMode>('live');
   const [sim, setSim] = useState<QuantSimulation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,13 +203,13 @@ const PaperWalletSimCard: React.FC = () => {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSim = useCallback(
-    async (bankroll: number, riskFrac: number) => {
+    async (bankroll: number, riskFrac: number, sampleMode: SampleMode) => {
       if (bankroll <= 0 || isNaN(bankroll)) return;
       setLoading(true);
       setError(null);
       try {
         const token = await getToken();
-        const data = await api.quantSimulation(bankroll, riskFrac, token);
+        const data = await api.quantSimulation(bankroll, riskFrac, sampleMode, token);
         setSim(data);
       } catch (e: any) {
         setError(e?.message || 'Simulation unavailable.');
@@ -203,20 +221,20 @@ const PaperWalletSimCard: React.FC = () => {
     [getToken],
   );
 
-  // Initial fetch
+  // Initial fetch — default to live (honest)
   useEffect(() => {
-    fetchSim(50, 0.05);
+    fetchSim(50, 0.05, 'live');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-fetch when risk changes immediately
+  // Re-fetch immediately when risk or sample changes
   useEffect(() => {
     const bankroll = parseFloat(bankrollInput);
     if (!isNaN(bankroll) && bankroll > 0) {
-      fetchSim(bankroll, parseFloat(risk));
+      fetchSim(bankroll, parseFloat(risk), sample);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [risk]);
+  }, [risk, sample]);
 
   const handleBankrollChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -225,7 +243,7 @@ const PaperWalletSimCard: React.FC = () => {
     debounceRef.current = setTimeout(() => {
       const val = parseFloat(raw);
       if (!isNaN(val) && val > 0) {
-        fetchSim(val, parseFloat(risk));
+        fetchSim(val, parseFloat(risk), sample);
       }
     }, 600);
   };
@@ -243,11 +261,25 @@ const PaperWalletSimCard: React.FC = () => {
 
   const hasCurve = chartData.length >= 2;
 
+  // Caption: use backend note if provided, otherwise fall back
+  const caption = sim?.note
+    ? sim.note
+    : sample === 'live'
+    ? 'Forward out-of-sample signals only — no hindsight. Fixed-fraction sizing, compounding. Not a guarantee of future results.'
+    : 'In-sample historical backfill — not a guarantee of future results. Fixed-fraction sizing, compounding.';
+
   return (
     <Panel
       label="PAPER WALLET SIMULATION"
       actions={
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Sample mode toggle */}
+          <SegmentedControl<SampleMode>
+            size="xs"
+            segments={SAMPLE_SEGMENTS}
+            value={sample}
+            onChange={(v) => setSample(v)}
+          />
           {/* Bankroll input */}
           <div className="flex items-center gap-0 border border-jtp-borderStrong rounded-jtp-sm overflow-hidden bg-jtp-control">
             <span className="px-2 font-mono text-jtp-xs text-jtp-textDim select-none border-r border-jtp-borderStrong h-full flex items-center">
@@ -302,13 +334,39 @@ const PaperWalletSimCard: React.FC = () => {
           {error}
         </p>
       ) : !sim || sim.nTrades === 0 ? (
-        <EmptyState
-          title="No resolved trades yet"
-          description="Simulation builds as markets settle — check back once the engine has closed its first positions."
-          className="py-8"
-        />
+        sample === 'live' ? (
+          /* Honest empty state for live/out-of-sample — no fake data */
+          <EmptyState
+            title="Out-of-sample test is building"
+            description="Forward copy signals resolve as their markets settle. This is the honest number; check back as data accumulates."
+            className="py-8"
+          />
+        ) : (
+          <EmptyState
+            title="No historical data yet"
+            description="Simulation builds as markets settle — check back once the engine has closed its first positions."
+            className="py-8"
+          />
+        )
       ) : (
         <div className="flex flex-col gap-4">
+
+          {/* ── Hindsight warning banner (historical mode only) ── */}
+          {sample === 'historical' && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-jtp-sm border border-[#ff5b52]/40 bg-[rgba(255,91,82,0.08)] px-3 py-2.5"
+            >
+              <span className="text-[#ff5b52] text-jtp-sm leading-snug mt-px select-none" aria-hidden="true">
+                &#9888;
+              </span>
+              <p className="text-jtp-sm text-[#ff5b52] leading-snug">
+                <strong className="font-semibold">Hindsight backtest</strong> — copies wallets&apos; own
+                already-won past trades. Optimistic and{' '}
+                <strong className="font-semibold">NOT achievable forward.</strong>
+              </p>
+            </div>
+          )}
 
           {/* ── Headline: $X → $Y + return badge ── */}
           <div className="flex items-baseline gap-3 flex-wrap">
@@ -413,16 +471,23 @@ const PaperWalletSimCard: React.FC = () => {
             </p>
           )}
 
-          {/* ── Honest caption ── */}
+          {/* ── Caption from backend note or fallback ── */}
           <p className="text-jtp-sm text-jtp-textFaint leading-relaxed">
-            Paper simulation on historical + live copy signals — not a guarantee of future
-            results. Fixed-fraction sizing, compounding.
+            {caption}
           </p>
         </div>
       )}
     </Panel>
   );
 };
+
+// ─── In-sample disclaimer (reused in two places) ──────────────────────────────
+
+const InSampleDisclaimer: React.FC = () => (
+  <p className="text-jtp-xs text-jtp-textFaint leading-relaxed">
+    These include in-sample historical backfill — verdicts are a historical record, not yet forward-proven.
+  </p>
+);
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -512,48 +577,52 @@ const WhatWorksPanel: React.FC = () => {
       ) : learningError ? (
         <p role="alert" className="text-jtp-md text-jtp-loss">{learningError}</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatTile
-            label="RESOLVED"
-            value={overall ? fmtNum(overall.resolved) : '—'}
-            subValue="decisions"
-          />
-          <StatTile
-            label="PENDING"
-            value={overall ? fmtNum(overall.pending) : '—'}
-            valueColor="text-jtp-textMuted"
-            subValue="open markets"
-          />
-          <StatTile
-            label="WIN RATE"
-            value={overall && overall.resolved > 0 ? `${(overall.winRate * 100).toFixed(1)}%` : '—'}
-            valueColor={
-              overall && overall.resolved > 0
-                ? overall.winRate >= 0.5
-                  ? 'text-jtp-profit'
-                  : 'text-jtp-loss'
-                : undefined
-            }
-            positive={
-              overall && overall.resolved > 0
-                ? overall.winRate >= 0.5
-                : undefined
-            }
-            subValue={overall && overall.resolved > 0 ? 'of resolved' : 'no resolved yet'}
-          />
-          <StatTile
-            label="AVG PAPER ROI"
-            value={overall && overall.resolved > 0 ? fmtRoi(overall.avgRoi) : '—'}
-            valueColor={
-              overall && overall.resolved > 0 ? roiColor(overall.avgRoi) : undefined
-            }
-            positive={
-              overall && overall.resolved > 0 && overall.avgRoi !== 0
-                ? overall.avgRoi > 0
-                : undefined
-            }
-            subValue="per resolved decision"
-          />
+        <div className="flex flex-col gap-2">
+          {/* In-sample disclaimer above the stats row */}
+          <InSampleDisclaimer />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatTile
+              label="RESOLVED"
+              value={overall ? fmtNum(overall.resolved) : '—'}
+              subValue="decisions"
+            />
+            <StatTile
+              label="PENDING"
+              value={overall ? fmtNum(overall.pending) : '—'}
+              valueColor="text-jtp-textMuted"
+              subValue="open markets"
+            />
+            <StatTile
+              label="WIN RATE"
+              value={overall && overall.resolved > 0 ? `${(overall.winRate * 100).toFixed(1)}%` : '—'}
+              valueColor={
+                overall && overall.resolved > 0
+                  ? overall.winRate >= 0.5
+                    ? 'text-jtp-profit'
+                    : 'text-jtp-loss'
+                  : undefined
+              }
+              positive={
+                overall && overall.resolved > 0
+                  ? overall.winRate >= 0.5
+                  : undefined
+              }
+              subValue={overall && overall.resolved > 0 ? 'of resolved' : 'no resolved yet'}
+            />
+            <StatTile
+              label="AVG PAPER ROI"
+              value={overall && overall.resolved > 0 ? fmtRoi(overall.avgRoi) : '—'}
+              valueColor={
+                overall && overall.resolved > 0 ? roiColor(overall.avgRoi) : undefined
+              }
+              positive={
+                overall && overall.resolved > 0 && overall.avgRoi !== 0
+                  ? overall.avgRoi > 0
+                  : undefined
+              }
+              subValue="per resolved decision"
+            />
+          </div>
         </div>
       )}
 
@@ -572,13 +641,19 @@ const WhatWorksPanel: React.FC = () => {
             className="py-10"
           />
         ) : (
-          <DataTable
-            columns={WALLET_COLS}
-            data={wallets}
-            keyFn={(w) => w.address}
-            maxHeight="300px"
-            emptyMessage="No wallets found."
-          />
+          <div className="flex flex-col">
+            {/* In-sample disclaimer above the table */}
+            <div className="px-4 pt-3 pb-1">
+              <InSampleDisclaimer />
+            </div>
+            <DataTable
+              columns={WALLET_COLS}
+              data={wallets}
+              keyFn={(w) => w.address}
+              maxHeight="300px"
+              emptyMessage="No wallets found."
+            />
+          </div>
         )}
       </Panel>
 
