@@ -5,8 +5,17 @@
  * the primary CTAs (Start free / Sign in) so the landing page can use its
  * `navigate` prop directly. Falls back to href navigation when no callbacks
  * are provided (pricing page scenario).
+ *
+ * Scroll-spy: an IntersectionObserver tracks which section (#features,
+ * #quant) is currently in view and highlights the corresponding nav item in
+ * amber. root: null uses the viewport — the page's overflow-y-auto container
+ * fills the full viewport, so viewport ≡ scroll root for intersection.
+ *
+ * Smooth-scroll: scrollIntoView({behavior:'smooth'}) scrolls the nearest
+ * scrollable ancestor, which is exactly the overflow-y-auto page wrapper —
+ * no manual container reference required.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PublicLink from '../PublicLink';
 import { MenuIcon } from '../icons/MenuIcon';
 import { XIcon } from '../icons/XIcon';
@@ -16,8 +25,37 @@ interface MarketingNavProps {
   onLogin?: () => void;
 }
 
+const SECTION_IDS = ['features', 'quant'] as const;
+
 const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  // Scroll-spy via IntersectionObserver.
+  // rootMargin '-10% 0px -50% 0px' creates a 40 % trigger band in the upper
+  // viewport: sections are "active" when their top edge sits in that band.
+  useEffect(() => {
+    const visible = new Set<string>();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) visible.add(e.target.id);
+          else visible.delete(e.target.id);
+        });
+        // Pick the first observed section (in document order) that is visible.
+        setActiveSection(SECTION_IDS.find((id) => visible.has(id)) ?? null);
+      },
+      { root: null, rootMargin: '-10% 0px -50% 0px', threshold: 0 }
+    );
+
+    SECTION_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const scrollTo = (id: string) => {
     setMobileOpen(false);
@@ -37,6 +75,26 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
     onLogin?.();
   };
 
+  // Desktop nav link classes — amber when the corresponding section is active.
+  const desktopLinkCls = (section: string) =>
+    [
+      'font-mono text-[11.5px] px-3 py-1.5 rounded-[2px] transition-colors duration-150',
+      'cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue',
+      activeSection === section
+        ? 'text-jtp-amber'
+        : 'text-jtp-textMuted hover:text-jtp-text',
+    ].join(' ');
+
+  // Mobile nav link classes.
+  const mobileLinkCls = (section: string) =>
+    [
+      'block w-full text-left font-mono text-[13px] px-3 py-3',
+      'border-b border-jtp-borderSubtle transition-colors cursor-pointer',
+      activeSection === section
+        ? 'text-jtp-amber'
+        : 'text-jtp-textMuted hover:text-jtp-text',
+    ].join(' ');
+
   return (
     <nav
       className="sticky top-0 z-50 bg-jtp-shell border-b border-jtp-border"
@@ -50,7 +108,6 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
           className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue rounded-[2px]"
           aria-label="JTradePilot — home"
         >
-          {/* Amber brand mark */}
           <div
             className="w-7 h-7 rounded-[2px] flex items-center justify-center flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, #e8a23d 0%, #c47e1e 100%)' }}
@@ -61,8 +118,6 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
               <circle cx="18" cy="4" r="1.8" fill="#08090b" />
             </svg>
           </div>
-
-          {/* Brand text */}
           <div className="flex flex-col leading-none">
             <span className="font-mono font-bold text-jtp-text text-[13px] tracking-[0.03em]">
               JTradePilot
@@ -78,16 +133,10 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
 
         {/* Desktop nav links */}
         <div className="hidden md:flex items-center gap-1">
-          <button
-            onClick={() => scrollTo('features')}
-            className="font-mono text-[11.5px] text-jtp-textMuted hover:text-jtp-text px-3 py-1.5 rounded-[2px] transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue"
-          >
+          <button onClick={() => scrollTo('features')} className={desktopLinkCls('features')}>
             FEATURES
           </button>
-          <button
-            onClick={() => scrollTo('quant')}
-            className="font-mono text-[11.5px] text-jtp-textMuted hover:text-jtp-text px-3 py-1.5 rounded-[2px] transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue"
-          >
+          <button onClick={() => scrollTo('quant')} className={desktopLinkCls('quant')}>
             QUANT
           </button>
           <PublicLink
@@ -189,16 +238,10 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onSignup, onLogin }) => {
 
           {/* Mobile links */}
           <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
-            <button
-              onClick={() => scrollTo('features')}
-              className="block w-full text-left font-mono text-[13px] text-jtp-textMuted hover:text-jtp-text px-3 py-3 border-b border-jtp-borderSubtle transition-colors cursor-pointer"
-            >
+            <button onClick={() => scrollTo('features')} className={mobileLinkCls('features')}>
               FEATURES
             </button>
-            <button
-              onClick={() => scrollTo('quant')}
-              className="block w-full text-left font-mono text-[13px] text-jtp-textMuted hover:text-jtp-text px-3 py-3 border-b border-jtp-borderSubtle transition-colors cursor-pointer"
-            >
+            <button onClick={() => scrollTo('quant')} className={mobileLinkCls('quant')}>
               QUANT
             </button>
             <PublicLink

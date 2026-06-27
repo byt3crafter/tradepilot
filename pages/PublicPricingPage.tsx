@@ -1,8 +1,15 @@
 /**
- * PublicPricingPage — terminal-styled public pricing page.
+ * PublicPricingPage — honest pricing: free journal now, Pro coming soon.
  *
- * Restyled to match the Pro Trading Terminal aesthetic.
- * Uses MarketingNav + MarketingFooter for consistency with LandingPage.
+ * What's live and free:
+ *   Journal, Analytics, Prop-Firm Rules, Playbooks, P&L/R math,
+ *   MAE/MFE, $/R toggle, Smart Limits, Screenshots.
+ *
+ * What's planned (Pro tier, not yet purchasable):
+ *   Quant (EdgeScore), AI agent, Non-custodial execution, cTrader bot.
+ *
+ * No billing toggle — there's nothing to bill yet. The Pro card shows
+ * planned pricing as informational only; there is no buy CTA.
  */
 import React, { useState } from 'react';
 import MarketingNav from '../components/marketing/MarketingNav';
@@ -10,17 +17,26 @@ import MarketingFooter from '../components/marketing/MarketingFooter';
 import { Ticker, Badge } from '../components/ui/index';
 import PublicLink from '../components/PublicLink';
 
-type BillingCycle = 'monthly' | 'yearly';
-
 // ── Check icon ────────────────────────────────────────────────────────────────
-const CheckIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+const CheckIcon: React.FC<{ className?: string; color?: string }> = ({
+  className = 'w-4 h-4',
+  color = '#3ddc84',
+}) => (
   <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="M3 8.5L6.5 12L13 5" stroke="#3ddc84" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M3 8.5L6.5 12L13 5" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-// ── Shared features between plans ─────────────────────────────────────────────
-const PLAN_FEATURES: string[] = [
+// ── Clock icon (for coming-soon list items) ───────────────────────────────────
+const ClockIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <circle cx="8" cy="8" r="6.5" stroke="#565d66" strokeWidth="1.4" />
+    <path d="M8 5v3l2 1.5" stroke="#565d66" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// ── What's live today ─────────────────────────────────────────────────────────
+const FREE_FEATURES: string[] = [
   'Unlimited trade journaling',
   'P&L / R-multiple math (server-side, always correct)',
   'MAE / MFE excursion tracking',
@@ -29,45 +45,49 @@ const PLAN_FEATURES: string[] = [
   'Equity curve with $/R toggle',
   'Prop-firm rules dashboard with live gauges',
   'Smart limits (soft warnings + hard stops)',
+  'Playbooks + pre-trade checklists',
+  'Screenshot attachment per trade',
+];
+
+// ── What Pro will add ─────────────────────────────────────────────────────────
+const PRO_EXTRAS: string[] = [
   'Quant module — EdgeScore leaderboard',
   'Non-custodial Polymarket execution',
   'AI trade analysis (Gemini-powered)',
   'Autonomous AI agent with scheduled runs',
-  'Pre-trade + playbook checklists',
-  'Screenshot attachment per trade',
-];
-
-const ANNUAL_ONLY: string[] = [
-  'Priority support',
-  'Early access to new features',
+  'cTrader auto-sync bot',
+  'Priority support + early feature access',
 ];
 
 // ── FAQ entries ───────────────────────────────────────────────────────────────
 const FAQ = [
   {
-    q: 'Is it really free right now?',
-    a: 'Yes. JTradePilot is free during the beta — all features, no credit card required. When a paid plan launches, we will give you advance notice and transition time.',
+    q: 'Is everything really free right now?',
+    a: 'Yes. The complete trading journal, analytics, prop-firm rules dashboard, playbooks, and P&L math are free during the beta — no credit card required. When a paid Pro tier launches (with Quant, AI agent, and execution features), we will give you advance notice and a clear migration path.',
   },
   {
-    q: 'Can I cancel anytime?',
-    a: 'Yes. Cancel any paid subscription at any time from your account settings. No lock-in, no penalty, no questions asked.',
+    q: 'What is and isn\'t available yet?',
+    a: 'The trading journal, prop-firm rules, analytics, and playbooks are fully live. Quant intelligence (EdgeScore), AI trade analysis, the autonomous AI agent, non-custodial Polymarket execution, and the cTrader auto-sync bot are in development — not yet available.',
   },
   {
-    q: 'What happens to my data if I cancel?',
+    q: 'When will Pro launch?',
+    a: 'We don\'t have a firm date yet. Pro arrives alongside the Quant, AI agent, and execution features. We\'ll announce it with enough lead time to decide whether to upgrade.',
+  },
+  {
+    q: 'Can I cancel a future paid subscription anytime?',
+    a: 'Yes. When paid plans launch, you\'ll be able to cancel at any time from account settings. No lock-in, no penalty, no questions asked.',
+  },
+  {
+    q: 'What happens to my data if I ever cancel?',
     a: 'Your trade journal and settings are preserved. Reactivate at any time and pick up exactly where you left off.',
   },
   {
     q: 'Is my data secure?',
-    a: 'All data is encrypted in transit (TLS) and at rest. Your trading data is never shared with third parties. Non-custodial execution means we never hold your funds or keys.',
-  },
-  {
-    q: 'What does "non-custodial execution" mean?',
-    a: 'When you trade Polymarket from the terminal, you sign every order with your own wallet. JTradePilot never holds your keys, your funds, or has any ability to move your assets.',
+    a: 'All data is encrypted in transit (TLS) and at rest. Your trading data is never shared with third parties. Non-custodial execution (when it launches) means we never hold your funds or keys.',
   },
 ];
 
 const PublicPricingPage: React.FC = () => {
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   React.useEffect(() => {
@@ -77,7 +97,7 @@ const PublicPricingPage: React.FC = () => {
   return (
     <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-jtp-bg text-jtp-text">
 
-      {/* Nav (no navigate callbacks — use PublicLink fallback) */}
+      {/* Nav */}
       <MarketingNav />
 
       {/* Ticker tape */}
@@ -100,48 +120,21 @@ const PublicPricingPage: React.FC = () => {
           <span className="font-mono text-[10.5px] text-jtp-textDim tracking-[0.14em] uppercase">PRICING</span>
         </div>
         <h1 className="text-[28px] sm:text-[36px] font-bold tracking-[-0.015em] mb-4">
-          Simple, honest pricing.
+          Honest pricing.
         </h1>
         <p className="text-jtp-textMuted text-[15px] leading-relaxed max-w-xl mx-auto mb-2">
-          Full terminal access during beta at no cost. When paid plans launch, you'll have advance notice
-          and a clear migration path.
+          The full trading journal, analytics, and prop-firm rules dashboard are free during
+          beta — no credit card, no trial timer. A Pro tier with Quant intelligence, AI agent,
+          and execution features is coming.
         </p>
         <p className="font-mono text-[11px] text-jtp-textDim">
-          No credit card required · Cancel anytime · All features included
+          No credit card required · Advance notice before any charge
         </p>
 
-        {/* Beta badge */}
         <div className="flex justify-center mt-6">
           <Badge variant="profit" size="md">FREE DURING BETA</Badge>
         </div>
       </section>
-
-      {/* Billing toggle */}
-      <div className="flex items-center justify-center gap-4 pb-8" role="group" aria-label="Billing cycle">
-        <button
-          onClick={() => setBillingCycle('monthly')}
-          className={`font-mono text-[11.5px] px-3 py-1.5 rounded-[2px] border transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue ${
-            billingCycle === 'monthly'
-              ? 'border-jtp-borderFocus text-jtp-text bg-jtp-active'
-              : 'border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:bg-jtp-hover'
-          }`}
-          aria-pressed={billingCycle === 'monthly'}
-        >
-          MONTHLY
-        </button>
-        <button
-          onClick={() => setBillingCycle('yearly')}
-          className={`font-mono text-[11.5px] px-3 py-1.5 rounded-[2px] border transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue ${
-            billingCycle === 'yearly'
-              ? 'border-jtp-borderFocus text-jtp-text bg-jtp-active'
-              : 'border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:bg-jtp-hover'
-          }`}
-          aria-pressed={billingCycle === 'yearly'}
-        >
-          YEARLY
-          <span className="ml-2 font-mono text-[9px] text-jtp-profit">(SAVE 17%)</span>
-        </button>
-      </div>
 
       {/* Pricing cards */}
       <section
@@ -150,114 +143,97 @@ const PublicPricingPage: React.FC = () => {
       >
         <div className="grid md:grid-cols-2 gap-4">
 
-          {/* Monthly plan */}
+          {/* ── Free card ────────────────────────────────────────────────── */}
           <div
-            className={`bg-jtp-panel border rounded-[2px] p-6 flex flex-col transition-opacity duration-200 ${
-              billingCycle === 'yearly' ? 'opacity-50' : 'border-jtp-border'
-            }`}
-            style={billingCycle === 'monthly' ? { borderTop: '2px solid rgba(232,162,61,0.7)' } : { borderTop: '2px solid rgba(27,32,38,1)' }}
+            className="bg-jtp-panel border border-jtp-border rounded-[2px] p-6 flex flex-col"
+            style={{ borderTop: '2px solid #3ddc84' }}
           >
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
-                <span className="font-mono text-[10px] text-jtp-textDim tracking-[0.14em] uppercase">MONTHLY</span>
-                {billingCycle === 'monthly' && (
-                  <Badge variant="info" size="xs">SELECTED</Badge>
-                )}
+                <span className="font-mono text-[10px] text-jtp-textDim tracking-[0.14em] uppercase">FREE</span>
+                <Badge variant="profit" size="xs">NOW AVAILABLE</Badge>
+              </div>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="font-mono font-bold text-[32px] text-jtp-text tabular-nums">$0</span>
+                <span className="text-jtp-textMuted text-[13px]">/ month</span>
+              </div>
+              <p className="text-jtp-textMuted text-[12.5px]">During beta · No credit card required</p>
+            </div>
+
+            <PublicLink
+              href="/signup"
+              className="block w-full py-2.5 rounded-[2px] font-mono text-[11px] font-bold uppercase tracking-wider text-center transition-colors duration-150 mb-6 focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue bg-[#3ddc84] text-jtp-bg hover:opacity-90"
+            >
+              START FREE →
+            </PublicLink>
+
+            <div className="mb-3">
+              <span className="font-mono text-[9px] text-jtp-textDim tracking-[0.12em] uppercase">What's included</span>
+            </div>
+            <ul className="space-y-2.5 flex-1">
+              {FREE_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-[12.5px] text-jtp-textSoft">
+                  <CheckIcon className="w-3.5 h-3.5 mt-[2px] shrink-0" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* ── Pro — coming soon card ────────────────────────────────────── */}
+          <div
+            className="bg-jtp-panel border border-jtp-border rounded-[2px] p-6 flex flex-col relative overflow-hidden opacity-70"
+            style={{ borderTop: '2px solid rgba(232,162,61,0.4)' }}
+          >
+            {/* "Coming soon" ribbon */}
+            <div
+              className="absolute top-0 right-0 font-mono text-[9px] font-bold tracking-[0.1em] uppercase px-3 py-1.5 text-[#08090b]"
+              style={{ backgroundColor: 'rgba(232,162,61,0.7)' }}
+            >
+              COMING SOON
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-mono text-[10px] text-jtp-textDim tracking-[0.14em] uppercase">PRO</span>
+                <Badge variant="warning" size="xs">IN DEVELOPMENT</Badge>
               </div>
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="font-mono font-bold text-[32px] text-jtp-text tabular-nums">$5.99</span>
-                <span className="text-jtp-textMuted text-[13px]">/ month</span>
+                <span className="text-jtp-textMuted text-[13px]">/ month planned</span>
               </div>
-              <p className="text-jtp-textMuted text-[12.5px]">Billed monthly · Cancel anytime</p>
-            </div>
-
-            <PublicLink
-              href="/signup"
-              onClick={() => localStorage.setItem('intendedPlan', 'monthly')}
-              className={`block w-full py-2.5 rounded-[2px] font-mono text-[11px] font-bold uppercase tracking-wider text-center transition-colors duration-150 mb-6 focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue ${
-                billingCycle === 'monthly'
-                  ? 'bg-jtp-blue text-[#08090b] hover:bg-jtp-blueHover'
-                  : 'bg-jtp-control text-jtp-textMuted hover:bg-jtp-active border border-jtp-borderStrong'
-              }`}
-            >
-              {billingCycle === 'monthly' ? 'START FREE →' : 'CHOOSE MONTHLY →'}
-            </PublicLink>
-
-            <ul className="space-y-2.5 flex-1">
-              {PLAN_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-[12.5px] text-jtp-textSoft">
-                  <CheckIcon className="w-3.5 h-3.5 mt-[2px] shrink-0" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Yearly plan */}
-          <div
-            className={`bg-jtp-panel border rounded-[2px] p-6 flex flex-col relative overflow-hidden transition-opacity duration-200 ${
-              billingCycle === 'monthly' ? 'opacity-50 border-jtp-border' : 'border-jtp-profit/40'
-            }`}
-            style={billingCycle === 'yearly' ? { borderTop: '2px solid #3ddc84' } : { borderTop: '2px solid rgba(27,32,38,1)' }}
-          >
-            {/* Best value ribbon */}
-            {billingCycle === 'yearly' && (
-              <div
-                className="absolute top-0 right-0 font-mono text-[9px] font-bold tracking-[0.1em] uppercase px-3 py-1.5 text-jtp-bg"
-                style={{ backgroundColor: '#3ddc84' }}
-              >
-                BEST VALUE
-              </div>
-            )}
-
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-mono text-[10px] text-jtp-textDim tracking-[0.14em] uppercase">YEARLY</span>
-                {billingCycle === 'yearly' && (
-                  <Badge variant="profit" size="xs">SELECTED</Badge>
-                )}
-              </div>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="font-mono font-bold text-[32px] text-jtp-text tabular-nums">$60</span>
-                <span className="text-jtp-textMuted text-[13px]">/ year</span>
-              </div>
-              <p className="font-mono text-[12px] text-jtp-profit font-semibold">
-                Save $11.88 vs monthly
+              <p className="font-mono text-[12px] text-jtp-textDim">
+                or $60 / year · Save $11.88
               </p>
             </div>
 
-            <PublicLink
-              href="/signup"
-              onClick={() => localStorage.setItem('intendedPlan', 'yearly')}
-              className={`block w-full py-2.5 rounded-[2px] font-mono text-[11px] font-bold uppercase tracking-wider text-center transition-colors duration-150 mb-6 focus:outline-none focus-visible:ring-1 focus-visible:ring-jtp-blue ${
-                billingCycle === 'yearly'
-                  ? 'bg-jtp-profit text-jtp-bg hover:opacity-90'
-                  : 'bg-jtp-control text-jtp-textMuted hover:bg-jtp-active border border-jtp-borderStrong'
-              }`}
+            {/* No buy CTA — not purchasable yet */}
+            <div
+              className="block w-full py-2.5 rounded-[2px] font-mono text-[11px] font-bold uppercase tracking-wider text-center mb-6 border border-jtp-borderStrong text-jtp-textDim cursor-default select-none"
             >
-              {billingCycle === 'yearly' ? 'START FREE →' : 'CHOOSE YEARLY →'}
-            </PublicLink>
+              NOT YET AVAILABLE
+            </div>
 
+            <div className="mb-2">
+              <span className="font-mono text-[9px] text-jtp-textDim tracking-[0.12em] uppercase">Includes everything in Free, plus</span>
+            </div>
             <ul className="space-y-2.5 flex-1">
-              {PLAN_FEATURES.map((f) => (
+              {PRO_EXTRAS.map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-[12.5px] text-jtp-textSoft">
-                  <CheckIcon className="w-3.5 h-3.5 mt-[2px] shrink-0" />
-                  <span>{f}</span>
-                </li>
-              ))}
-              {/* Annual-only perks */}
-              <li className="pt-2 border-t border-jtp-borderSubtle" aria-hidden="true" />
-              {ANNUAL_ONLY.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-[12.5px] text-jtp-profit">
-                  <CheckIcon className="w-3.5 h-3.5 mt-[2px] shrink-0" />
+                  <ClockIcon className="w-3.5 h-3.5 mt-[2px] shrink-0" />
                   <span>{f}</span>
                 </li>
               ))}
             </ul>
+
+            {/* Honest note */}
+            <p className="mt-4 font-mono text-[10px] text-jtp-textFaint leading-relaxed border-t border-jtp-borderSubtle pt-3">
+              We'll announce Pro with enough lead time to decide. No surprise charges.
+            </p>
           </div>
         </div>
 
-        {/* Beta note */}
+        {/* Clarification note */}
         <div
           className="mt-4 border border-jtp-border rounded-[2px] px-4 py-3 flex items-start gap-3"
           style={{ borderLeft: '2px solid rgba(232,162,61,0.6)' }}
@@ -267,9 +243,10 @@ const PublicPricingPage: React.FC = () => {
             <path d="M8 5v3.5M8 11v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           <p className="text-jtp-textMuted text-[12.5px] leading-relaxed">
-            <strong className="font-mono text-jtp-text text-[11px] tracking-[0.05em] uppercase">Beta pricing:</strong>{' '}
-            All features are free during the current beta period. The prices above are our planned post-beta rates.
-            You will receive advance notice before any charges apply, and will always be able to cancel first.
+            <strong className="font-mono text-jtp-text text-[11px] tracking-[0.05em] uppercase">Beta status:</strong>{' '}
+            The trading journal, analytics, and prop-firm rules are fully live and free. Quant intelligence,
+            AI agent, non-custodial execution, and the cTrader bot are in development — not yet available
+            to users. The Pro card above shows our planned pricing once those features ship.
           </p>
         </div>
       </section>
@@ -346,7 +323,7 @@ const PublicPricingPage: React.FC = () => {
             </h2>
             <p className="text-jtp-textMuted text-[14px] leading-relaxed mb-8 max-w-md mx-auto">
               Open the terminal, connect your account, and start journaling in minutes.
-              Upgrade whenever you're ready.
+              Everything you need to trade with discipline — free, right now.
             </p>
             <PublicLink
               href="/signup"
