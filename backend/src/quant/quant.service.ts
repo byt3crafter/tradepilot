@@ -350,22 +350,34 @@ export class QuantService implements OnApplicationBootstrap {
         .filter((w) => !FOCUS_BLOCK.has(w.marketFocus || 'Mixed'))
         .map((w) => w.address),
     );
+    // Collect candidate buys from qualified, non-blocked wallets.
+    const cands = trades
+      .filter((t) => {
+        const addr = String(t.proxyWallet || '').toLowerCase();
+        const price = Number(t.price);
+        return okWallet.has(addr) && String(t.side).toUpperCase() === 'BUY' && price > 0.02 && price < 0.98 && t.conditionId && t.transactionHash;
+      });
+    if (!cands.length) return 0;
+    // Short-horizon bias: only copy markets settling within 7 days, so the out-of-sample
+    // test produces resolved results fast (crypto/sports resolve same-day) instead of
+    // months-out markets that never settle inside the test window.
+    const conds = [...new Set(cands.map((t) => t.conditionId as string))];
+    const ends = await this.pm.marketEndDates(conds);
+    const horizon = Date.now() + 7 * 24 * 3600 * 1000;
     let created = 0;
-    for (const t of trades) {
+    for (const t of cands) {
+      const cond = t.conditionId as string;
+      const end = ends[cond];
+      if (!end || end > horizon || end < Date.now() - 3600 * 1000) continue; // soon-resolving only
       const addr = String(t.proxyWallet || '').toLowerCase();
-      if (!okWallet.has(addr)) continue;
-      if (String(t.side).toUpperCase() !== 'BUY') continue; // copy entries only
-      const price = Number(t.price);
-      if (!(price > 0.02 && price < 0.98)) continue; // skip near-resolved
-      const cond = t.conditionId, oi = Number(t.outcomeIndex) || 0, tx = t.transactionHash;
-      if (!cond || !tx) continue;
+      const price = Number(t.price), oi = Number(t.outcomeIndex) || 0, tx = t.transactionHash;
       try {
         await this.prisma.agentDecision.create({
           data: {
             extKey: `pc:${addr}:${cond}:${oi}:${tx}`,
             mode: 'auto', kind: 'paper_copy', subjectAddr: addr, market: cond, action: 'COPY',
             rationale: `Copy ${t.pseudonym || addr.slice(0, 8)} BUY ${t.outcome} @ ${price} (${t.title || ''})`.slice(0, 300),
-            meta: { outcomeIndex: oi, entryPrice: price, size: Number(t.size) || 0, eventSlug: t.eventSlug || null, title: t.title || null, outcome: t.outcome || null },
+            meta: { outcomeIndex: oi, entryPrice: price, size: Number(t.size) || 0, eventSlug: t.eventSlug || null, title: t.title || null, outcome: t.outcome || null, endsAt: end },
           },
         });
         created++;
