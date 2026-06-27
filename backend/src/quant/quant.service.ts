@@ -553,7 +553,7 @@ export class QuantService implements OnApplicationBootstrap {
     try {
       const { discovered } = await this.discover(200);
       const scannedCount = await this.prisma.pmWallet.count({ where: { scanned: true } });
-      const take = scannedCount < 120 ? 20 : 8;
+      const take = scannedCount < 120 ? 20 : 30;
       const batch = await this.prisma.pmWallet.findMany({
         where: { OR: [{ scanned: false }, { lastScanned: { lt: new Date(Date.now() - 12 * 3600 * 1000) } }, { qualified: true, invested: 0 }] },
         orderBy: [{ scanned: 'asc' }, { lastScanned: 'asc' }],

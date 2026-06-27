@@ -38,7 +38,7 @@ export class PolymarketClient {
    * get every fill past the 1,000-row per-request cap. This is the fix for accurate
    * whale PnL/edge: no proxy-mapping, no Dune, same public API.
    */
-  async activityComplete(address: string, maxPages = 25, pageSize = 500): Promise<any[]> {
+  async activityComplete(address: string, maxPages = 12, pageSize = 500): Promise<any[]> {
     const all: any[] = [];
     const seen = new Set<string>();
     let end: number | undefined;
