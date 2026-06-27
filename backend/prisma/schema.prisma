@@ -614,6 +614,18 @@ model AgentDecision {
   @@index([kind, createdAt])
 }
 
+// Semantic memory (pgvector) — learnings/notes the agent can recall. Vector ops via raw SQL.
+model QuantMemory {
+  id        String  @id @default(uuid())
+  kind      String
+  content   String
+  meta      Json    @default("{}")
+  embedding Unsupported("vector(768)")?
+  createdAt DateTime @default(now())
+
+  @@index([kind])
+}
+
 model AgentOutcome {
   id          String        @id @default(uuid())
   decisionId  String        @unique
