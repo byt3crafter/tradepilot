@@ -247,11 +247,18 @@ export class QuantService implements OnApplicationBootstrap {
       nClosed, nEff, meanEdge, stdEdge, edgeLcb, dollarEdge, edgeScore: edgeLcb, qualified,
       scanned: true, lastScanned: new Date(),
     };
-    return this.prisma.pmWallet.upsert({
+    const saved = await this.prisma.pmWallet.upsert({
       where: { address },
       create: { address, pseudonym, profileImage, ...data },
       update: { ...data, ...(pseudonym ? { pseudonym } : {}), ...(profileImage ? { profileImage } : {}) },
     });
+    // Time-series snapshot (qualified wallets only) — feeds analytics + edge-decay + learning.
+    if (qualified) {
+      await this.prisma.pmWalletSnapshot.create({
+        data: { address, edgeLcb, meanEdge, roiPct, invested, pnl: realizedPnl, nClosed, nEff, winRate, volume, marketFocus },
+      }).catch(() => {});
+    }
+    return saved;
   }
 
   private classifyFocus(items: any[]): string | null {

@@ -570,6 +570,57 @@ model SystemConfig {
   key               String   @unique // e.g., 'main'
   isMaintenanceMode Boolean  @default(false)
   freeMode          Boolean  @default(false) // when true, everyone gets full access (paywall off); billing stays intact
+  quantMode         String   @default("manual") // 'manual' (human drives, agent suggests) | 'auto' (agent decides+executes within limits)
   maintenanceMessage String?
   updatedAt         DateTime @updatedAt
+}
+
+// ── Autonomous Quant Engine — data + learning foundation (see docs/QUANT_ENGINE.md) ──
+
+// Time-series snapshot of a wallet's metrics — analytics, stats, edge-decay, learning features.
+model PmWalletSnapshot {
+  id          String   @id @default(uuid())
+  address     String
+  edgeLcb     Float
+  meanEdge    Float
+  roiPct      Float
+  invested    Float
+  pnl         Float
+  nClosed     Int
+  nEff        Float
+  winRate     Float
+  volume      Float
+  marketFocus String?
+  capturedAt  DateTime @default(now())
+
+  @@index([address, capturedAt])
+}
+
+// Learning ledger: every decision the engine makes (auto or manual) and its realized outcome.
+model AgentDecision {
+  id          String        @id @default(uuid())
+  mode        String        // 'auto' | 'manual'
+  kind        String        // 'signal' | 'trade' | 'verdict' | 'strategy'
+  subjectAddr String?       // wallet involved
+  market      String?       // market / conditionId / tokenId
+  action      String        // BUY | SELL | COPY | SKIP | WATCH | ...
+  rationale   String?
+  confidence  String?
+  meta        Json          @default("{}")
+  createdAt   DateTime      @default(now())
+  outcome     AgentOutcome?
+
+  @@index([kind, createdAt])
+}
+
+model AgentOutcome {
+  id          String        @id @default(uuid())
+  decisionId  String        @unique
+  decision    AgentDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  realizedPnl Float?
+  roiPct      Float?
+  success     Boolean?
+  resolvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
 }
