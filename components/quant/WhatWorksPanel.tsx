@@ -9,10 +9,11 @@
  *   1. Overall stat tiles (resolved, pending, win rate, avg ROI)
  *   2. Per-wallet DataTable sorted by avgRoi desc
  *   3. Predictions → Outcomes feed with All/Wins/Losses/Pending filter
+ *      Live-polling every 45s; shows "● LIVE · updated HH:MM:SS"
  *
  * REAL DATA ONLY. Sparse or empty is expected and handled gracefully.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -39,6 +40,11 @@ import type { Segment } from '../ui/SegmentedControl';
 
 const truncateAddr = (addr: string) =>
   addr && addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
+
+const walletLabel = (d: QuantDecision): string =>
+  d.pseudonym
+    ? d.pseudonym
+    : truncateAddr(d.wallet);
 
 const fmtNum = (n: number) => n.toLocaleString('en-US');
 
@@ -69,6 +75,9 @@ const fmtRelTime = (iso: string | null | undefined): string => {
   if (d < 30) return `${d}d ago`;
   return `${Math.floor(d / 30)}mo ago`;
 };
+
+const fmtTimestamp = (d: Date): string =>
+  d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 const VERDICT_VARIANT: Record<string, 'profit' | 'loss' | 'warning' | 'neutral'> = {
   validated: 'profit',
@@ -254,7 +263,7 @@ const PaperWalletSimCard: React.FC = () => {
     const day = firstDate.getDate();
     const spanDays = Math.max(0, Math.floor((Date.now() - firstMs) / 86_400_000));
     const daysPart = spanDays > 0 ? ` (${spanDays}d)` : '';
-    return `OUT-OF-SAMPLE · since ${monthName} ${day}${daysPart}`;
+    return `OUT-OF-SAMPLE · since ${monthName} ${day}${daysPart}`;
   })();
 
   // Caption: use backend note if provided, otherwise fall back
@@ -458,7 +467,143 @@ const InSampleDisclaimer: React.FC = () => (
   </p>
 );
 
+// ─── Live indicator ───────────────────────────────────────────────────────────
+
+const LiveIndicator: React.FC<{ lastUpdated: Date | null; refreshing: boolean }> = ({
+  lastUpdated,
+  refreshing,
+}) => (
+  <span
+    className="flex items-center gap-[5px] font-mono text-jtp-2xs text-jtp-textFaint select-none"
+    aria-live="polite"
+    aria-label={lastUpdated ? `Last updated at ${fmtTimestamp(lastUpdated)}` : 'Loading'}
+  >
+    <span
+      className={refreshing ? 'text-jtp-textFaint' : 'text-jtp-profit'}
+      aria-hidden="true"
+    >
+      ●
+    </span>
+    {refreshing
+      ? 'UPDATING…'
+      : lastUpdated
+        ? `LIVE · ${fmtTimestamp(lastUpdated)}`
+        : 'LIVE'}
+  </span>
+);
+
+// ─── Decision feed row ────────────────────────────────────────────────────────
+
+interface DecisionRowProps {
+  d: QuantDecision;
+  walletMap: Map<string, QuantLearningWallet>;
+}
+
+const DecisionRow: React.FC<DecisionRowProps> = ({ d, walletMap }) => {
+  const wallet = walletMap.get(d.wallet);
+  const displayName = walletLabel(d);
+
+  // Build the prediction text: side + outcomeLabel + price
+  const sideText = d.side ? d.side.toUpperCase() : 'BUY';
+  const priceText = d.entryPrice !== undefined && d.entryPrice !== null
+    ? `@ ${(d.entryPrice * 100).toFixed(1)}¢`
+    : null;
+  const predictionLine = [sideText, d.outcomeLabel, priceText].filter(Boolean).join(' ');
+
+  // Result badge label
+  const resultLabel = (() => {
+    if (d.status === 'win') return `WON ${d.roiPct !== null ? `+${d.roiPct.toFixed(1)}%` : ''}`.trim();
+    if (d.status === 'loss') return `LOST ${d.roiPct !== null ? `${d.roiPct.toFixed(1)}%` : ''}`.trim();
+    return 'PENDING';
+  })();
+
+  const isLoss = d.status === 'loss';
+
+  return (
+    <div
+      className={[
+        'flex items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-jtp-hover',
+        isLoss
+          ? 'border-l-2 border-[#ff5b52] bg-[rgba(255,91,82,0.03)]'
+          : 'border-l-2 border-transparent',
+      ].join(' ')}
+    >
+      {/* ── LEFT: time · wallet + working% · focus ── */}
+      <div className="flex-shrink-0 flex flex-col gap-[3px] w-[112px]">
+        {/* Relative time */}
+        <span className="font-mono text-jtp-2xs text-jtp-textFaint">
+          {fmtRelTime(d.createdAt)}
+        </span>
+
+        {/* Wallet name + win% chip */}
+        <div className="flex items-center gap-[4px] flex-wrap">
+          <span className="font-mono text-jtp-xs text-jtp-textMuted font-semibold truncate max-w-[70px]">
+            {displayName}
+          </span>
+          {wallet && (
+            <span
+              className="font-mono text-[9px] px-[4px] py-[1px] rounded-[2px] leading-none"
+              style={{
+                background: 'rgba(61,220,132,0.12)',
+                color: '#3ddc84',
+              }}
+              title={`Win rate for this wallet: ${fmtWinRate(wallet.winRate)}`}
+            >
+              {(wallet.winRate * 100).toFixed(0)}%
+            </span>
+          )}
+        </div>
+
+        {/* Focus chip */}
+        {d.focus && (
+          <span
+            className="font-mono text-[9px] px-[4px] py-[1px] rounded-[2px] leading-none self-start"
+            style={{ background: 'rgba(232,162,61,0.14)', color: '#e8a23d' }}
+          >
+            {d.focus}
+          </span>
+        )}
+      </div>
+
+      {/* ── MIDDLE: prediction + market title ── */}
+      <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
+        <span className="font-mono text-jtp-xs text-jtp-text font-semibold leading-snug">
+          {predictionLine}
+        </span>
+        {d.title && (
+          <span
+            className="text-jtp-xs text-jtp-textDim leading-snug"
+            title={d.title}
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {d.title}
+          </span>
+        )}
+        {d.resolvedAt && d.status !== 'pending' && (
+          <span className="font-mono text-jtp-2xs text-jtp-textFaint/70">
+            resolved {fmtRelTime(d.resolvedAt)}
+          </span>
+        )}
+      </div>
+
+      {/* ── RIGHT: result badge ── */}
+      <div className="flex-shrink-0 flex flex-col items-end gap-[3px]">
+        <Badge variant={STATUS_VARIANT[d.status] ?? 'neutral'} size="xs">
+          {resultLabel}
+        </Badge>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
+
+const POLL_INTERVAL_MS = 45_000;
 
 const WhatWorksPanel: React.FC = () => {
   const { getToken } = useAuth();
@@ -470,6 +615,7 @@ const WhatWorksPanel: React.FC = () => {
   const [learningError, setLearningError] = useState<string | null>(null);
   const [filter, setFilter] = useState<DecisionFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchLearning = useCallback(async () => {
     setLearningError(null);
@@ -487,8 +633,9 @@ const WhatWorksPanel: React.FC = () => {
   const fetchDecisions = useCallback(async () => {
     try {
       const token = await getToken();
-      const data = await api.quantLearningDecisions(60, token);
+      const data = await api.quantLearningDecisions(60, 'live', token);
       setDecisions(Array.isArray(data) ? data : []);
+      setLastUpdated(new Date());
     } catch {
       // leave prior state; empty is fine
     } finally {
@@ -496,9 +643,19 @@ const WhatWorksPanel: React.FC = () => {
     }
   }, [getToken]);
 
+  // Initial fetch
   useEffect(() => {
     fetchLearning();
     fetchDecisions();
+  }, [fetchLearning, fetchDecisions]);
+
+  // Live poll every 45s
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchLearning();
+      fetchDecisions();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
   }, [fetchLearning, fetchDecisions]);
 
   const handleRefresh = useCallback(async () => {
@@ -512,6 +669,13 @@ const WhatWorksPanel: React.FC = () => {
   const wallets: QuantLearningWallet[] = [...(learning?.wallets ?? [])].sort(
     (a, b) => b.avgRoi - a.avgRoi,
   );
+
+  // Build a wallet lookup map for O(1) win-rate display in feed rows
+  const walletMap = useMemo(() => {
+    const m = new Map<string, QuantLearningWallet>();
+    for (const w of wallets) m.set(w.address, w);
+    return m;
+  }, [wallets]);
 
   const overall = learning?.overall;
 
@@ -626,12 +790,13 @@ const WhatWorksPanel: React.FC = () => {
         )}
       </Panel>
 
-      {/* ── Predictions → Outcomes feed ── */}
+      {/* ── Predictions → Outcomes live feed ── */}
       <Panel
         label="PREDICTIONS → OUTCOMES"
         noPadding
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <LiveIndicator lastUpdated={lastUpdated} refreshing={refreshing} />
             <SegmentedControl
               size="xs"
               segments={FILTER_SEGMENTS}
@@ -650,15 +815,23 @@ const WhatWorksPanel: React.FC = () => {
           </div>
         }
       >
+        {/* Feed header — what this section is about */}
+        <div className="px-4 pt-3 pb-2 border-b border-jtp-borderSubtle">
+          <p className="text-jtp-xs text-jtp-textFaint">
+            Live predictions — what the engine called vs what actually happened (out-of-sample, paper).
+          </p>
+        </div>
+
         {loadingDecisions ? (
           <div className="flex flex-col divide-y divide-jtp-borderSubtle">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-start gap-3 px-4 py-3">
+                <Skeleton className="h-[38px] w-[112px] flex-shrink-0" />
                 <div className="flex-1 flex flex-col gap-2">
                   <Skeleton className="h-[13px] w-3/4" />
                   <Skeleton className="h-[11px] w-1/2" />
                 </div>
-                <Skeleton className="h-[18px] w-14 flex-shrink-0" />
+                <Skeleton className="h-[18px] w-16 flex-shrink-0" />
               </div>
             ))}
           </div>
@@ -671,55 +844,7 @@ const WhatWorksPanel: React.FC = () => {
         ) : (
           <div className="divide-y divide-jtp-borderSubtle">
             {filteredDecisions.map((d) => (
-              <div
-                key={d.id}
-                className={[
-                  'flex items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-jtp-hover',
-                  d.status === 'loss'
-                    ? 'border-l-2 border-[#ff5b52] bg-[rgba(255,91,82,0.03)]'
-                    : 'border-l-2 border-transparent',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                {/* LEFT: prediction text + market title + time */}
-                <div className="flex-1 min-w-0">
-                  <div className="font-mono text-jtp-xs text-jtp-text leading-snug">
-                    {d.prediction}
-                  </div>
-                  {d.title && (
-                    <div className="text-jtp-textDim text-jtp-xs truncate mt-[3px]">
-                      {d.title}
-                    </div>
-                  )}
-                  <div className="font-mono text-jtp-2xs text-jtp-textFaint mt-1">
-                    {fmtRelTime(d.createdAt)}
-                    {d.resolvedAt && (
-                      <span className="ml-2 text-jtp-textFaint/70">
-                        resolved {fmtRelTime(d.resolvedAt)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* RIGHT: status badge + ROI */}
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <Badge
-                    variant={STATUS_VARIANT[d.status] ?? 'neutral'}
-                    size="xs"
-                  >
-                    {d.status.toUpperCase()}
-                  </Badge>
-                  {d.roiPct !== null && d.roiPct !== undefined && (
-                    <span
-                      className={`font-mono text-jtp-xs font-semibold ${roiColor(d.roiPct)}`}
-                      aria-label={`ROI: ${fmtRoi(d.roiPct)}`}
-                    >
-                      {fmtRoi(d.roiPct)}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <DecisionRow key={d.id} d={d} walletMap={walletMap} />
             ))}
           </div>
         )}

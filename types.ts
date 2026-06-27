@@ -738,11 +738,19 @@ export interface QuantDecision {
   id: string;
   createdAt: string;
   wallet: string;
+  /** Human-readable wallet alias, e.g. "Alpha-7" */
+  pseudonym?: string | null;
   market: string;
   prediction: string;
+  /** What the engine called, e.g. "Yes" / "No" */
   outcomeLabel: string;
+  /** Entry price in cents (0-100) */
   entryPrice: number;
   title: string;
+  /** Direction: "BUY" | "SELL" or whatever the backend emits */
+  side?: string | null;
+  /** Topic/thematic focus of this wallet, e.g. "Crypto" */
+  focus?: string | null;
   status: 'win' | 'loss' | 'pending';
   roiPct: number | null;
   resolvedAt: string | null;
