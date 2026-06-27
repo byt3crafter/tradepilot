@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTrade } from '../../context/TradeContext';
 import { useAccount } from '../../context/AccountContext';
+import { useAuth } from '../../context/AuthContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import Spinner from '../Spinner';
 import OnboardingQuestionnaire from './OnboardingQuestionnaire';
@@ -10,6 +11,7 @@ import PropFirmRulesPanel from './redesign/PropFirmRulesPanel';
 import DashEquityCurve from './redesign/DashEquityCurve';
 import DashRecentActivity from './redesign/DashRecentActivity';
 import TradingHealthScore from './redesign/TradingHealthScore';
+import QuantDashPanel from './redesign/QuantDashPanel';
 
 const Dashboard: React.FC = () => {
   const {
@@ -19,6 +21,7 @@ const Dashboard: React.FC = () => {
     isTradesSynced,
   } = useTrade();
   const { activeAccount, objectivesProgress, isLoading: accountLoading } = useAccount();
+  const { quantEnabled } = useAuth();
   const [questionnaireCompleted, setQuestionnaireCompleted] = useLocalStorage<boolean>(
     'onboardingQuestionnaireCompleted',
     false,
@@ -81,6 +84,9 @@ const Dashboard: React.FC = () => {
           <TradingHealthScore closedTrades={closedTrades} />
         </div>
       </div>
+
+      {/* ── Row 4: Quant — shown only when quantEnabled ── */}
+      {quantEnabled && <QuantDashPanel />}
 
     </div>
   );
