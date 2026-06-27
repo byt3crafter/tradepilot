@@ -36,8 +36,14 @@ const Dashboard: React.FC = () => {
     false,
   );
 
-  // Which dashboard is active — defaults to 'journal'; Quant segment only shown when enabled.
-  const [activeDash, setActiveDash] = useState<DashView>('journal');
+  // Which dashboard is active — persisted across refreshes (defaults to 'journal').
+  const [activeDash, setActiveDash] = useState<DashView>(() => {
+    try { return (localStorage.getItem('jtp.dashView') as DashView) || 'journal'; } catch { return 'journal'; }
+  });
+  const selectDash = (v: DashView) => {
+    setActiveDash(v);
+    try { localStorage.setItem('jtp.dashView', v); } catch { /* ignore */ }
+  };
 
   const hasTrades = closedTrades.length > 0 || liveTrades.length > 0;
   const isLoading = accountLoading || tradesLoading || !isTradesSynced;
@@ -72,7 +78,7 @@ const Dashboard: React.FC = () => {
           <SegmentedControl
             segments={DASH_SEGMENTS}
             value={activeDash}
-            onChange={setActiveDash}
+            onChange={selectDash}
             size="sm"
           />
         </div>
