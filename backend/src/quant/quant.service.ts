@@ -158,7 +158,7 @@ export class QuantService implements OnApplicationBootstrap {
   async scanWallet(addressRaw: string) {
     const address = String(addressRaw || '').toLowerCase();
     const [activity, positionsValue] = await Promise.all([
-      this.pm.activity(address, 1000),
+      this.pm.activityComplete(address), // complete history via &end cursor (past the 1000 cap)
       this.pm.value(address),
     ]);
 
