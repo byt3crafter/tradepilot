@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Trade, TradeResult } from '../../../types';
-import Panel from '../../ui/Panel';
+import { Panel } from '../../ui';
 
 interface TradingHealthScoreProps {
   closedTrades: Trade[];
@@ -166,7 +166,7 @@ const TradingHealthScore: React.FC<TradingHealthScoreProps> = ({ closedTrades })
   );
 
   return (
-    <Panel label="TRADING HEALTH" actions={footnote}>
+    <Panel label="TRADING HEALTH" actions={footnote} className="h-full">
       <div className="flex flex-col sm:flex-row items-start gap-5">
 
         {/* ── Ring gauge ── */}

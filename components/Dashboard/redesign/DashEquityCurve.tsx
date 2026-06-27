@@ -68,7 +68,7 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
         parentHeightOffset: 0,
       },
       theme: { mode: 'dark' as const },
-      colors: ['#5b8def'],
+      colors: ['#e8a23d'],
       stroke: { curve: 'straight' as const, width: 1.5 },
       fill: {
         type: 'gradient',
@@ -95,7 +95,7 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
         axisBorder:  { show: false },
         axisTicks:   { show: false },
         tooltip:     { enabled: false },
-        crosshairs:  { stroke: { color: '#5b8def', dashArray: 4, width: 1 } },
+        crosshairs:  { stroke: { color: '#e8a23d', dashArray: 4, width: 1 } },
       },
       yaxis: {
         opposite: true,
@@ -107,7 +107,7 @@ const DashEquityCurve: React.FC<Props> = ({ closedTrades }) => {
       markers: {
         size:         0,
         hover:        { size: 4 },
-        colors:       ['#5b8def'],
+        colors:       ['#e8a23d'],
         strokeColors: '#0f1216',
         strokeWidth:  2,
       },

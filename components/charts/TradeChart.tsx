@@ -67,8 +67,8 @@ export default function TradeChart({
       },
       crosshair: {
         mode: CrosshairMode.Magnet,
-        vertLine: { color: "rgba(91,141,239,0.5)", labelBackgroundColor: "#5b8def" },
-        horzLine: { color: "rgba(91,141,239,0.5)", labelBackgroundColor: "#5b8def" },
+        vertLine: { color: "rgba(232,162,61,0.5)", labelBackgroundColor: "#e8a23d" },
+        horzLine: { color: "rgba(232,162,61,0.5)", labelBackgroundColor: "#e8a23d" },
       },
       rightPriceScale: { borderVisible: false },
       timeScale: {

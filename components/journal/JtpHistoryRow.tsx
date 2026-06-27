@@ -17,7 +17,8 @@ interface JtpHistoryRowProps {
   onSelect: (tradeId: string) => void;
 }
 
-const fmtPL = (v: number) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
+const fmtPL = (v: number) =>
+  v > 0 ? `▲ +$${v.toFixed(2)}` : v < 0 ? `▼ -$${Math.abs(v).toFixed(2)}` : `$0.00`;
 
 const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSelected, onSelect }) => {
   const { deleteTrade } = useTrade();
@@ -95,7 +96,7 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSe
       <tr
         className={`border-b border-jtp-borderSubtle cursor-pointer transition-colors duration-100
           ${isSelected ? 'bg-jtp-blue/10' : 'hover:bg-jtp-active'}`}
-        style={{ height: '43px' }}
+        style={{ height: '36px' }}
         onClick={handleRowClick}
       >
         {/* Checkbox */}
@@ -156,8 +157,8 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSe
         {/* REAL R */}
         <td className="px-3 text-right">
           {realisedR != null ? (
-            <span className={`font-mono font-semibold text-jtp-md ${realisedRColor}`}>
-              {realisedR >= 0 ? '+' : ''}
+            <span className={`font-mono font-semibold text-jtp-md tabular-nums ${realisedRColor}`}>
+              {realisedR > 0 ? '▲ +' : realisedR < 0 ? '▼ ' : ''}
               {realisedR.toFixed(2)} R
             </span>
           ) : (
@@ -191,7 +192,7 @@ const JtpHistoryRow: React.FC<JtpHistoryRowProps> = ({ trade, onViewDetail, isSe
 
         {/* NET P&L */}
         <td className="px-3 text-right">
-          <span className={`font-mono font-medium text-jtp-base-minus ${netPLColor}`}>
+          <span className={`font-mono font-semibold text-jtp-base-minus tabular-nums ${netPLColor}`}>
             {fmtPL(netPL)}
           </span>
         </td>

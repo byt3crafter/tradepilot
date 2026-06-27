@@ -202,7 +202,7 @@ const BotPage: React.FC = () => {
       {banner === 'success' && (
         <div
           role="status"
-          className="flex items-center justify-between gap-3 bg-[rgba(74,193,128,0.08)] border border-[rgba(74,193,128,0.25)] rounded-jtp-panel px-4 py-3"
+          className="flex items-center justify-between gap-3 bg-[rgba(74,193,128,0.08)] border border-[rgba(74,193,128,0.25)] rounded-[2px] px-4 py-3"
         >
           <p className="text-jtp-lg text-jtp-profit font-medium">
             cTrader connected — your trades will now sync automatically.
@@ -221,7 +221,7 @@ const BotPage: React.FC = () => {
       {banner === 'error' && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 bg-[rgba(229,99,95,0.08)] border border-[rgba(229,99,95,0.25)] rounded-jtp-panel px-4 py-3"
+          className="flex items-center justify-between gap-3 bg-[rgba(229,99,95,0.08)] border border-[rgba(229,99,95,0.25)] rounded-[2px] px-4 py-3"
         >
           <p className="text-jtp-lg text-jtp-loss font-medium">
             Could not connect to cTrader — please try again.
@@ -237,7 +237,7 @@ const BotPage: React.FC = () => {
       )}
 
       {/* Page header note */}
-      <div className="flex items-start gap-3 bg-jtp-active border border-jtp-borderStrong rounded-jtp-panel px-4 py-3">
+      <div className="flex items-start gap-3 bg-jtp-active border border-jtp-borderStrong rounded-[2px] px-4 py-3">
         <Badge variant="info" size="md">BETA</Badge>
         <p className="text-jtp-md text-jtp-textMuted leading-relaxed">
           Your AI trading bot — auto-sync + strategy automation. Currently in development.

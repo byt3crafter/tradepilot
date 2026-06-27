@@ -42,11 +42,17 @@ const Panel: React.FC<PanelProps> = ({
   scrollable = false,
 }) => (
   <section
-    className={`bg-jtp-panel border border-jtp-border rounded-jtp-panel overflow-hidden flex flex-col ${className}`}
+    className={`bg-jtp-panel border border-jtp-border rounded-[2px] overflow-hidden flex flex-col ${className}`}
   >
-    {/* Console header */}
-    <header className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-[10px] border-b border-jtp-border">
-      <span className="jtp-label select-none">{label}</span>
+    {/* Console header — amber top-accent + terminal label */}
+    <header
+      className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-[9px] border-b border-jtp-border relative"
+      style={{ borderTop: '2px solid rgba(232,162,61,0.55)' }}
+    >
+      <span className="jtp-label select-none tracking-[0.12em]">
+        <span style={{ color: '#e8a23d', marginRight: '6px' }}>▸</span>
+        {label}
+      </span>
       {actions && (
         <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
       )}

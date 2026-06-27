@@ -236,7 +236,7 @@ const Copilot: React.FC = () => {
         >
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-jtp-border bg-jtp-shell flex-shrink-0">
-            <span className="w-7 h-7 rounded-full bg-[rgba(91,141,239,0.14)] text-jtp-blue flex items-center justify-center">
+            <span className="w-7 h-7 rounded-full bg-[rgba(232,162,61,0.14)] text-jtp-blue flex items-center justify-center">
               <SparkIcon className="w-4 h-4" />
             </span>
             <div className="flex-1 min-w-0">
@@ -293,7 +293,7 @@ const Copilot: React.FC = () => {
           >
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-4">
-                <span className="w-10 h-10 rounded-full bg-[rgba(91,141,239,0.12)] text-jtp-blue flex items-center justify-center">
+                <span className="w-10 h-10 rounded-full bg-[rgba(232,162,61,0.12)] text-jtp-blue flex items-center justify-center">
                   <SparkIcon className="w-5 h-5" />
                 </span>
                 <div className="text-jtp-sm text-jtp-textMuted">
@@ -349,7 +349,7 @@ const Copilot: React.FC = () => {
             <div className="px-4 pb-2 flex-shrink-0">
               <button
                 onClick={goToSettings}
-                className="w-full text-jtp-sm font-medium px-3 py-2 rounded-jtp-xl bg-[rgba(91,141,239,0.12)] text-jtp-blue hover:bg-[rgba(91,141,239,0.2)] transition-colors"
+                className="w-full text-jtp-sm font-medium px-3 py-2 rounded-jtp-xl bg-[rgba(232,162,61,0.12)] text-jtp-blue hover:bg-[rgba(232,162,61,0.20)] transition-colors"
               >
                 Open Settings → AI
               </button>

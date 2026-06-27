@@ -71,7 +71,7 @@ function getMarketSession(): { label: string; active: boolean } {
 // ── Separator ───────────────────────────────────────────────────────────────────
 
 const Sep: React.FC = () => (
-  <span className="text-jtp-borderStrong select-none mx-[6px]">·</span>
+  <span className="text-jtp-borderStrong select-none mx-[8px] opacity-60">│</span>
 );
 
 // ── StatusBar ───────────────────────────────────────────────────────────────────
@@ -93,10 +93,13 @@ const StatusBar: React.FC = () => {
 
   return (
     <footer
-      className="flex-shrink-0 flex items-center h-statusbar bg-jtp-statusbar border-t border-jtp-border px-4 gap-0 z-50"
+      className="flex-shrink-0 flex items-center h-statusbar bg-jtp-statusbar border-t border-jtp-border px-3 gap-0 z-50"
       style={{ fontSize: '9.5px', letterSpacing: '0.08em', fontFamily: '"JetBrains Mono", monospace' }}
       aria-label="System status"
     >
+      <span className="font-mono text-[#e8a23d] text-[9px] tracking-[0.2em] mr-2 opacity-80">
+        [SYS]
+      </span>
       {/* System status */}
       <span className="flex items-center gap-[5px] text-jtp-textDim uppercase">
         <span
@@ -155,12 +158,13 @@ const StatusBar: React.FC = () => {
 
       {/* UTC Clock */}
       <span
-        className="text-jtp-textMuted tabular-nums"
+        className="tabular-nums flex items-center"
         style={{ fontVariantNumeric: 'tabular-nums' }}
         aria-live="off"
         aria-label={`Current UTC time: ${utcTime}`}
       >
-        {utcTime} <span className="text-jtp-textDim">UTC</span>
+        <span className="text-jtp-textDim mr-1">UTC</span>
+        <span className="text-jtp-text tabular-nums">{utcTime}</span>
       </span>
     </footer>
   );

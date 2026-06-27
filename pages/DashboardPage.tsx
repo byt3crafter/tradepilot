@@ -101,11 +101,8 @@ const AppTopBar: React.FC = () => {
     >
       {/* Section title */}
       <div className="flex items-center gap-[10px] min-w-0">
-        <span
-          className="text-jtp-xl font-semibold text-jtp-text truncate"
-          style={{ letterSpacing: '-0.2px' }}
-        >
-          {meta.title}
+        <span className="text-jtp-xl font-bold text-jtp-text truncate font-mono tracking-[0.02em]">
+          <span style={{ color: '#e8a23d' }}>▸</span>{' '}{meta.title}
         </span>
         {meta.subtitle && (
           <span className="text-jtp-sm text-jtp-textDim hidden sm:block flex-shrink-0">
@@ -125,13 +122,15 @@ const AppTopBar: React.FC = () => {
         onClick={() => {/* Wave 2: open command palette */}}
       >
         <SearchIcon className="w-3 h-3" />
-        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>Search or jump to…</span>
+        <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '11px', letterSpacing: '0.05em' }}>
+          &gt; SEARCH OR JUMP TO...
+        </span>
         <kbd
-          className="ml-[2px] flex items-center gap-[2px] text-jtp-textDisabled"
-          style={{ fontSize: '10px', fontFamily: '"JetBrains Mono", monospace' }}
+          className="ml-2 flex items-center gap-[2px] text-jtp-textDim font-mono"
+          style={{ fontSize: '9px', letterSpacing: '0.1em' }}
           aria-hidden="true"
         >
-          <span>⌘</span><span>K</span>
+          ⌘K
         </kbd>
       </button>
 
@@ -148,7 +147,7 @@ const AppTopBar: React.FC = () => {
       {/* Log Trade */}
       <button
         onClick={handleLogTrade}
-        className="flex items-center gap-[6px] px-[13px] py-[7px] bg-jtp-blue hover:bg-jtp-blueHover text-white font-semibold text-jtp-base-minus rounded-jtp-xl border-none cursor-pointer transition-colors flex-shrink-0"
+        className="flex items-center gap-[6px] px-[13px] py-[7px] bg-jtp-blue hover:bg-jtp-blueHover text-[#08090b] font-mono font-bold tracking-wider uppercase text-[11px] rounded-[2px] border-none cursor-pointer transition-colors flex-shrink-0"
         aria-label="Log a new trade"
       >
         <PlusIcon className="w-3.5 h-3.5" />

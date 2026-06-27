@@ -27,7 +27,7 @@ interface SparklineProps {
 
 const PROFIT_COLOR = '#4cc38a';
 const LOSS_COLOR   = '#e5635f';
-const DEFAULT_COLOR = '#5b8def';
+const DEFAULT_COLOR = '#e8a23d';
 
 const Sparkline: React.FC<SparklineProps> = ({
   data,

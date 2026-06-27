@@ -8,9 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  ScatterChart,
-  Scatter,
-  ZAxis,
 } from 'recharts';
 import { useTrade } from '../context/TradeContext';
 import { useAccount } from '../context/AccountContext';
@@ -53,16 +50,10 @@ interface RBin {
   positive: boolean;
 }
 
-interface ScatterPoint {
-  x: number; // MFE in R
-  y: number; // |MAE| in R
-  win: boolean;
-}
-
 // ─── Chart axis tick style ────────────────────────────────────────────────────
 
 const AXIS_TICK = {
-  fill: '#5b6370',
+  fill: '#69727c',
   fontSize: 9,
   fontFamily: '"JetBrains Mono"',
 } as const;
@@ -169,26 +160,14 @@ function computeKpis(trades: Trade[]): KpiStat[] {
   const avgWin = wins.length > 0 ? grossWin / wins.length : 0;
   const avgLoss = losses.length > 0 ? grossLoss / losses.length : 0;
   const streak = computeCurrentStreak(trades);
+  const totalR = trades.reduce((s, t) => s + (t.realisedR ?? 0), 0);
+  const avgR = trades.length > 0 ? totalR / trades.length : 0;
 
-  const durations = trades
-    .filter(t => t.exitDate && t.entryDate)
-    .map(t =>
-      Math.max(
-        0,
-        (new Date(t.exitDate!).getTime() - new Date(t.entryDate).getTime()) /
-          60000
-      )
-    );
-  const avgDur =
-    durations.length > 0
-      ? durations.reduce((s, d) => s + d, 0) / durations.length
-      : 0;
-  const durH = Math.floor(avgDur / 60);
-  const durM = Math.round(avgDur % 60);
-
+  // CVD-safe money formatter: includes directional glyph + sign
   const fmtCurr = (v: number, forcePlus = false) => {
+    const glyph = v >= 0 ? '▲' : '▼';
     const sign = v < 0 ? '-' : forcePlus ? '+' : '';
-    return `${sign}$${Math.abs(v).toLocaleString(undefined, {
+    return `${glyph} ${sign}$${Math.abs(v).toLocaleString(undefined, {
       maximumFractionDigits: 0,
     })}`;
   };
@@ -215,18 +194,23 @@ function computeKpis(trades: Trade[]): KpiStat[] {
       colorClass: profitFactor >= 1 ? 'text-jtp-profit' : 'text-jtp-loss',
     },
     {
+      label: 'Avg R',
+      value: trades.length > 0 ? `${avgR >= 0 ? '+' : ''}${avgR.toFixed(2)}R` : '—',
+      colorClass: avgR >= 0 ? 'text-jtp-profit' : 'text-jtp-loss',
+    },
+    {
       label: 'Expectancy',
       value: trades.length > 0 ? fmtCurr(expectancy, true) : '—',
       colorClass: expectancy >= 0 ? 'text-jtp-profit' : 'text-jtp-loss',
     },
     {
       label: 'Avg Win',
-      value: wins.length > 0 ? `+$${avgWin.toFixed(0)}` : '—',
+      value: wins.length > 0 ? `▲ +$${avgWin.toFixed(0)}` : '—',
       colorClass: 'text-jtp-profit',
     },
     {
       label: 'Avg Loss',
-      value: losses.length > 0 ? `-$${avgLoss.toFixed(0)}` : '—',
+      value: losses.length > 0 ? `▼ -$${avgLoss.toFixed(0)}` : '—',
       colorClass: 'text-jtp-loss',
     },
     {
@@ -243,11 +227,6 @@ function computeKpis(trades: Trade[]): KpiStat[] {
           : streak < 0
           ? 'text-jtp-loss'
           : 'text-jtp-textMuted',
-    },
-    {
-      label: 'Avg Duration',
-      value: avgDur > 0 ? `${durH}h ${durM}m` : '—',
-      colorClass: 'text-jtp-text',
     },
   ];
 }
@@ -287,9 +266,9 @@ function computeRDist(trades: Trade[]): RBin[] {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-// KPI strip — 8 StatTile hero metrics (2 rows of 4 on desktop)
+// KPI strip — 8 StatTile hero metrics in a 4-column grid
 const KpiStrip: React.FC<{ stats: KpiStat[] }> = ({ stats }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+  <div className="grid grid-cols-4 gap-3">
     {stats.map(s => (
       <StatTile
         key={s.label}
@@ -339,7 +318,7 @@ const DIM_OPTIONS: { key: DimKey; label: string }[] = [
   { key: 'timeofday', label: 'By Time of Day' },
 ];
 
-// Breakdown panel — left dim picker + right stats table
+// Dimension pivot breakdown — left dim picker + right stats table
 const DimBreakdown: React.FC<{ trades: Trade[]; playbooks: Playbook[] }> = ({
   trades,
   playbooks,
@@ -366,9 +345,9 @@ const DimBreakdown: React.FC<{ trades: Trade[]; playbooks: Playbook[] }> = ({
               key={opt.key}
               onClick={() => setActiveDim(opt.key)}
               className={[
-                'text-left text-jtp-sm px-3 py-[6px] rounded-[5px] border-l-2 transition-colors w-full',
+                'text-left font-mono text-jtp-xs-plus px-3 py-[6px] rounded-[2px] border-l-2 transition-colors w-full',
                 activeDim === opt.key
-                  ? 'bg-[rgba(91,141,239,0.12)] border-jtp-blue text-jtp-blue font-medium'
+                  ? 'bg-[rgba(232,162,61,0.12)] border-jtp-blue text-jtp-blue'
                   : 'border-transparent text-jtp-textMuted hover:text-jtp-text hover:bg-jtp-hover',
               ].join(' ')}
             >
@@ -388,7 +367,7 @@ const DimBreakdown: React.FC<{ trades: Trade[]; playbooks: Playbook[] }> = ({
           ) : (
             <table className="w-full border-collapse">
               <thead>
-                <tr className="text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
+                <tr className="font-mono text-jtp-xs uppercase tracking-[0.4px] text-jtp-textDim">
                   <th className="text-left pb-2 font-normal pr-3">Segment</th>
                   <th className="text-right pb-2 font-normal pr-3 w-14">
                     Trades
@@ -412,10 +391,10 @@ const DimBreakdown: React.FC<{ trades: Trade[]; playbooks: Playbook[] }> = ({
                       key={row.label}
                       className={[
                         'border-t border-jtp-borderSubtle',
-                        flagged ? 'bg-[rgba(229,99,95,0.05)]' : '',
+                        flagged ? 'bg-[rgba(255,91,82,0.05)]' : '',
                       ].join(' ')}
                     >
-                      <td className="py-[6px] pr-3 text-jtp-lg text-jtp-text truncate max-w-[130px]">
+                      <td className="py-[6px] pr-3 font-mono text-jtp-xs-plus text-jtp-text truncate max-w-[130px]">
                         {row.label}
                       </td>
                       <td className="py-[6px] pr-3 text-right font-mono text-jtp-xs-plus text-jtp-textSoft">
@@ -473,7 +452,7 @@ const RDistTooltip: React.FC<{
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-jtp-2xl px-3 py-2 text-jtp-xs shadow-jtp-drawer">
+    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-xs shadow-jtp-drawer">
       <div className="text-jtp-textDim font-mono mb-[2px]">{d.label}</div>
       <div className="text-jtp-text font-mono font-semibold">
         {d.count} trade{d.count !== 1 ? 's' : ''}
@@ -482,13 +461,13 @@ const RDistTooltip: React.FC<{
   );
 };
 
-// R-Multiple Distribution histogram
+// R-Multiple Distribution — primary chart, full-width with gradient fills
 const RDistChart: React.FC<{ trades: Trade[] }> = ({ trades }) => {
   const data = useMemo(() => computeRDist(trades), [trades]);
   const hasData = data.some(d => d.count > 0);
 
   return (
-    <Panel label="R DISTRIBUTION">
+    <Panel label="R-MULTIPLE DISTRIBUTION">
       {!hasData ? (
         <EmptyState
           title="No R data yet"
@@ -496,8 +475,18 @@ const RDistChart: React.FC<{ trades: Trade[] }> = ({ trades }) => {
           className="py-6"
         />
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} margin={{ top: 16, right: 4, left: 0, bottom: 4 }}>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 4 }}>
+            <defs>
+              <linearGradient id="rDistPos" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3ddc84" stopOpacity={0.92} />
+                <stop offset="100%" stopColor="#3ddc84" stopOpacity={0.28} />
+              </linearGradient>
+              <linearGradient id="rDistNeg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ff5b52" stopOpacity={0.92} />
+                <stop offset="100%" stopColor="#ff5b52" stopOpacity={0.28} />
+              </linearGradient>
+            </defs>
             <XAxis
               dataKey="label"
               axisLine={false}
@@ -515,10 +504,10 @@ const RDistChart: React.FC<{ trades: Trade[] }> = ({ trades }) => {
               allowDecimals={false}
               width={24}
             />
-            <ReferenceLine y={0} stroke="#323942" strokeWidth={1} />
+            <ReferenceLine y={0} stroke="#1a2028" strokeWidth={1} />
             <Tooltip
               content={<RDistTooltip />}
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              cursor={{ fill: 'rgba(232,162,61,0.05)' }}
             />
             <Bar
               dataKey="count"
@@ -526,7 +515,7 @@ const RDistChart: React.FC<{ trades: Trade[] }> = ({ trades }) => {
               isAnimationActive={false}
               label={{
                 position: 'top' as const,
-                fill: '#5b6370',
+                fill: '#69727c',
                 fontSize: 9,
                 fontFamily: '"JetBrains Mono"',
                 formatter: (v: number) => (v > 0 ? String(v) : ''),
@@ -535,171 +524,20 @@ const RDistChart: React.FC<{ trades: Trade[] }> = ({ trades }) => {
               {data.map(entry => (
                 <Cell
                   key={entry.key}
-                  fill={entry.positive ? '#4cc38a' : '#e5635f'}
-                  fillOpacity={entry.count === 0 ? 0.15 : 0.82}
+                  fill={
+                    entry.count === 0
+                      ? entry.positive
+                        ? 'rgba(61,220,132,0.10)'
+                        : 'rgba(255,91,82,0.10)'
+                      : entry.positive
+                      ? 'url(#rDistPos)'
+                      : 'url(#rDistNeg)'
+                  }
                 />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      )}
-    </Panel>
-  );
-};
-
-// Adherence panel — pending checklistFollowed field on Trade
-const AdherencePanel: React.FC = () => {
-  // TODO: When a boolean `checklistFollowed` field is added to the Trade model and
-  // returned by the API, compute real per-group stats here:
-  //   followed = closedTrades.filter(t => t.checklistFollowed === true)
-  //   broken   = closedTrades.filter(t => t.checklistFollowed === false)
-  return (
-    <Panel label="ADHERENCE IMPACT">
-      <div className="flex gap-3">
-        {(
-          [
-            { label: 'Checklist followed', accentClass: 'bg-jtp-profit' },
-            { label: 'Checklist broken', accentClass: 'bg-jtp-loss' },
-          ] as const
-        ).map(({ label, accentClass }) => (
-          <div
-            key={label}
-            className="flex-1 border border-jtp-borderSubtle rounded-jtp-xl px-4 py-6 flex flex-col items-center gap-[10px] opacity-40"
-          >
-            <div className={`w-[6px] h-[6px] rounded-full ${accentClass}`} />
-            <div className="text-jtp-lg text-jtp-textMuted font-medium text-center">
-              {label}
-            </div>
-            <div className="text-jtp-md text-jtp-textFaint text-center leading-snug">
-              No checklist-adherence data yet
-            </div>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-};
-
-// MAE / MFE scatter tooltip
-const MaeMfeTooltip: React.FC<{
-  active?: boolean;
-  payload?: Array<{ payload: ScatterPoint }>;
-}> = ({ active, payload }) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="bg-jtp-shell border border-jtp-borderStrong rounded-jtp-2xl px-3 py-2 text-jtp-xs shadow-jtp-drawer">
-      <div
-        className={`font-mono font-semibold mb-1 ${
-          d.win ? 'text-jtp-profit' : 'text-jtp-loss'
-        }`}
-      >
-        {d.win ? 'Win' : 'Loss'}
-      </div>
-      <div className="text-jtp-textDim font-mono">MFE {d.x.toFixed(2)}R</div>
-      <div className="text-jtp-textDim font-mono">MAE {d.y.toFixed(2)}R</div>
-    </div>
-  );
-};
-
-// MAE / MFE scatter — honest empty state until mae/mfe are tracked on trades
-const MaeMfePanel: React.FC<{ trades: Trade[] }> = ({ trades }) => {
-  // TODO: Once Trade.mae and Trade.mfe are added to the Prisma schema and returned
-  // by the API, remove the `(t as any)` casts. The chart will populate automatically.
-  const points = useMemo<ScatterPoint[]>(() => {
-    return trades
-      .filter(
-        t => (t as any).mae != null && (t as any).mfe != null // eslint-disable-line @typescript-eslint/no-explicit-any
-      )
-      .map(t => ({
-        x: (t as any).mfe as number, // eslint-disable-line @typescript-eslint/no-explicit-any
-        y: Math.abs((t as any).mae as number), // eslint-disable-line @typescript-eslint/no-explicit-any
-        win: t.result === TradeResult.Win,
-      }));
-  }, [trades]);
-
-  const winsData = points.filter(p => p.win);
-  const lossesData = points.filter(p => !p.win);
-
-  return (
-    <Panel label="MAE / MFE">
-      <p className="text-jtp-md text-jtp-textFaint mb-3">
-        Adverse vs favourable excursion (R)
-      </p>
-
-      {points.length === 0 ? (
-        <EmptyState
-          title="No excursion data"
-          description="No MAE/MFE data captured yet."
-          className="py-6"
-        />
-      ) : (
-        <>
-          <div className="flex gap-4 mb-[10px] text-jtp-xs-plus text-jtp-textDim">
-            <span className="flex items-center gap-[5px]">
-              <span className="inline-block w-2 h-2 rounded-full bg-jtp-profit" />
-              Win
-            </span>
-            <span className="flex items-center gap-[5px]">
-              <span className="inline-block w-2 h-2 rounded-full bg-jtp-loss" />
-              Loss
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <ScatterChart margin={{ top: 8, right: 8, left: 0, bottom: 20 }}>
-              <XAxis
-                dataKey="x"
-                type="number"
-                name="MFE"
-                axisLine={false}
-                tickLine={false}
-                tick={AXIS_TICK}
-                label={{
-                  value: 'MFE (R)',
-                  position: 'insideBottom',
-                  offset: -12,
-                  fill: '#5b6370',
-                  fontSize: 9,
-                  fontFamily: '"JetBrains Mono"',
-                }}
-              />
-              <YAxis
-                dataKey="y"
-                type="number"
-                name="MAE"
-                axisLine={false}
-                tickLine={false}
-                tick={AXIS_TICK}
-                width={30}
-                label={{
-                  value: 'MAE (R)',
-                  angle: -90,
-                  position: 'insideLeft',
-                  fill: '#5b6370',
-                  fontSize: 9,
-                  fontFamily: '"JetBrains Mono"',
-                }}
-              />
-              <ZAxis range={[28, 28]} />
-              <Tooltip
-                content={<MaeMfeTooltip />}
-                cursor={{ strokeDasharray: '3 3', stroke: '#323942' }}
-              />
-              <Scatter
-                data={winsData}
-                fill="#4cc38a"
-                fillOpacity={0.75}
-                isAnimationActive={false}
-              />
-              <Scatter
-                data={lossesData}
-                fill="#e5635f"
-                fillOpacity={0.75}
-                isAnimationActive={false}
-              />
-            </ScatterChart>
-          </ResponsiveContainer>
-        </>
       )}
     </Panel>
   );
@@ -770,13 +608,13 @@ const AiInsightsPanel: React.FC = () => {
 
       {/* Not-connected state */}
       {needsConnect && (
-        <div className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-5 text-center">
+        <div className="border border-jtp-borderSubtle rounded-[2px] px-4 py-5 text-center">
           <p className="text-jtp-lg text-jtp-textMuted">
             Connect ChatGPT/Codex to generate AI insights.
           </p>
           <button
             onClick={() => navigateTo('settings', 'ai')}
-            className="mt-3 text-jtp-lg font-medium px-3 py-2 rounded-jtp-xl bg-[rgba(91,141,239,0.12)] text-jtp-blue hover:bg-[rgba(91,141,239,0.2)] transition-colors"
+            className="mt-3 font-mono text-jtp-xs-plus px-3 py-2 rounded-[2px] bg-[rgba(232,162,61,0.12)] text-jtp-blue hover:bg-[rgba(232,162,61,0.20)] transition-colors"
           >
             Open Settings → AI
           </button>
@@ -785,14 +623,14 @@ const AiInsightsPanel: React.FC = () => {
 
       {/* Generic error */}
       {error && !needsConnect && (
-        <div className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-4 text-center text-jtp-lg text-jtp-loss">
+        <div className="border border-jtp-borderSubtle rounded-[2px] px-4 py-4 text-center font-mono text-jtp-xs-plus text-jtp-loss">
           {error}
         </div>
       )}
 
       {/* Empty state (no closed trades) */}
       {result?.note && (
-        <div className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-5 text-center text-jtp-lg text-jtp-textFaint">
+        <div className="border border-jtp-borderSubtle rounded-[2px] px-4 py-5 text-center text-jtp-lg text-jtp-textFaint">
           {result.note}
         </div>
       )}
@@ -806,11 +644,11 @@ const AiInsightsPanel: React.FC = () => {
               return (
                 <div
                   key={col.key}
-                  className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-[14px]"
+                  className="border border-jtp-borderSubtle rounded-[2px] px-4 py-[14px]"
                 >
                   <div className="flex items-center gap-2 mb-[10px]">
                     <span className={`w-[6px] h-[6px] rounded-full ${col.dotClass}`} />
-                    <span className={`text-jtp-lg font-semibold ${col.textClass}`}>
+                    <span className={`font-mono text-jtp-xs-plus font-semibold ${col.textClass}`}>
                       {col.title}
                     </span>
                   </div>
@@ -835,7 +673,7 @@ const AiInsightsPanel: React.FC = () => {
           </div>
 
           {result?.summary && (
-            <div className="border border-jtp-borderSubtle rounded-jtp-xl px-4 py-[14px]">
+            <div className="border border-jtp-borderSubtle rounded-[2px] px-4 py-[14px]">
               <div className="jtp-label mb-[6px]">SUMMARY</div>
               <p className="text-jtp-lg text-jtp-textMuted leading-relaxed whitespace-pre-wrap">
                 {result.summary}
@@ -855,19 +693,27 @@ const AnalyticsPage: React.FC = () => {
   const { activeAccount } = useAccount();
   const { playbooks } = usePlaybook();
 
+  // Global $/R toggle — controls all breakdown sections
+  const [isR, setIsR] = useState(false);
+
   const kpis = useMemo(() => computeKpis(closedTrades), [closedTrades]);
 
   if (isLoading || !isTradesSynced) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-5 space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* KPI skeleton */}
+        <div className="grid grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} variant="stat" />
           ))}
         </div>
+        {/* Primary chart skeleton */}
+        <Skeleton variant="panel" className="h-72" />
+        {/* Breakdown skeleton */}
         <Skeleton variant="panel" className="h-48" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Skeleton variant="panel" className="h-64 lg:col-span-2" />
+        {/* 2×2 skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton variant="panel" className="h-64" />
           <Skeleton variant="panel" className="h-64" />
         </div>
       </div>
@@ -889,17 +735,6 @@ const AnalyticsPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-5 space-y-4 animate-fade-in-up">
-      {/* Page header */}
-      <div className="mb-1">
-        <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
-          Analytics
-        </h1>
-        <p className="jtp-label mt-1">What your edge is made of</p>
-      </div>
-
-      {/* AI Insights */}
-      <AiInsightsPanel />
-
       {isEmpty ? (
         <Panel label="PERFORMANCE">
           <EmptyState
@@ -909,29 +744,28 @@ const AnalyticsPage: React.FC = () => {
         </Panel>
       ) : (
         <>
-          {/* Row 1 — 8 KPI tiles in 2×4 grid */}
+          {/* ── Row 1: KPI StatTile grid — 8 tiles, 2 rows of 4 ── */}
           <KpiStrip stats={kpis} />
 
-          {/* Row 2 — Breakdown (2/3) + R Distribution (1/3) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <DimBreakdown trades={closedTrades} playbooks={playbooks} />
-            </div>
-            <div className="lg:col-span-1">
-              <RDistChart trades={closedTrades} />
-            </div>
-          </div>
+          {/* ── Row 2: Primary chart — R-Multiple Distribution ── */}
+          <RDistChart trades={closedTrades} />
 
-          {/* Row 3 — Adherence + MAE/MFE */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <AdherencePanel />
-            <MaeMfePanel trades={closedTrades} />
-          </div>
+          {/* ── Row 3: Dimension pivot breakdown ── */}
+          <DimBreakdown trades={closedTrades} playbooks={playbooks} />
 
-          {/* Row 4 — Deeper Reports */}
-          <DeeperReports trades={closedTrades} playbooks={playbooks} />
+          {/* ── Rows 4-7: 2×N breakdown grid (DOW, Session, Symbol, Setup, ─
+               Direction, Drawdown, MAE/MFE, Adherence) with $/R toggle ── */}
+          <DeeperReports
+            trades={closedTrades}
+            playbooks={playbooks}
+            isR={isR}
+            onIsRChange={setIsR}
+          />
         </>
       )}
+
+      {/* ── AI Insights — always visible, bottom of page ── */}
+      <AiInsightsPanel />
     </div>
   );
 };

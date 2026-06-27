@@ -32,18 +32,18 @@ interface BadgeProps {
 }
 
 const VARIANT_STYLES: Record<BadgeVariant, string> = {
-  profit:  'bg-[rgba(76,195,138,.14)]  text-jtp-profit',
-  loss:    'bg-[rgba(229,99,95,.14)]   text-jtp-loss',
-  warning: 'bg-[rgba(217,162,59,.14)]  text-jtp-warning',
-  info:    'bg-[rgba(91,141,239,.14)]  text-jtp-blue',
-  neutral: 'bg-[rgba(255,255,255,.06)] text-jtp-textMuted',
-  success: 'bg-[rgba(76,195,138,.14)]  text-jtp-profit',
+  profit:  'bg-[rgba(61,220,132,.12)]  text-[#3ddc84] border border-[rgba(61,220,132,.35)]',
+  loss:    'bg-[rgba(255,91,82,.12)]   text-[#ff5b52] border border-[rgba(255,91,82,.35)]',
+  warning: 'bg-[rgba(232,162,61,.12)]  text-[#e8a23d] border border-[rgba(232,162,61,.35)]',
+  info:    'bg-[rgba(232,162,61,.12)]  text-[#e8a23d] border border-[rgba(232,162,61,.35)]',
+  neutral: 'bg-[rgba(255,255,255,.05)] text-jtp-textMuted border border-jtp-borderStrong',
+  success: 'bg-[rgba(61,220,132,.12)]  text-[#3ddc84] border border-[rgba(61,220,132,.35)]',
 };
 
 const SIZE_STYLES: Record<BadgeSize, string> = {
-  xs: 'text-[9.5px] px-[6px]  py-[1.5px]',
-  sm: 'text-[10px]  px-[7px]  py-[2px]',
-  md: 'text-[11px]  px-[9px]  py-[3px]',
+  xs: 'text-[9px]    px-[5px] py-[1px]   tracking-[0.15em]',
+  sm: 'text-[9.5px]  px-[6px] py-[1.5px] tracking-[0.12em]',
+  md: 'text-[10.5px] px-[8px] py-[2.5px] tracking-[0.10em]',
 };
 
 const Badge: React.FC<BadgeProps> = ({
@@ -54,8 +54,8 @@ const Badge: React.FC<BadgeProps> = ({
 }) => (
   <span
     className={[
-      'inline-flex items-center font-mono font-semibold rounded-jtp-sm',
-      'tracking-[0.2px] whitespace-nowrap select-none',
+      'inline-flex items-center font-mono font-semibold rounded-none',
+      'whitespace-nowrap select-none',
       VARIANT_STYLES[variant],
       SIZE_STYLES[size],
       className,

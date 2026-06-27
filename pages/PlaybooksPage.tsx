@@ -24,68 +24,11 @@ const PAGE_TABS: Tab[] = [
 ];
 
 // ─── Community tag chip ───────────────────────────────────────────────────────
-const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="text-jtp-xs px-2.5 py-[3px] rounded-jtp-md bg-jtp-blue/10 text-jtp-blue font-medium mr-1 mb-1 inline-block">
+const CommunityTag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="text-jtp-xs px-2 py-[2px] rounded-[2px] bg-jtp-blue/10 text-jtp-blue font-mono inline-block mr-1 mb-0.5">
     {children}
   </span>
 );
-
-// ─── Community table row ──────────────────────────────────────────────────────
-const CommunityRow: React.FC<{
-  playbook: CommunityPlaybook;
-  isOwnPlaybook: boolean;
-  onView: () => void;
-  onCopy: () => void;
-}> = ({ playbook, isOwnPlaybook, onView, onCopy }) => {
-  const allTags = [...playbook.tradingStyles, ...playbook.instruments, ...playbook.timeframes];
-  return (
-    <tr className="border-b border-jtp-borderSubtle hover:bg-jtp-hover transition-colors">
-      <td className="px-4 py-3">
-        <button
-          onClick={onView}
-          className="font-medium text-jtp-lg text-jtp-textSoft hover:text-jtp-blue transition-colors text-left"
-        >
-          {playbook.name}
-        </button>
-        {playbook.coreIdea && (
-          <div className="text-jtp-md text-jtp-textDim mt-0.5 truncate max-w-xs">
-            {playbook.coreIdea}
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3 font-mono font-semibold text-jtp-lg text-jtp-profit" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {playbook.winRate !== undefined ? `${playbook.winRate}%` : '—'}
-      </td>
-      <td className="px-4 py-3 font-mono text-jtp-lg text-jtp-textSoft" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {playbook.tradeCount !== undefined ? playbook.tradeCount : '—'}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex flex-wrap">
-          {allTags.slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          {!isOwnPlaybook && (
-            <button
-              onClick={onCopy}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-jtp-md bg-jtp-raised border border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderHover text-jtp-md font-medium transition-colors"
-            >
-              <CopyIcon className="w-3 h-3" />
-              Copy
-            </button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuItem onSelect={onView}>
-              <EyeIcon className="w-4 h-4 mr-2" />
-              View Details
-            </DropdownMenuItem>
-          </DropdownMenu>
-        </div>
-      </td>
-    </tr>
-  );
-};
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 const PlaybooksPage: React.FC = () => {
@@ -275,6 +218,86 @@ const PlaybooksPage: React.FC = () => {
   };
 
   // ── Community tab ─────────────────────────────────────────────────────────
+  const communityColumns: TableColumn<any>[] = [
+    {
+      key: 'name',
+      header: 'NAME',
+      render: (_v, row) => (
+        <div className="py-0.5">
+          <button
+            onClick={() => setViewingCommunityPlaybook(row)}
+            className="font-medium text-jtp-textSoft hover:text-jtp-blue transition-colors text-left"
+          >
+            {row.name}
+          </button>
+          {row.coreIdea && (
+            <div className="text-jtp-md text-jtp-textDim mt-0.5 truncate max-w-xs">
+              {row.coreIdea}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'winRate',
+      header: 'WIN RATE',
+      width: '100px',
+      mono: true,
+      align: 'right',
+      render: (v) => (
+        <span className={v !== undefined ? 'text-jtp-profit' : 'text-jtp-textDim'}>
+          {v !== undefined ? `${v}%` : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'tradeCount',
+      header: 'TRADES',
+      width: '90px',
+      mono: true,
+      align: 'right',
+      render: (v) => v !== undefined ? String(v) : '—',
+    },
+    {
+      key: 'tags',
+      header: 'TAGS',
+      render: (_v, row) => {
+        const allTags = [...row.tradingStyles, ...row.instruments, ...row.timeframes];
+        return (
+          <div className="flex flex-wrap py-0.5">
+            {allTags.slice(0, 3).map(tag => (
+              <CommunityTag key={tag}>{tag}</CommunityTag>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '120px',
+      render: (_v, row) => (
+        <div className="flex items-center gap-2">
+          {user?.id !== row.authorId && (
+            <button
+              onClick={() => handleCopyPlaybook(row)}
+              className="flex items-center gap-1 px-2 py-1 rounded-[2px] bg-jtp-raised border border-jtp-borderStrong text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderHover text-jtp-xs font-mono transition-colors"
+            >
+              <CopyIcon className="w-3 h-3" />
+              Copy
+            </button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuItem onSelect={() => setViewingCommunityPlaybook(row)}>
+              <EyeIcon className="w-4 h-4 mr-2" />
+              View Details
+            </DropdownMenuItem>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
   const renderCommunityPlaybooks = () => {
     if (isLoading) {
       return (
@@ -296,30 +319,14 @@ const PlaybooksPage: React.FC = () => {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-jtp-md">
-          <thead>
-            <tr className="border-b border-jtp-border bg-jtp-raised">
-              <th className="px-4 py-2.5 text-left jtp-label">NAME</th>
-              <th className="px-4 py-2.5 text-left jtp-label">WIN RATE</th>
-              <th className="px-4 py-2.5 text-left jtp-label">TRADES</th>
-              <th className="px-4 py-2.5 text-left jtp-label">TAGS</th>
-              <th className="px-4 py-2.5 text-left jtp-label">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {communityPlaybooks.map(pb => (
-              <CommunityRow
-                key={pb.id}
-                playbook={pb}
-                isOwnPlaybook={user?.id === pb.authorId}
-                onView={() => setViewingCommunityPlaybook(pb)}
-                onCopy={() => handleCopyPlaybook(pb)}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Panel label="COMMUNITY PLAYBOOKS" noPadding className="mx-4 my-3">
+        <DataTable
+          columns={communityColumns}
+          data={communityPlaybooks as any[]}
+          keyFn={(pb) => pb.id}
+          emptyMessage="No community playbooks yet."
+        />
+      </Panel>
     );
   };
 

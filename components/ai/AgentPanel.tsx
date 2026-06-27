@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AgentRun, AgentTool, ScheduledAgent, ScheduledAgentFrequency } from '../../types';
-import { Panel, Badge, ToggleSwitch, Button, DataTable } from '../ui';
+import { Panel, Badge, ToggleSwitch, Button, DataTable, Input, SelectInput } from '../ui';
 import type { TableColumn } from '../ui';
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ const AgentToolsCard: React.FC = () => {
             disabled={busyId === row.id}
             aria-label={`Delete ${row.name}`}
             title="Delete skill"
-            className="p-1.5 rounded-md text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-[2px] text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <TrashIcon />
           </button>
@@ -271,48 +271,54 @@ const AgentToolsCard: React.FC = () => {
             agent's args (GET query / POST JSON).
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <input
+            <Input
+              id="skill-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Skill name"
               spellCheck={false}
-              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+              containerClassName="mb-0"
             />
-            <input
+            <Input
+              id="skill-category"
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Category (optional)"
               spellCheck={false}
-              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+              containerClassName="mb-0"
             />
           </div>
-          <input
+          <Input
+            id="skill-description"
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What does this skill do?"
             spellCheck={false}
-            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+            containerClassName="mb-0"
           />
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <select
+          <div className="flex flex-col sm:flex-row gap-2.5 items-end">
+            <SelectInput
+              id="skill-method"
+              containerClassName="mb-0 w-24 flex-shrink-0"
               value={method}
               onChange={(e) => setMethod(e.target.value as 'GET' | 'POST')}
-              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md font-mono text-jtp-text focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
-            >
-              <option value="GET">GET</option>
-              <option value="POST">POST</option>
-            </select>
-            <input
+              options={[
+                { value: 'GET', label: 'GET' },
+                { value: 'POST', label: 'POST' },
+              ]}
+            />
+            <Input
+              id="skill-url"
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://api.example.com/skill"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+              containerClassName="flex-1 mb-0"
             />
             <Button onClick={handleAdd} isLoading={adding} disabled={adding} className="whitespace-nowrap">
               {adding ? 'Adding…' : 'Add Skill'}
@@ -493,14 +499,15 @@ const ScheduledAgentsCard: React.FC = () => {
 
       {/* New-schedule form */}
       {showForm && (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel p-4 space-y-3 mb-4">
-          <input
+        <div className="bg-jtp-raised border border-jtp-border rounded-[2px] p-4 space-y-3 mb-4">
+          <Input
+            id="schedule-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Agent name"
             spellCheck={false}
-            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+            containerClassName="mb-0"
           />
           <textarea
             value={goal}
@@ -508,18 +515,16 @@ const ScheduledAgentsCard: React.FC = () => {
             placeholder="What should this agent do each run? (e.g. Review my open trades and flag any that breach my risk rules)"
             rows={3}
             spellCheck={false}
-            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors resize-y"
+            className="w-full bg-jtp-control border border-jtp-borderStrong rounded-[2px] px-3 py-2 text-jtp-md text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors resize-y"
           />
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <select
+          <div className="flex flex-col sm:flex-row gap-2.5 items-end">
+            <SelectInput
+              id="schedule-frequency"
+              containerClassName="mb-0"
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as ScheduledAgentFrequency)}
-              className="bg-jtp-control border border-jtp-borderStrong rounded-jtp-md px-3 py-2 text-jtp-md text-jtp-text focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
-            >
-              {FREQUENCY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+              options={FREQUENCY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
             <Button onClick={handleCreate} isLoading={creating} disabled={creating} className="whitespace-nowrap">
               {creating ? 'Creating…' : 'Create agent'}
             </Button>
@@ -543,7 +548,7 @@ const ScheduledAgentsCard: React.FC = () => {
       ) : schedules.length === 0 ? (
         <p className="text-jtp-md text-jtp-textMuted">No scheduled agents yet.</p>
       ) : (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel divide-y divide-jtp-border mt-2">
+        <div className="bg-jtp-raised border border-jtp-border rounded-[2px] divide-y divide-jtp-border mt-2">
           {schedules.map((schedule) => (
             <div key={schedule.id} className="flex items-start justify-between gap-4 p-4">
               <div className="min-w-0">
@@ -579,7 +584,7 @@ const ScheduledAgentsCard: React.FC = () => {
                   disabled={busyId === schedule.id}
                   aria-label={`Delete ${schedule.name}`}
                   title="Delete scheduled agent"
-                  className="p-1.5 rounded-md text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-[2px] text-jtp-textDim hover:text-jtp-loss hover:bg-jtp-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <TrashIcon />
                 </button>
@@ -660,7 +665,7 @@ const AgentActivityCard: React.FC = () => {
           No agent runs yet. They'll appear here once the agent runs.
         </p>
       ) : (
-        <div className="bg-jtp-raised border border-jtp-border rounded-jtp-panel divide-y divide-jtp-border">
+        <div className="bg-jtp-raised border border-jtp-border rounded-[2px] divide-y divide-jtp-border">
           {runs.map((run) => {
             const open = expandedId === run.id;
             return (
@@ -692,7 +697,7 @@ const AgentActivityCard: React.FC = () => {
                     {run.answer && (
                       <div>
                         <p className="jtp-label mb-1">ANSWER</p>
-                        <div className="bg-jtp-bg border border-jtp-border rounded-md p-3 text-jtp-md text-jtp-text whitespace-pre-wrap">
+                        <div className="bg-jtp-bg border border-jtp-border rounded-[2px] p-3 text-jtp-md text-jtp-text whitespace-pre-wrap">
                           {run.answer}
                         </div>
                       </div>
@@ -705,7 +710,7 @@ const AgentActivityCard: React.FC = () => {
                       ) : (
                         <ol className="space-y-2">
                           {run.steps.map((step, i) => (
-                            <li key={i} className="bg-jtp-bg border border-jtp-border rounded-md p-3">
+                            <li key={i} className="bg-jtp-bg border border-jtp-border rounded-[2px] p-3">
                               <div className="flex items-center gap-2 mb-1.5">
                                 <span className="font-mono text-jtp-xs text-jtp-textMuted">#{i + 1}</span>
                                 <span className="font-mono text-jtp-md font-medium text-jtp-blue">{step.tool}</span>
