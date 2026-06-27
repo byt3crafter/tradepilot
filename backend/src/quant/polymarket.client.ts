@@ -33,6 +33,36 @@ export class PolymarketClient {
     return this.get(`/activity?user=${address}&limit=${limit}`).then((d) => (Array.isArray(d) ? d : []));
   }
 
+  /**
+   * COMPLETE activity history — pages backwards via the `&end=<ts>` time cursor to
+   * get every fill past the 1,000-row per-request cap. This is the fix for accurate
+   * whale PnL/edge: no proxy-mapping, no Dune, same public API.
+   */
+  async activityComplete(address: string, maxPages = 25, pageSize = 500): Promise<any[]> {
+    const all: any[] = [];
+    const seen = new Set<string>();
+    let end: number | undefined;
+    for (let i = 0; i < maxPages; i++) {
+      const url = `/activity?user=${address}&limit=${pageSize}${end ? `&end=${end}` : ''}`;
+      const rows = await this.get(url);
+      if (!Array.isArray(rows) || rows.length === 0) break;
+      let added = 0;
+      let oldest = Infinity;
+      for (const r of rows) {
+        const ts = Number(r.timestamp) || 0;
+        if (ts < oldest) oldest = ts;
+        const k = `${r.transactionHash}:${r.conditionId}:${r.outcomeIndex}:${r.side}:${r.size}:${ts}`;
+        if (!seen.has(k)) { seen.add(k); all.push(r); added++; }
+      }
+      if (added === 0) break;                 // no new rows → exhausted
+      if (rows.length < pageSize) break;       // last (partial) page
+      if (!isFinite(oldest) || oldest === end) break; // no older progress
+      end = oldest;                            // walk strictly older
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return all;
+  }
+
   async value(address: string): Promise<number> {
     const d = await this.get(`/value?user=${address}`);
     return Array.isArray(d) && d[0]?.value ? Number(d[0].value) : 0;
