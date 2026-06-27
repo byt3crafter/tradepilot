@@ -17,6 +17,11 @@ export class QuantController {
     return this.quant.stats();
   }
 
+  @Get('learning')
+  learning() {
+    return this.quant.learningStats();
+  }
+
   @Get('feed')
   feed(@Query('limit') limit?: string) {
     return this.quant.feed(limit ? parseInt(limit, 10) : 40);

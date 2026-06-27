@@ -305,6 +305,110 @@ export class QuantService implements OnApplicationBootstrap {
     return { total, scanned, qualified };
   }
 
+  // ── Paper learning loop (P3) — prove "what works" with no real money ──────────
+  // Log paper "copy" decisions when a QUALIFIED wallet buys, resolve them against
+  // real market outcomes, and aggregate per-wallet paper performance. The substrate
+  // for self-healing: validate winners, disable losers — before any live capital.
+
+  /** Snapshot recent buys by qualified wallets as paper-copy decisions (deduped). */
+  async recordPaperSignals(): Promise<number> {
+    const trades = await this.pm.recentTrades(200);
+    if (!trades.length) return 0;
+    const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
+    const qualified = new Set(
+      (await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true } })).map((w) => w.address),
+    );
+    let created = 0;
+    for (const t of trades) {
+      const addr = String(t.proxyWallet || '').toLowerCase();
+      if (!qualified.has(addr)) continue;
+      if (String(t.side).toUpperCase() !== 'BUY') continue; // copy entries only
+      const price = Number(t.price);
+      if (!(price > 0.02 && price < 0.98)) continue; // skip near-resolved
+      const cond = t.conditionId, oi = Number(t.outcomeIndex) || 0, tx = t.transactionHash;
+      if (!cond || !tx) continue;
+      try {
+        await this.prisma.agentDecision.create({
+          data: {
+            extKey: `pc:${addr}:${cond}:${oi}:${tx}`,
+            mode: 'auto', kind: 'paper_copy', subjectAddr: addr, market: cond, action: 'COPY',
+            rationale: `Copy ${t.pseudonym || addr.slice(0, 8)} BUY ${t.outcome} @ ${price} (${t.title || ''})`.slice(0, 300),
+            meta: { outcomeIndex: oi, entryPrice: price, size: Number(t.size) || 0, eventSlug: t.eventSlug || null, title: t.title || null, outcome: t.outcome || null },
+          },
+        });
+        created++;
+      } catch { /* duplicate extKey → already logged */ }
+    }
+    return created;
+  }
+
+  /** Resolve open paper decisions whose market has settled → paper PnL/ROI. */
+  async resolvePaperOutcomes(): Promise<number> {
+    const open = await this.prisma.agentDecision.findMany({
+      where: { kind: 'paper_copy', outcome: null }, take: 300, orderBy: { createdAt: 'asc' },
+    });
+    if (!open.length) return 0;
+    const conds = [...new Set(open.map((d) => d.market).filter(Boolean) as string[])];
+    const res = await this.resolveMarkets(conds);
+    let resolved = 0;
+    for (const d of open) {
+      const r = d.market ? res[d.market] : null;
+      if (!r || !r.closed || r.winningIndex == null) continue;
+      const meta: any = d.meta || {};
+      const oi = Number(meta.outcomeIndex) || 0;
+      const entry = Number(meta.entryPrice) || 0;
+      if (entry <= 0) continue;
+      const payoff = r.winningIndex === oi ? 1 : 0; // binary outcome settles to {0,1}
+      const roiPct = ((payoff - entry) / entry) * 100;
+      await this.prisma.agentOutcome.create({
+        data: { decisionId: d.id, realizedPnl: payoff - entry, roiPct, success: payoff > entry, resolvedAt: new Date(), notes: `payoff=${payoff} entry=${entry.toFixed(3)}` },
+      }).catch(() => {});
+      resolved++;
+    }
+    return resolved;
+  }
+
+  /** Aggregate paper performance → "what works" (per wallet + overall). */
+  async learningStats() {
+    const outcomes = await this.prisma.agentOutcome.findMany({
+      where: { decision: { kind: 'paper_copy' } },
+      include: { decision: { select: { subjectAddr: true } } },
+      take: 5000,
+    });
+    const n = outcomes.length;
+    const wins = outcomes.filter((o) => o.success).length;
+    const avgRoi = n ? outcomes.reduce((s, o) => s + (o.roiPct || 0), 0) / n : 0;
+    const byWallet = new Map<string, { n: number; wins: number; roi: number }>();
+    for (const o of outcomes) {
+      const a = o.decision?.subjectAddr || 'unknown';
+      const m = byWallet.get(a) || { n: 0, wins: 0, roi: 0 };
+      m.n++; if (o.success) m.wins++; m.roi += o.roiPct || 0;
+      byWallet.set(a, m);
+    }
+    const pending = await this.prisma.agentDecision.count({ where: { kind: 'paper_copy', outcome: null } });
+    const wallets = [...byWallet.entries()]
+      .map(([address, m]) => {
+        const ar = m.roi / m.n;
+        return {
+          address, n: m.n, winRate: m.wins / m.n, avgRoi: ar,
+          verdict: m.n >= 10 ? (ar > 2 ? 'validated' : ar < -2 ? 'disabled' : 'watch') : 'learning',
+        };
+      })
+      .sort((a, b) => b.avgRoi - a.avgRoi);
+    return { overall: { resolved: n, pending, winRate: n ? wins / n : 0, avgRoi }, wallets };
+  }
+
+  @Interval('quant-paper-loop', 10 * 60 * 1000)
+  async paperTick() {
+    try {
+      const created = await this.recordPaperSignals();
+      const resolved = await this.resolvePaperOutcomes();
+      if (created || resolved) this.logger.log(`paper loop: +${created} signals, ${resolved} resolved`);
+    } catch (e: any) {
+      this.logger.warn(`paper loop failed: ${e?.message}`);
+    }
+  }
+
   @Interval('quant-autodiscover', 5 * 60 * 1000)
   async autoTick() {
     if (this.ticking) return;
