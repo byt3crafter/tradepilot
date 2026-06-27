@@ -450,24 +450,31 @@ export class QuantService implements OnApplicationBootstrap {
   }
 
   /** Prediction → outcome ledger: each paper decision + what actually happened. */
-  async learningDecisions(limit = 60) {
+  async learningDecisions(limit = 60, sample: 'live' | 'all' = 'live') {
     const rows = await this.prisma.agentDecision.findMany({
-      where: { kind: 'paper_copy' },
+      where: { kind: 'paper_copy', ...(sample === 'live' ? { mode: 'auto' } : {}) },
       include: { outcome: true },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), 200),
     });
+    // attach wallet pseudonym + focus + that wallet's forward working % (from learning)
+    const addrs = [...new Set(rows.map((r) => r.subjectAddr).filter(Boolean) as string[])];
+    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs } }, select: { address: true, pseudonym: true, marketFocus: true } });
+    const wmap = new Map(wallets.map((w) => [w.address, w]));
     return rows.map((d) => {
       const meta: any = d.meta || {};
+      const w = d.subjectAddr ? wmap.get(d.subjectAddr) : undefined;
       return {
         id: d.id,
         createdAt: d.createdAt,
         wallet: d.subjectAddr,
+        pseudonym: w?.pseudonym ?? null,
+        focus: w?.marketFocus ?? null,
         market: d.market,
-        prediction: d.rationale, // what the engine "called"
-        outcomeLabel: meta.outcome ?? null,
-        entryPrice: meta.entryPrice ?? null,
-        title: meta.title ?? null,
+        side: 'BUY',
+        outcomeLabel: meta.outcome ?? null,  // which side it bet (Yes/No/team)
+        entryPrice: meta.entryPrice ?? null, // at what price
+        title: meta.title ?? null,           // the market question (short description)
         status: d.outcome ? (d.outcome.success ? 'win' : 'loss') : 'pending',
         roiPct: d.outcome?.roiPct ?? null,
         resolvedAt: d.outcome?.resolvedAt ?? null,
