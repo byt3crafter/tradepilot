@@ -556,6 +556,8 @@ export interface PmWallet {
   qualified: boolean;     // nClosed >= 15 → statistically meaningful
   marketFocus: string;
   lastScanned: string;    // ISO date string
+  invested?: number;      // capital deployed ($) — realized positions
+  roiPct?: number;        // realized ROI (%) — already a percent, e.g. 12.5 = 12.5%
 }
 
 // --- Quant wallet position (for Trade / Mirror prefill) ---

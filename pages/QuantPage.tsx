@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import api from '../services/api';
@@ -9,14 +10,13 @@ import PolymarketTradePanel, { TradePrefill } from '../components/trade/Polymark
 import {
   Panel,
   StatTile,
-  DataTable,
   Badge,
   SegmentedControl,
   EmptyState,
   Skeleton,
   Button,
 } from '../components/ui';
-import type { TableColumn, Segment } from '../components/ui';
+import type { Segment } from '../components/ui';
 
 type QuantMode = 'leaderboard' | 'terminal' | 'trade';
 
@@ -42,6 +42,32 @@ const isAddress = (s: string) => /^0x[a-fA-F0-9]{40}$/.test(s.trim());
 const fmtCents = (edgePerShare: number) => `${(edgePerShare * 100).toFixed(1)}¢`;
 const edgeClass = (n: number) =>
   n > 0 ? 'text-jtp-profit' : n < 0 ? 'text-jtp-loss' : 'text-jtp-textMuted';
+
+// Relative time from an ISO date string
+const fmtRelTime = (iso: string | undefined): string => {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  if (isNaN(diff)) return '—';
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 30) return `${d}d ago`;
+  return `${Math.floor(d / 30)}mo ago`;
+};
+
+// ROI% label + color class (roiPct is already a percent number, e.g. 12.5 = 12.5%)
+const fmtRoiLabel = (pct: number | undefined): string => {
+  if (pct === undefined || pct === null || pct === 0) return '—';
+  const glyph = pct > 0 ? '▲' : '▼';
+  return `${glyph} ${Math.abs(pct).toFixed(1)}%`;
+};
+const roiColor = (pct: number | undefined): string => {
+  if (pct === undefined || pct === null || pct === 0) return 'text-jtp-textDim';
+  return pct > 0 ? 'text-jtp-profit' : 'text-jtp-loss';
+};
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 
@@ -357,49 +383,153 @@ const WalletPositions: React.FC<{
   );
 };
 
-// ─── Compact leaderboard columns (for the 220px left column) ─────────────────
+// ─── Edge leaderboard — compact vertical list (no horizontal scroll) ──────────
 
 type RankedWallet = PmWallet & { _rank: number };
 
-const buildLeaderboardColsCompact = (
-  selectedAddress: string | null,
-): TableColumn<RankedWallet>[] => [
-  {
-    key: '_rank',
-    header: '#',
-    width: '28px',
-    mono: true,
-    render: (v) => <span className="text-jtp-textDim text-jtp-xs">{v}</span>,
-  },
-  {
-    key: 'pseudonym',
-    header: 'WALLET',
-    render: (_v, row) => (
-      <div className="min-w-0">
-        <div
-          className={`text-jtp-base-minus font-medium truncate ${
-            row.address === selectedAddress ? 'text-jtp-blue' : 'text-jtp-text'
-          }`}
-        >
-          {row.pseudonym || 'anon'}
+/** Portal popover rendered next to the hovered row (escapes overflow-y-auto clip) */
+const WalletPopover: React.FC<{ wallet: RankedWallet; anchorRect: DOMRect }> = ({
+  wallet,
+  anchorRect,
+}) => {
+  const POPOVER_W = 264;
+  const POPOVER_MAX_H = 340;
+  const GAP = 8;
+
+  // Prefer right of the row; flip left if viewport would clip
+  let left = anchorRect.right + GAP;
+  if (left + POPOVER_W > window.innerWidth - 8) {
+    left = anchorRect.left - POPOVER_W - GAP;
+  }
+  left = Math.max(8, left);
+
+  // Align top with row; shift up if it would overflow bottom
+  let top = anchorRect.top;
+  if (top + POPOVER_MAX_H > window.innerHeight - 8) {
+    top = window.innerHeight - POPOVER_MAX_H - 8;
+  }
+  top = Math.max(8, top);
+
+  const hasInvested = wallet.invested !== undefined && wallet.invested !== null && wallet.invested !== 0;
+  const hasRoi = wallet.roiPct !== undefined && wallet.roiPct !== null && wallet.roiPct !== 0;
+
+  type PopoverRow = [string, React.ReactNode];
+  const rows: PopoverRow[] = [
+    ['EDGE (95% LCB)', <span className={edgeClass(wallet.edgeLcb)}>{fmtCents(wallet.edgeLcb)}</span>],
+    ['MEAN', <span className={edgeClass(wallet.meanEdge)}>{fmtCents(wallet.meanEdge)}</span>],
+    ['$ EDGE', <span className={edgeClass(wallet.dollarEdge)}>{fmtCents(wallet.dollarEdge)}</span>],
+    ['WIN%', `${(wallet.winRate * 100).toFixed(1)}%`],
+    ['CLOSED · N_EFF', `${fmtNum(wallet.nClosed)} · ${fmtNum(wallet.nEff)}`],
+    ['VOLUME', fmtMoney(wallet.volume)],
+    ['DEPLOYED', hasInvested ? fmtMoney(wallet.invested!) : '—'],
+    ['ROI', <span className={roiColor(wallet.roiPct)}>{fmtRoiLabel(wallet.roiPct)}</span>],
+    ['FOCUS', wallet.marketFocus
+      ? <Badge variant="neutral" size="xs">{wallet.marketFocus}</Badge>
+      : <span className="text-jtp-textDim">—</span>],
+    ['LAST', fmtRelTime(wallet.lastScanned)],
+  ];
+
+  return createPortal(
+    <div
+      className="fixed pointer-events-none z-[200]"
+      style={{ left, top, width: POPOVER_W }}
+    >
+      <div
+        className="bg-jtp-panel border border-jtp-border rounded-[2px] shadow-xl animate-jtp-fade-in overflow-hidden"
+        style={{ borderTop: '2px solid rgba(232,162,61,0.7)' }}
+      >
+        {/* Mini header */}
+        <div className="px-3 py-2 border-b border-jtp-border">
+          <div className="font-mono text-jtp-xs font-semibold text-jtp-text truncate">
+            {wallet.pseudonym || 'anon'}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textDim truncate">
+            {truncateAddress(wallet.address)}
+          </div>
         </div>
-        <div className="font-mono text-jtp-2xs text-jtp-textDim truncate">
-          {truncateAddress(row.address)}
+        {/* Stats grid */}
+        <div className="px-3 py-2 space-y-[5px]">
+          {rows.map(([label, val]) => (
+            <div key={label} className="flex items-center justify-between gap-3 min-w-0">
+              <span className="font-mono text-jtp-2xs text-jtp-textDim uppercase tracking-wider whitespace-nowrap flex-shrink-0">
+                {label}
+              </span>
+              <span className="font-mono text-jtp-xs text-jtp-text text-right min-w-0">
+                {val}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
-    ),
-  },
-  {
-    key: 'edgeLcb',
-    header: 'EDGE',
-    align: 'right',
-    width: '52px',
-    mono: true,
-    render: (v) => (
-      <span className={`font-bold text-jtp-xs ${edgeClass(v)}`}>{fmtCents(v)}</span>
-    ),
-  },
-];
+    </div>,
+    document.body,
+  );
+};
+
+/** Dense vertical leaderboard list — no horizontal scroll, fits 220px column */
+const EdgeLeaderboardList: React.FC<{
+  wallets: RankedWallet[];
+  selectedAddress: string | null;
+  onSelect: (w: PmWallet) => void;
+}> = ({ wallets, selectedAddress, onSelect }) => {
+  const [hovered, setHovered] = useState<{ wallet: RankedWallet; rect: DOMRect } | null>(null);
+  // Clear popover when list scrolls (rect would be stale)
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => setHovered(null);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <div ref={listRef} className="overflow-y-auto max-h-[520px]">
+      {wallets.map((w) => {
+        const isSelected = w.address === selectedAddress;
+        return (
+          <button
+            key={w.address}
+            type="button"
+            className={[
+              'w-full text-left flex items-center gap-2 px-2.5 py-[7px]',
+              'border-b border-jtp-borderSubtle transition-colors',
+              'border-l-2',
+              isSelected
+                ? 'bg-jtp-active border-l-jtp-amber'
+                : 'border-l-transparent hover:bg-jtp-active',
+            ].join(' ')}
+            onClick={() => onSelect(w)}
+            onMouseEnter={(e) => setHovered({ wallet: w, rect: e.currentTarget.getBoundingClientRect() })}
+            onMouseLeave={() => setHovered(null)}
+            onFocus={(e) => setHovered({ wallet: w, rect: e.currentTarget.getBoundingClientRect() })}
+            onBlur={() => setHovered(null)}
+          >
+            {/* Rank */}
+            <span className="font-mono text-jtp-2xs text-jtp-textDim w-4 text-right flex-shrink-0 leading-none">
+              {w._rank}
+            </span>
+            {/* Identity */}
+            <div className="flex-1 min-w-0 leading-tight">
+              <div className={`text-jtp-xs font-medium truncate ${isSelected ? 'text-jtp-amber' : 'text-jtp-text'}`}>
+                {w.pseudonym || 'anon'}
+              </div>
+              <div className="font-mono text-jtp-2xs text-jtp-textDim truncate">
+                {truncateAddress(w.address)}
+              </div>
+            </div>
+            {/* ROI% */}
+            <span className={`font-mono text-jtp-2xs font-semibold flex-shrink-0 text-right leading-none ${roiColor(w.roiPct)}`}>
+              {fmtRoiLabel(w.roiPct)}
+            </span>
+          </button>
+        );
+      })}
+      {hovered && <WalletPopover wallet={hovered.wallet} anchorRect={hovered.rect} />}
+    </div>
+  );
+};
 
 // ─── Wallet detail (center column component) ──────────────────────────────────
 
@@ -477,6 +607,22 @@ const WalletDetailCenter: React.FC<{
           label="CLOSED / N_EFF"
           value={fmtNum(wallet.nClosed)}
           subValue={`n_eff ${fmtNum(wallet.nEff)}`}
+        />
+        <StatTile
+          label="DEPLOYED"
+          value={wallet.invested && wallet.invested !== 0 ? fmtMoney(wallet.invested) : '—'}
+          valueColor="text-jtp-textMuted"
+          subValue="capital deployed"
+        />
+        <StatTile
+          label="ROI"
+          value={fmtRoiLabel(wallet.roiPct)}
+          valueColor={roiColor(wallet.roiPct)}
+          positive={
+            wallet.roiPct === undefined || wallet.roiPct === null || wallet.roiPct === 0
+              ? undefined
+              : wallet.roiPct > 0
+          }
         />
       </div>
 
@@ -589,9 +735,8 @@ const QuantPage: React.FC = () => {
     setScanError(null);
   };
 
-  // Pre-process leaderboard with rank field for DataTable
+  // Pre-process leaderboard with rank field
   const rankedLeaderboard: RankedWallet[] = leaderboard.map((w, i) => ({ ...w, _rank: i + 1 }));
-  const leaderboardCols = buildLeaderboardColsCompact(scanResult?.address ?? null);
 
   return (
     <div className="flex flex-col gap-4 animate-jtp-fade-in">
@@ -688,7 +833,7 @@ const QuantPage: React.FC = () => {
                 )}
               </Panel>
 
-              {/* Edge leaderboard DataTable — dense, scannable */}
+              {/* Edge leaderboard — compact vertical list, no horizontal scroll */}
               <Panel
                 label="EDGE LEADERBOARD"
                 noPadding
@@ -708,12 +853,10 @@ const QuantPage: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <DataTable
-                    columns={leaderboardCols}
-                    data={rankedLeaderboard}
-                    keyFn={(w) => w.id || w.address}
-                    onRowClick={(w) => handleRowClick(w)}
-                    maxHeight="520px"
+                  <EdgeLeaderboardList
+                    wallets={rankedLeaderboard}
+                    selectedAddress={scanResult?.address ?? null}
+                    onSelect={handleRowClick}
                   />
                 )}
               </Panel>
