@@ -163,7 +163,7 @@ export class QuantService implements OnApplicationBootstrap {
     ]);
 
     // group fills into positions per (market, outcome)
-    type Pos = { cid: string; oi: number; eventSlug: string; buyShares: number; buyCost: number; sellShares: number; sellProceeds: number; redeemShares: number; redeemProceeds: number };
+    type Pos = { cid: string; oi: number; eventSlug: string; title?: string; outcome?: string; lastTs: number; buyShares: number; buyCost: number; sellShares: number; sellProceeds: number; redeemShares: number; redeemProceeds: number };
     const pos = new Map<string, Pos>();
     let volume = 0;
     for (const a of activity) {
@@ -175,10 +175,11 @@ export class QuantService implements OnApplicationBootstrap {
       const key = `${cid}|${oi}`;
       let p = pos.get(key);
       if (!p) {
-        p = { cid, oi, eventSlug: a.eventSlug || a.slug || cid, buyShares: 0, buyCost: 0, sellShares: 0, sellProceeds: 0, redeemShares: 0, redeemProceeds: 0 };
+        p = { cid, oi, eventSlug: a.eventSlug || a.slug || cid, title: a.title, outcome: a.outcome, lastTs: 0, buyShares: 0, buyCost: 0, sellShares: 0, sellProceeds: 0, redeemShares: 0, redeemProceeds: 0 };
         pos.set(key, p);
       }
       const size = Number(a.size) || 0;
+      if (Number(a.timestamp) > p.lastTs) p.lastTs = Number(a.timestamp) || 0;
       if (a.type === 'TRADE' && a.side === 'BUY') { p.buyShares += size; p.buyCost += usd; }
       else if (a.type === 'TRADE' && a.side === 'SELL') { p.sellShares += size; p.sellProceeds += usd; }
       else if (a.type === 'REDEEM') { p.redeemShares += size; p.redeemProceeds += usd; }
@@ -189,6 +190,7 @@ export class QuantService implements OnApplicationBootstrap {
 
     // realized edge per closed position
     const edges: { e: number; notional: number; eventSlug: string }[] = [];
+    const closedPos: { cid: string; oi: number; entry: number; payoff: number; roiPct: number; success: boolean; ts: number; title?: string; outcome?: string }[] = [];
     let realizedPnl = 0, wins = 0;
     for (const p of pos.values()) {
       if (p.buyShares < 1e-6) continue; // only positions they actually entered (long)
@@ -208,8 +210,16 @@ export class QuantService implements OnApplicationBootstrap {
       }
       if (!closed) continue; // never mark-to-mid open positions
       // realized edge per share, clamped to [-1,1] (binary-outcome bound) as a backstop
-      const e = Math.max(-1, Math.min(1, proceeds / p.buyShares - entryAvg));
+      const payoffPerShare = proceeds / p.buyShares;
+      const e = Math.max(-1, Math.min(1, payoffPerShare - entryAvg));
       edges.push({ e, notional: p.buyCost, eventSlug: p.eventSlug });
+      if (entryAvg > 0.01 && entryAvg < 0.99) {
+        closedPos.push({
+          cid: p.cid, oi: p.oi, entry: entryAvg, payoff: payoffPerShare,
+          roiPct: ((payoffPerShare - entryAvg) / entryAvg) * 100, success: payoffPerShare > entryAvg,
+          ts: p.lastTs || 0, title: p.title, outcome: p.outcome,
+        });
+      }
       realizedPnl += proceeds - p.buyCost;
       if (proceeds > p.buyCost) wins++;
     }
@@ -257,6 +267,23 @@ export class QuantService implements OnApplicationBootstrap {
       await this.prisma.pmWalletSnapshot.create({
         data: { address, edgeLcb, meanEdge, roiPct, invested, pnl: realizedPnl, nClosed, nEff, winRate, volume, marketFocus },
       }).catch(() => {});
+
+      // Backfill this wallet's closed positions as resolved paper-copy decisions ONCE
+      // (in-sample/historical) so the learning panel + paper-wallet sim have data fast.
+      const already = await this.prisma.agentDecision.count({ where: { subjectAddr: address, mode: 'backfill' } });
+      if (already === 0 && closedPos.length) {
+        for (const c of closedPos) {
+          await this.prisma.agentDecision.create({
+            data: {
+              extKey: `bf:${address}:${c.cid}:${c.oi}`, mode: 'backfill', kind: 'paper_copy',
+              subjectAddr: address, market: c.cid, action: 'COPY',
+              rationale: `Hist: ${pseudonym || address.slice(0, 8)} ${c.outcome || ''} @ ${c.entry.toFixed(3)}`.slice(0, 200),
+              meta: { outcomeIndex: c.oi, entryPrice: c.entry, historical: true, ts: c.ts, title: c.title, outcome: c.outcome },
+              outcome: { create: { roiPct: c.roiPct, realizedPnl: c.payoff - c.entry, success: c.success, resolvedAt: c.ts ? new Date(c.ts * 1000) : new Date() } },
+            },
+          }).catch(() => { /* dup extKey */ });
+        }
+      }
     }
     return saved;
   }
@@ -424,12 +451,63 @@ export class QuantService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * Paper-wallet simulation: "if you put $bankroll, copying the engine's paper
+   * decisions at risk-fraction per trade, what would you have now?" Computes a
+   * compounding equity curve over resolved decisions in time order.
+   */
+  async simulate(bankroll = 50, risk = 0.05) {
+    const start = Math.max(1, bankroll);
+    const frac = Math.min(Math.max(risk, 0.005), 0.5);
+    const outs = await this.prisma.agentOutcome.findMany({
+      where: { decision: { kind: 'paper_copy' } },
+      include: { decision: { select: { meta: true } } },
+      take: 5000,
+    });
+    const items = outs
+      .map((o) => {
+        const meta: any = o.decision?.meta || {};
+        const ts = Number(meta.ts) ? Number(meta.ts) * 1000 : o.resolvedAt?.getTime() || 0;
+        return { ts, roi: (o.roiPct || 0) / 100, win: !!o.success };
+      })
+      .sort((a, b) => a.ts - b.ts);
+    let bal = start, peak = start, maxDD = 0, wins = 0;
+    const curve: { t: number; balance: number }[] = [];
+    for (const it of items) {
+      const stake = bal * frac;
+      bal = Math.max(0, bal + stake * it.roi);
+      if (it.win) wins++;
+      peak = Math.max(peak, bal);
+      maxDD = Math.max(maxDD, peak > 0 ? (peak - bal) / peak : 0);
+      curve.push({ t: it.ts, balance: +bal.toFixed(2) });
+    }
+    const n = items.length;
+    return {
+      startBalance: start,
+      finalBalance: +bal.toFixed(2),
+      returnPct: +(((bal - start) / start) * 100).toFixed(1),
+      nTrades: n,
+      winRate: n ? wins / n : 0,
+      maxDrawdownPct: +(maxDD * 100).toFixed(1),
+      riskFraction: frac,
+      curve: curve.slice(-500),
+    };
+  }
+
   @Interval('quant-paper-loop', 10 * 60 * 1000)
   async paperTick() {
     try {
       const created = await this.recordPaperSignals();
       const resolved = await this.resolvePaperOutcomes();
-      if (created || resolved) this.logger.log(`paper loop: +${created} signals, ${resolved} resolved`);
+      // Backfill the best un-backfilled qualified wallets (≤10/tick) so the sim + learning fill in fast.
+      const top = await this.prisma.pmWallet.findMany({ where: { qualified: true }, orderBy: { edgeLcb: 'desc' }, take: 120, select: { address: true } });
+      let bf = 0;
+      for (const w of top) {
+        if (bf >= 10) break;
+        const has = await this.prisma.agentDecision.count({ where: { subjectAddr: w.address, mode: 'backfill' } });
+        if (has === 0) { await this.scanWallet(w.address).catch(() => {}); bf++; await new Promise((r) => setTimeout(r, 400)); }
+      }
+      if (created || resolved || bf) this.logger.log(`paper loop: +${created} signals, ${resolved} resolved, ${bf} backfilled`);
     } catch (e: any) {
       this.logger.warn(`paper loop failed: ${e?.message}`);
     }
