@@ -627,7 +627,7 @@ const QuantPage: React.FC = () => {
         /* ── Leaderboard — three-column canvas ── */
         <>
           {/* Header KPI StatTiles */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {loading && !stats ? (
               <>
                 <Skeleton variant="stat" />
@@ -653,11 +653,11 @@ const QuantPage: React.FC = () => {
             )}
           </div>
 
-          {/* ── Three-column canvas ── */}
-          <div className="flex gap-3 items-start">
+          {/* ── Three-column canvas (stacks on mobile) ── */}
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-start">
 
             {/* LEFT — scan box + edge leaderboard */}
-            <aside className="w-[220px] flex-shrink-0 flex flex-col gap-3">
+            <aside className="w-full lg:w-[220px] lg:flex-shrink-0 flex flex-col gap-3">
 
               {/* Compact scan input */}
               <Panel label="SCAN WALLET">
@@ -745,7 +745,7 @@ const QuantPage: React.FC = () => {
             </main>
 
             {/* RIGHT — AI opportunities + strategy builder */}
-            <aside className="w-[280px] flex-shrink-0 flex flex-col gap-3">
+            <aside className="w-full lg:w-[280px] lg:flex-shrink-0 flex flex-col gap-3">
               <ConnectChatGPT />
               <AiQuantPanel />
             </aside>

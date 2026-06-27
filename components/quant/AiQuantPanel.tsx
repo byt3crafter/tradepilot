@@ -194,7 +194,7 @@ const AiQuantPanel: React.FC = () => {
   }, [getToken]);
 
   const panelActions = (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap justify-end">
       <Button
         variant="secondary"
         onClick={buildStrategy}
