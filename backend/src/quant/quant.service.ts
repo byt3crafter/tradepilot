@@ -411,29 +411,72 @@ export class QuantService implements OnApplicationBootstrap {
   // for self-healing: validate winners, disable losers — before any live capital.
 
   /** Snapshot recent buys by qualified wallets as paper-copy decisions (deduped). */
+  // ── Learned EV model: generalize from ALL resolved decisions (no hand-coded filters) ──
+  // The engine learns expected ROI per (marketFocus × entry-price-band) bucket and only
+  // takes positive-EV signals — so the price-floor / focus-block rules EMERGE from data and
+  // self-update. Generalizes to unseen markets via features (baby-brain), not brute force.
+  private evCache: { at: number; table: Map<string, { mean: number; n: number }> } | null = null;
+  private bucketKey(focus: string | null | undefined, price: number): string {
+    const band = Math.min(9, Math.max(0, Math.floor(price * 10)));
+    return `${focus || 'Mixed'}|${band}`;
+  }
+  async getEvTable(): Promise<Map<string, { mean: number; n: number }>> {
+    if (this.evCache && Date.now() - this.evCache.at < 30 * 60 * 1000) return this.evCache.table;
+    const outs = await this.prisma.agentOutcome.findMany({
+      where: { decision: { kind: 'paper_copy' } },
+      include: { decision: { select: { meta: true, subjectAddr: true } } },
+      take: 60000,
+    });
+    const addrs = [...new Set(outs.map((o) => o.decision?.subjectAddr).filter(Boolean) as string[])];
+    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs } }, select: { address: true, marketFocus: true } });
+    const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
+    const acc = new Map<string, { sum: number; n: number }>();
+    for (const o of outs) {
+      const meta: any = o.decision?.meta || {};
+      const price = Number(meta.entryPrice);
+      if (!(price > 0 && price < 1)) continue;
+      const focus = o.decision?.subjectAddr ? focusMap.get(o.decision.subjectAddr) || 'Mixed' : 'Mixed';
+      const key = this.bucketKey(focus, price);
+      const a = acc.get(key) || { sum: 0, n: 0 };
+      a.sum += o.roiPct || 0; a.n++;
+      acc.set(key, a);
+    }
+    const table = new Map<string, { mean: number; n: number }>();
+    for (const [k, v] of acc) table.set(k, { mean: v.sum / v.n, n: v.n });
+    this.evCache = { at: Date.now(), table };
+    return table;
+  }
+
+  /** The learned policy table — what the engine has learned wins/loses, per feature bucket. */
+  async learnedPolicy() {
+    const t = await this.getEvTable();
+    return [...t.entries()]
+      .map(([k, v]) => {
+        const [focus, band] = k.split('|');
+        const lo = Number(band) * 10;
+        return { focus, priceBand: `${lo}-${lo + 10}¢`, avgRoi: +v.mean.toFixed(1), n: v.n, decision: v.n >= 12 ? (v.mean > 2 ? 'take' : 'skip') : 'explore' };
+      })
+      .sort((a, b) => b.avgRoi - a.avgRoi);
+  }
+
   async recordPaperSignals(): Promise<number> {
     const trades = await this.pm.recentTrades(200);
     if (!trades.length) return 0;
     const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
-    // Measured leak (paper): Mixed (-18% ROI, 33% win) and Politics (-3.9%, 38%) are the
-    // only negative-ROI focuses; everything else is positive. Skip those wallets' signals.
-    // Forward (out-of-sample) measured: Sports +28%, BTC/Crypto Up-Down positive; but
-    // Weather (-57%) and Crypto Price (-100%) LOSE forward (they were in-sample illusions),
-    // and Mixed/Politics also negative. Copy only the forward-positive focuses.
-    const FOCUS_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price']);
-    const okWallet = new Set(
-      (await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true, marketFocus: true } }))
-        .filter((w) => !FOCUS_BLOCK.has(w.marketFocus || 'Mixed'))
-        .map((w) => w.address),
-    );
-    // Collect candidate buys from qualified, non-blocked wallets.
+    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true, marketFocus: true } });
+    const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
+    const ev = await this.getEvTable();
+    const MIN_SAMPLE = 12, EV_THRESHOLD = 2; // roiPct units (≈ fee buffer)
+    // Collect candidate buys, gated by the LEARNED EV model (not hand-coded filters).
     const cands = trades
       .filter((t) => {
         const addr = String(t.proxyWallet || '').toLowerCase();
         const price = Number(t.price);
-        // Measured (forward): entry<0.30 longshots lose ~-100%; sweet spot 0.30-0.60.
-        // Floor raised 0.02 -> 0.30 to skip the longshot copies that bleed.
-        return okWallet.has(addr) && String(t.side).toUpperCase() === 'BUY' && price >= 0.30 && price < 0.98 && t.conditionId && t.transactionHash;
+        if (!focusMap.has(addr)) return false; // qualified wallets only
+        if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.05 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
+        const b = ev.get(this.bucketKey(focusMap.get(addr), price));
+        // exploit positive-EV buckets; explore under-sampled ones to keep learning.
+        return b && b.n >= MIN_SAMPLE ? b.mean > EV_THRESHOLD : true;
       });
     if (!cands.length) return 0;
     // Short-horizon bias: only copy markets settling within 7 days, so the out-of-sample

@@ -22,6 +22,11 @@ export class QuantController {
     return this.quant.learningStats();
   }
 
+  @Get('learning/policy')
+  learnedPolicy() {
+    return this.quant.learnedPolicy();
+  }
+
   @Get('learning/decisions')
   learningDecisions(@Query('limit') limit?: string, @Query('sample') sample?: string) {
     return this.quant.learningDecisions(limit ? parseInt(limit, 10) : 60, sample === 'all' ? 'all' : 'live');
