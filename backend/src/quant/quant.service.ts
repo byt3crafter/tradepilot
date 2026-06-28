@@ -431,7 +431,9 @@ export class QuantService implements OnApplicationBootstrap {
       .filter((t) => {
         const addr = String(t.proxyWallet || '').toLowerCase();
         const price = Number(t.price);
-        return okWallet.has(addr) && String(t.side).toUpperCase() === 'BUY' && price > 0.02 && price < 0.98 && t.conditionId && t.transactionHash;
+        // Measured (forward): entry<0.30 longshots lose ~-100%; sweet spot 0.30-0.60.
+        // Floor raised 0.02 -> 0.30 to skip the longshot copies that bleed.
+        return okWallet.has(addr) && String(t.side).toUpperCase() === 'BUY' && price >= 0.30 && price < 0.98 && t.conditionId && t.transactionHash;
       });
     if (!cands.length) return 0;
     // Short-horizon bias: only copy markets settling within 7 days, so the out-of-sample
