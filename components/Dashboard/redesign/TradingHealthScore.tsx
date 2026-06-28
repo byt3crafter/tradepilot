@@ -245,12 +245,12 @@ const TradingHealthScore: React.FC<TradingHealthScoreProps> = ({ closedTrades })
           )}
         </div>
 
-        {/* ── Sub-metric bars ── */}
-        <div className="flex-1 grid grid-cols-1 min-[420px]:grid-cols-2 gap-x-8 gap-y-[13px] w-full pt-[2px]">
+        {/* ── Sub-metric bars (single column so labels are never clipped) ── */}
+        <div className="flex-1 grid grid-cols-1 gap-y-[11px] w-full pt-[2px]">
           {components.map(c => (
             <div key={c.key}>
-              <div className="flex items-center justify-between mb-[5px]">
-                <span className="text-jtp-md text-jtp-textDim truncate mr-1">{c.label}</span>
+              <div className="flex items-baseline justify-between gap-3 mb-[5px]">
+                <span className="text-jtp-md text-jtp-textDim whitespace-nowrap">{c.label}</span>
                 <span
                   className="font-mono text-jtp-md text-jtp-textMuted flex-shrink-0"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
