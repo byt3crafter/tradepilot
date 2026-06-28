@@ -121,8 +121,8 @@ export class QuantService implements OnApplicationBootstrap {
         const edge = (1 - fav) / fav;
         if (edge > FEE) lag.push({
           type: 'lag', title: m.question, slug: m.slug, outcome: oc[idx] || `#${idx}`,
-          price: +fav.toFixed(3), tokenId: tk[idx], edgePct: +((edge - FEE) * 100).toFixed(2),
-          endsAt: isNaN(end) ? null : end,
+          price: +fav.toFixed(3), tokenId: tk[idx], conditionId: m.conditionId, outcomeIndex: idx,
+          edgePct: +((edge - FEE) * 100).toFixed(2), endsAt: isNaN(end) ? null : end,
         });
       }
     }
@@ -604,6 +604,43 @@ export class QuantService implements OnApplicationBootstrap {
         ? 'HINDSIGHT backtest — copies the wallets\' own already-won past trades. Optimistic and NOT achievable forward.'
         : 'Out-of-sample: forward copy signals logged before the market resolved. The honest test.',
     };
+  }
+
+  /**
+   * Autonomous PAPER arb executor — auto-"takes" settlement-lag arbs into the paper
+   * ledger (mode='arb') so we forward-prove the arb edge before any real money. Real
+   * (live) auto-execution stays gated on quantMode='auto' + delegated signing (custody B).
+   */
+  async arbPaperTick(): Promise<number> {
+    let scan: any;
+    try { scan = await this.scanArbs(); } catch { return 0; }
+    const lags = (scan?.settlementLag || []).slice(0, 15);
+    let created = 0;
+    for (const a of lags) {
+      if (!a.conditionId || a.outcomeIndex == null) continue;
+      try {
+        await this.prisma.agentDecision.create({
+          data: {
+            extKey: `arb:lag:${a.conditionId}:${a.outcomeIndex}`,
+            mode: 'arb', kind: 'paper_copy', subjectAddr: null, market: a.conditionId, action: 'BUY',
+            rationale: `Arb (settlement-lag): ${a.outcome} @ ${a.price} (+${a.edgePct}%) — ${a.title || ''}`.slice(0, 300),
+            meta: { type: 'lag', outcomeIndex: a.outcomeIndex, entryPrice: a.price, edgePct: a.edgePct, title: a.title, outcome: a.outcome, ts: Math.floor(Date.now() / 1000) },
+          },
+        });
+        created++;
+      } catch { /* dup extKey → already taken */ }
+    }
+    return created;
+  }
+
+  @Interval('quant-arb-paper', 20 * 60 * 1000)
+  async arbPaperLoop() {
+    try {
+      const created = await this.arbPaperTick();
+      if (created) this.logger.log(`arb paper: +${created} settlement-lag arbs taken (paper)`);
+    } catch (e: any) {
+      this.logger.warn(`arb paper loop failed: ${e?.message}`);
+    }
   }
 
   @Interval('quant-paper-loop', 10 * 60 * 1000)
