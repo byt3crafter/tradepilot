@@ -463,7 +463,7 @@ const PaperWalletSimCard: React.FC = () => {
 
 const InSampleDisclaimer: React.FC = () => (
   <p className="text-jtp-xs text-jtp-textFaint leading-relaxed">
-    These include in-sample historical backfill — verdicts are a historical record, not yet forward-proven.
+    Out-of-sample (forward) only — honest, but a small sample so far; not yet statistically conclusive.
   </p>
 );
 
