@@ -125,6 +125,18 @@ export class PolymarketClient {
     return out;
   }
 
+  /** Active events (with their markets) — for cross-market / NegRisk arbitrage scanning. */
+  async activeEvents(limit = 150): Promise<any[]> {
+    const d = await this.gget(`https://gamma-api.polymarket.com/events?closed=false&active=true&order=volume24hr&ascending=false&limit=${limit}`);
+    return Array.isArray(d) ? d : [];
+  }
+
+  /** Active tradeable markets (raw gamma) — for settlement-lag arbitrage scanning. */
+  async activeMarkets(limit = 250): Promise<any[]> {
+    const d = await this.gget(`https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=${limit}`);
+    return Array.isArray(d) ? d : [];
+  }
+
   /** End timestamps (ms) per conditionId, via gamma — for short-horizon signal biasing. */
   async marketEndDates(conditionIds: string[]): Promise<Record<string, number>> {
     const out: Record<string, number> = {};

@@ -46,6 +46,11 @@ export class QuantController {
     return this.quant.markets(q);
   }
 
+  @Get('arbs')
+  arbs() {
+    return this.quant.scanArbs();
+  }
+
   @Get('wallet/:address')
   wallet(@Param('address') address: string) {
     return this.quant.getWallet(address);

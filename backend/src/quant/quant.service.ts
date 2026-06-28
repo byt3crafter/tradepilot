@@ -65,6 +65,75 @@ export class QuantService implements OnApplicationBootstrap {
     return this.pm.searchMarkets(query, 30);
   }
 
+  /**
+   * Arbitrage / mispricing scanner — the REAL edge (pure Polymarket math, no wallet copying):
+   *  • cross-market: NegRisk (mutually-exclusive) events whose Yes prices sum < $1 →
+   *    buy every outcome's Yes, exactly one pays $1 → locked profit (after fees).
+   *  • settlement-lag: a dominant near-certain outcome (≥95¢) still < $1 on a market that's
+   *    ended/ending → buy the favorite, collect the gap at resolution.
+   * Edges are shown AFTER a 2% fee/slippage buffer, so only genuinely profitable ones surface.
+   */
+  async scanArbs() {
+    const FEE = 0.02;
+    const now = Date.now();
+
+    const events = await this.pm.activeEvents(150);
+    const cross: any[] = [];
+    for (const e of events) {
+      if (!(e.negRisk || e.enableNegRisk)) continue; // mutually-exclusive sets only
+      const mks = (e.markets || []).filter((m: any) => m.enableOrderBook !== false && !m.closed);
+      if (mks.length < 2) continue;
+      const legs: any[] = [];
+      let ok = true;
+      for (const m of mks) {
+        let pr: number[] = [], tk: string[] = [];
+        try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { ok = false; }
+        try { tk = JSON.parse(m.clobTokenIds || '[]'); } catch { /* */ }
+        if (!pr.length || tk.length < 1) { ok = false; break; }
+        legs.push({ title: m.groupItemTitle || m.question, yesPrice: pr[0], tokenId: tk[0] });
+      }
+      if (!ok || legs.length < 2) continue;
+      const sumYes = legs.reduce((s, l) => s + l.yesPrice, 0);
+      const edge = 1 - sumYes; // buy-all-yes underpriced
+      if (edge > FEE) {
+        cross.push({
+          type: 'cross', event: e.title, slug: e.slug, nOutcomes: legs.length,
+          sumYes: +sumYes.toFixed(4), edgePct: +((edge - FEE) * 100).toFixed(2),
+          legs: legs.sort((a, b) => b.yesPrice - a.yesPrice).slice(0, 12),
+        });
+      }
+    }
+
+    const markets = await this.pm.activeMarkets(250);
+    const lag: any[] = [];
+    for (const m of markets) {
+      if (m.enableOrderBook === false || m.closed) continue;
+      let pr: number[] = [], tk: string[] = [], oc: string[] = [];
+      try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { continue; }
+      try { tk = JSON.parse(m.clobTokenIds || '[]'); } catch { /* */ }
+      try { oc = JSON.parse(m.outcomes || '[]'); } catch { /* */ }
+      if (!pr.length || !tk.length) continue;
+      const idx = pr.indexOf(Math.max(...pr));
+      const fav = pr[idx];
+      const end = m.endDate ? Date.parse(m.endDate) : NaN;
+      const endingSoon = !isNaN(end) && end <= now + 24 * 3600 * 1000;
+      if (fav >= 0.95 && fav < 0.999 && endingSoon) {
+        const edge = (1 - fav) / fav;
+        if (edge > FEE) lag.push({
+          type: 'lag', title: m.question, slug: m.slug, outcome: oc[idx] || `#${idx}`,
+          price: +fav.toFixed(3), tokenId: tk[idx], edgePct: +((edge - FEE) * 100).toFixed(2),
+          endsAt: isNaN(end) ? null : end,
+        });
+      }
+    }
+
+    return {
+      crossMarket: cross.sort((a, b) => b.edgePct - a.edgePct).slice(0, 30),
+      settlementLag: lag.sort((a, b) => b.edgePct - a.edgePct).slice(0, 30),
+      scannedAt: now,
+    };
+  }
+
   /** A wallet's current OPEN positions — for "mirror this" from the report. */
   async walletPositions(addressRaw: string) {
     const address = String(addressRaw || '').toLowerCase();
