@@ -737,6 +737,14 @@ const QuantPage: React.FC = () => {
     load();
   }, [load]);
 
+  // Listen for the top-bar POLYMARKET button dispatching 'jtp:quant-trade'
+  // so we reliably switch to the Trade tab even when already on the Quant page.
+  useEffect(() => {
+    const handler = () => setMode('trade');
+    window.addEventListener('jtp:quant-trade', handler);
+    return () => window.removeEventListener('jtp:quant-trade', handler);
+  }, []);
+
   const handleScan = useCallback(
     async (addrArg?: string) => {
       const address = (addrArg ?? scanInput).trim();
