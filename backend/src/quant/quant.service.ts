@@ -477,7 +477,9 @@ export class QuantService implements OnApplicationBootstrap {
     const ev = await this.getEvTable();
     const MIN_SAMPLE = 12, EV_THRESHOLD = 2; // roiPct units (≈ fee buffer)
     // Proven PRIORS (used only where forward data is too thin to have learned yet):
-    const PRIOR_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price']);
+    // Crypto Up/Down added pass 5: flipped negative forward (-4% over n=31, 77% win but big
+    // -100% losers outweigh small high-priced wins). Sports (+13%) carries the book.
+    const PRIOR_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price', 'Crypto Up/Down']);
     const cands = trades
       .filter((t) => {
         const addr = String(t.proxyWallet || '').toLowerCase();
