@@ -423,7 +423,10 @@ export class QuantService implements OnApplicationBootstrap {
   async getEvTable(): Promise<Map<string, { mean: number; n: number }>> {
     if (this.evCache && Date.now() - this.evCache.at < 30 * 60 * 1000) return this.evCache.table;
     const outs = await this.prisma.agentOutcome.findMany({
-      where: { decision: { kind: 'paper_copy' } },
+      // FORWARD only — training on the 'backfill' (hindsight, winners-only) poisons the model
+      // (it would learn longshots are great because backfill omits the losers). Out-of-sample
+      // is the only honest teacher.
+      where: { decision: { kind: 'paper_copy', mode: { not: 'backfill' } } },
       include: { decision: { select: { meta: true, subjectAddr: true } } },
       take: 60000,
     });
@@ -467,16 +470,20 @@ export class QuantService implements OnApplicationBootstrap {
     const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
     const ev = await this.getEvTable();
     const MIN_SAMPLE = 12, EV_THRESHOLD = 2; // roiPct units (≈ fee buffer)
-    // Collect candidate buys, gated by the LEARNED EV model (not hand-coded filters).
+    // Proven PRIORS (used only where forward data is too thin to have learned yet):
+    const PRIOR_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price']);
     const cands = trades
       .filter((t) => {
         const addr = String(t.proxyWallet || '').toLowerCase();
         const price = Number(t.price);
         if (!focusMap.has(addr)) return false; // qualified wallets only
         if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.05 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
-        const b = ev.get(this.bucketKey(focusMap.get(addr), price));
-        // exploit positive-EV buckets; explore under-sampled ones to keep learning.
-        return b && b.n >= MIN_SAMPLE ? b.mean > EV_THRESHOLD : true;
+        const focus = focusMap.get(addr);
+        const b = ev.get(this.bucketKey(focus, price));
+        // Learned (forward) EV where we have enough real samples; otherwise fall back to the
+        // proven priors (price≥0.30 + drop loss-making focuses). The model overrides the
+        // prior per-bucket as out-of-sample data accumulates — learn from experience, keep a prior.
+        return b && b.n >= MIN_SAMPLE ? b.mean > EV_THRESHOLD : price >= 0.30 && !PRIOR_BLOCK.has(focus || 'Mixed');
       });
     if (!cands.length) return 0;
     // Short-horizon bias: only copy markets settling within 7 days, so the out-of-sample
