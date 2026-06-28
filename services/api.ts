@@ -148,7 +148,8 @@ export interface ApiService {
   quantVerdict(address: string, token?: string | null): Promise<QuantVerdict>;
   quantMarkets(q?: string, token?: string | null): Promise<PolymarketMarket[]>;
   quantLearning(token?: string | null): Promise<QuantLearning>;
-  quantLearningDecisions(limit?: number, sample?: 'live' | 'historical', token?: string | null): Promise<QuantDecision[]>;
+  quantLearningDecisions(limit?: number, sample?: 'live' | 'historical', mode?: string, token?: string | null): Promise<QuantDecision[]>;
+  quantAiScan(token?: string | null): Promise<number>;
   quantSimulation(bankroll: number, risk: number, sample?: 'live' | 'historical', token?: string | null): Promise<QuantSimulation>;
   quantArbs(token?: string | null): Promise<ArbScan>;
 
@@ -413,13 +414,15 @@ const api: ApiService = {
     return this.get(`/api/quant/markets${query}`, token);
   },
   quantLearning(token?: string | null): Promise<QuantLearning> { return this.get('/api/quant/learning', token); },
-  quantLearningDecisions(limit?: number, sample?: 'live' | 'historical', token?: string | null): Promise<QuantDecision[]> {
+  quantLearningDecisions(limit?: number, sample?: 'live' | 'historical', mode?: string, token?: string | null): Promise<QuantDecision[]> {
     const params = new URLSearchParams();
     if (limit !== undefined) params.set('limit', String(limit));
     if (sample !== undefined) params.set('sample', sample);
+    if (mode !== undefined) params.set('mode', mode);
     const qs = params.toString();
     return this.get(`/api/quant/learning/decisions${qs ? `?${qs}` : ''}`, token);
   },
+  quantAiScan(token?: string | null): Promise<number> { return this.post('/api/quant/ai-scan', {}, token); },
   quantSimulation(bankroll: number, risk: number, sample?: 'live' | 'historical', token?: string | null): Promise<QuantSimulation> {
     return this.get(`/api/quant/simulation?bankroll=${bankroll}&risk=${risk}&sample=${sample ?? 'live'}`, token);
   },

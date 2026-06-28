@@ -97,6 +97,274 @@ const FILTER_SEGMENTS: Segment<DecisionFilter>[] = [
   { value: 'pending', label: 'Pending' },
 ];
 
+// ─── AI Judgment helpers ──────────────────────────────────────────────────────
+
+const fmtPct = (n: number | null | undefined): string => {
+  if (n === null || n === undefined) return '—';
+  return `${(n * 100).toFixed(0)}%`;
+};
+
+const fmtCents = (n: number | null | undefined): string => {
+  if (n === null || n === undefined) return '—';
+  return `${(n * 100).toFixed(1)}¢`;
+};
+
+// ─── AI Judgment Panel ────────────────────────────────────────────────────────
+
+const AI_POLL_MS = 60_000;
+
+const AiJudgmentPanel: React.FC = () => {
+  const { getToken } = useAuth();
+
+  const [decisions, setDecisions] = useState<QuantDecision[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  const fetchDecisions = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    try {
+      const token = await getToken();
+      const data = await api.quantLearningDecisions(40, 'live', 'ai_judgment', token);
+      setDecisions(Array.isArray(data) ? data : []);
+    } catch {
+      // leave prior state
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchDecisions(false);
+  }, [fetchDecisions]);
+
+  useEffect(() => {
+    const id = setInterval(() => fetchDecisions(true), AI_POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchDecisions]);
+
+  const handleScan = useCallback(async () => {
+    setScanNote(null);
+    setScanError(null);
+    setScanning(true);
+    try {
+      const token = await getToken();
+      const count = await api.quantAiScan(token);
+      setScanNote(`+${count} new AI bet${count === 1 ? '' : 's'} created`);
+      await fetchDecisions(false);
+    } catch (e: any) {
+      setScanError(e?.message || 'Scan failed — try again.');
+    } finally {
+      setScanning(false);
+    }
+  }, [getToken, fetchDecisions]);
+
+  // Scoreboard — computed from decisions
+  const resolved = decisions.filter((d) => d.status !== 'pending');
+  const wins = resolved.filter((d) => d.status === 'win');
+  const pending = decisions.filter((d) => d.status === 'pending');
+  const winRate = resolved.length > 0 ? wins.length / resolved.length : null;
+  const avgRoi = resolved.length > 0
+    ? resolved.reduce((acc, d) => acc + (d.roiPct ?? 0), 0) / resolved.length
+    : null;
+
+  return (
+    <Panel
+      label="🧠 AI JUDGMENT (vs the crowd)"
+      actions={
+        <div className="flex items-center gap-2 flex-wrap">
+          {scanNote && !scanning && (
+            <span
+              className="font-mono text-jtp-xs px-2 py-[3px] rounded-jtp-sm"
+              style={{ background: 'rgba(61,220,132,0.12)', color: '#3ddc84' }}
+            >
+              {scanNote}
+            </span>
+          )}
+          {scanError && !scanning && (
+            <span
+              className="font-mono text-jtp-xs px-2 py-[3px] rounded-jtp-sm"
+              style={{ background: 'rgba(255,91,82,0.12)', color: '#ff5b52' }}
+            >
+              {scanError}
+            </span>
+          )}
+          <Button
+            variant="primary"
+            className="!px-3 !py-[4px] !text-jtp-xs"
+            onClick={handleScan}
+            disabled={scanning}
+            isLoading={scanning}
+            aria-label="Run AI scan now"
+          >
+            {scanning ? 'Scanning…' : 'Run AI scan now'}
+          </Button>
+        </div>
+      }
+    >
+      {/* Caption */}
+      <p className="text-jtp-xs text-jtp-textFaint leading-relaxed mb-4">
+        The AI bets paper where it thinks the crowd is wrong (politics / geopolitics).
+        Forward-resolved — this scoreboard is the honest test of whether AI judgment beats the crowd.
+      </p>
+
+      {/* Scoreboard */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+        <StatTile
+          label="BETS"
+          value={decisions.length.toLocaleString('en-US')}
+          subValue="total"
+        />
+        <StatTile
+          label="RESOLVED"
+          value={resolved.length.toLocaleString('en-US')}
+          subValue="settled"
+        />
+        <StatTile
+          label="WIN RATE"
+          value={winRate !== null ? `${(winRate * 100).toFixed(1)}%` : '—'}
+          valueColor={
+            winRate !== null
+              ? winRate >= 0.5 ? 'text-jtp-profit' : 'text-jtp-loss'
+              : undefined
+          }
+          positive={winRate !== null ? winRate >= 0.5 : undefined}
+          subValue={resolved.length > 0 ? 'of resolved' : 'no resolved yet'}
+        />
+        <StatTile
+          label="AVG ROI"
+          value={avgRoi !== null ? fmtRoi(avgRoi) : '—'}
+          valueColor={avgRoi !== null ? roiColor(avgRoi) : undefined}
+          positive={avgRoi !== null && avgRoi !== 0 ? avgRoi > 0 : undefined}
+          subValue="resolved only"
+        />
+        <StatTile
+          label="PENDING"
+          value={pending.length.toLocaleString('en-US')}
+          valueColor="text-jtp-textMuted"
+          subValue="open"
+        />
+      </div>
+
+      {/* Bets list */}
+      {loading ? (
+        <div className="flex flex-col divide-y divide-jtp-borderSubtle">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 px-0 py-3">
+              <div className="flex flex-col gap-2 flex-1">
+                <Skeleton className="h-[13px] w-4/5" />
+                <Skeleton className="h-[11px] w-3/5" />
+                <Skeleton className="h-[11px] w-full" />
+              </div>
+              <Skeleton className="h-[18px] w-16 flex-shrink-0" />
+            </div>
+          ))}
+        </div>
+      ) : decisions.length === 0 ? (
+        <EmptyState
+          title="No AI bets yet — hit 'Run AI scan now'"
+          description="The AI will scan live political / geopolitical markets and place paper bets where it disagrees with the crowd price."
+          className="py-8"
+        />
+      ) : (
+        <div className="divide-y divide-jtp-borderSubtle -mx-4">
+          {decisions.map((d) => {
+            const crowdPct = fmtPct(d.entryPrice);
+            const aiPct = fmtPct(d.aiTrueProb);
+            const agreed = d.aiTrueProb !== null && d.aiTrueProb !== undefined &&
+              Math.abs(d.aiTrueProb - d.entryPrice) < 0.05;
+
+            const resultLabel = (() => {
+              if (d.status === 'win') return `WON +${d.roiPct !== null ? d.roiPct.toFixed(1) + '%' : ''}`.trim();
+              if (d.status === 'loss') return `LOST ${d.roiPct !== null ? d.roiPct.toFixed(1) + '%' : ''}`.trim();
+              return 'PENDING';
+            })();
+
+            return (
+              <div
+                key={d.id}
+                className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-jtp-hover"
+              >
+                {/* LEFT: time + relative age */}
+                <div className="flex-shrink-0 w-[80px]">
+                  <span className="font-mono text-jtp-2xs text-jtp-textFaint">
+                    {fmtRelTime(d.createdAt)}
+                  </span>
+                </div>
+
+                {/* MIDDLE: market title + prediction + rationale */}
+                <div className="flex-1 min-w-0 flex flex-col gap-[4px]">
+                  {/* Market title */}
+                  <span
+                    className="text-jtp-xs text-jtp-text font-semibold leading-snug"
+                    title={d.title}
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {d.title || d.market}
+                  </span>
+
+                  {/* Prediction line: AI outcome @ price vs crowd */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-jtp-xs text-jtp-textMuted">
+                      AI:{' '}
+                      <span className="text-jtp-text font-semibold">
+                        {d.outcomeLabel}
+                      </span>
+                      {' '}{fmtCents(d.entryPrice)}
+                    </span>
+                    {d.aiTrueProb !== null && d.aiTrueProb !== undefined && (
+                      <span
+                        className="font-mono text-jtp-2xs px-[5px] py-[2px] rounded-[3px]"
+                        style={{
+                          background: agreed
+                            ? 'rgba(86,93,102,0.2)'
+                            : 'rgba(232,162,61,0.14)',
+                          color: agreed ? '#565d66' : '#e8a23d',
+                        }}
+                        title="AI's estimated true probability vs crowd-implied price"
+                      >
+                        AI {aiPct} vs crowd {crowdPct}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Rationale in muted mono */}
+                  {d.rationale && (
+                    <p
+                      className="font-mono text-jtp-2xs text-jtp-textFaint leading-relaxed"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {d.rationale}
+                    </p>
+                  )}
+                </div>
+
+                {/* RIGHT: result badge */}
+                <div className="flex-shrink-0">
+                  <Badge variant={STATUS_VARIANT[d.status] ?? 'neutral'} size="xs">
+                    {resultLabel}
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
+  );
+};
+
 // ─── Per-wallet DataTable columns ─────────────────────────────────────────────
 
 const WALLET_COLS: TableColumn<QuantLearningWallet>[] = [
@@ -633,7 +901,7 @@ const WhatWorksPanel: React.FC = () => {
   const fetchDecisions = useCallback(async () => {
     try {
       const token = await getToken();
-      const data = await api.quantLearningDecisions(60, 'live', token);
+      const data = await api.quantLearningDecisions(60, 'live', undefined, token);
       setDecisions(Array.isArray(data) ? data : []);
       setLastUpdated(new Date());
     } catch {
@@ -689,6 +957,9 @@ const WhatWorksPanel: React.FC = () => {
 
       {/* ── Paper Wallet Simulation ── */}
       <PaperWalletSimCard />
+
+      {/* ── AI Judgment test panel ── */}
+      <AiJudgmentPanel />
 
       {/* ── Header + disclaimer ── */}
       <div>
