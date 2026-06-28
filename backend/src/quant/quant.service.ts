@@ -60,9 +60,10 @@ export class QuantService implements OnApplicationBootstrap {
     setTimeout(() => this.autoTick().catch(() => {}), 8000);
   }
 
-  /** Search/list tradeable Polymarket markets (with outcome tokenIds + prices). */
+  /** Search/list tradeable Polymarket markets (with outcome tokenIds + prices).
+   * Query hits Polymarket's full public-search catalog; no query = top markets by volume. */
   markets(query?: string) {
-    return this.pm.searchMarkets(query, 30);
+    return this.pm.searchMarkets(query, 120);
   }
 
   /**
