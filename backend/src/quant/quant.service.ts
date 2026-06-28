@@ -485,7 +485,9 @@ export class QuantService implements OnApplicationBootstrap {
         const addr = String(t.proxyWallet || '').toLowerCase();
         const price = Number(t.price);
         if (!focusMap.has(addr)) return false; // qualified wallets only
-        if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.05 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
+        // HARD price floor 0.25 — bands <0.20 lose -100%/-33% across every pass; the learned
+        // gate could otherwise override the 0.30 prior on a falsely-positive bucket. Guard it.
+        if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.25 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
         const focus = focusMap.get(addr);
         const b = ev.get(this.bucketKey(focus, price));
         // Learned (forward) EV where we have enough real samples; otherwise fall back to the
