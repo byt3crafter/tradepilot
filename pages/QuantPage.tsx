@@ -8,6 +8,7 @@ import QuantTerminal from '../components/quant/QuantTerminal';
 import AiQuantPanel from '../components/quant/AiQuantPanel';
 import WhatWorksPanel from '../components/quant/WhatWorksPanel';
 import QuantArbPanel from '../components/quant/QuantArbPanel';
+import QuantSignalsPanel from '../components/quant/QuantSignalsPanel';
 import PolymarketTradePanel, { TradePrefill } from '../components/trade/PolymarketTradePanel';
 import {
   Panel,
@@ -20,7 +21,7 @@ import {
 } from '../components/ui';
 import type { Segment } from '../components/ui';
 
-type QuantMode = 'leaderboard' | 'terminal' | 'trade' | 'learning' | 'arbitrage';
+type QuantMode = 'signals' | 'leaderboard' | 'terminal' | 'trade' | 'learning' | 'arbitrage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
 // ─── Mode segments ────────────────────────────────────────────────────────────
 
 const MODE_SEGMENTS: Segment<QuantMode>[] = [
+  { value: 'signals',     label: 'Signals' },
   { value: 'leaderboard', label: 'Leaderboard' },
   { value: 'terminal',    label: 'Terminal' },
   { value: 'trade',       label: 'Trade' },
@@ -680,7 +682,7 @@ const QuantPage: React.FC = () => {
   const { getToken } = useAuth();
 
   const [mode, setModeRaw] = useState<QuantMode>(() => {
-    try { return (localStorage.getItem('jtp.quantMode') as QuantMode) || 'leaderboard'; } catch { return 'leaderboard'; }
+    try { return (localStorage.getItem('jtp.quantMode') as QuantMode) || 'signals'; } catch { return 'signals'; }
   });
   const setMode = (m: QuantMode) => {
     setModeRaw(m);
@@ -778,7 +780,11 @@ const QuantPage: React.FC = () => {
         onChange={setMode}
       />
 
-      {mode === 'terminal' ? (
+      {mode === 'signals' ? (
+        /* ── Signals — the "what to buy now" board ── */
+        <QuantSignalsPanel onTrade={handleArbTrade} />
+
+      ) : mode === 'terminal' ? (
         /* ── Terminal — dense existing dashboard, harmonised tokens ── */
         <QuantTerminal />
 
