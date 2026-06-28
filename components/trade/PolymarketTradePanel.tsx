@@ -10,6 +10,7 @@ import {
 import { PmPosition, PolymarketMarket, PolymarketOutcome } from '../../types';
 import api from '../../services/api';
 import { Panel, Badge, Button, EmptyState } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Polygon mainnet constants (chainId 137) ─────────────────────────────────
 const CHAIN_ID = 137;
@@ -159,6 +160,8 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [placeResult, setPlaceResult] = useState<string | null>(null);
+
+  const { getToken } = useAuth();
 
   const hasWallet = !!getEthereum();
   const onPolygon = chainId === CHAIN_ID;
@@ -410,7 +413,8 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
     setLoadingMarkets(true);
     setMarketsError(null);
     try {
-      const data = await api.quantMarkets(q);
+      const token = await getToken();
+      const data = await api.quantMarkets(q, token);
       setMarkets(data);
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setMarketsError(e?.message || 'Could not load markets. Please try again.');
@@ -418,7 +422,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
     } finally {
       setLoadingMarkets(false);
     }
-  }, []);
+  }, [getToken]);
 
   // Load trending markets on mount
   useEffect(() => {
@@ -639,17 +643,6 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
         ════════════════════════════════════════════════════════════ */}
         <main className="flex-1 min-w-0 flex flex-col gap-3">
 
-          {/* Disclaimer banner */}
-          <div className="rounded-[2px] border border-[rgba(229,99,95,0.35)] bg-[rgba(229,99,95,0.08)] px-4 py-3">
-            <p className="text-jtp-md font-semibold text-jtp-loss font-mono">
-              Live trading — real funds on Polygon mainnet
-            </p>
-            <p className="text-jtp-base-minus text-jtp-textMuted mt-1 leading-relaxed">
-              Non-custodial: you sign every action with your own wallet. JTradePilot never holds your
-              keys or funds. Orders place real trades on Polymarket using your USDC.e.
-            </p>
-          </div>
-
           {/* Trade ticket — appears when an outcome is selected */}
           {selectedOutcome && selectedMarket ? (
             <div
@@ -775,6 +768,13 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
                     </p>
                   )}
                 </div>
+
+                {/* ── WHAT THIS MEANS ── */}
+                <WhatThisMeansBox
+                  side={side}
+                  outcome={selectedOutcome}
+                  cost={cost}
+                />
 
                 {/* Order summary */}
                 <div className="rounded-[2px] border border-jtp-border bg-jtp-bg overflow-hidden">
@@ -1271,6 +1271,87 @@ const MarketCardCompact: React.FC<MarketCardProps> = ({ market, selectedOutcomeI
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── What This Means box ──────────────────────────────────────────────────────
+
+interface WhatThisMeansBoxProps {
+  side: SideValue;
+  outcome: PolymarketOutcome;
+  cost: number;
+}
+
+const WhatThisMeansBox: React.FC<WhatThisMeansBoxProps> = ({ side, outcome, cost }) => {
+  const p = outcome.price; // 0..1
+  const pCents = Math.round(p * 100);
+  const profitPct = p > 0 ? ((1 - p) / p * 100).toFixed(0) : '—';
+
+  let mainLine: React.ReactNode;
+  if (side === 'BUY') {
+    mainLine = (
+      <>
+        You're buying{' '}
+        <span className="font-semibold text-jtp-text">{outcome.label}</span>{' '}
+        at{' '}
+        <span className="font-mono text-jtp-text">{pCents}¢</span>.{' '}
+        The market implies a{' '}
+        <span className="font-mono text-jtp-text">{pCents}% chance</span>{' '}
+        it happens. If it resolves YES you receive{' '}
+        <span className="font-mono text-jtp-profit">$1.00/share</span>{' '}
+        — that's{' '}
+        <span className="font-mono text-jtp-profit">+{profitPct}%</span>{' '}
+        on your cost. If it resolves NO you lose your stake.
+      </>
+    );
+  } else {
+    mainLine = (
+      <>
+        You're selling{' '}
+        <span className="font-semibold text-jtp-text">{outcome.label}</span>{' '}
+        at{' '}
+        <span className="font-mono text-jtp-text">{pCents}¢</span>{' '}
+        — you profit if it does <span className="font-semibold text-jtp-text">NOT</span>{' '}
+        happen / the price falls.
+      </>
+    );
+  }
+
+  let contextLine: React.ReactNode;
+  if (p >= 0.85) {
+    contextLine = (
+      <>
+        ⚡ Near-certain favourite (settlement-lag style): small edge, high hit-rate — the gap to{' '}
+        <span className="font-mono">$1.00</span> is your return if it resolves as expected.
+        High-probability, not guaranteed.
+      </>
+    );
+  } else if (p <= 0.20) {
+    contextLine = (
+      <>
+        ⚠️ Longshot: big payout but low hit-rate — only bet if you believe the crowd underprices it.
+      </>
+    );
+  } else {
+    contextLine = (
+      <>
+        Balanced market — bet only if you think the true probability differs from{' '}
+        <span className="font-mono">{pCents}%</span>.
+      </>
+    );
+  }
+
+  return (
+    <div className="rounded-[2px] border border-jtp-border bg-jtp-bg overflow-hidden">
+      <div className="px-3 py-2 border-b border-jtp-borderSubtle flex items-center gap-1.5">
+        <span className="text-[#e8a23d] text-jtp-xs font-mono select-none">▸</span>
+        <span className="jtp-label text-jtp-2xs">WHAT THIS MEANS</span>
+      </div>
+      <div className="px-3 py-2.5 space-y-2">
+        <p className="text-jtp-xs text-jtp-textMuted leading-relaxed">{mainLine}</p>
+        <p className="text-jtp-xs text-jtp-textDim leading-relaxed font-mono">{contextLine}</p>
       </div>
     </div>
   );
