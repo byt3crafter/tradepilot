@@ -470,7 +470,9 @@ export class QuantService implements OnApplicationBootstrap {
     const trades = await this.pm.recentTrades(200);
     if (!trades.length) return 0;
     const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
-    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true }, select: { address: true, marketFocus: true } });
+    // Measured (forward): wallets with edgeLcb ≥ 0.10 LOSE (-9 to -34%) — extreme historical
+    // edge is overfit/survivorship that reverts; edgeLcb < 0.10 wins (+8 to +95%). Cap the edge.
+    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true, edgeLcb: { lte: 0.10 } }, select: { address: true, marketFocus: true } });
     const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
     const ev = await this.getEvTable();
     const MIN_SAMPLE = 12, EV_THRESHOLD = 2; // roiPct units (≈ fee buffer)
