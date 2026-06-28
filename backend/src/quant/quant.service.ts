@@ -719,6 +719,44 @@ export class QuantService implements OnApplicationBootstrap {
   }
 
   /**
+   * SIGNALS — the single "what to buy now" board. Aggregates the engine's live, actionable
+   * edges (AI-judgment open calls + settlement-lag arbs) into one ranked list with a tradeable
+   * tokenId, so the user can act manually in one click. The learning loops keep running behind it.
+   */
+  async signals() {
+    const aiRows = await this.prisma.agentDecision.findMany({
+      where: { kind: 'paper_copy', mode: 'ai_judgment', outcome: null },
+      orderBy: { createdAt: 'desc' }, take: 40,
+    });
+    const ai = aiRows.map((d) => {
+      const m: any = d.meta || {};
+      const entry = Number(m.entryPrice) || 0;
+      const trueP = Number(m.aiTrueProb) || 0;
+      return {
+        type: 'ai' as const, title: m.title || d.market || '', action: 'BUY',
+        outcome: m.outcome || '', priceCents: Math.round(entry * 100),
+        edgePct: +(((trueP - entry) * 100)).toFixed(0),
+        detail: `AI ${Math.round(trueP * 100)}% vs crowd ${Math.round(entry * 100)}%`,
+        confidence: m.confidence ?? null, reason: d.rationale || '',
+        tokenId: m.tokenId || null, price: entry, conditionId: d.market,
+      };
+    });
+    let arbs: any[] = [];
+    try {
+      const scan = await this.scanArbs();
+      arbs = (scan.settlementLag || []).map((a: any) => ({
+        type: 'arb' as const, title: a.title, action: 'BUY', outcome: a.outcome,
+        priceCents: Math.round(a.price * 100), edgePct: a.edgePct,
+        detail: 'settlement-lag · ends soon', confidence: null,
+        reason: `Near-certain favourite at ${Math.round(a.price * 100)}¢ — collect the gap to $1.00 (after fees +${a.edgePct}%). High-probability, not guaranteed.`,
+        tokenId: a.tokenId || null, price: a.price, conditionId: a.conditionId,
+      }));
+    } catch { /* arbs optional */ }
+    const all = [...ai, ...arbs].sort((x, y) => (y.edgePct || 0) - (x.edgePct || 0));
+    return { signals: all.slice(0, 40), generatedAt: Date.now() };
+  }
+
+  /**
    * THE CONTRARIAN EDGE — AI judgment vs the crowd. Bots win on speed in liquid markets;
    * we win on JUDGMENT in slow, narrative-driven, manipulable markets (politics/geopolitics)
    * where the crowd is emotional, there's no sharp book to arb, and bots have no opinion.
@@ -743,8 +781,8 @@ export class QuantService implements OnApplicationBootstrap {
     }).slice(0, maxMarkets);
     let created = 0;
     for (const m of cands) {
-      let pr: number[] = [], oc: string[] = [];
-      try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); oc = JSON.parse(m.outcomes || '[]'); } catch { continue; }
+      let pr: number[] = [], oc: string[] = [], tk: string[] = [];
+      try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); oc = JSON.parse(m.outcomes || '[]'); tk = JSON.parse(m.clobTokenIds || '[]'); } catch { continue; }
       const system = 'You are a sharp, skeptical prediction-market analyst. The CROWD price is the market-implied probability — it is often distorted by narrative, news cycles and emotion. Your edge is finding where the crowd is WRONG. Reason from base rates and real-world knowledge. Respond ONLY with compact JSON: {"trueProb":<0..1 for the FIRST listed outcome>,"mispriced":<bool>,"confidence":<0..1>,"side":"<exact outcome text you would bet>","reason":"<=140 chars"}.';
       const input = `Market: ${m.question}\nOutcomes: ${oc.join(' | ')}\nCrowd: ${oc.map((o, i) => `${o}=${(pr[i] * 100).toFixed(0)}%`).join(', ')}\nResolves: ${m.endDate}\nWhere is the crowd wrong? JSON only.`;
       let text = '';
@@ -762,7 +800,7 @@ export class QuantService implements OnApplicationBootstrap {
           data: {
             extKey: `ai:${m.conditionId}:${oi}`, mode: 'ai_judgment', kind: 'paper_copy', subjectAddr: null, market: m.conditionId, action: 'BUY',
             rationale: `AI judgment: ${oc[oi]} @ ${(entry * 100).toFixed(0)}¢ (AI says ${(trueProbSide * 100).toFixed(0)}%) — ${String(j.reason || '').slice(0, 140)}`.slice(0, 300),
-            meta: { type: 'ai_judgment', outcomeIndex: oi, entryPrice: entry, title: m.question, outcome: oc[oi], aiTrueProb: trueProbSide, confidence: Number(j.confidence), ts: Math.floor(now / 1000) },
+            meta: { type: 'ai_judgment', outcomeIndex: oi, entryPrice: entry, title: m.question, outcome: oc[oi], tokenId: tk[oi] || null, aiTrueProb: trueProbSide, confidence: Number(j.confidence), ts: Math.floor(now / 1000) },
           },
         });
         created++;
