@@ -754,6 +754,12 @@ export interface QuantDecision {
   status: 'win' | 'loss' | 'pending';
   roiPct: number | null;
   resolvedAt: string | null;
+  /** Decision mode: 'ai_judgment' for AI-sourced bets, undefined/null for wallet copy */
+  mode?: string | null;
+  /** AI's estimated true probability (0–1) — present when mode='ai_judgment' */
+  aiTrueProb?: number | null;
+  /** AI's reasoning for this bet — present when mode='ai_judgment' */
+  rationale?: string | null;
 }
 
 // --- Quant Simulation ---
