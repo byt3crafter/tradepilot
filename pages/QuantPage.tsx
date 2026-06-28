@@ -7,6 +7,7 @@ import { PmWallet, PmPosition, QuantVerdict } from '../types';
 import QuantTerminal from '../components/quant/QuantTerminal';
 import AiQuantPanel from '../components/quant/AiQuantPanel';
 import WhatWorksPanel from '../components/quant/WhatWorksPanel';
+import QuantArbPanel from '../components/quant/QuantArbPanel';
 import PolymarketTradePanel, { TradePrefill } from '../components/trade/PolymarketTradePanel';
 import {
   Panel,
@@ -19,7 +20,7 @@ import {
 } from '../components/ui';
 import type { Segment } from '../components/ui';
 
-type QuantMode = 'leaderboard' | 'terminal' | 'trade' | 'learning';
+type QuantMode = 'leaderboard' | 'terminal' | 'trade' | 'learning' | 'arbitrage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ const MODE_SEGMENTS: Segment<QuantMode>[] = [
   { value: 'terminal',    label: 'Terminal' },
   { value: 'trade',       label: 'Trade' },
   { value: 'learning',    label: 'What Works' },
+  { value: 'arbitrage',   label: 'Arbitrage' },
 ];
 
 // ─── ChatGPT connection status ─────────────────────────────────────────────────
@@ -692,6 +694,11 @@ const QuantPage: React.FC = () => {
     setMode('trade');
   }, []);
 
+  const handleArbTrade = useCallback((prefill: TradePrefill) => {
+    setTradePrefill(prefill);
+    setMode('trade');
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -779,6 +786,23 @@ const QuantPage: React.FC = () => {
       ) : mode === 'learning' ? (
         /* ── What Works — predictions vs outcomes transparency view ── */
         <WhatWorksPanel />
+
+      ) : mode === 'arbitrage' ? (
+        /* ── Arbitrage — live scanner of cross-market + settlement-lag arbs ── */
+        <>
+          <div>
+            <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
+              Arbitrage Scanner
+            </h1>
+            <p className="text-jtp-lg text-jtp-textMuted mt-1.5 max-w-3xl">
+              Live scan for real arb opportunities on Polymarket — settlement-lag edges and
+              cross-market NegRisk mismatches. Arbs are rare and often close within seconds.
+              Click <span className="text-jtp-text font-medium">Trade</span> to prefill the
+              trade ticket and execute manually.
+            </p>
+          </div>
+          <QuantArbPanel onTrade={handleArbTrade} />
+        </>
 
       ) : (
         /* ── Leaderboard — three-column canvas ── */

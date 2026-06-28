@@ -778,6 +778,41 @@ export interface QuantSimulation {
   note?: string;
 }
 
+// --- Quant Arbitrage Scanner ---
+
+export interface ArbLeg {
+  title: string;
+  yesPrice: number;   // 0..1 implied probability
+  tokenId: string;
+}
+
+export interface CrossMarketArb {
+  type: 'cross';
+  event: string;      // event/group title
+  slug: string;
+  nOutcomes: number;
+  sumYes: number;     // sum of all yes prices (cents, e.g. 95 = 95¢ total = 5¢ edge)
+  edgePct: number;    // edge as a percent, e.g. 5.2
+  legs: ArbLeg[];
+}
+
+export interface SettlementLagArb {
+  type: 'lag';
+  title: string;      // market title
+  slug: string;
+  outcome: string;    // outcome label, e.g. "Yes"
+  price: number;      // 0..1 current market price
+  tokenId: string;
+  edgePct: number;    // edge as a percent
+  endsAt: string;     // ISO datetime of market close
+}
+
+export interface ArbScan {
+  crossMarket: CrossMarketArb[];
+  settlementLag: SettlementLagArb[];
+  scannedAt: string;  // ISO datetime
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
