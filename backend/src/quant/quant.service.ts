@@ -490,10 +490,12 @@ export class QuantService implements OnApplicationBootstrap {
     return resolved;
   }
 
-  /** Aggregate paper performance → "what works" (per wallet + overall). */
+  /** Aggregate paper performance → "what works" (per wallet + overall).
+   * FORWARD/out-of-sample ONLY (excludes the in-sample 'backfill' hindsight) so the
+   * numbers are honest/trustworthy — not survivorship-inflated. */
   async learningStats() {
     const outcomes = await this.prisma.agentOutcome.findMany({
-      where: { decision: { kind: 'paper_copy' } },
+      where: { decision: { kind: 'paper_copy', mode: { not: 'backfill' } } },
       include: { decision: { select: { subjectAddr: true } } },
       take: 5000,
     });
