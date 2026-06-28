@@ -426,6 +426,9 @@ const WalletPopover: React.FC<{ wallet: RankedWallet; anchorRect: DOMRect }> = (
     ['CLOSED · N_EFF', `${fmtNum(wallet.nClosed)} · ${fmtNum(wallet.nEff)}`],
     ['VOLUME', fmtMoney(wallet.volume)],
     ['DEPLOYED', hasInvested ? fmtMoney(wallet.invested!) : '—'],
+    ['P&L', wallet.pnl === undefined || wallet.pnl === null
+      ? '—'
+      : <span className={!wallet.pnl ? 'text-jtp-textMuted' : wallet.pnl > 0 ? 'text-jtp-profit' : 'text-jtp-loss'}>{`${wallet.pnl >= 0 ? '+' : ''}${fmtMoney(wallet.pnl)}`}</span>],
     ['ROI', <span className={roiColor(wallet.roiPct)}>{fmtRoiLabel(wallet.roiPct)}</span>],
     ['FOCUS', wallet.marketFocus
       ? <Badge variant="neutral" size="xs">{wallet.marketFocus}</Badge>
@@ -627,6 +630,18 @@ const WalletDetailCenter: React.FC<{
               ? undefined
               : wallet.roiPct > 0
           }
+        />
+        <StatTile
+          label="P&L"
+          value={
+            wallet.pnl === undefined || wallet.pnl === null
+              ? '—'
+              : `${wallet.pnl >= 0 ? '+' : ''}${fmtMoney(wallet.pnl)}`
+          }
+          valueColor={
+            !wallet.pnl ? 'text-jtp-textMuted' : wallet.pnl > 0 ? 'text-jtp-profit' : 'text-jtp-loss'
+          }
+          subValue="net money made"
         />
       </div>
 
