@@ -9,18 +9,25 @@ interface ViewContextType {
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
-export const ViewProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentView, setCurrentView] = useState<DashboardView>('dashboard');
-  const [currentSubView, setCurrentSubView] = useState<SettingsSubView>('accounts');
+  // Persist the current page across refreshes (the app has no router, so without this
+  // a refresh always drops back to the dashboard).
+  const [currentView, setCurrentView] = useState<DashboardView>(() => {
+    try { return (localStorage.getItem('jtp.view') as DashboardView) || 'dashboard'; } catch { return 'dashboard'; }
+  });
+  const [currentSubView, setCurrentSubView] = useState<SettingsSubView>(() => {
+    try { return (localStorage.getItem('jtp.subView') as SettingsSubView) || 'accounts'; } catch { return 'accounts'; }
+  });
 
   const navigateTo = useCallback((view: DashboardView, subView?: SettingsSubView) => {
-    console.log('[ViewContext] Navigating to:', { view, subView });
     setCurrentView(view);
+    try { localStorage.setItem('jtp.view', view); } catch { /* ignore */ }
     if (subView) {
       setCurrentSubView(subView);
+      try { localStorage.setItem('jtp.subView', subView); } catch { /* ignore */ }
     } else if (view !== 'settings') {
       // Reset sub-view to default if we navigate to a non-settings top-level view
       setCurrentSubView('accounts');
+      try { localStorage.setItem('jtp.subView', 'accounts'); } catch { /* ignore */ }
     }
   }, []);
 
