@@ -415,6 +415,9 @@ export class QuantService implements OnApplicationBootstrap {
   // The engine learns expected ROI per (marketFocus × entry-price-band) bucket and only
   // takes positive-EV signals — so the price-floor / focus-block rules EMERGE from data and
   // self-update. Generalizes to unseen markets via features (baby-brain), not brute force.
+  // Junk/novelty markets that pollute the "politics" tag — never trade these.
+  static readonly NOVELTY = /\bgta\b|grand theft|jesus|\bchrist\b|rapture|second coming|\baliens?\b|extraterrestrial|bigfoot|loch ness|nostradamus/i;
+
   private evCache: { at: number; table: Map<string, { mean: number; n: number; winRate: number }> } | null = null;
   private bucketKey(focus: string | null | undefined, price: number): string {
     const band = Math.min(9, Math.max(0, Math.floor(price * 10)));
@@ -724,10 +727,10 @@ export class QuantService implements OnApplicationBootstrap {
    * tokenId, so the user can act manually in one click. The learning loops keep running behind it.
    */
   async signals() {
-    const aiRows = await this.prisma.agentDecision.findMany({
+    const aiRows = (await this.prisma.agentDecision.findMany({
       where: { kind: 'paper_copy', mode: 'ai_judgment', outcome: null },
-      orderBy: { createdAt: 'desc' }, take: 40,
-    });
+      orderBy: { createdAt: 'desc' }, take: 60,
+    })).filter((d) => !QuantService.NOVELTY.test(String((d.meta as any)?.title || '')));
     const ai = aiRows.map((d) => {
       const m: any = d.meta || {};
       const entry = Number(m.entryPrice) || 0;
@@ -769,8 +772,10 @@ export class QuantService implements OnApplicationBootstrap {
     if (!conn) return 0; // no operator AI connected
     const markets = await this.pm.narrativeMarkets(); // politics/geopolitics/world tags
     const now = Date.now();
+    const NOVELTY = QuantService.NOVELTY;
     const cands = markets.filter((m) => {
       if (m.enableOrderBook === false || m.closed) return false;
+      if (NOVELTY.test(m.question || '')) return false; // skip joke/novelty "before GTA VI" etc.
       let pr: number[] = []; try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { return false; }
       if (pr.length !== 2) return false; // binary only for v1
       const fav = Math.max(...pr);
