@@ -573,9 +573,12 @@ export class QuantService implements OnApplicationBootstrap {
   }
 
   /** Prediction → outcome ledger: each paper decision + what actually happened. */
-  async learningDecisions(limit = 60, sample: 'live' | 'all' = 'live') {
+  async learningDecisions(limit = 60, sample: 'live' | 'all' = 'live', mode?: string) {
+    const where: any = { kind: 'paper_copy' };
+    if (mode) where.mode = mode;                              // exact mode (e.g. 'ai_judgment')
+    else if (sample === 'live') where.mode = { not: 'backfill' }; // all forward: copy + arb + ai
     const rows = await this.prisma.agentDecision.findMany({
-      where: { kind: 'paper_copy', ...(sample === 'live' ? { mode: 'auto' } : {}) },
+      where,
       include: { outcome: true },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), 200),
@@ -594,10 +597,13 @@ export class QuantService implements OnApplicationBootstrap {
         pseudonym: w?.pseudonym ?? null,
         focus: w?.marketFocus ?? null,
         market: d.market,
+        mode: d.mode,                        // auto=copy | arb | ai_judgment
         side: 'BUY',
         outcomeLabel: meta.outcome ?? null,  // which side it bet (Yes/No/team)
         entryPrice: meta.entryPrice ?? null, // at what price
         title: meta.title ?? null,           // the market question (short description)
+        rationale: d.rationale ?? null,      // the AI's / engine's reasoning
+        aiTrueProb: meta.aiTrueProb ?? null, // AI's estimated true prob (ai_judgment)
         status: d.outcome ? (d.outcome.success ? 'win' : 'loss') : 'pending',
         roiPct: d.outcome?.roiPct ?? null,
         resolvedAt: d.outcome?.resolvedAt ?? null,
