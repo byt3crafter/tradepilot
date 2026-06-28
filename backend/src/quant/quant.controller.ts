@@ -28,8 +28,8 @@ export class QuantController {
   }
 
   @Get('learning/decisions')
-  learningDecisions(@Query('limit') limit?: string, @Query('sample') sample?: string) {
-    return this.quant.learningDecisions(limit ? parseInt(limit, 10) : 60, sample === 'all' ? 'all' : 'live');
+  learningDecisions(@Query('limit') limit?: string, @Query('sample') sample?: string, @Query('mode') mode?: string) {
+    return this.quant.learningDecisions(limit ? parseInt(limit, 10) : 60, sample === 'all' ? 'all' : 'live', mode);
   }
 
   @Get('simulation')
