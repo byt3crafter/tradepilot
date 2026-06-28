@@ -721,7 +721,7 @@ export class QuantService implements OnApplicationBootstrap {
    * whether AI judgment actually beats the crowd. Runs on the operator's connected AI.
    */
   async aiMispricingScan(maxMarkets = 6): Promise<number> {
-    const conn = await this.prisma.chatgptConnection.findFirst({ where: { accessToken: { not: null } }, select: { userId: true } });
+    const conn = await this.prisma.chatgptConnection.findFirst({ where: { NOT: { accessToken: null } }, select: { userId: true } });
     if (!conn) return 0; // no operator AI connected
     const markets = await this.pm.narrativeMarkets(); // politics/geopolitics/world tags
     const now = Date.now();
