@@ -415,12 +415,12 @@ export class QuantService implements OnApplicationBootstrap {
   // The engine learns expected ROI per (marketFocus × entry-price-band) bucket and only
   // takes positive-EV signals — so the price-floor / focus-block rules EMERGE from data and
   // self-update. Generalizes to unseen markets via features (baby-brain), not brute force.
-  private evCache: { at: number; table: Map<string, { mean: number; n: number }> } | null = null;
+  private evCache: { at: number; table: Map<string, { mean: number; n: number; winRate: number }> } | null = null;
   private bucketKey(focus: string | null | undefined, price: number): string {
     const band = Math.min(9, Math.max(0, Math.floor(price * 10)));
     return `${focus || 'Mixed'}|${band}`;
   }
-  async getEvTable(): Promise<Map<string, { mean: number; n: number }>> {
+  async getEvTable(): Promise<Map<string, { mean: number; n: number; winRate: number }>> {
     if (this.evCache && Date.now() - this.evCache.at < 30 * 60 * 1000) return this.evCache.table;
     const outs = await this.prisma.agentOutcome.findMany({
       // FORWARD only — training on the 'backfill' (hindsight, winners-only) poisons the model
@@ -433,19 +433,19 @@ export class QuantService implements OnApplicationBootstrap {
     const addrs = [...new Set(outs.map((o) => o.decision?.subjectAddr).filter(Boolean) as string[])];
     const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs } }, select: { address: true, marketFocus: true } });
     const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
-    const acc = new Map<string, { sum: number; n: number }>();
+    const acc = new Map<string, { sum: number; n: number; wins: number }>();
     for (const o of outs) {
       const meta: any = o.decision?.meta || {};
       const price = Number(meta.entryPrice);
       if (!(price > 0 && price < 1)) continue;
       const focus = o.decision?.subjectAddr ? focusMap.get(o.decision.subjectAddr) || 'Mixed' : 'Mixed';
       const key = this.bucketKey(focus, price);
-      const a = acc.get(key) || { sum: 0, n: 0 };
-      a.sum += o.roiPct || 0; a.n++;
+      const a = acc.get(key) || { sum: 0, n: 0, wins: 0 };
+      a.sum += o.roiPct || 0; a.n++; if (o.success) a.wins++;
       acc.set(key, a);
     }
-    const table = new Map<string, { mean: number; n: number }>();
-    for (const [k, v] of acc) table.set(k, { mean: v.sum / v.n, n: v.n });
+    const table = new Map<string, { mean: number; n: number; winRate: number }>();
+    for (const [k, v] of acc) table.set(k, { mean: v.sum / v.n, n: v.n, winRate: v.wins / v.n });
     this.evCache = { at: Date.now(), table };
     return table;
   }
@@ -618,26 +618,40 @@ export class QuantService implements OnApplicationBootstrap {
    */
   async simulate(bankroll = 50, risk = 0.05, sample: 'live' | 'historical' = 'live') {
     const start = Math.max(1, bankroll);
-    const frac = Math.min(Math.max(risk, 0.005), 0.5);
+    const maxFrac = Math.min(Math.max(risk, 0.005), 0.5); // the risk slider = MAX bet cap
     const FEE = 0.02; // per-trade fee + slippage haircut (fraction of stake)
     const modeFilter = sample === 'historical' ? { mode: 'backfill' } : { mode: { not: 'backfill' } };
     const outs = await this.prisma.agentOutcome.findMany({
       where: { decision: { kind: 'paper_copy', ...modeFilter } },
-      include: { decision: { select: { meta: true } } },
+      include: { decision: { select: { meta: true, subjectAddr: true } } },
       take: 5000,
     });
+    // learned EV table + wallet focus → per-trade Kelly sizing
+    const ev = await this.getEvTable();
+    const addrs = [...new Set(outs.map((o) => o.decision?.subjectAddr).filter(Boolean) as string[])];
+    const fwallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs } }, select: { address: true, marketFocus: true } });
+    const focusMap = new Map(fwallets.map((w) => [w.address, w.marketFocus]));
     const items = outs
       .map((o) => {
         const meta: any = o.decision?.meta || {};
         const ts = Number(meta.ts) ? Number(meta.ts) * 1000 : o.resolvedAt?.getTime() || 0;
-        return { ts, roi: (o.roiPct || 0) / 100, win: !!o.success };
+        const price = Number(meta.entryPrice) || 0;
+        const focus = o.decision?.subjectAddr ? focusMap.get(o.decision.subjectAddr) || 'Mixed' : 'Mixed';
+        return { ts, roi: (o.roiPct || 0) / 100, win: !!o.success, price, focus };
       })
       .sort((a, b) => a.ts - b.ts);
     let bal = start, peak = start, maxDD = 0, wins = 0;
     const curve: { t: number; balance: number }[] = [];
     for (const it of items) {
-      const stake = bal * frac;
-      bal = Math.max(0, bal + stake * it.roi - stake * FEE); // pnl minus fee/slippage
+      // Fractional-Kelly: bet proportional to edge (bucket win-rate vs price), capped by the risk slider.
+      let f = maxFrac;
+      const b = ev.get(this.bucketKey(it.focus, it.price));
+      if (b && b.n >= 12 && it.price > 0 && it.price < 0.99) {
+        const kelly = (b.winRate - it.price) / (1 - it.price); // edge / odds
+        f = Math.max(0, Math.min(maxFrac, 0.5 * kelly)); // half-Kelly, capped
+      }
+      const stake = bal * f;
+      bal = Math.max(0, bal + stake * it.roi - stake * FEE);
       if (it.win) wins++;
       peak = Math.max(peak, bal);
       maxDD = Math.max(maxDD, peak > 0 ? (peak - bal) / peak : 0);
@@ -652,11 +666,12 @@ export class QuantService implements OnApplicationBootstrap {
       nTrades: n,
       winRate: n ? wins / n : 0,
       maxDrawdownPct: +(maxDD * 100).toFixed(1),
-      riskFraction: frac,
+      riskFraction: maxFrac,
+      sizing: 'fractional-kelly (edge-proportional, capped by risk)',
       curve: curve.slice(-500),
       note: sample === 'historical'
         ? 'HINDSIGHT backtest — copies the wallets\' own already-won past trades. Optimistic and NOT achievable forward.'
-        : 'Out-of-sample: forward copy signals logged before the market resolved. The honest test.',
+        : 'Out-of-sample, fractional-Kelly sized: bigger bets on higher-edge signals, capped by your risk %.',
     };
   }
 
