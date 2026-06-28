@@ -80,4 +80,9 @@ export class QuantController {
   discover() {
     return this.quant.discover(200);
   }
+
+  @Post('ai-scan')
+  aiScan() {
+    return this.quant.aiMispricingScan(6);
+  }
 }
