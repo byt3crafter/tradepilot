@@ -723,9 +723,8 @@ export class QuantService implements OnApplicationBootstrap {
   async aiMispricingScan(maxMarkets = 6): Promise<number> {
     const conn = await this.prisma.chatgptConnection.findFirst({ where: { accessToken: { not: null } }, select: { userId: true } });
     if (!conn) return 0; // no operator AI connected
-    const markets = await this.pm.activeMarkets(200);
+    const markets = await this.pm.narrativeMarkets(); // politics/geopolitics/world tags
     const now = Date.now();
-    const JUDGMENT = /politic|election|president|war\b|geopolit|government|policy|court|sanction|treaty|nuclear|minister|senate|congress|nominee|resign|impeach|coup|referend|parliament|ceasefire|invasion/i;
     const cands = markets.filter((m) => {
       if (m.enableOrderBook === false || m.closed) return false;
       let pr: number[] = []; try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { return false; }
@@ -734,7 +733,7 @@ export class QuantService implements OnApplicationBootstrap {
       if (!(fav >= 0.10 && fav <= 0.90)) return false; // room to be wrong
       const end = m.endDate ? Date.parse(m.endDate) : NaN;
       if (isNaN(end) || end < now + 24 * 3600 * 1000 || end > now + 45 * 24 * 3600 * 1000) return false; // 1-45d
-      return JUDGMENT.test(`${m.category || ''} ${m.question || ''}`) && Number(m.volumeNum || m.volume || 0) > 5000;
+      return Number(m.volumeNum || m.volume || 0) > 2000;
     }).slice(0, maxMarkets);
     let created = 0;
     for (const m of cands) {

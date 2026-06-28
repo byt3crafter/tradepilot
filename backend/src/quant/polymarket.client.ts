@@ -137,6 +137,27 @@ export class PolymarketClient {
     return Array.isArray(d) ? d : [];
   }
 
+  /** Narrative / judgment markets (politics, geopolitics, world) — where AI judgment, not
+   * speed, is the edge. Pulled from gamma event tags, flattened + deduped by conditionId. */
+  async narrativeMarkets(): Promise<any[]> {
+    const tags = ['politics', 'geopolitics', 'world', 'elections', 'middle-east'];
+    const out: any[] = [];
+    const seen = new Set<string>();
+    for (const tag of tags) {
+      const ev = await this.gget(`https://gamma-api.polymarket.com/events?active=true&closed=false&tag_slug=${tag}&limit=100`);
+      for (const e of Array.isArray(ev) ? ev : []) {
+        for (const m of e.markets || []) {
+          const cid = m.conditionId;
+          if (!cid || seen.has(cid)) continue;
+          seen.add(cid);
+          out.push(m);
+        }
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return out;
+  }
+
   /** End timestamps (ms) per conditionId, via gamma — for short-horizon signal biasing. */
   async marketEndDates(conditionIds: string[]): Promise<Record<string, number>> {
     const out: Record<string, number> = {};
