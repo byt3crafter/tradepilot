@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { QuantService } from './quant.service';
 
 @UseGuards(JwtAccessGuard)
+@SkipThrottle() // quant reads are JWT-guarded polling intelligence endpoints; costly POSTs re-throttled below
 @Controller('quant')
 export class QuantController {
   constructor(private readonly quant: QuantService) {}
@@ -66,21 +68,25 @@ export class QuantController {
     return this.quant.walletPositions(address);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('scan')
   scan(@Body('address') address: string) {
     return this.quant.scanWallet(address);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('verdict')
   verdict(@Body('address') address: string, @Req() req: any) {
     return this.quant.aiVerdict(req.user.sub, address);
   }
 
+  @Throttle({ default: { limit: 4, ttl: 60000 } })
   @Post('discover')
   discover() {
     return this.quant.discover(200);
   }
 
+  @Throttle({ default: { limit: 3, ttl: 120000 } }) // AI calls cost — cap hard
   @Post('ai-scan')
   aiScan() {
     return this.quant.aiMispricingScan(6);
