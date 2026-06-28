@@ -819,6 +819,28 @@ export interface ArbScan {
   scannedAt: string;  // ISO datetime
 }
 
+// --- Quant Signals ("what to buy now") ---
+
+export interface QuantSignal {
+  type: 'ai' | 'arb';
+  title: string;           // market title
+  action: 'BUY';
+  outcome: string;         // outcome label, e.g. "Yes"
+  priceCents: number;      // market price in cents, e.g. 50
+  edgePct: number;         // edge as a percent, e.g. 12.4
+  detail: string;          // short chip text, e.g. "AI 92% vs crowd 50%"
+  confidence?: number;     // 0..1, present for AI signals
+  reason: string;          // 1–2 sentence explanation
+  tokenId: string | null;  // null if not directly tradeable
+  price: number;           // 0..1 implied price (for trade prefill)
+  conditionId?: string;
+}
+
+export interface QuantSignalsResult {
+  signals: QuantSignal[];
+  generatedAt: string;     // ISO datetime
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {

@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -152,6 +152,7 @@ export interface ApiService {
   quantAiScan(token?: string | null): Promise<number>;
   quantSimulation(bankroll: number, risk: number, sample?: 'live' | 'historical', token?: string | null): Promise<QuantSimulation>;
   quantArbs(token?: string | null): Promise<ArbScan>;
+  quantSignals(token?: string | null): Promise<QuantSignalsResult>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -427,6 +428,7 @@ const api: ApiService = {
     return this.get(`/api/quant/simulation?bankroll=${bankroll}&risk=${risk}&sample=${sample ?? 'live'}`, token);
   },
   quantArbs(token?: string | null): Promise<ArbScan> { return this.get('/api/quant/arbs', token); },
+  quantSignals(token?: string | null): Promise<QuantSignalsResult> { return this.get('/api/quant/signals', token); },
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },
