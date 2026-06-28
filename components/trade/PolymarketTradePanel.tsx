@@ -17,6 +17,7 @@ const CHAIN_ID = 137;
 const CHAIN_ID_HEX = '0x89';
 const CLOB_HOST = 'https://clob.polymarket.com';
 const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC.e on Polygon
+const NATIVE_USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'; // Native USDC on Polygon
 const USDC_DECIMALS = 6;
 
 // Exchange (CTF Exchange) address sourced from the clob-client config.
@@ -125,6 +126,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
   const [address, setAddress] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
+  const [nativeUsdcBalance, setNativeUsdcBalance] = useState<string | null>(null);
   const [allowanceRaw, setAllowanceRaw] = useState<bigint | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
@@ -211,16 +213,19 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
     }
   }, [side, allowanceRaw, cost]);
 
-  // ── Read USDC balance + allowance for the exchange ──
+  // ── Read USDC.e + native USDC balances + allowance for the exchange ──
   const refreshBalances = useCallback(async (owner: string, provider: BrowserProvider) => {
     try {
       const usdc = new Contract(USDC_ADDRESS, ERC20_ABI, provider);
-      const [bal, allow] = await Promise.all([
+      const nativeUsdc = new Contract(NATIVE_USDC_ADDRESS, ERC20_ABI, provider);
+      const [bal, allow, nativeBal] = await Promise.all([
         usdc.balanceOf(owner) as Promise<bigint>,
         usdc.allowance(owner, EXCHANGE_ADDRESS) as Promise<bigint>,
+        nativeUsdc.balanceOf(owner) as Promise<bigint>,
       ]);
       setUsdcBalance(formatUnits(bal, USDC_DECIMALS));
       setAllowanceRaw(allow);
+      setNativeUsdcBalance(formatUnits(nativeBal, USDC_DECIMALS));
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setWalletError(`Could not read USDC balance: ${e?.message || e}`);
     }
@@ -1058,6 +1063,36 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
                       <span className="text-jtp-xs text-jtp-textDim font-normal ml-1.5">USDC</span>
                     </div>
                   </div>
+
+                  {/* Native USDC callout — shown when USDC.e is ~0 but native USDC is held */}
+                  {usdcBalance != null &&
+                    nativeUsdcBalance != null &&
+                    parseFloat(usdcBalance) < 0.01 &&
+                    parseFloat(nativeUsdcBalance) >= 0.01 && (
+                    <div className="rounded-[2px] border border-[rgba(232,162,61,0.45)] bg-[rgba(232,162,61,0.08)] px-3 py-3 space-y-1.5">
+                      <p className="text-jtp-xs font-bold font-mono text-jtp-amber uppercase tracking-wider">
+                        Your money is here — wrong token type
+                      </p>
+                      <p className="text-jtp-xs text-jtp-textSoft leading-relaxed">
+                        You hold{' '}
+                        <span className="font-mono font-bold text-jtp-text">
+                          ${parseFloat(nativeUsdcBalance).toFixed(2)} native USDC
+                        </span>
+                        , but Polymarket trades in{' '}
+                        <span className="font-mono font-semibold">USDC.e</span> (bridged).
+                        Swap native USDC → USDC.e on a Polygon DEX (e.g.{' '}
+                        <a
+                          href="https://app.uniswap.org/#/swap?chain=polygon"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-jtp-amber underline underline-offset-2 hover:opacity-80"
+                        >
+                          Uniswap
+                        </a>
+                        ), then your balance will show here and you can trade.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Session init */}
                   {onPolygon && !creds && (
