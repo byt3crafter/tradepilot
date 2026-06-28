@@ -71,6 +71,12 @@ const AppTopBar: React.FC = () => {
   const { currentView, navigateTo } = useView();
   const { requestAddTradeModalOpen } = useUI();
   const { closedTrades } = useTrade();
+  const { quantEnabled } = useAuth();
+
+  const handleConnectWallet = () => {
+    try { localStorage.setItem('jtp.quantMode', 'trade'); } catch { /* ignore */ }
+    navigateTo('quant');
+  };
 
   const meta = VIEW_META[currentView] ?? VIEW_META.dashboard;
 
@@ -142,6 +148,19 @@ const AppTopBar: React.FC = () => {
             {dateRange}
           </span>
         </div>
+      )}
+
+      {/* Connect Wallet — only when the Quant module is enabled */}
+      {quantEnabled && (
+        <button
+          onClick={handleConnectWallet}
+          className="flex items-center gap-[6px] px-[13px] py-[7px] bg-jtp-active hover:bg-jtp-activeHover text-jtp-amber font-mono font-bold tracking-wider uppercase text-[11px] rounded-[2px] border border-jtp-amber/40 cursor-pointer transition-colors flex-shrink-0"
+          aria-label="Connect wallet to trade on Polymarket"
+          title="Connect your Polygon wallet to trade on Polymarket"
+        >
+          <span className="hidden sm:inline">Connect Wallet</span>
+          <span className="sm:hidden">Wallet</span>
+        </button>
       )}
 
       {/* Log Trade */}
