@@ -712,6 +712,70 @@ export class QuantService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * THE CONTRARIAN EDGE — AI judgment vs the crowd. Bots win on speed in liquid markets;
+   * we win on JUDGMENT in slow, narrative-driven, manipulable markets (politics/geopolitics)
+   * where the crowd is emotional, there's no sharp book to arb, and bots have no opinion.
+   * The AI reads each market, estimates the TRUE probability, and we bet (paper) only where
+   * it disagrees with the crowd by a margin. Forward-resolved → an honest track record of
+   * whether AI judgment actually beats the crowd. Runs on the operator's connected AI.
+   */
+  async aiMispricingScan(maxMarkets = 6): Promise<number> {
+    const conn = await this.prisma.chatgptConnection.findFirst({ where: { accessToken: { not: null } }, select: { userId: true } });
+    if (!conn) return 0; // no operator AI connected
+    const markets = await this.pm.activeMarkets(200);
+    const now = Date.now();
+    const JUDGMENT = /politic|election|president|war\b|geopolit|government|policy|court|sanction|treaty|nuclear|minister|senate|congress|nominee|resign|impeach|coup|referend|parliament|ceasefire|invasion/i;
+    const cands = markets.filter((m) => {
+      if (m.enableOrderBook === false || m.closed) return false;
+      let pr: number[] = []; try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { return false; }
+      if (pr.length !== 2) return false; // binary only for v1
+      const fav = Math.max(...pr);
+      if (!(fav >= 0.10 && fav <= 0.90)) return false; // room to be wrong
+      const end = m.endDate ? Date.parse(m.endDate) : NaN;
+      if (isNaN(end) || end < now + 24 * 3600 * 1000 || end > now + 45 * 24 * 3600 * 1000) return false; // 1-45d
+      return JUDGMENT.test(`${m.category || ''} ${m.question || ''}`) && Number(m.volumeNum || m.volume || 0) > 5000;
+    }).slice(0, maxMarkets);
+    let created = 0;
+    for (const m of cands) {
+      let pr: number[] = [], oc: string[] = [];
+      try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); oc = JSON.parse(m.outcomes || '[]'); } catch { continue; }
+      const system = 'You are a sharp, skeptical prediction-market analyst. The CROWD price is the market-implied probability — it is often distorted by narrative, news cycles and emotion. Your edge is finding where the crowd is WRONG. Reason from base rates and real-world knowledge. Respond ONLY with compact JSON: {"trueProb":<0..1 for the FIRST listed outcome>,"mispriced":<bool>,"confidence":<0..1>,"side":"<exact outcome text you would bet>","reason":"<=140 chars"}.';
+      const input = `Market: ${m.question}\nOutcomes: ${oc.join(' | ')}\nCrowd: ${oc.map((o, i) => `${o}=${(pr[i] * 100).toFixed(0)}%`).join(', ')}\nResolves: ${m.endDate}\nWhere is the crowd wrong? JSON only.`;
+      let text = '';
+      try { text = await this.chatgpt.complete(conn.userId, system, input); } catch { continue; }
+      let j: any; try { j = JSON.parse((text.match(/\{[\s\S]*\}/) || [''])[0]); } catch { continue; }
+      if (!j || !j.mispriced || (Number(j.confidence) || 0) < 0.6) continue;
+      let oi = oc.findIndex((o) => String(o).toLowerCase() === String(j.side || '').toLowerCase());
+      if (oi < 0) oi = Number(j.trueProb) >= 0.5 ? 0 : 1;
+      const entry = pr[oi];
+      if (!(entry > 0.05 && entry < 0.95)) continue;
+      const trueProbSide = oi === 0 ? Number(j.trueProb) : 1 - Number(j.trueProb);
+      if (!(trueProbSide - entry > 0.07)) continue; // require ≥7% edge over the crowd
+      try {
+        await this.prisma.agentDecision.create({
+          data: {
+            extKey: `ai:${m.conditionId}:${oi}`, mode: 'ai_judgment', kind: 'paper_copy', subjectAddr: null, market: m.conditionId, action: 'BUY',
+            rationale: `AI judgment: ${oc[oi]} @ ${(entry * 100).toFixed(0)}¢ (AI says ${(trueProbSide * 100).toFixed(0)}%) — ${String(j.reason || '').slice(0, 140)}`.slice(0, 300),
+            meta: { type: 'ai_judgment', outcomeIndex: oi, entryPrice: entry, title: m.question, outcome: oc[oi], aiTrueProb: trueProbSide, confidence: Number(j.confidence), ts: Math.floor(now / 1000) },
+          },
+        });
+        created++;
+      } catch { /* dup extKey */ }
+    }
+    return created;
+  }
+
+  @Interval('quant-ai-judgment', 4 * 3600 * 1000)
+  async aiJudgmentLoop() {
+    try {
+      const c = await this.aiMispricingScan(6);
+      if (c) this.logger.log(`AI judgment: +${c} mispricing bets recorded (paper)`);
+    } catch (e: any) {
+      this.logger.warn(`ai judgment loop failed: ${e?.message}`);
+    }
+  }
+
   @Interval('quant-paper-loop', 10 * 60 * 1000)
   async paperTick() {
     try {
