@@ -9,6 +9,7 @@ interface ViewContextType {
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
+export const ViewProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Persist the current page across refreshes (the app has no router, so without this
   // a refresh always drops back to the dashboard).
   const [currentView, setCurrentView] = useState<DashboardView>(() => {
