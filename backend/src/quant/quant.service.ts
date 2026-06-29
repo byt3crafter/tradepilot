@@ -467,7 +467,9 @@ export class QuantService implements OnApplicationBootstrap {
   }
 
   async recordPaperSignals(): Promise<number> {
-    const trades = await this.pm.recentTrades(200);
+    // Coverage: Polymarket does far more than 200 trades between 10-min ticks, so a 200-window
+    // misses most copyable qualified-wallet trades. Widen to 500 to capture more +EV signals.
+    const trades = await this.pm.recentTrades(500);
     if (!trades.length) return 0;
     const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
     // Measured (forward): wallets with edgeLcb ≥ 0.10 LOSE (-9 to -34%) — extreme historical
