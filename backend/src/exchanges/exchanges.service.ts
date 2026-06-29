@@ -385,7 +385,9 @@ export class ExchangesService {
     if (cfg.mode !== 'auto' || cfg.killSwitch) return;
     let a: any;
     try { a = await this.tradeAdapter(exchange); } catch { return; }
-    const prices = new Map((await this.snapshot(exchange)).map((r) => [r.symbol, r.last]));
+    // monitor in the ACCOUNT venue's price space (testnet/live) so entry fills + exit checks match
+    let prices = new Map<string, number>();
+    try { prices = await a.getSpotPrices(); } catch { prices = new Map((await this.snapshot(exchange)).map((r) => [r.symbol, r.last])); }
     const now = Date.now();
     // manage exits
     const open = await this.prisma.cexBotTrade.findMany({ where: { exchange, status: 'open' } });
