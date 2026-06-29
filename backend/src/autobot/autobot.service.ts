@@ -11,7 +11,13 @@ const USDCE = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC.e (Polymarke
 const ERC20 = [
   'function balanceOf(address) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
 ];
+// Polymarket exchange contracts (Polygon) — USDC.e must be approved for these to BUY.
+const CTF_EXCHANGE = '0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E';
+const NEG_RISK_EXCHANGE = '0xC5d563A36AE78145C45a50134d48A1215220f80a';
+const NEG_RISK_ADAPTER = '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296';
 
 /**
  * Autonomous Polymarket bot. Trades from an ISOLATED per-user wallet (server-signed) so the
@@ -217,20 +223,44 @@ export class AutobotService {
    * Place a real CLOB order from the agent wallet. Server-side signing via ethers.
    * Lazy-imports the CLOB client so a bad/missing dep can't break the whole app.
    */
+  /** One-time: approve USDC.e for Polymarket's exchanges so the bot's BUYs can settle. */
+  private async ensureAllowances(wallet: ethers.Wallet) {
+    const usdc = new ethers.Contract(USDCE, ERC20, wallet);
+    const owner = await wallet.getAddress();
+    const need = ethers.parseUnits('1000000', 6);
+    for (const spender of [CTF_EXCHANGE, NEG_RISK_EXCHANGE, NEG_RISK_ADAPTER]) {
+      const cur: bigint = await usdc.allowance(owner, spender);
+      if (cur < need) {
+        const tx = await usdc.approve(spender, ethers.MaxUint256);
+        await tx.wait();
+        this.logger.log(`autobot ${owner}: approved USDC.e for ${spender}`);
+      }
+    }
+  }
+
   private async placeOrder(w: any, tokenId: string, price: number, sizeUsd: number): Promise<string> {
-    const signer = this.signer(w.encPrivKey);
+    const wallet = this.signer(w.encPrivKey);
+    await this.ensureAllowances(wallet); // first BUY sets approvals (one-time)
     // dynamic import keeps clob-client out of the hot path unless actually trading
     const clobMod: any = await import('@polymarket/clob-client');
     const { ClobClient, Side, OrderType } = clobMod;
     const host = 'https://clob.polymarket.com';
+    // clob-client v5.8.1 mis-detects ethers v6 (has signTypedData) as a viem wallet → fails.
+    // Wrap as a v5-style signer (_signTypedData + getAddress) so it uses the ethers path.
+    const clobSigner: any = {
+      getAddress: () => wallet.getAddress(),
+      _signTypedData: (d: any, t: any, v: any) => wallet.signTypedData(d, t, v),
+      signMessage: (m: any) => wallet.signMessage(m),
+      provider: wallet.provider,
+    };
     let creds = w.apiCreds;
-    const base = new ClobClient(host, 137, signer as any);
+    const base = new ClobClient(host, 137, clobSigner);
     if (!creds) {
       creds = await base.createOrDeriveApiKey();
       await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { apiCreds: creds } });
     }
-    const client = new ClobClient(host, 137, signer as any, creds);
-    const size = Math.max(1, Math.round(sizeUsd / Math.max(price, 0.01))); // shares
+    const client = new ClobClient(host, 137, clobSigner, creds);
+    const size = Math.max(5, Math.round(sizeUsd / Math.max(price, 0.01))); // shares (min 5)
     const order = await client.createOrder({ tokenID: tokenId, price, side: Side.BUY, size });
     const resp = await client.postOrder(order, OrderType.GTC);
     return resp?.orderID || resp?.orderId || 'submitted';
