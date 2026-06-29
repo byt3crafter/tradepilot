@@ -969,3 +969,82 @@ export interface CryptoPaperTrade {
   closedAt?: string | null;
   meta?: Record<string, unknown> | null;
 }
+
+export interface CryptoMomentumCandidate {
+  symbol: string;
+  base: string;
+  last: number;
+  changePct: number;
+  rangePct: number;
+  volUsd: number;
+  score: number;
+}
+
+export interface CryptoMomentum {
+  exchange: string;
+  count: number;
+  scannedAt: string;
+  candidates: CryptoMomentumCandidate[];
+}
+
+export interface CryptoVolatilityMover {
+  symbol: string;
+  base: string;
+  last: number;
+  changePct: number;
+  rangePct: number;
+  volUsd: number;
+  volRegime: 'high' | 'normal' | 'low';
+}
+
+export interface CryptoVolatility {
+  exchange: string;
+  marketMedianRangePct: number;
+  highVolMarket: boolean;
+  scannedAt: string;
+  movers: CryptoVolatilityMover[];
+}
+
+// ─── Crypto Bot (live exchange execution) ─────────────────────────────────────
+
+export interface CryptoBotStatus {
+  exchange: string;
+  mode: 'off' | 'auto';
+  strategy: string;
+  killSwitch: boolean;
+  limits: { maxPerTradeUsd: number; maxTotalUsd: number };
+  exposureUsd: number;
+  balances: { asset: string; free: number }[] | null;
+  stats: {
+    open: number;
+    resolved: number;
+    wins: number;
+    losses: number;
+    winRate: number;       // 0..1
+    realizedPnlUsd: number;
+  };
+}
+
+export interface CryptoBotTrade {
+  id: string;
+  symbol: string;
+  base: string;
+  side: string;
+  sizeUsd: number;
+  entryPrice: number;
+  qty: number;
+  status: 'open' | 'closed' | 'failed';
+  target?: number | null;
+  stop?: number | null;
+  pnlUsd?: number | null;
+  exitReason?: string | null;
+  error?: string | null;
+  openedAt: string;
+  closedAt?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface CryptoBotPerformance {
+  exchange: string;
+  curve: { t: number; pnl: number }[];
+}

@@ -23,8 +23,8 @@ import {
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Panel, Badge, SegmentedControl, EmptyState, Skeleton, StatTile } from '../components/ui';
-import { CryptoFundingOpp, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade } from '../types';
+import { Panel, Badge, Button, SegmentedControl, EmptyState, Skeleton, StatTile } from '../components/ui';
+import { CryptoFundingOpp, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +32,7 @@ type CryptoTab =
   | 'funding_arb'
   | 'what_works'
   | 'momentum'
+  | 'volatility'
   | 'mean_reversion'
   | 'ai_signals'
   | 'auto_bot'
@@ -272,7 +273,10 @@ const WhatWorksTooltip: React.FC<any> = ({ active, payload }) => {
   );
 };
 
+type WhatWorksStrategy = 'funding' | 'momentum';
+
 const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
+  const [strategy, setStrategy] = useState<WhatWorksStrategy>('funding');
   const [perf, setPerf] = useState<CryptoPerformance | null>(null);
   const [trades, setTrades] = useState<CryptoPaperTrade[]>([]);
   const [loading, setLoading] = useState(false);
@@ -280,14 +284,22 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Reset stale data when strategy switches
+  useEffect(() => {
+    setPerf(null);
+    setTrades([]);
+    setError('');
+    setLastUpdated(null);
+  }, [strategy]);
+
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError('');
     try {
       const [perfData, tradesData] = await Promise.all([
-        api.exchangesPerformance('funding', token),
-        api.exchangesPaperTrades('funding', 60, token),
+        api.exchangesPerformance(strategy, token),
+        api.exchangesPaperTrades(strategy, 60, token),
       ]);
       setPerf(perfData);
       setTrades(tradesData);
@@ -297,7 +309,7 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, strategy]);
 
   useEffect(() => {
     load();
@@ -318,9 +330,25 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
     </span>
   ) : null;
 
+  const panelLabel = strategy === 'funding' ? 'WHAT WORKS — FUNDING ARB' : 'WHAT WORKS — MOMENTUM';
+
+  const strategyControl = (
+    <SegmentedControl
+      segments={[
+        { value: 'funding', label: 'Funding' },
+        { value: 'momentum', label: 'Momentum' },
+      ]}
+      value={strategy}
+      onChange={(v) => setStrategy(v as WhatWorksStrategy)}
+      size="sm"
+    />
+  );
+
   if (error) {
     return (
-      <Panel label="WHAT WORKS — FUNDING ARB" actions={refreshBadge}>
+      <div className="space-y-4">
+        <div>{strategyControl}</div>
+        <Panel label={panelLabel} actions={refreshBadge}>
         <div className="py-6 text-center">
           <p className="text-jtp-loss text-jtp-md font-mono">{error}</p>
           <button
@@ -331,12 +359,14 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
           </button>
         </div>
       </Panel>
+      </div>
     );
   }
 
   if (loading && !perf) {
     return (
       <div className="space-y-4">
+        <div>{strategyControl}</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} variant="stat" />)}
         </div>
@@ -369,6 +399,9 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
 
   return (
     <div className="space-y-4">
+      {/* ── Strategy toggle ── */}
+      <div>{strategyControl}</div>
+
       {/* ── Stat tiles ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatTile label="OPEN" value={st ? String(st.open) : '—'} valueColor="text-[#e8a23d]" />
@@ -477,7 +510,7 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
 
       {/* ── byBand learning table ── */}
       {(perf?.byBand?.length ?? 0) > 0 && (
-        <Panel label="LEARNING — DOES THE HEADLINE FUNDING ACTUALLY PAY?">
+        <Panel label={strategy === 'funding' ? 'LEARNING — DOES THE HEADLINE FUNDING ACTUALLY PAY?' : 'LEARNING — MOMENTUM BANDS'}>
           <div className="overflow-x-auto">
             <table className="w-full text-jtp-xs font-mono" role="table">
               <thead>
@@ -539,7 +572,11 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
           <div className="px-4 py-4">
             <EmptyState
               title="No paper positions yet"
-              description="Positions open every 30 minutes when the scanner finds qualifying funding opportunities."
+              description={
+                strategy === 'funding'
+                  ? 'Positions open every 30 minutes when the scanner finds qualifying funding opportunities.'
+                  : 'Positions open when momentum signals fire. Market may be ranging right now.'
+              }
             />
           </div>
         ) : (
@@ -549,6 +586,7 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
               const pnlCls = t.pnlUsd > 0 ? 'text-[#3ddc84]' : t.pnlUsd < 0 ? 'text-[#ff5b52]' : 'text-jtp-textMuted';
               const badgeVariant = isOpen ? 'warning' : t.pnlUsd >= 0 ? 'profit' : 'loss';
               const badgeLabel = isOpen ? 'OPEN' : 'CLOSED';
+              const meta = t.meta as { entryPrice?: number; exitReason?: string } | null | undefined;
               return (
                 <div
                   key={t.id}
@@ -558,15 +596,28 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-semibold text-jtp-text text-jtp-sm">{t.symbol}</span>
                       <Badge variant="neutral" size="xs">{t.base}</Badge>
-                      <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
-                        entry {t.entryFundingPct.toFixed(4)}%/8h
-                      </span>
+                      {strategy === 'funding' ? (
+                        <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                          entry {t.entryFundingPct.toFixed(4)}%/8h
+                        </span>
+                      ) : meta?.entryPrice != null ? (
+                        <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                          entry ${meta.entryPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                        </span>
+                      ) : null}
                     </div>
-                    <div className="mt-[3px] font-mono text-jtp-xs text-jtp-textDim tabular-nums">
-                      size{' '}
-                      <span className="text-jtp-textMuted">
-                        ${t.sizeUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    <div className="mt-[3px] flex items-center gap-3 flex-wrap">
+                      <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                        size{' '}
+                        <span className="text-jtp-textMuted">
+                          ${t.sizeUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
                       </span>
+                      {strategy === 'momentum' && meta?.exitReason && (
+                        <span className="font-mono text-jtp-xs text-jtp-textDim">
+                          exit: <span className="text-jtp-textMuted">{meta.exitReason}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
@@ -601,6 +652,873 @@ const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
             No real capital at risk. Once forward-proven, the Auto Bot tab will replicate these positions live.
           </p>
         </div>
+      </Panel>
+    </div>
+  );
+};
+
+// ─── Tab: Momentum ────────────────────────────────────────────────────────────
+
+const MomentumTab: React.FC<{ exchange: string; token: string | null }> = ({ exchange, token }) => {
+  const [scan, setScan] = useState<CryptoMomentum | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api.exchangesMomentum(exchange, token);
+      setScan(data);
+      setLastUpdated(new Date());
+    } catch (e: any) {
+      setError(e.message || 'Failed to load momentum data');
+    } finally {
+      setLoading(false);
+    }
+  }, [exchange, token]);
+
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(load, 30_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [load]);
+
+  const updatedStr = lastUpdated
+    ? lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      {updatedStr && (
+        <span className="font-mono text-jtp-xs text-jtp-textDim">
+          <RefreshIcon className="inline w-3 h-3 mr-1 align-middle" />
+          updated {updatedStr}
+        </span>
+      )}
+      <button
+        onClick={load}
+        disabled={loading}
+        className="font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted transition-colors disabled:opacity-40"
+        aria-label="Refresh momentum data"
+      >
+        {loading ? 'loading...' : 'refresh'}
+      </button>
+    </div>
+  );
+
+  if (error) {
+    return (
+      <Panel label="MOMENTUM SIGNALS" actions={headerActions}>
+        <div className="py-6 text-center">
+          <p className="text-jtp-loss text-jtp-md font-mono">{error}</p>
+          <button onClick={load} className="mt-3 text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted font-mono">retry</button>
+        </div>
+      </Panel>
+    );
+  }
+
+  if (loading && !scan) {
+    return (
+      <Panel label="MOMENTUM SIGNALS" actions={headerActions}>
+        <div className="space-y-3 py-2">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} variant="panel" className="h-14" />)}
+        </div>
+      </Panel>
+    );
+  }
+
+  const candidates = scan?.candidates ?? [];
+
+  return (
+    <div className="space-y-4">
+      <Panel label="MOMENTUM SIGNALS" actions={headerActions}>
+        <p className="text-jtp-xs text-jtp-textDim font-mono leading-relaxed mb-4">
+          Buy-the-trend signals: liquid uptrends, volatility-filtered (parabolic blow-offs excluded).
+          Paper-traded + learning — see What Works.
+        </p>
+        {candidates.length === 0 ? (
+          <EmptyState
+            title="No clean momentum setups right now"
+            description="Market may be ranging or too parabolic. Check back in a few minutes."
+          />
+        ) : (
+          <div>
+            {candidates.map((c, i) => {
+              const changeColor = c.changePct >= 0 ? '#3ddc84' : '#ff5b52';
+              return (
+                <div
+                  key={`${c.symbol}-${i}`}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 py-3 border-b border-jtp-border last:border-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="font-mono font-bold text-jtp-text text-jtp-md">{c.base}</span>
+                      <span className="font-mono text-jtp-xs text-jtp-textDim">{c.symbol}</span>
+                      <span
+                        className="font-mono font-semibold tabular-nums text-jtp-sm"
+                        style={{ color: changeColor }}
+                      >
+                        {c.changePct >= 0 ? '+' : ''}{c.changePct.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 flex-shrink-0 font-mono text-jtp-xs tabular-nums text-jtp-textDim">
+                    <span>range <span className="text-jtp-textMuted">{c.rangePct.toFixed(2)}%</span></span>
+                    <span>vol <span className="text-jtp-textMuted">${(c.volUsd / 1_000_000).toFixed(0)}M</span></span>
+                    <span>last <span className="text-jtp-textMuted">${c.last.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span></span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+};
+
+// ─── Tab: Volatility ──────────────────────────────────────────────────────────
+
+const VolatilityTab: React.FC<{ exchange: string; token: string | null }> = ({ exchange, token }) => {
+  const [scan, setScan] = useState<CryptoVolatility | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api.exchangesVolatility(exchange, token);
+      setScan(data);
+      setLastUpdated(new Date());
+    } catch (e: any) {
+      setError(e.message || 'Failed to load volatility data');
+    } finally {
+      setLoading(false);
+    }
+  }, [exchange, token]);
+
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(load, 30_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [load]);
+
+  const updatedStr = lastUpdated
+    ? lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      {updatedStr && (
+        <span className="font-mono text-jtp-xs text-jtp-textDim">
+          <RefreshIcon className="inline w-3 h-3 mr-1 align-middle" />
+          updated {updatedStr}
+        </span>
+      )}
+      <button
+        onClick={load}
+        disabled={loading}
+        className="font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted transition-colors disabled:opacity-40"
+        aria-label="Refresh volatility data"
+      >
+        {loading ? 'loading...' : 'refresh'}
+      </button>
+    </div>
+  );
+
+  if (error) {
+    return (
+      <Panel label="VOLATILITY" actions={headerActions}>
+        <div className="py-6 text-center">
+          <p className="text-jtp-loss text-jtp-md font-mono">{error}</p>
+          <button onClick={load} className="mt-3 text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted font-mono">retry</button>
+        </div>
+      </Panel>
+    );
+  }
+
+  if (loading && !scan) {
+    return (
+      <Panel label="VOLATILITY" actions={headerActions}>
+        <div className="space-y-3 py-2">
+          {[...Array(8)].map((_, i) => <Skeleton key={i} variant="panel" className="h-10" />)}
+        </div>
+      </Panel>
+    );
+  }
+
+  const movers = scan?.movers ?? [];
+  const isHigh = scan?.highVolMarket ?? false;
+  const regimeBannerColor = isHigh ? '#e8a23d' : '#3ddc84';
+  const regimeBg = isHigh ? 'rgba(232,162,61,0.08)' : 'rgba(61,220,132,0.06)';
+
+  const volRegimeBadgeVariant = (regime: 'high' | 'normal' | 'low') => {
+    if (regime === 'high') return 'warning' as const;
+    if (regime === 'low') return 'info' as const;
+    return 'neutral' as const;
+  };
+
+  return (
+    <div className="space-y-4">
+      <Panel label="VOLATILITY" actions={headerActions}>
+        {/* Market regime banner */}
+        {scan && (
+          <div
+            className="mb-4 rounded-[2px] px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2"
+            style={{ background: regimeBg, border: `1px solid ${regimeBannerColor}30` }}
+            aria-label={`Market volatility regime: ${isHigh ? 'high' : 'normal'}`}
+          >
+            <span
+              className="font-mono font-bold tracking-widest uppercase"
+              style={{ fontSize: '13px', color: regimeBannerColor, letterSpacing: '0.12em' }}
+            >
+              VOLATILITY: {isHigh ? 'HIGH' : 'NORMAL'}
+            </span>
+            <span className="font-mono text-jtp-xs text-jtp-textDim sm:ml-4">
+              market median 24h range{' '}
+              <span className="text-jtp-textMuted tabular-nums">
+                {scan.marketMedianRangePct.toFixed(2)}%
+              </span>
+            </span>
+          </div>
+        )}
+
+        {/* Movers table */}
+        {movers.length === 0 ? (
+          <EmptyState title="No volatility data" description="No movers returned for this exchange." />
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-jtp-xs font-mono" role="table">
+                <thead>
+                  <tr className="border-b border-jtp-border">
+                    <th scope="col" className="text-left py-2 pr-4 text-jtp-textDim font-normal tracking-wide uppercase">Asset</th>
+                    <th scope="col" className="text-right py-2 pr-4 text-jtp-textDim font-normal tracking-wide uppercase">24h %</th>
+                    <th scope="col" className="text-right py-2 pr-4 text-jtp-textDim font-normal tracking-wide uppercase">Range %</th>
+                    <th scope="col" className="text-left py-2 pr-4 text-jtp-textDim font-normal tracking-wide uppercase">Regime</th>
+                    <th scope="col" className="text-right py-2 text-jtp-textDim font-normal tracking-wide uppercase">Vol</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movers.map((m, i) => {
+                    const changeCls = m.changePct >= 0 ? 'text-[#3ddc84]' : 'text-[#ff5b52]';
+                    return (
+                      <tr
+                        key={`${m.symbol}-${i}`}
+                        className="border-b border-jtp-border/50 last:border-0 hover:bg-jtp-raised/50 transition-colors"
+                      >
+                        <td className="py-2 pr-4">
+                          <span className="font-semibold text-jtp-text">{m.base}</span>
+                          <span className="ml-2 text-jtp-textDim text-[10px]">{m.symbol}</span>
+                        </td>
+                        <td className={`py-2 pr-4 text-right tabular-nums font-semibold ${changeCls}`}>
+                          {m.changePct >= 0 ? '+' : ''}{m.changePct.toFixed(2)}%
+                        </td>
+                        <td className="py-2 pr-4 text-right tabular-nums text-jtp-textMuted">
+                          {m.rangePct.toFixed(2)}%
+                        </td>
+                        <td className="py-2 pr-4">
+                          <Badge variant={volRegimeBadgeVariant(m.volRegime)} size="xs">
+                            {m.volRegime.toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="py-2 text-right tabular-nums text-jtp-textMuted">
+                          ${(m.volUsd / 1_000_000).toFixed(0)}M
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-jtp-xs text-jtp-textDim font-mono leading-relaxed">
+              High volatility = bigger moves = more momentum opportunity AND more risk (the bot sizes down in high vol).
+            </p>
+          </>
+        )}
+      </Panel>
+    </div>
+  );
+};
+
+// ─── Tab: Auto Bot ───────────────────────────────────────────────────────────
+
+const BOT_MODE_SEGS: { value: 'off' | 'auto'; label: string }[] = [
+  { value: 'off',  label: 'Manual (off)' },
+  { value: 'auto', label: 'AUTO — bot trades' },
+];
+
+const BotPerfTooltip: React.FC<any> = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const pnl: number = payload[0]?.value ?? 0;
+  const sign = pnl >= 0 ? '+' : '';
+  const color = pnl >= 0 ? '#3ddc84' : '#ff5b52';
+  return (
+    <div
+      style={{ background: '#0d0f12', border: '1px solid #1b2026', borderRadius: 2 }}
+      className="px-3 py-2"
+    >
+      <span className="font-mono text-jtp-xs" style={{ color }}>
+        {sign}${Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+    </div>
+  );
+};
+
+const AutoBotTab: React.FC<{ exchange: string; token: string | null }> = ({
+  exchange,
+  token,
+}) => {
+  const [status, setStatus] = useState<CryptoBotStatus | null>(null);
+  const [trades, setTrades] = useState<CryptoBotTrade[]>([]);
+  const [curve, setCurve] = useState<{ t: number; pnl: number }[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [tradesLoading, setTradesLoading] = useState(false);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const [modeBusy, setModeBusy] = useState(false);
+  const [modeError, setModeError] = useState<string | null>(null);
+  const [killBusy, setKillBusy] = useState(false);
+  const [killErr, setKillErr] = useState<string | null>(null);
+
+  const [maxPerTrade, setMaxPerTrade] = useState('');
+  const [maxTotal, setMaxTotal] = useState('');
+  const [limitsSaving, setLimitsSaving] = useState(false);
+  const [limitsErr, setLimitsErr] = useState<string | null>(null);
+  const [limitsSaved, setLimitsSaved] = useState(false);
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const limitsInitRef = useRef(false);
+
+  // Reset stale data when exchange switches
+  useEffect(() => {
+    setStatus(null);
+    setTrades([]);
+    setCurve([]);
+    setLoadErr(null);
+    setLastUpdated(null);
+    setModeError(null);
+    setKillErr(null);
+    setLimitsErr(null);
+    limitsInitRef.current = false;
+  }, [exchange]);
+
+  const load = useCallback(async (silent = false) => {
+    if (!token) return;
+    if (!silent) setLoading(true);
+    setTradesLoading(!silent);
+    setLoadErr(null);
+    try {
+      const [st, tr, pf] = await Promise.allSettled([
+        api.exchangesBotStatus(exchange, token),
+        api.exchangesBotTrades(exchange, 60, token),
+        api.exchangesBotPerformance(exchange, token),
+      ]);
+
+      if (st.status === 'fulfilled') {
+        setStatus(st.value);
+        if (!limitsInitRef.current) {
+          setMaxPerTrade(String(st.value.limits.maxPerTradeUsd));
+          setMaxTotal(String(st.value.limits.maxTotalUsd));
+          limitsInitRef.current = true;
+        }
+      } else if (!silent) {
+        setLoadErr((st as PromiseRejectedResult).reason?.message || 'Failed to load bot status.');
+      }
+
+      if (tr.status === 'fulfilled') setTrades(Array.isArray(tr.value) ? tr.value : []);
+      if (pf.status === 'fulfilled') setCurve(pf.value.curve ?? []);
+
+      setLastUpdated(new Date());
+    } catch (e: any) {
+      if (!silent) setLoadErr(e?.message || 'Failed to load bot status.');
+    } finally {
+      setLoading(false);
+      setTradesLoading(false);
+    }
+  }, [exchange, token]);
+
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(() => load(true), 10_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [load]);
+
+  const handleModeChange = async (newMode: 'off' | 'auto') => {
+    if (!status || !token || newMode === status.mode) return;
+    setModeBusy(true);
+    setModeError(null);
+    try {
+      const updated = await api.exchangesBotSetMode({ exchange, mode: newMode }, token);
+      setStatus(updated);
+    } catch (e: any) {
+      setModeError(e?.message || 'Failed to change mode.');
+    } finally {
+      setModeBusy(false);
+    }
+  };
+
+  const handleKill = async () => {
+    if (!token) return;
+    setKillBusy(true);
+    setKillErr(null);
+    try {
+      const updated = await api.exchangesBotKill(exchange, token);
+      setStatus(updated);
+    } catch (e: any) {
+      setKillErr(e?.message || 'Kill switch failed.');
+    } finally {
+      setKillBusy(false);
+    }
+  };
+
+  const handleSaveLimits = async () => {
+    if (!token) return;
+    const maxPerTradeUsd = parseFloat(maxPerTrade);
+    const maxTotalUsd = parseFloat(maxTotal);
+    if (isNaN(maxPerTradeUsd) || isNaN(maxTotalUsd)) {
+      setLimitsErr('Enter valid numbers for both limits.');
+      return;
+    }
+    setLimitsSaving(true);
+    setLimitsErr(null);
+    try {
+      const updated = await api.exchangesBotSetLimits({ exchange, maxPerTradeUsd, maxTotalUsd }, token);
+      setStatus(updated);
+      setLimitsSaved(true);
+      setTimeout(() => setLimitsSaved(false), 2000);
+    } catch (e: any) {
+      setLimitsErr(e?.message || 'Failed to save limits.');
+    } finally {
+      setLimitsSaving(false);
+    }
+  };
+
+  const updatedStr = lastUpdated
+    ? lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  // Equity curve derived values
+  const chartData = curve.map(pt => ({ t: pt.t, pnl: pt.pnl }));
+  const hasCurve = chartData.length >= 2;
+  const finalPnl = curve.length > 0 ? curve[curve.length - 1].pnl : 0;
+  const isUp = finalPnl >= 0;
+  const lineColor = isUp ? '#3ddc84' : '#ff5b52';
+  const areaId = isUp ? 'cryptoBotAreaUp' : 'cryptoBotAreaDown';
+
+  const yAxisFormatter = (v: number) => {
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+    return `${sign}$${abs.toFixed(0)}`;
+  };
+
+  // Loading skeleton
+  if (loading && !status) {
+    if (loadErr) {
+      return (
+        <Panel label="AUTO BOT">
+          <p role="alert" className="text-[#ff5b52] font-mono text-jtp-md">{loadErr}</p>
+          <button
+            onClick={() => load()}
+            className="mt-3 font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted"
+          >
+            retry
+          </button>
+        </Panel>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        <Skeleton variant="panel" className="h-12" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} variant="stat" />)}
+        </div>
+        <Skeleton className="h-36 w-full" />
+        <Skeleton variant="panel" className="h-32" />
+      </div>
+    );
+  }
+
+  const st = status;
+  const isAuto = st?.mode === 'auto';
+  const resolved = st?.stats.resolved ?? 0;
+
+  return (
+    <div className="space-y-4">
+
+      {/* Honest banner */}
+      <div
+        className="rounded-[2px] border border-[rgba(232,162,61,0.4)] bg-[rgba(232,162,61,0.06)] px-4 py-3 flex flex-col sm:flex-row sm:items-start gap-2"
+        role="note"
+      >
+        <span className="font-mono text-[#e8a23d] text-jtp-xs font-semibold mt-0.5 flex-shrink-0 uppercase tracking-wider">
+          Testnet — read this
+        </span>
+        <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+          Autonomous momentum execution on the TESTNET account (real orders, fake money).
+          Limits + kill switch enforced. Strategy: vol-filtered spot momentum, proven on paper in What Works.
+        </p>
+      </div>
+
+      {/* Mode toggle */}
+      <Panel label="BOT MODE">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+          <div className="flex-1">
+            <SegmentedControl
+              segments={BOT_MODE_SEGS}
+              value={st?.mode ?? 'off'}
+              onChange={(v) => handleModeChange(v as 'off' | 'auto')}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            {modeBusy && (
+              <span className="font-mono text-jtp-xs text-jtp-textDim">updating…</span>
+            )}
+            {isAuto && (
+              <span
+                className="flex items-center gap-1.5 font-mono text-jtp-xs font-semibold text-[#3ddc84]"
+                aria-live="polite"
+              >
+                <span
+                  className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse"
+                  aria-hidden="true"
+                />
+                BOT LIVE
+              </span>
+            )}
+            {st?.killSwitch && (
+              <Badge variant="loss" size="sm">KILL SWITCH ON</Badge>
+            )}
+          </div>
+        </div>
+        {modeError && (
+          <p role="alert" className="mt-2 text-jtp-xs text-[#ff5b52] font-mono">{modeError}</p>
+        )}
+      </Panel>
+
+      {/* Stat tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <StatTile
+          label="REALIZED P&amp;L"
+          value={
+            st
+              ? st.stats.realizedPnlUsd === 0
+                ? '$0.00'
+                : `${st.stats.realizedPnlUsd >= 0 ? '+' : ''}${fmtUsd(st.stats.realizedPnlUsd)}`
+              : '—'
+          }
+          valueColor={st ? pnlColor(st.stats.realizedPnlUsd) : undefined}
+        />
+        <StatTile
+          label="RIGHT"
+          value={st ? String(st.stats.wins) : '—'}
+          valueColor="text-[#3ddc84]"
+          subValue="trades won"
+        />
+        <StatTile
+          label="WRONG"
+          value={st ? String(st.stats.losses) : '—'}
+          valueColor="text-[#ff5b52]"
+          subValue="trades lost"
+        />
+        <StatTile
+          label="WIN RATE"
+          value={st && resolved > 0 ? fmtPct(st.stats.winRate) : '—'}
+          subValue={st && resolved > 0 ? `${resolved} resolved` : 'no resolved yet'}
+        />
+        <StatTile
+          label="EXPOSURE"
+          value={st ? fmtUsd(st.exposureUsd) : '—'}
+          valueColor="text-jtp-textMuted"
+        />
+        <StatTile
+          label="OPEN"
+          value={st ? String(st.stats.open) : '—'}
+          valueColor="text-[#e8a23d]"
+          subValue="positions"
+        />
+      </div>
+
+      {/* Testnet wallet balances */}
+      {st?.balances && st.balances.length > 0 && (
+        <Panel label="TESTNET WALLET">
+          <div className="flex flex-wrap gap-3">
+            {st.balances.map(b => (
+              <div
+                key={b.asset}
+                className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-2 min-w-[100px]"
+              >
+                <div className="jtp-label text-jtp-2xs mb-0.5">{b.asset}</div>
+                <div
+                  className="font-mono font-bold text-jtp-lg text-jtp-text"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {b.free.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {/* Equity curve */}
+      {st && resolved === 0 ? (
+        <div
+          className="rounded-jtp-sm border border-jtp-borderSubtle flex items-center justify-center"
+          style={{ background: '#090b0d', minHeight: 140 }}
+        >
+          <p className="font-mono text-jtp-xs text-jtp-textFaint text-center max-w-xs px-4">
+            No closed trades yet — equity curve builds as positions close.
+          </p>
+        </div>
+      ) : hasCurve ? (
+        <div
+          className="rounded-jtp-sm overflow-hidden"
+          style={{ background: '#090b0d', height: 140 }}
+          aria-label="Cumulative realized P&L over time"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={lineColor} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={lineColor} stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="t" hide />
+              <YAxis
+                tickFormatter={yAxisFormatter}
+                tick={{ fill: '#565d66', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+              />
+              <RechartsTooltip
+                content={<BotPerfTooltip />}
+                cursor={{ stroke: '#1b2026', strokeWidth: 1 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="pnl"
+                stroke={lineColor}
+                strokeWidth={1.5}
+                fill={`url(#${areaId})`}
+                dot={false}
+                activeDot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : null}
+
+      {/* Limits + kill switch */}
+      <Panel label="LIMITS &amp; KILL SWITCH">
+        <div className="space-y-4">
+          {/* Kill switch */}
+          <div>
+            <Button
+              variant="danger"
+              onClick={handleKill}
+              isLoading={killBusy}
+              disabled={killBusy}
+              className="w-full !py-3 text-jtp-sm font-bold tracking-widest"
+              aria-label="Emergency kill switch — stop all bot activity"
+            >
+              KILL SWITCH — STOP EVERYTHING NOW
+            </Button>
+            {st?.killSwitch && (
+              <p className="mt-1.5 font-mono text-jtp-xs text-[#ff5b52]">
+                Kill switch is active. Bot is halted. Change mode to re-enable.
+              </p>
+            )}
+            {killErr && (
+              <p role="alert" className="mt-1.5 font-mono text-jtp-xs text-[#ff5b52]">{killErr}</p>
+            )}
+          </div>
+
+          {/* Limit inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="jtp-label" htmlFor="bot-max-per-trade">MAX PER TRADE</label>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-jtp-textDim text-jtp-xs">$</span>
+                <input
+                  id="bot-max-per-trade"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={maxPerTrade}
+                  onChange={(e) => setMaxPerTrade(e.target.value)}
+                  className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-2.5 py-1.5 text-jtp-xs font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                  aria-describedby="bot-max-per-trade-help"
+                />
+              </div>
+              <span id="bot-max-per-trade-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
+                Max USD per single trade
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="jtp-label" htmlFor="bot-max-total">MAX TOTAL EXPOSURE</label>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-jtp-textDim text-jtp-xs">$</span>
+                <input
+                  id="bot-max-total"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={maxTotal}
+                  onChange={(e) => setMaxTotal(e.target.value)}
+                  className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-2.5 py-1.5 text-jtp-xs font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                  aria-describedby="bot-max-total-help"
+                />
+              </div>
+              <span id="bot-max-total-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
+                Total open exposure cap
+              </span>
+            </div>
+          </div>
+
+          {limitsErr && (
+            <p role="alert" className="text-jtp-xs text-[#ff5b52] font-mono">{limitsErr}</p>
+          )}
+
+          <Button
+            variant="secondary"
+            onClick={handleSaveLimits}
+            isLoading={limitsSaving}
+            className="w-full"
+          >
+            {limitsSaved ? 'Saved' : limitsSaving ? 'Saving…' : 'Save Limits'}
+          </Button>
+        </div>
+      </Panel>
+
+      {/* Live trades */}
+      <Panel
+        label="LIVE TRADES"
+        noPadding
+        actions={
+          <span
+            className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2"
+            aria-live="polite"
+          >
+            {tradesLoading ? (
+              <span className="text-jtp-textDim">updating…</span>
+            ) : updatedStr ? (
+              <>
+                <span
+                  className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse"
+                  aria-hidden="true"
+                />
+                <span>updated {updatedStr}</span>
+              </>
+            ) : null}
+          </span>
+        }
+      >
+        {trades.length === 0 ? (
+          <div className="px-4 py-4">
+            <EmptyState
+              title="No trades yet"
+              description="Switch to AUTO mode to start. Testnet positions will appear here."
+            />
+          </div>
+        ) : (
+          <div>
+            {trades.map(t => {
+              const isOpen = t.status === 'open';
+              const isFailed = t.status === 'failed';
+              const pnl = t.pnlUsd ?? 0;
+              const pnlCls = pnl > 0 ? 'text-[#3ddc84]' : pnl < 0 ? 'text-[#ff5b52]' : 'text-jtp-textMuted';
+
+              let badgeVariant: 'warning' | 'profit' | 'loss' | 'neutral' = 'warning';
+              let badgeLabel = 'OPEN';
+              if (isFailed) {
+                badgeVariant = 'loss';
+                badgeLabel = 'FAILED';
+              } else if (!isOpen) {
+                badgeVariant = pnl >= 0 ? 'profit' : 'loss';
+                badgeLabel = 'CLOSED';
+              }
+
+              return (
+                <div
+                  key={t.id}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 py-3 border-b border-jtp-border last:border-0 hover:bg-jtp-raised/40 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-semibold text-jtp-text text-jtp-sm">
+                        {t.symbol}
+                      </span>
+                      <Badge variant="neutral" size="xs">{t.base}</Badge>
+                      <Badge
+                        variant={t.side.toLowerCase() === 'buy' ? 'profit' : 'loss'}
+                        size="xs"
+                      >
+                        {t.side.toUpperCase()}
+                      </Badge>
+                      <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                        @ ${t.entryPrice.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 4,
+                        })}
+                      </span>
+                    </div>
+                    <div className="mt-[3px] flex items-center gap-3 flex-wrap">
+                      <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                        size{' '}
+                        <span className="text-jtp-textMuted">
+                          ${t.sizeUsd.toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
+                        </span>
+                      </span>
+                      {t.exitReason && (
+                        <span className="font-mono text-jtp-xs text-jtp-textDim">
+                          exit: <span className="text-jtp-textMuted">{t.exitReason}</span>
+                        </span>
+                      )}
+                      {isFailed && t.error && (
+                        <span className="font-mono text-jtp-xs text-[#ff5b52]">{t.error}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {!isOpen && (
+                      <span
+                        className={`font-mono font-semibold tabular-nums text-jtp-sm ${pnlCls}`}
+                      >
+                        {pnl >= 0 ? '+' : ''}
+                        ${Math.abs(pnl).toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    )}
+                    <Badge variant={badgeVariant} size="xs">{badgeLabel}</Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
     </div>
   );
@@ -740,6 +1658,7 @@ const TAB_LABELS: { value: CryptoTab; label: string }[] = [
   { value: 'funding_arb',    label: 'Funding Arb' },
   { value: 'what_works',     label: 'What Works' },
   { value: 'momentum',       label: 'Momentum' },
+  { value: 'volatility',     label: 'Volatility' },
   { value: 'mean_reversion', label: 'Mean-Rev' },
   { value: 'ai_signals',     label: 'AI Signals' },
   { value: 'auto_bot',       label: 'Auto Bot' },
@@ -811,11 +1730,11 @@ const CryptoPage: React.FC = () => {
       )}
 
       {activeTab === 'momentum' && (
-        <ComingTab
-          title="Momentum"
-          description="Buy spot, ride the trend, sell higher — systematic trend-following on liquid coins. Enters breakouts confirmed by volume and momentum oscillators. Exits on trailing stop or momentum exhaustion."
-          detail="Will be forward-proven on testnet before live activation. Backtest results will be shared alongside live signal performance."
-        />
+        <MomentumTab exchange={activeExchange} token={accessToken} />
+      )}
+
+      {activeTab === 'volatility' && (
+        <VolatilityTab exchange={activeExchange} token={accessToken} />
       )}
 
       {activeTab === 'mean_reversion' && (
@@ -835,11 +1754,7 @@ const CryptoPage: React.FC = () => {
       )}
 
       {activeTab === 'auto_bot' && (
-        <ComingTab
-          title="Auto Bot"
-          description="Flip any proven strategy autonomous — testnet first, then live — with hard position limits, a kill switch, real-time equity monitoring, and win/loss circuit breakers. The same execution engine as the Polymarket auto bot."
-          detail="Every strategy requires a testnet track record before live activation. Hard limits enforced at the exchange API level, not just application logic."
-        />
+        <AutoBotTab exchange={activeExchange} token={accessToken} />
       )}
 
       {activeTab === 'connection' && (

@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -203,6 +203,16 @@ export interface ApiService {
   exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap>;
   exchangesPerformance(strategy?: string, token?: string | null): Promise<CryptoPerformance>;
   exchangesPaperTrades(strategy?: string, limit?: number, token?: string | null): Promise<CryptoPaperTrade[]>;
+  exchangesMomentum(exchange?: string, token?: string | null): Promise<CryptoMomentum>;
+  exchangesVolatility(exchange?: string, token?: string | null): Promise<CryptoVolatility>;
+
+  // Exchanges / Crypto Bot
+  exchangesBotStatus(exchange?: string, token?: string | null): Promise<CryptoBotStatus>;
+  exchangesBotTrades(exchange?: string, limit?: number, token?: string | null): Promise<CryptoBotTrade[]>;
+  exchangesBotPerformance(exchange?: string, token?: string | null): Promise<CryptoBotPerformance>;
+  exchangesBotSetMode(body: { exchange: string; mode: string }, token?: string | null): Promise<CryptoBotStatus>;
+  exchangesBotKill(exchange?: string, token?: string | null): Promise<CryptoBotStatus>;
+  exchangesBotSetLimits(body: { exchange: string; maxPerTradeUsd: number; maxTotalUsd: number }, token?: string | null): Promise<CryptoBotStatus>;
 }
 
 export interface ChatGptPermissions {
@@ -511,6 +521,40 @@ const api: ApiService = {
     if (limit !== undefined) params.set('limit', String(limit));
     const qs = params.toString();
     return this.get(`/api/exchanges/paper-trades${qs ? `?${qs}` : ''}`, token);
+  },
+  exchangesMomentum(exchange?: string, token?: string | null): Promise<CryptoMomentum> {
+    const q = exchange ? `?exchange=${encodeURIComponent(exchange)}` : '';
+    return this.get(`/api/exchanges/momentum${q}`, token);
+  },
+  exchangesVolatility(exchange?: string, token?: string | null): Promise<CryptoVolatility> {
+    const q = exchange ? `?exchange=${encodeURIComponent(exchange)}` : '';
+    return this.get(`/api/exchanges/volatility${q}`, token);
+  },
+
+  // Exchange / Crypto Bot Methods
+  exchangesBotStatus(exchange?: string, token?: string | null): Promise<CryptoBotStatus> {
+    const q = exchange ? `?exchange=${encodeURIComponent(exchange)}` : '';
+    return this.get(`/api/exchanges/bot${q}`, token);
+  },
+  exchangesBotTrades(exchange?: string, limit?: number, token?: string | null): Promise<CryptoBotTrade[]> {
+    const params = new URLSearchParams();
+    if (exchange) params.set('exchange', exchange);
+    if (limit !== undefined) params.set('limit', String(limit));
+    const qs = params.toString();
+    return this.get(`/api/exchanges/bot/trades${qs ? `?${qs}` : ''}`, token);
+  },
+  exchangesBotPerformance(exchange?: string, token?: string | null): Promise<CryptoBotPerformance> {
+    const q = exchange ? `?exchange=${encodeURIComponent(exchange)}` : '';
+    return this.get(`/api/exchanges/bot/performance${q}`, token);
+  },
+  exchangesBotSetMode(body: { exchange: string; mode: string }, token?: string | null): Promise<CryptoBotStatus> {
+    return this.post('/api/exchanges/bot/mode', body, token);
+  },
+  exchangesBotKill(exchange?: string, token?: string | null): Promise<CryptoBotStatus> {
+    return this.post('/api/exchanges/bot/kill', { exchange }, token);
+  },
+  exchangesBotSetLimits(body: { exchange: string; maxPerTradeUsd: number; maxTotalUsd: number }, token?: string | null): Promise<CryptoBotStatus> {
+    return this.post('/api/exchanges/bot/limits', body, token);
   },
 };
 
