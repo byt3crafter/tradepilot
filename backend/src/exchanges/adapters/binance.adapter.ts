@@ -69,12 +69,25 @@ export class BinanceAdapter implements CexAdapter {
     return j;
   }
 
-  /** Futures account balances — also serves as a connection test. */
+  /** Futures account balances. */
   async getBalances(): Promise<{ asset: string; free: number }[]> {
     const j = await this.signed('GET', 'fapi', '/fapi/v2/balance');
     return (Array.isArray(j) ? j : [])
       .filter((b: any) => Number(b.balance) > 0)
       .map((b: any) => ({ asset: b.asset, free: Number(b.availableBalance) || 0 }));
+  }
+
+  /** Spot account balances — connection test for a Spot (testnet.binance.vision) key. */
+  async getSpotBalances(): Promise<{ asset: string; free: number }[]> {
+    const j = await this.signed('GET', 'spot', '/api/v3/account');
+    return (j?.balances || [])
+      .filter((b: any) => Number(b.free) > 0)
+      .map((b: any) => ({ asset: b.asset, free: Number(b.free) || 0 }));
+  }
+
+  /** Spot market order by USD amount (quoteOrderQty) — for "buy spot" testing. */
+  async placeSpotMarketByQuote(symbol: string, side: 'BUY' | 'SELL', quoteUsd: number): Promise<any> {
+    return this.signed('POST', 'spot', '/api/v3/order', { symbol, side, type: 'MARKET', quoteOrderQty: quoteUsd });
   }
 
   async getPositions(): Promise<any[]> {
