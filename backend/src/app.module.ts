@@ -25,6 +25,7 @@ import { MarketDataModule } from './market-data/market-data.module';
 import { NotebookModule } from './notebook/notebook.module';
 import { CtraderModule } from './ctrader/ctrader.module';
 import { QuantModule } from './quant/quant.module';
+import { AutobotModule } from './autobot/autobot.module';
 import { ChatgptModule } from './chatgpt/chatgpt.module';
 import { AiModule } from './ai/ai.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -71,6 +72,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotebookModule,
     CtraderModule,
     QuantModule,
+    AutobotModule,
     ChatgptModule,
     AiModule,
     ScheduleModule.forRoot(),

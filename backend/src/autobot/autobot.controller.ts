@@ -1,0 +1,44 @@
+import { Controller, Get, Post, Body, Query, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { AutobotService } from './autobot.service';
+
+@UseGuards(JwtAccessGuard)
+@Controller('autobot')
+export class AutobotController {
+  constructor(private readonly bot: AutobotService) {}
+
+  @Get('status')
+  status(@Req() req: any) {
+    return this.bot.status(req.user.sub);
+  }
+
+  @Get('trades')
+  trades(@Req() req: any, @Query('limit') limit?: string) {
+    return this.bot.trades(req.user.sub, limit ? parseInt(limit, 10) : 60);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('mode')
+  mode(@Req() req: any, @Body('mode') mode: string) {
+    return this.bot.setMode(req.user.sub, mode === 'auto' ? 'auto' : 'off');
+  }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('kill')
+  kill(@Req() req: any) {
+    return this.bot.kill(req.user.sub);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('limits')
+  limits(@Req() req: any, @Body() body: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) {
+    return this.bot.setLimits(req.user.sub, body || {});
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('withdraw')
+  withdraw(@Req() req: any, @Body('to') to: string) {
+    return this.bot.withdraw(req.user.sub, to);
+  }
+}

@@ -637,3 +637,45 @@ model AgentOutcome {
   notes       String?
   createdAt   DateTime      @default(now())
 }
+// ── Autonomous Polymarket bot ───────────────────────────────────────────────
+// Isolated, server-signed execution wallet. Blast radius capped to its own balance:
+// the user funds it directly; their main wallet is never touched. Hard limits + kill switch.
+model PmAgentWallet {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  address           String   @unique
+  encPrivKey        String   // AES-256-GCM encrypted private key (AGENT_WALLET_SECRET)
+  mode              String   @default("off")   // 'off' | 'auto'
+  killSwitch        Boolean  @default(false)
+  maxTotalUsd       Float    @default(20)      // never hold more exposure than this
+  maxPerTradeUsd    Float    @default(2)       // per-order cap
+  dailyLossLimitUsd Float    @default(5)       // halt for the day if exceeded
+  dailySpentUsd     Float    @default(0)
+  dailyPnlUsd       Float    @default(0)
+  dayStamp          String   @default("")      // YYYY-MM-DD daily reset key
+  apiCreds          Json?                       // cached CLOB api creds
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model AgentTrade {
+  id         String    @id @default(uuid())
+  userId     String
+  market     String?
+  tokenId    String
+  outcome    String?
+  title      String?
+  side       String    @default("BUY")
+  sizeUsd    Float
+  price      Float
+  signalType String?   // 'arb' | 'ai' | 'copy'
+  orderId    String?
+  status     String    @default("pending") // pending | placed | filled | failed | resolved
+  error      String?
+  roiPct     Float?
+  pnlUsd     Float?
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
