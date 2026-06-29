@@ -13,6 +13,7 @@
  * Polls status + trades every 20 s.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { BrowserProvider, Contract, formatUnits, parseUnits, parseEther } from 'ethers';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AutobotStatus, AutobotTrade } from '../../types';
@@ -293,6 +294,390 @@ const LimitsEditor: React.FC<{
       >
         {saved ? 'Saved' : saving ? 'Saving…' : 'Save Limits'}
       </Button>
+    </div>
+  );
+};
+
+// ─── Web3 constants for bot funding ──────────────────────────────────────────
+
+const BOT_CHAIN_ID = 137;
+const BOT_CHAIN_ID_HEX = '0x89';
+const USDCE_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+const USDCE_DECIMALS = 6;
+
+const POLYGON_NET_PARAMS = {
+  chainId: BOT_CHAIN_ID_HEX,
+  chainName: 'Polygon Mainnet',
+  nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
+  rpcUrls: ['https://polygon-rpc.com'],
+  blockExplorerUrls: ['https://polygonscan.com'],
+};
+
+const FUND_ERC20_ABI = [
+  'function balanceOf(address owner) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getEth = (): any => typeof window !== 'undefined' ? (window as any).ethereum : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+const truncAddr = (a: string) => a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
+
+// ─── BotFundPanel ─────────────────────────────────────────────────────────────
+
+interface BotFundPanelProps {
+  botAddress: string;
+  onSuccess: () => void;
+}
+
+type TxStatus = 'idle' | 'pending' | 'success' | 'error';
+
+const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) => {
+  const providerRef = useRef<BrowserProvider | null>(null);
+
+  const [walletAddr, setWalletAddr] = useState<string | null>(null);
+  const [walletChain, setWalletChain] = useState<number | null>(null);
+  const [usdceBal, setUsdceBal] = useState<number>(0);
+  const [polBal, setPolBal] = useState<number>(0);
+  const [connecting, setConnecting] = useState(false);
+  const [walletErr, setWalletErr] = useState<string | null>(null);
+
+  const [amount, setAmount] = useState('');
+  const [fundSt, setFundSt] = useState<TxStatus>('idle');
+  const [fundMsg, setFundMsg] = useState<string | null>(null);
+  const [gasSt, setGasSt] = useState<TxStatus>('idle');
+  const [gasMsg, setGasMsg] = useState<string | null>(null);
+
+  const onPolygon = walletChain === BOT_CHAIN_ID;
+  const hasWallet = !!getEth();
+
+  // ── Read USDC.e + POL balances from user's wallet ──
+  const refreshBalances = useCallback(async (addr: string, provider: BrowserProvider) => {
+    try {
+      const erc20 = new Contract(USDCE_ADDRESS, FUND_ERC20_ABI, provider);
+      const [rawUsdce, rawPol] = await Promise.all([
+        erc20.balanceOf(addr) as Promise<bigint>,
+        provider.getBalance(addr),
+      ]);
+      const usdce = parseFloat(formatUnits(rawUsdce, USDCE_DECIMALS));
+      const pol = parseFloat(formatUnits(rawPol, 18));
+      setUsdceBal(usdce);
+      setPolBal(pol);
+      return usdce;
+    } catch {
+      return 0;
+    }
+  }, []);
+
+  // ── Eager reconnect on mount (eth_accounts — no prompt) ──
+  useEffect(() => {
+    const eth = getEth();
+    if (!eth) return;
+    (async () => {
+      try {
+        const provider = new BrowserProvider(eth);
+        const accounts: string[] = await provider.send('eth_accounts', []);
+        if (!accounts || accounts.length === 0) return;
+        const net = await provider.getNetwork();
+        const addr = accounts[0];
+        providerRef.current = provider;
+        setWalletAddr(addr);
+        setWalletChain(Number(net.chainId));
+        const usdce = await refreshBalances(addr, provider);
+        if (usdce > 0) {
+          setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
+        }
+      } catch {
+        // silently ignore — no prompt, no error shown
+      }
+    })();
+  }, [refreshBalances]);
+
+  // ── React to wallet account / chain changes ──
+  useEffect(() => {
+    const eth = getEth();
+    if (!eth?.on) return;
+
+    const reset = () => {
+      providerRef.current = null;
+      setWalletAddr(null);
+      setWalletChain(null);
+      setUsdceBal(0);
+      setPolBal(0);
+    };
+
+    const reSync = async () => {
+      try {
+        const eth2 = getEth();
+        if (!eth2) return reset();
+        const provider = new BrowserProvider(eth2);
+        const accs: string[] = await provider.send('eth_accounts', []);
+        if (!accs || accs.length === 0) return reset();
+        const net = await provider.getNetwork();
+        providerRef.current = provider;
+        setWalletAddr(accs[0]);
+        setWalletChain(Number(net.chainId));
+        const usdce = await refreshBalances(accs[0], provider);
+        if (usdce > 0) {
+          setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
+        }
+      } catch {
+        reset();
+      }
+    };
+
+    const onAccounts = (accs: string[]) => { if (!accs || accs.length === 0) reset(); else reSync(); };
+    const onChain = () => reSync();
+
+    eth.on('accountsChanged', onAccounts);
+    eth.on('chainChanged', onChain);
+    return () => {
+      eth.removeListener?.('accountsChanged', onAccounts);
+      eth.removeListener?.('chainChanged', onChain);
+    };
+  }, [refreshBalances]);
+
+  // ── Connect wallet + ensure Polygon ──
+  const connect = useCallback(async () => {
+    const eth = getEth();
+    if (!eth) { setWalletErr('No injected wallet detected. Install MetaMask or a Polygon wallet.'); return; }
+    setConnecting(true);
+    setWalletErr(null);
+    try {
+      const provider = new BrowserProvider(eth);
+      await provider.send('eth_requestAccounts', []);
+
+      let net = await provider.getNetwork();
+      if (Number(net.chainId) !== BOT_CHAIN_ID) {
+        try {
+          await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: BOT_CHAIN_ID_HEX }] });
+        } catch (switchErr: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (switchErr?.code === 4902) {
+            await eth.request({ method: 'wallet_addEthereumChain', params: [POLYGON_NET_PARAMS] });
+          } else {
+            throw switchErr;
+          }
+        }
+        net = await provider.getNetwork();
+      }
+
+      const signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+      providerRef.current = provider;
+      setWalletAddr(addr);
+      setWalletChain(Number(net.chainId));
+      const usdce = await refreshBalances(addr, provider);
+      if (usdce > 0) {
+        setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
+      }
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setWalletErr(e?.shortMessage || e?.message || 'Failed to connect wallet.');
+    } finally {
+      setConnecting(false);
+    }
+  }, [refreshBalances]);
+
+  // ── Fund bot: ERC-20 transfer of USDC.e ──
+  const fundBot = async () => {
+    if (!providerRef.current || !walletAddr) return;
+    const amtNum = parseFloat(amount);
+    if (isNaN(amtNum) || amtNum <= 0) { setFundSt('error'); setFundMsg('Enter a valid amount.'); return; }
+    if (amtNum > usdceBal) { setFundSt('error'); setFundMsg('Amount exceeds your USDC.e balance.'); return; }
+
+    setFundSt('pending');
+    setFundMsg(null);
+    try {
+      const signer = await providerRef.current.getSigner();
+      const erc20 = new Contract(USDCE_ADDRESS, FUND_ERC20_ABI, signer);
+      const amtRaw = parseUnits(amtNum.toFixed(USDCE_DECIMALS), USDCE_DECIMALS);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tx = await (erc20.transfer(botAddress, amtRaw) as Promise<any>);
+      await tx.wait();
+      setFundSt('success');
+      setFundMsg(`Sent $${amtNum.toFixed(2)} USDC.e to the bot wallet.`);
+      await refreshBalances(walletAddr, providerRef.current);
+      setTimeout(onSuccess, 3_000);
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setFundSt('error');
+      setFundMsg(e?.shortMessage || e?.message || 'Transfer failed.');
+    }
+  };
+
+  // ── Send gas: 0.5 POL native transfer ──
+  const sendGas = async () => {
+    if (!providerRef.current || !walletAddr) return;
+    setGasSt('pending');
+    setGasMsg(null);
+    try {
+      const signer = await providerRef.current.getSigner();
+      const tx = await signer.sendTransaction({ to: botAddress, value: parseEther('0.5') });
+      await tx.wait();
+      setGasSt('success');
+      setGasMsg('Sent 0.5 POL for gas.');
+      await refreshBalances(walletAddr, providerRef.current);
+      setTimeout(onSuccess, 3_000);
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setGasSt('error');
+      setGasMsg(e?.shortMessage || e?.message || 'Gas send failed.');
+    }
+  };
+
+  // ── Render ──
+
+  if (!hasWallet) {
+    return (
+      <div className="rounded-[2px] border border-jtp-border bg-jtp-bg px-3 py-3">
+        <p className="font-mono text-jtp-xs text-jtp-textMuted">
+          Install MetaMask or a Polygon wallet to fund the bot in one click.
+        </p>
+      </div>
+    );
+  }
+
+  if (!walletAddr) {
+    return (
+      <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-2">
+        <p className="jtp-label">FUND BOT FROM MY WALLET</p>
+        <Button
+          variant="secondary"
+          onClick={connect}
+          isLoading={connecting}
+          className="w-full"
+        >
+          {connecting ? 'Connecting…' : 'Connect wallet'}
+        </Button>
+        {walletErr && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{walletErr}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-3">
+      {/* Header row: label + connected address */}
+      <div className="flex items-center justify-between flex-wrap gap-1">
+        <span className="jtp-label">FUND BOT FROM MY WALLET</span>
+        <span
+          className="inline-flex items-center gap-1.5 font-mono text-jtp-2xs text-jtp-textDim"
+          title={walletAddr}
+        >
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#3ddc84]" aria-hidden="true" />
+          {truncAddr(walletAddr)}
+        </span>
+      </div>
+
+      {/* Wrong-network guard */}
+      {!onPolygon ? (
+        <button
+          type="button"
+          onClick={connect}
+          className="w-full text-jtp-xs font-semibold font-mono px-3 py-2 rounded-[2px] bg-[rgba(255,91,82,0.10)] text-[#ff5b52] border border-[rgba(255,91,82,0.30)] hover:bg-[rgba(255,91,82,0.16)] transition-colors"
+        >
+          Wrong network — switch to Polygon
+        </button>
+      ) : (
+        <>
+          {/* User wallet balances */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-jtp-panel border border-jtp-borderSubtle rounded-[2px] px-2.5 py-2">
+              <div className="jtp-label text-jtp-2xs mb-0.5">YOUR USDC.e</div>
+              <div
+                className="font-mono font-bold text-jtp-xl text-jtp-text"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                ${usdceBal.toFixed(2)}
+              </div>
+            </div>
+            <div className="bg-jtp-panel border border-jtp-borderSubtle rounded-[2px] px-2.5 py-2">
+              <div className="jtp-label text-jtp-2xs mb-0.5">YOUR POL</div>
+              <div
+                className="font-mono font-bold text-jtp-xl text-jtp-text"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                {polBal.toFixed(3)}
+              </div>
+            </div>
+          </div>
+
+          {/* No USDC.e guard */}
+          {usdceBal < 0.01 ? (
+            <p className="font-mono text-jtp-xs text-jtp-textMuted">
+              No USDC.e in your wallet. Bridge or swap to get USDC.e on Polygon first.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="jtp-label text-jtp-2xs" htmlFor="bot-fund-amount">
+                AMOUNT (USDC.e)
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-jtp-textDim text-jtp-xs pointer-events-none">
+                    $
+                  </span>
+                  <input
+                    id="bot-fund-amount"
+                    type="number"
+                    min="0"
+                    max={usdceBal}
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] pl-6 pr-2.5 py-1.5 text-jtp-xs font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+                    aria-label="Amount of USDC.e to send to the bot"
+                  />
+                </div>
+                <Button
+                  variant="primary"
+                  onClick={fundBot}
+                  isLoading={fundSt === 'pending'}
+                  disabled={fundSt === 'pending' || !(parseFloat(amount) > 0) || parseFloat(amount) > usdceBal}
+                  className="whitespace-nowrap !px-3 !py-1.5 text-jtp-xs"
+                >
+                  Fund bot →
+                </Button>
+              </div>
+              {fundSt === 'pending' && (
+                <p className="font-mono text-jtp-xs text-jtp-textDim">Sending… waiting for confirmation.</p>
+              )}
+              {fundSt === 'success' && fundMsg && (
+                <p className="font-mono text-jtp-xs text-[#3ddc84]">{fundMsg}</p>
+              )}
+              {fundSt === 'error' && fundMsg && (
+                <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{fundMsg}</p>
+              )}
+            </div>
+          )}
+
+          {/* Gas top-up */}
+          <div className="border-t border-jtp-borderSubtle pt-2.5 space-y-1.5">
+            <Button
+              variant="secondary"
+              onClick={sendGas}
+              isLoading={gasSt === 'pending'}
+              disabled={gasSt === 'pending' || polBal < 0.5}
+              className="w-full !py-1.5 text-jtp-xs"
+            >
+              Send gas (0.5 POL)
+            </Button>
+            {polBal < 0.5 && walletAddr && (
+              <p className="font-mono text-jtp-2xs text-jtp-textFaint">
+                You need at least 0.5 POL in your wallet to send gas.
+              </p>
+            )}
+            {gasSt === 'pending' && (
+              <p className="font-mono text-jtp-xs text-jtp-textDim">Sending POL… waiting for confirmation.</p>
+            )}
+            {gasSt === 'success' && gasMsg && (
+              <p className="font-mono text-jtp-xs text-[#3ddc84]">{gasMsg}</p>
+            )}
+            {gasSt === 'error' && gasMsg && (
+              <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{gasMsg}</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {walletErr && (
+        <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{walletErr}</p>
+      )}
     </div>
   );
 };
@@ -604,29 +989,18 @@ const QuantAutoBotPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Fund note */}
+          {/* One-click funding from the user's connected wallet */}
+          <BotFundPanel botAddress={st.address} onSuccess={() => fetchAll({ silent: true })} />
+
+          {/* Fallback: manual send note */}
           <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5">
             <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
-              <span className="text-jtp-text font-semibold">To fund:</span>{' '}
+              <span className="text-jtp-text font-semibold">Manual option:</span>{' '}
               send <span className="text-jtp-text">USDC.e</span> +
               ~$1 worth of <span className="text-jtp-text">POL</span> for gas on{' '}
               <span className="text-jtp-text">Polygon</span> to the address above.
-              {' '}Got native USDC? Convert it first ↓
             </p>
           </div>
-
-          {/* One-click swap: native USDC -> USDC.e on Polygon (Uniswap, pre-filled) */}
-          <a
-            href="https://app.uniswap.org/swap?chain=polygon&inputCurrency=0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359&outputCurrency=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 flex items-center justify-center gap-2 rounded-[2px] border border-jtp-amber/40 bg-jtp-active hover:bg-jtp-activeHover text-jtp-amber font-mono font-bold uppercase tracking-wider text-[11px] px-3 py-2 transition-colors"
-          >
-            Swap USDC → USDC.e ↗
-          </a>
-          <p className="mt-1 font-mono text-jtp-2xs text-jtp-textFaint leading-relaxed">
-            Opens Uniswap (Polygon) pre-set: native USDC → USDC.e. 1:1 in value. Needs a little POL for gas.
-          </p>
         </Panel>
 
         {/* ── 4. Safety / limits card ── */}
