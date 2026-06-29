@@ -27,8 +27,6 @@ import {
   Button,
 } from '../ui';
 import type { Segment } from '../ui';
-import DataTable from '../ui/DataTable';
-import type { TableColumn } from '../ui/DataTable';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -682,6 +680,112 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
   );
 };
 
+// ─── Trade card helpers ────────────────────────────────────────────────────────
+
+const SIGNAL_BADGE_VARIANT: Record<string, 'neutral' | 'info' | 'profit' | 'loss' | 'warning'> = {
+  arb:  'warning',
+  ai:   'info',
+  copy: 'neutral',
+};
+
+const outcomeColor = (outcome: string) => {
+  const lc = outcome.toLowerCase();
+  if (lc === 'yes') return 'text-[#3ddc84]';
+  if (lc === 'no')  return 'text-[#ff5b52]';
+  return 'text-jtp-text';
+};
+
+interface StatusLabelResult {
+  label: string;
+  variant: 'neutral' | 'info' | 'profit' | 'loss' | 'warning';
+}
+
+const resolvedStatusLabel = (trade: AutobotTrade): StatusLabelResult => {
+  if (trade.status === 'resolved') {
+    const roi = trade.roiPct ?? 0;
+    const pnl = trade.pnlUsd ?? 0;
+    if (pnl >= 0) return { label: `WON +${roi.toFixed(1)}%`, variant: 'profit' };
+    return { label: `LOST ${Math.abs(roi).toFixed(1)}%`, variant: 'loss' };
+  }
+  if (trade.status === 'failed')   return { label: 'FAILED',  variant: 'loss' };
+  if (trade.status === 'filled')   return { label: 'PLACED',  variant: 'info' };
+  if (trade.status === 'placed')   return { label: 'PLACED',  variant: 'info' };
+  return { label: 'PENDING', variant: 'neutral' };
+};
+
+const fmtRelTime = (iso: string) => {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60)   return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60)   return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)   return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
+
+// ─── TradeCard ─────────────────────────────────────────────────────────────────
+
+const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
+  const { label: statusLabel, variant: statusVariant } = resolvedStatusLabel(trade);
+  const sigVariant = SIGNAL_BADGE_VARIANT[trade.signalType] ?? 'neutral';
+  const sigLabel   = SIGNAL_LABELS[trade.signalType] ?? trade.signalType.toUpperCase();
+  const priceCents = (trade.price * 100).toFixed(0);
+
+  return (
+    <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors">
+
+      {/* Row 1 — badge · BUY [outcome] · market title · status */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <span className="flex-shrink-0 mt-[1px]">
+            <Badge variant={sigVariant} size="xs">{sigLabel}</Badge>
+          </span>
+          <p className="font-mono text-jtp-xs leading-snug min-w-0">
+            <span className="text-jtp-textMuted font-bold mr-1.5">{trade.side.toUpperCase()}</span>
+            <span className={`font-bold mr-2 ${outcomeColor(trade.outcome)}`}>{trade.outcome}</span>
+            <span className="text-jtp-text font-normal">{trade.title}</span>
+          </p>
+        </div>
+        <span className="flex-shrink-0 mt-[1px]">
+          <Badge variant={statusVariant} size="xs">{statusLabel}</Badge>
+        </span>
+      </div>
+
+      {/* Row 2 — mono numbers: price · size · edge · detail chip · rel time */}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-jtp-2xs pl-[calc(theme(spacing.2)+2.5rem)]">
+        <span className="text-jtp-textMuted">@ {priceCents}¢</span>
+        <span className="text-jtp-textMuted">{fmtUsd(trade.sizeUsd)}</span>
+        {trade.edgePct != null && (
+          <span className="text-[#3ddc84] font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            +{trade.edgePct.toFixed(1)}%
+          </span>
+        )}
+        {trade.detail && (
+          <span className="inline-block px-1.5 py-[1px] rounded-[2px] border border-jtp-borderStrong bg-[rgba(255,255,255,0.04)] text-jtp-textDim">
+            {trade.detail}
+          </span>
+        )}
+        <span className="text-jtp-textFaint">{fmtRelTime(trade.createdAt)}</span>
+      </div>
+
+      {/* Row 3 — reason (the WHY), 2-line clamp */}
+      {trade.reason && (
+        <p className="mt-1 font-mono text-jtp-2xs text-jtp-textFaint italic leading-relaxed line-clamp-2 pl-[calc(theme(spacing.2)+2.5rem)]">
+          {trade.reason}
+        </p>
+      )}
+
+      {/* Error detail when failed */}
+      {trade.status === 'failed' && trade.error && (
+        <p className="mt-0.5 font-mono text-jtp-2xs text-[#ff5b52] pl-[calc(theme(spacing.2)+2.5rem)]">
+          {trade.error}
+        </p>
+      )}
+    </div>
+  );
+};
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 const QuantAutoBotPanel: React.FC = () => {
@@ -724,7 +828,7 @@ const QuantAutoBotPanel: React.FC = () => {
 
   useEffect(() => {
     fetchAll();
-    intervalRef.current = setInterval(() => fetchAll({ silent: true }), 20_000);
+    intervalRef.current = setInterval(() => fetchAll({ silent: true }), 8_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -779,83 +883,6 @@ const QuantAutoBotPanel: React.FC = () => {
     // Refresh balance after withdraw
     fetchAll({ silent: true });
   };
-
-  // ─── Trades table columns ──────────────────────────────────────────────────
-
-  const tradeCols: TableColumn<AutobotTrade>[] = [
-    {
-      key: 'createdAt',
-      header: 'TIME',
-      width: '70px',
-      render: (v: string) => (
-        <span className="font-mono text-jtp-2xs text-jtp-textDim">{fmtTime(v)}</span>
-      ),
-    },
-    {
-      key: 'signalType',
-      header: 'SIGNAL',
-      width: '56px',
-      align: 'center',
-      render: (v: string) => (
-        <Badge variant="neutral" size="xs">
-          {SIGNAL_LABELS[v] ?? v.toUpperCase()}
-        </Badge>
-      ),
-    },
-    {
-      key: 'title',
-      header: 'MARKET / OUTCOME',
-      render: (_v: string, row: AutobotTrade) => (
-        <div className="min-w-0">
-          <div className="font-mono text-jtp-xs text-jtp-text truncate max-w-[240px]" title={row.title}>
-            {row.side} {row.outcome} @ {(row.price * 100).toFixed(0)}¢
-          </div>
-          <div className="font-mono text-jtp-2xs text-jtp-textDim truncate max-w-[240px]" title={row.title}>
-            {row.title}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'sizeUsd',
-      header: 'SIZE',
-      align: 'right',
-      mono: true,
-      width: '60px',
-      render: (v: number) => (
-        <span className="font-mono text-jtp-xs">{fmtUsd(v)}</span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'STATUS',
-      align: 'center',
-      width: '72px',
-      render: (v: AutobotTrade['status']) => (
-        <Badge variant={STATUS_VARIANT[v] ?? 'neutral'} size="xs">
-          {v.toUpperCase()}
-        </Badge>
-      ),
-    },
-    {
-      key: 'pnlUsd',
-      header: 'P&L',
-      align: 'right',
-      mono: true,
-      width: '68px',
-      render: (v: number | null | undefined, row: AutobotTrade) => {
-        if (row.status !== 'resolved') {
-          return <span className="text-jtp-textFaint font-mono text-jtp-xs">—</span>;
-        }
-        if (v === null || v === undefined) return <span className="text-jtp-textFaint font-mono text-jtp-xs">—</span>;
-        return (
-          <span className={`font-mono text-jtp-xs font-semibold ${pnlColor(v)}`}>
-            {v >= 0 ? '+' : ''}{fmtUsd(v)}
-          </span>
-        );
-      },
-    },
-  ];
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -1070,24 +1097,24 @@ const QuantAutoBotPanel: React.FC = () => {
         />
       </div>
 
-      {/* ── 6. Live trades table ── */}
+      {/* ── 6. Live trades — detailed cards ── */}
       <Panel
         label="LIVE TRADES"
         noPadding
         actions={
-          <span className="font-mono text-jtp-2xs text-jtp-textDim flex items-center gap-1.5">
+          <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
             {loading ? (
               <>
                 <Spin />
-                <span>updating…</span>
+                <span className="text-jtp-textDim">updating…</span>
               </>
             ) : lastUpdated ? (
               <>
                 <span
-                  className="inline-block w-1.5 h-1.5 rounded-full bg-[#3ddc84]"
+                  className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse"
                   aria-hidden="true"
                 />
-                updated {lastUpdated}
+                <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
               </>
             ) : null}
           </span>
@@ -1099,13 +1126,11 @@ const QuantAutoBotPanel: React.FC = () => {
             description="Fund the wallet and switch to AUTO to start trading."
           />
         ) : (
-          <DataTable<AutobotTrade>
-            columns={tradeCols}
-            data={trades}
-            keyFn={(t) => t.id}
-            maxHeight="480px"
-            emptyMessage="No trades yet — fund the wallet and switch to AUTO."
-          />
+          <div className="divide-y-0">
+            {trades.map((trade) => (
+              <TradeCard key={trade.id} trade={trade} />
+            ))}
+          </div>
         )}
       </Panel>
 

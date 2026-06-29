@@ -878,6 +878,9 @@ export interface AutobotTrade {
   roiPct?: number | null;
   pnlUsd?: number | null;
   resolvedAt?: string | null;
+  reason?: string | null;
+  edgePct?: number | null;
+  detail?: string | null;
 }
 
 // --- Notebook ---
