@@ -683,3 +683,15 @@ model AgentTrade {
 
   @@index([userId, createdAt])
 }
+
+// Exchange API credentials (admin-set, global "house" keys; AES-encrypted). Used by the
+// exchanges module for live/testnet trading. Per-user keys can come later.
+model ExchangeCredential {
+  id        String   @id @default(uuid())
+  exchange  String   @unique // 'binance' | 'bybit' | ...
+  apiKey    String           // AES-256-GCM encrypted
+  apiSecret String           // AES-256-GCM encrypted
+  testnet   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

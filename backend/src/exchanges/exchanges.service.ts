@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as crypto from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
 import { CexAdapter } from './cex-adapter.interface';
 import { BinanceAdapter } from './adapters/binance.adapter';
 
@@ -14,8 +16,60 @@ export class ExchangesService {
     // bybit: new BybitAdapter(),  ← future: one file, plugs in here
   };
 
+  constructor(private readonly prisma: PrismaService) {}
+
   list() {
     return { exchanges: Object.keys(this.adapters) };
+  }
+
+  // ── credentials (admin-set, AES-256-GCM) ──────────────────────────────────
+  private key(): Buffer {
+    const secret = process.env.AGENT_WALLET_SECRET || 'jtp-fallback-secret-change-me';
+    return crypto.createHash('sha256').update(secret).digest();
+  }
+  private enc(s: string): string {
+    const iv = crypto.randomBytes(12);
+    const c = crypto.createCipheriv('aes-256-gcm', this.key(), iv);
+    const e = Buffer.concat([c.update(s, 'utf8'), c.final()]);
+    return `${iv.toString('hex')}:${c.getAuthTag().toString('hex')}:${e.toString('hex')}`;
+  }
+  private dec(b: string): string {
+    const [iv, tag, e] = b.split(':');
+    const d = crypto.createDecipheriv('aes-256-gcm', this.key(), Buffer.from(iv, 'hex'));
+    d.setAuthTag(Buffer.from(tag, 'hex'));
+    return Buffer.concat([d.update(Buffer.from(e, 'hex')), d.final()]).toString('utf8');
+  }
+
+  async setCredential(exchange: string, apiKey: string, apiSecret: string, testnet = true) {
+    const ex = (exchange || '').toLowerCase();
+    if (!this.adapters[ex]) throw new Error(`unsupported exchange: ${exchange}`);
+    if (!apiKey || !apiSecret) throw new Error('apiKey and apiSecret required');
+    await this.prisma.exchangeCredential.upsert({
+      where: { exchange: ex },
+      create: { exchange: ex, apiKey: this.enc(apiKey), apiSecret: this.enc(apiSecret), testnet },
+      update: { apiKey: this.enc(apiKey), apiSecret: this.enc(apiSecret), testnet },
+    });
+    return this.credentialStatus();
+  }
+
+  /** Masked status for the UI/admin — never returns the secrets. */
+  async credentialStatus() {
+    const creds = await this.prisma.exchangeCredential.findMany();
+    const map: Record<string, { configured: boolean; testnet: boolean; keyMask?: string }> = {};
+    for (const ex of Object.keys(this.adapters)) map[ex] = { configured: false, testnet: true };
+    for (const c of creds) {
+      let mask = '••••';
+      try { const k = this.dec(c.apiKey); mask = `${k.slice(0, 4)}…${k.slice(-4)}`; } catch { /* */ }
+      map[c.exchange] = { configured: true, testnet: c.testnet, keyMask: mask };
+    }
+    return map;
+  }
+
+  /** Decrypted keys for trading (internal use by execution). */
+  async getCredential(exchange: string): Promise<{ apiKey: string; apiSecret: string; testnet: boolean } | null> {
+    const c = await this.prisma.exchangeCredential.findUnique({ where: { exchange: exchange.toLowerCase() } });
+    if (!c) return null;
+    return { apiKey: this.dec(c.apiKey), apiSecret: this.dec(c.apiSecret), testnet: c.testnet };
   }
 
   adapter(name = 'binance'): CexAdapter {
