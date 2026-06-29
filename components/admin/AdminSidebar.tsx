@@ -23,7 +23,8 @@ type AdminView =
   | 'playbooks'
   | 'referrals'
   | 'promo_codes'
-  | 'pricing_plans';
+  | 'pricing_plans'
+  | 'exchange_keys';
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -86,6 +87,15 @@ const AdminNavItem: React.FC<NavItemProps> = ({
   </button>
 );
 
+const ExchangeKeyIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <circle cx="6" cy="10" r="3" />
+    <path d="M8.5 7.5l4-4" strokeLinecap="round" />
+    <path d="M11.5 3.5l1 1" strokeLinecap="round" />
+    <path d="M12.5 5.5l1 1" strokeLinecap="round" />
+  </svg>
+);
+
 const NAV_ITEMS: Array<{
   view: AdminView;
   label: string;
@@ -98,6 +108,7 @@ const NAV_ITEMS: Array<{
   { view: 'pricing_plans', label: 'Pricing',         icon: (c) => <CreditCardIcon className={c} /> },
   { view: 'referrals',     label: 'Referrals',       icon: (c) => <UsersIcon className={c} /> },
   { view: 'promo_codes',   label: 'Promo Codes',     icon: (c) => <SparklesIcon className={c} /> },
+  { view: 'exchange_keys', label: 'Exchange Keys',   icon: (c) => <ExchangeKeyIcon className={c} /> },
 ];
 
 const AdminSidebar: React.FC<AdminSidebarProps> = ({

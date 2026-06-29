@@ -5,12 +5,12 @@
  * rendered by its own component. Dashboard uses StatTile + Panel from the
  * kit; system controls use inline toggles styled from the design system.
  */
-import React, { useState, useEffect } from 'react';
-import { Panel, StatTile, Skeleton, Button } from '../components/ui';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Panel, StatTile, Skeleton, Button, Badge, SegmentedControl } from '../components/ui';
 import UserManagementTable from '../components/admin/UserManagementTable';
 import AdminSidebar from '../components/admin/AdminSidebar';
 import { useAuth } from '../context/AuthContext';
-import { AdminStats, AdminUser, PropFirmTemplate, SystemConfig } from '../types';
+import { AdminStats, AdminUser, PropFirmTemplate, SystemConfig, ExchangeStatusMap } from '../types';
 import api from '../services/api';
 import Modal from '../components/ui/Modal';
 import GrantProAccessModal from '../components/admin/GrantProAccessModal';
@@ -30,7 +30,8 @@ type AdminView =
   | 'playbooks'
   | 'referrals'
   | 'promo_codes'
-  | 'pricing_plans';
+  | 'pricing_plans'
+  | 'exchange_keys';
 
 const VIEW_LABELS: Record<AdminView, string> = {
   dashboard:     'Dashboard',
@@ -40,6 +41,7 @@ const VIEW_LABELS: Record<AdminView, string> = {
   referrals:     'Referral Program',
   promo_codes:   'Promo Codes',
   pricing_plans: 'Pricing Plans',
+  exchange_keys: 'Exchange API Keys',
 };
 
 /* ─── System-controls toggle row ─────────────────────────────────────────── */
@@ -95,6 +97,249 @@ const SystemToggleRow: React.FC<{
     </div>
   </div>
 );
+
+/* ─── Exchange API Keys Panel ────────────────────────────────────────────── */
+
+const EyeOffIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <path d="M2 2l12 12" strokeLinecap="round" />
+    <path d="M6.5 6.5A2.5 2.5 0 0111 8" strokeLinecap="round" />
+    <path d="M3 5C1.5 6 1 8 1 8s2 4 7 4c1.2 0 2.2-.3 3.1-.7" strokeLinecap="round" />
+    <path d="M13 11c1-1 2-3 2-3s-2-4-7-4c-.7 0-1.3.1-1.9.2" strokeLinecap="round" />
+  </svg>
+);
+
+const EyeIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <path d="M1 8s2-5 7-5 7 5 7 5-2 5-7 5-7-5-7-5z" />
+    <circle cx="8" cy="8" r="2.5" />
+  </svg>
+);
+
+interface ExchangeKeysPanelProps {
+  token: string | null;
+}
+
+const ExchangeKeysPanel: React.FC<ExchangeKeysPanelProps> = ({ token }) => {
+  const [exchanges, setExchanges] = useState<string[]>(['binance']);
+  const [selectedExchange, setSelectedExchange] = useState('binance');
+  const [apiKey, setApiKey] = useState('');
+  const [apiSecret, setApiSecret] = useState('');
+  const [testnet, setTestnet] = useState(true);
+  const [showSecret, setShowSecret] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [status, setStatus] = useState<ExchangeStatusMap | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  const loadExchanges = useCallback(async () => {
+    if (!token) return;
+    try {
+      const r = await api.exchangesList(token);
+      if (r.exchanges?.length) {
+        setExchanges(r.exchanges);
+        setSelectedExchange(r.exchanges[0]);
+      }
+    } catch { /* keep default */ }
+  }, [token]);
+
+  const loadStatus = useCallback(async () => {
+    if (!token) return;
+    setStatusLoading(true);
+    try {
+      setStatus(await api.exchangesStatus(token));
+    } catch { /* ignore */ }
+    finally { setStatusLoading(false); }
+  }, [token]);
+
+  useEffect(() => {
+    loadExchanges();
+    loadStatus();
+  }, [loadExchanges, loadStatus]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !apiKey.trim() || !apiSecret.trim()) return;
+    setSaving(true);
+    setSaveResult(null);
+    try {
+      await api.exchangesSetKeys(
+        { exchange: selectedExchange, apiKey: apiKey.trim(), apiSecret: apiSecret.trim(), testnet },
+        token,
+      );
+      setSaveResult({ ok: true, msg: 'Keys saved successfully.' });
+      setApiKey('');
+      setApiSecret('');
+      await loadStatus();
+    } catch (err: any) {
+      setSaveResult({ ok: false, msg: err.message || 'Failed to save keys.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const exchangeSegments = exchanges.map(e => ({
+    value: e,
+    label: e.charAt(0).toUpperCase() + e.slice(1),
+  }));
+
+  const currentExchangeStatus = status?.[selectedExchange];
+
+  return (
+    <Panel label="EXCHANGE API KEYS">
+      <div className="space-y-6 max-w-lg">
+        {/* Current status */}
+        {statusLoading ? (
+          <Skeleton variant="panel" className="h-14" />
+        ) : currentExchangeStatus ? (
+          <div className="flex items-center gap-3 p-3 bg-jtp-raised border border-jtp-border rounded-[2px]">
+            <div
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                currentExchangeStatus.configured ? 'bg-[#3ddc84]' : 'bg-jtp-textDim/40'
+              }`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-jtp-sm font-semibold text-jtp-textMuted uppercase">
+                  {selectedExchange}
+                </span>
+                <Badge variant={currentExchangeStatus.configured ? 'profit' : 'neutral'} size="xs">
+                  {currentExchangeStatus.configured ? 'CONFIGURED' : 'NOT SET'}
+                </Badge>
+                <Badge variant={currentExchangeStatus.testnet ? 'warning' : 'info'} size="xs">
+                  {currentExchangeStatus.testnet ? 'TESTNET' : 'LIVE'}
+                </Badge>
+              </div>
+              {currentExchangeStatus.keyMask && (
+                <p className="font-mono text-jtp-xs text-jtp-textDim mt-1">
+                  key: {currentExchangeStatus.keyMask}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Form */}
+        <form onSubmit={handleSave} className="space-y-4">
+          {/* Exchange picker */}
+          <div>
+            <label className="block font-mono text-jtp-xs text-jtp-textDim uppercase tracking-[0.1em] mb-2">
+              Exchange
+            </label>
+            <SegmentedControl
+              segments={exchangeSegments}
+              value={selectedExchange}
+              onChange={setSelectedExchange}
+              size="sm"
+            />
+          </div>
+
+          {/* API Key */}
+          <div>
+            <label
+              htmlFor="admin-api-key"
+              className="block font-mono text-jtp-xs text-jtp-textDim uppercase tracking-[0.1em] mb-1.5"
+            >
+              API Key
+            </label>
+            <input
+              id="admin-api-key"
+              type="text"
+              autoComplete="off"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder="Paste API key..."
+              className="w-full bg-jtp-control border border-jtp-borderStrong rounded-[2px] px-3 py-2 font-mono text-jtp-sm text-jtp-text placeholder:text-jtp-textDim/50 focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            />
+          </div>
+
+          {/* API Secret */}
+          <div>
+            <label
+              htmlFor="admin-api-secret"
+              className="block font-mono text-jtp-xs text-jtp-textDim uppercase tracking-[0.1em] mb-1.5"
+            >
+              API Secret
+            </label>
+            <div className="relative">
+              <input
+                id="admin-api-secret"
+                type={showSecret ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={apiSecret}
+                onChange={e => setApiSecret(e.target.value)}
+                placeholder="Paste API secret..."
+                className="w-full bg-jtp-control border border-jtp-borderStrong rounded-[2px] px-3 py-2 pr-10 font-mono text-jtp-sm text-jtp-text placeholder:text-jtp-textDim/50 focus:outline-none focus:border-jtp-borderFocus transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecret(s => !s)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-jtp-textDim hover:text-jtp-textMuted transition-colors"
+                aria-label={showSecret ? 'Hide secret' : 'Show secret'}
+              >
+                {showSecret
+                  ? <EyeOffIcon className="w-3.5 h-3.5" />
+                  : <EyeIcon className="w-3.5 h-3.5" />
+                }
+              </button>
+            </div>
+          </div>
+
+          {/* Testnet toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={testnet}
+              onClick={() => setTestnet(v => !v)}
+              className={[
+                'relative inline-flex items-center rounded-full transition-colors duration-150 focus:outline-none',
+                testnet ? 'bg-jtp-amber' : 'bg-jtp-control border border-jtp-borderStrong',
+              ].join(' ')}
+              style={{ width: '36px', height: '20px' }}
+            >
+              <span className="sr-only">Testnet</span>
+              <span
+                className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-all duration-150 ${
+                  testnet ? 'left-[18px]' : 'left-[3px]'
+                }`}
+              />
+            </button>
+            <div>
+              <span className="text-jtp-sm text-jtp-textMuted font-medium">Testnet mode</span>
+              <span className="ml-2 font-mono text-jtp-xs text-jtp-textDim">
+                {testnet ? '(sandbox / paper trading)' : '(LIVE — real funds)'}
+              </span>
+            </div>
+          </div>
+
+          {/* Result message */}
+          {saveResult && (
+            <p className={`font-mono text-jtp-xs ${saveResult.ok ? 'text-[#3ddc84]' : 'text-jtp-loss'}`}>
+              {saveResult.ok ? '✓' : '✗'} {saveResult.msg}
+            </p>
+          )}
+
+          {/* Save button */}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={saving || !apiKey.trim() || !apiSecret.trim()}
+            className="h-8 px-5 font-mono text-jtp-xs tracking-wider"
+          >
+            {saving ? 'Saving...' : 'Save Keys'}
+          </Button>
+        </form>
+
+        <p className="font-mono text-jtp-xs text-jtp-textDim leading-relaxed">
+          Keys are stored encrypted. Only a masked preview is shown after saving.
+          Use read + trade permissions; never enable withdrawals.
+          Start with testnet until live performance is confirmed.
+        </p>
+      </div>
+    </Panel>
+  );
+};
 
 /* ─── AdminPage ──────────────────────────────────────────────────────────── */
 const AdminPage: React.FC = () => {
@@ -344,6 +589,10 @@ const AdminPage: React.FC = () => {
 
     if (currentView === 'pricing_plans') {
       return <AdminPricingPlans />;
+    }
+
+    if (currentView === 'exchange_keys') {
+      return <ExchangeKeysPanel token={accessToken} />;
     }
 
     return null;

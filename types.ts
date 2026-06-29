@@ -910,3 +910,30 @@ export interface NotebookEntry {
   createdAt: string;
   updatedAt: string;
 }
+
+// --- Crypto / Exchange ---
+
+export interface CryptoFundingOpp {
+  symbol: string;
+  base: string;
+  fundingPct8h: number;
+  annualizedPct: number;
+  netAnnualPct: number;
+  markPrice: number;
+  volume24hUsd: number;
+  action: string;
+  side: string;
+}
+
+export interface CryptoFundingScan {
+  exchange: string;
+  count: number;
+  scannedAt: string;
+  opportunities: CryptoFundingOpp[];
+}
+
+export type ExchangeStatusMap = Record<string, {
+  configured: boolean;
+  testnet: boolean;
+  keyMask?: string;
+}>;

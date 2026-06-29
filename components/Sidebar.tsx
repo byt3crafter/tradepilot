@@ -83,6 +83,17 @@ const BotSvg = () => (
   </svg>
 );
 
+const CryptoSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <path d="M8 2a6 6 0 100 12A6 6 0 008 2z" />
+    <path d="M6 5.5h2.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5H6" strokeLinecap="round" />
+    <path d="M6 8.5h3c.83 0 1.5.67 1.5 1.5S9.83 11.5 9 11.5H6" strokeLinecap="round" />
+    <line x1="6" y1="5.5" x2="6" y2="11.5" strokeLinecap="round" />
+    <line x1="7" y1="4.5" x2="7" y2="5.5" strokeLinecap="round" />
+    <line x1="7" y1="11.5" x2="7" y2="12.5" strokeLinecap="round" />
+  </svg>
+);
+
 const LogoutSvg = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
     <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3" strokeLinecap="round" />
@@ -410,6 +421,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   isActive={currentView === 'quant'}
                   isCollapsed={isSidebarCollapsed}
                   onClick={() => handleNav('quant')}
+                />
+              )}
+              {quantEnabled && (
+                <NavItem
+                  icon={<CryptoSvg />}
+                  label="Crypto"
+                  isActive={currentView === 'crypto'}
+                  isCollapsed={isSidebarCollapsed}
+                  onClick={() => handleNav('crypto')}
                 />
               )}
               {botEnabled && (

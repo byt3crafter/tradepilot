@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -195,6 +195,12 @@ export interface ApiService {
   aiUpdateSchedule(id: string, body: { name?: string; goal?: string; frequency?: ScheduledAgentFrequency; enabled?: boolean }, token?: string | null): Promise<ScheduledAgent>;
   aiDeleteSchedule(id: string, token?: string | null): Promise<{ message: string }>;
   aiRunScheduleNow(id: string, token?: string | null): Promise<AiAgentResult>;
+
+  // Exchanges / Crypto
+  exchangesList(token?: string | null): Promise<{ exchanges: string[] }>;
+  exchangesFunding(exchange?: string, token?: string | null): Promise<CryptoFundingScan>;
+  exchangesStatus(token?: string | null): Promise<ExchangeStatusMap>;
+  exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap>;
 }
 
 export interface ChatGptPermissions {
@@ -482,6 +488,15 @@ const api: ApiService = {
   aiUpdateSchedule(id: string, body: { name?: string; goal?: string; frequency?: ScheduledAgentFrequency; enabled?: boolean }, token?: string | null): Promise<ScheduledAgent> { return this.patch(`/api/ai/schedules/${id}`, body, token); },
   aiDeleteSchedule(id: string, token?: string | null): Promise<{ message: string }> { return this.delete(`/api/ai/schedules/${id}`, token); },
   aiRunScheduleNow(id: string, token?: string | null): Promise<AiAgentResult> { return this.post(`/api/ai/schedules/${id}/run`, {}, token); },
+
+  // Exchange / Crypto Methods
+  exchangesList(token?: string | null): Promise<{ exchanges: string[] }> { return this.get('/api/exchanges/list', token); },
+  exchangesFunding(exchange?: string, token?: string | null): Promise<CryptoFundingScan> {
+    const q = exchange ? `?exchange=${encodeURIComponent(exchange)}` : '';
+    return this.get(`/api/exchanges/funding${q}`, token);
+  },
+  exchangesStatus(token?: string | null): Promise<ExchangeStatusMap> { return this.get('/api/exchanges/status', token); },
+  exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap> { return this.post('/api/exchanges/keys', body, token); },
 };
 
 export default api;
