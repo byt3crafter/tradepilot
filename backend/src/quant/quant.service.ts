@@ -639,7 +639,7 @@ export class QuantService implements OnApplicationBootstrap {
     const modeFilter = sample === 'historical' ? { mode: 'backfill' } : { mode: { not: 'backfill' } };
     const outs = await this.prisma.agentOutcome.findMany({
       where: { decision: { kind: 'paper_copy', ...modeFilter } },
-      include: { decision: { select: { meta: true, subjectAddr: true } } },
+      include: { decision: { select: { meta: true, subjectAddr: true, mode: true } } },
       take: 5000,
     });
     // learned EV table + wallet focus → per-trade Kelly sizing
@@ -647,14 +647,20 @@ export class QuantService implements OnApplicationBootstrap {
     const addrs = [...new Set(outs.map((o) => o.decision?.subjectAddr).filter(Boolean) as string[])];
     const fwallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs } }, select: { address: true, marketFocus: true } });
     const focusMap = new Map(fwallets.map((w) => [w.address, w.marketFocus]));
+    // Backtest the CURRENT ruleset over history (not a mix of retired ones): drop copy
+    // trades whose focus/price the live filters now reject — they will never recur, so
+    // including them understates the strategy. Arb/AI are separate strategies, kept as-is.
+    const COPY_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price', 'Crypto Up/Down']);
+    const applyFilter = sample !== 'historical';
     const items = outs
       .map((o) => {
         const meta: any = o.decision?.meta || {};
         const ts = Number(meta.ts) ? Number(meta.ts) * 1000 : o.resolvedAt?.getTime() || 0;
         const price = Number(meta.entryPrice) || 0;
         const focus = o.decision?.subjectAddr ? focusMap.get(o.decision.subjectAddr) || 'Mixed' : 'Mixed';
-        return { ts, roi: (o.roiPct || 0) / 100, win: !!o.success, price, focus };
+        return { ts, roi: (o.roiPct || 0) / 100, win: !!o.success, price, focus, mode: o.decision?.mode || 'auto' };
       })
+      .filter((it) => !applyFilter || it.mode !== 'auto' || (!COPY_BLOCK.has(it.focus) && it.price >= 0.25))
       .sort((a, b) => a.ts - b.ts);
     let bal = start, peak = start, maxDD = 0, wins = 0;
     const curve: { t: number; balance: number }[] = [];
