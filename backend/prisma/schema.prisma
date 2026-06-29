@@ -695,3 +695,25 @@ model ExchangeCredential {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Crypto paper ledger — forward-proves exchange strategies (funding arb first) on PUBLIC
+// data before any real money. Isolated from the Polymarket learning ledger.
+model CexPaperTrade {
+  id              String    @id @default(uuid())
+  exchange        String
+  strategy        String    // 'funding' | 'momentum' | ...
+  symbol          String
+  base            String
+  sizeUsd         Float     @default(100)
+  entryFundingPct Float?    // entry 8h funding rate (%) — the thesis
+  status          String    @default("open") // open | closed
+  pnlUsd          Float     @default(0)
+  feesUsd         Float     @default(0)
+  lastAccruedAt   DateTime  @default(now())
+  openedAt        DateTime  @default(now())
+  closedAt        DateTime?
+  meta            Json      @default("{}")
+
+  @@index([strategy, status])
+  @@index([symbol, status])
+}

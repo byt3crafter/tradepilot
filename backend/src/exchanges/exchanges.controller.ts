@@ -25,6 +25,16 @@ export class ExchangesController {
     return this.exchanges.credentialStatus();
   }
 
+  @Get('performance')
+  performance(@Query('strategy') strategy?: string) {
+    return this.exchanges.performance(strategy || 'funding');
+  }
+
+  @Get('paper-trades')
+  paperTrades(@Query('strategy') strategy?: string, @Query('limit') limit?: string) {
+    return this.exchanges.paperTrades(strategy || 'funding', limit ? parseInt(limit, 10) : 60);
+  }
+
   // Admin-only: set exchange API key/secret (stored AES-encrypted).
   @UseGuards(AdminGuard)
   @Post('keys')
