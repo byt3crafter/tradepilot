@@ -63,4 +63,38 @@ export class ExchangesController {
   testTrade(@Body() b: { exchange?: string; symbol?: string; usd?: number }) {
     return this.exchanges.testTrade(b.exchange || 'binance', b.symbol || 'BTCUSDT', b.usd || 20);
   }
+
+  // ── Crypto Auto Bot ──
+  @Get('bot')
+  botStatus(@Query('exchange') exchange?: string) {
+    return this.exchanges.botStatus(exchange || 'binance');
+  }
+
+  @Get('bot/trades')
+  botTrades(@Query('exchange') exchange?: string, @Query('limit') limit?: string) {
+    return this.exchanges.botTrades(exchange || 'binance', limit ? parseInt(limit, 10) : 60);
+  }
+
+  @Get('bot/performance')
+  botPerformance(@Query('exchange') exchange?: string) {
+    return this.exchanges.botPerformance(exchange || 'binance');
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('bot/mode')
+  botMode(@Body() b: { exchange?: string; mode: string }) {
+    return this.exchanges.botSetMode(b.exchange || 'binance', b.mode === 'auto' ? 'auto' : 'off');
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('bot/kill')
+  botKill(@Body('exchange') exchange?: string) {
+    return this.exchanges.botKill(exchange || 'binance');
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('bot/limits')
+  botLimits(@Body() b: { exchange?: string; maxPerTradeUsd?: number; maxTotalUsd?: number }) {
+    return this.exchanges.botSetLimits(b.exchange || 'binance', b);
+  }
 }
