@@ -50,10 +50,17 @@ export class BinanceAdapter implements CexAdapter {
     return Number(d?.price) || 0;
   }
 
-  /** All 24h spot tickers (public, live) — momentum + volatility + current prices in one call. */
+  /** All 24h spot tickers (public, LIVE) — momentum + volatility signals. */
   async get24hrTickers(): Promise<any[]> {
     const d = await this.get('https://api.binance.com', '/api/v3/ticker/24hr');
     return Array.isArray(d) ? d : [];
+  }
+
+  /** Current spot prices from the ACCOUNT's venue (testnet or live) — for bot exit monitoring,
+   * so entry fills and exit checks live in the same price space. */
+  async getSpotPrices(): Promise<Map<string, number>> {
+    const d = await this.get(this.base('spot'), '/api/v3/ticker/price');
+    return new Map((Array.isArray(d) ? d : []).map((x: any) => [x.symbol, Number(x.price)]));
   }
 
   // ── signed (needs key/secret) ────────────────────────────────────────────────
