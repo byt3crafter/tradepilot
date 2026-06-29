@@ -5,7 +5,8 @@ import { ethers } from 'ethers';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuantService } from '../quant/quant.service';
 
-const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-rpc.com';
+// polygon-rpc.com now 401s; publicnode is a reliable keyless default.
+const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-bor-rpc.publicnode.com';
 const USDCE = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC.e (Polymarket collateral)
 const ERC20 = [
   'function balanceOf(address) view returns (uint256)',
