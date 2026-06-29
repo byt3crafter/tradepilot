@@ -18,6 +18,11 @@ export class AutobotController {
     return this.bot.trades(req.user.sub, limit ? parseInt(limit, 10) : 60);
   }
 
+  @Get('performance')
+  performance(@Req() req: any) {
+    return this.bot.performance(req.user.sub);
+  }
+
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('mode')
   mode(@Req() req: any, @Body('mode') mode: string) {

@@ -665,6 +665,7 @@ model AgentTrade {
   tokenId    String
   outcome    String?
   title      String?
+  outcomeIndex Int?    // which outcome (for resolution)
   side       String    @default("BUY")
   sizeUsd    Float
   price      Float
