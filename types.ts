@@ -883,6 +883,22 @@ export interface AutobotTrade {
   detail?: string | null;
 }
 
+export interface AutobotPerformance {
+  stats: {
+    trades: number;
+    open: number;
+    resolved: number;
+    wins: number;
+    losses: number;
+    winRate: number;       // 0..1
+    realizedPnlUsd: number;
+    maxDrawdownUsd: number;
+    walletUsdce: number;
+    openExposureUsd: number;
+  };
+  curve: { t: number; pnl: number }[]; // t = ms epoch, pnl = cumulative realized P&L
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {

@@ -2,21 +2,26 @@
 /**
  * QuantAutoBotPanel — autonomous Polymarket bot dashboard.
  *
- * Sections:
- *  1. Honesty banner (real money)
- *  2. Trade/Auto mode toggle + BOT LIVE indicator
- *  3. Bot wallet card (address, balances, fund note, withdraw)
- *  4. Safety / limits card (editable limits, KILL SWITCH)
- *  5. Live stats (StatTiles)
- *  6. Live trades table
+ * Tabs (SegmentedControl at top):
+ *  "Performance"  — stat tiles (realized P&L, right/wrong, win rate, drawdown,
+ *                   exposure, wallet), equity-curve chart, live trade cards.
+ *  "Controls"     — mode toggle, bot wallet card (fund / withdraw), limits & kill switch.
  *
- * Polls status + trades every 20 s.
+ * Polls /status, /trades and /performance every 8 s.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
 import { BrowserProvider, Contract, formatUnits, parseUnits, parseEther } from 'ethers';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { AutobotStatus, AutobotTrade } from '../../types';
+import { AutobotStatus, AutobotTrade, AutobotPerformance } from '../../types';
 import {
   Panel,
   StatTile,
@@ -40,11 +45,6 @@ const fmtUsd = (n: number, decimals = 2) => {
 
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-const fmtTime = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
 const fmtTimestamp = () => {
   const d = new Date();
   const hh = String(d.getHours()).padStart(2, '0');
@@ -58,10 +58,23 @@ const pnlColor = (v: number | null | undefined) => {
   return v > 0 ? 'text-[#3ddc84]' : 'text-[#ff5b52]';
 };
 
+// ─── Tab segments ──────────────────────────────────────────────────────────────
+
+type BotTab = 'performance' | 'controls';
+
+const BOT_TAB_SEGS: Segment<BotTab>[] = [
+  { value: 'performance', label: 'Performance' },
+  { value: 'controls',    label: 'Controls' },
+];
+
+// ─── Mode segments ─────────────────────────────────────────────────────────────
+
 const MODE_SEGS: Segment<'off' | 'auto'>[] = [
   { value: 'off',  label: 'Manual (off)' },
   { value: 'auto', label: 'AUTO — bot trades' },
 ];
+
+// ─── Trade status badge variant map ───────────────────────────────────────────
 
 const STATUS_VARIANT: Record<AutobotTrade['status'], 'neutral' | 'info' | 'profit' | 'loss' | 'warning'> = {
   pending:  'neutral',
@@ -124,7 +137,6 @@ const WithdrawModal: React.FC<{
   const [addr, setAddr] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [result, setResult] = useState<{ txHash: string; amount: number } | null>(null);
 
   const isValid = /^0x[a-fA-F0-9]{40}$/.test(addr.trim());
 
@@ -178,11 +190,6 @@ const WithdrawModal: React.FC<{
             />
           </div>
           {err && <p role="alert" className="text-jtp-xs text-[#ff5b52]">{err}</p>}
-          {result && (
-            <p className="text-jtp-xs text-[#3ddc84] font-mono break-all">
-              Sent! tx: {result.txHash} · {fmtUsd(result.amount)}
-            </p>
-          )}
           <div className="flex gap-2 pt-1">
             <Button variant="secondary" onClick={onClose} type="button" className="flex-1">Cancel</Button>
             <Button variant="danger" type="submit" isLoading={busy} disabled={!isValid || busy} className="flex-1">
@@ -216,7 +223,6 @@ const LimitsEditor: React.FC<{
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // Sync from upstream if limits prop changes
   const prevLimits = useRef(limits);
   useEffect(() => {
     if (
@@ -254,11 +260,7 @@ const LimitsEditor: React.FC<{
     }
   };
 
-  const field = (
-    id: keyof LimitsState,
-    label: string,
-    helpText: string,
-  ) => (
+  const field = (id: keyof LimitsState, label: string, helpText: string) => (
     <div className="flex flex-col gap-1">
       <label className="jtp-label" htmlFor={`limit-${id}`}>{label}</label>
       <div className="flex items-center gap-1">
@@ -317,7 +319,7 @@ const FUND_ERC20_ABI = [
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getEth = (): any => typeof window !== 'undefined' ? (window as any).ethereum : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+const getEth = (): any => typeof window !== 'undefined' ? (window as any).ethereum : undefined;
 const truncAddr = (a: string) => a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 
 // ─── BotFundPanel ─────────────────────────────────────────────────────────────
@@ -348,7 +350,6 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
   const onPolygon = walletChain === BOT_CHAIN_ID;
   const hasWallet = !!getEth();
 
-  // ── Read USDC.e + POL balances from user's wallet ──
   const refreshBalances = useCallback(async (addr: string, provider: BrowserProvider) => {
     try {
       const erc20 = new Contract(USDCE_ADDRESS, FUND_ERC20_ABI, provider);
@@ -366,7 +367,6 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     }
   }, []);
 
-  // ── Eager reconnect on mount (eth_accounts — no prompt) ──
   useEffect(() => {
     const eth = getEth();
     if (!eth) return;
@@ -381,16 +381,13 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
         setWalletAddr(addr);
         setWalletChain(Number(net.chainId));
         const usdce = await refreshBalances(addr, provider);
-        if (usdce > 0) {
-          setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
-        }
+        if (usdce > 0) setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
       } catch {
         // silently ignore — no prompt, no error shown
       }
     })();
   }, [refreshBalances]);
 
-  // ── React to wallet account / chain changes ──
   useEffect(() => {
     const eth = getEth();
     if (!eth?.on) return;
@@ -415,9 +412,7 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
         setWalletAddr(accs[0]);
         setWalletChain(Number(net.chainId));
         const usdce = await refreshBalances(accs[0], provider);
-        if (usdce > 0) {
-          setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
-        }
+        if (usdce > 0) setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
       } catch {
         reset();
       }
@@ -434,7 +429,6 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     };
   }, [refreshBalances]);
 
-  // ── Connect wallet + ensure Polygon ──
   const connect = useCallback(async () => {
     const eth = getEth();
     if (!eth) { setWalletErr('No injected wallet detected. Install MetaMask or a Polygon wallet.'); return; }
@@ -443,7 +437,6 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     try {
       const provider = new BrowserProvider(eth);
       await provider.send('eth_requestAccounts', []);
-
       let net = await provider.getNetwork();
       if (Number(net.chainId) !== BOT_CHAIN_ID) {
         try {
@@ -457,16 +450,13 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
         }
         net = await provider.getNetwork();
       }
-
       const signer = await provider.getSigner();
       const addr = await signer.getAddress();
       providerRef.current = provider;
       setWalletAddr(addr);
       setWalletChain(Number(net.chainId));
       const usdce = await refreshBalances(addr, provider);
-      if (usdce > 0) {
-        setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
-      }
+      if (usdce > 0) setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setWalletErr(e?.shortMessage || e?.message || 'Failed to connect wallet.');
     } finally {
@@ -474,13 +464,11 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     }
   }, [refreshBalances]);
 
-  // ── Fund bot: ERC-20 transfer of USDC.e ──
   const fundBot = async () => {
     if (!providerRef.current || !walletAddr) return;
     const amtNum = parseFloat(amount);
     if (isNaN(amtNum) || amtNum <= 0) { setFundSt('error'); setFundMsg('Enter a valid amount.'); return; }
     if (amtNum > usdceBal) { setFundSt('error'); setFundMsg('Amount exceeds your USDC.e balance.'); return; }
-
     setFundSt('pending');
     setFundMsg(null);
     try {
@@ -500,7 +488,6 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     }
   };
 
-  // ── Send gas: 0.5 POL native transfer ──
   const sendGas = async () => {
     if (!providerRef.current || !walletAddr) return;
     setGasSt('pending');
@@ -519,8 +506,6 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     }
   };
 
-  // ── Render ──
-
   if (!hasWallet) {
     return (
       <div className="rounded-[2px] border border-jtp-border bg-jtp-bg px-3 py-3">
@@ -535,12 +520,7 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     return (
       <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-2">
         <p className="jtp-label">FUND BOT FROM MY WALLET</p>
-        <Button
-          variant="secondary"
-          onClick={connect}
-          isLoading={connecting}
-          className="w-full"
-        >
+        <Button variant="secondary" onClick={connect} isLoading={connecting} className="w-full">
           {connecting ? 'Connecting…' : 'Connect wallet'}
         </Button>
         {walletErr && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{walletErr}</p>}
@@ -550,19 +530,14 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
 
   return (
     <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-3">
-      {/* Header row: label + connected address */}
       <div className="flex items-center justify-between flex-wrap gap-1">
         <span className="jtp-label">FUND BOT FROM MY WALLET</span>
-        <span
-          className="inline-flex items-center gap-1.5 font-mono text-jtp-2xs text-jtp-textDim"
-          title={walletAddr}
-        >
+        <span className="inline-flex items-center gap-1.5 font-mono text-jtp-2xs text-jtp-textDim" title={walletAddr}>
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#3ddc84]" aria-hidden="true" />
           {truncAddr(walletAddr)}
         </span>
       </div>
 
-      {/* Wrong-network guard */}
       {!onPolygon ? (
         <button
           type="button"
@@ -573,43 +548,31 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
         </button>
       ) : (
         <>
-          {/* User wallet balances */}
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-jtp-panel border border-jtp-borderSubtle rounded-[2px] px-2.5 py-2">
               <div className="jtp-label text-jtp-2xs mb-0.5">YOUR USDC.e</div>
-              <div
-                className="font-mono font-bold text-jtp-xl text-jtp-text"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
+              <div className="font-mono font-bold text-jtp-xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 ${usdceBal.toFixed(2)}
               </div>
             </div>
             <div className="bg-jtp-panel border border-jtp-borderSubtle rounded-[2px] px-2.5 py-2">
               <div className="jtp-label text-jtp-2xs mb-0.5">YOUR POL</div>
-              <div
-                className="font-mono font-bold text-jtp-xl text-jtp-text"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
+              <div className="font-mono font-bold text-jtp-xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 {polBal.toFixed(3)}
               </div>
             </div>
           </div>
 
-          {/* No USDC.e guard */}
           {usdceBal < 0.01 ? (
             <p className="font-mono text-jtp-xs text-jtp-textMuted">
               No USDC.e in your wallet. Bridge or swap to get USDC.e on Polygon first.
             </p>
           ) : (
             <div className="space-y-1.5">
-              <label className="jtp-label text-jtp-2xs" htmlFor="bot-fund-amount">
-                AMOUNT (USDC.e)
-              </label>
+              <label className="jtp-label text-jtp-2xs" htmlFor="bot-fund-amount">AMOUNT (USDC.e)</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-jtp-textDim text-jtp-xs pointer-events-none">
-                    $
-                  </span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-jtp-textDim text-jtp-xs pointer-events-none">$</span>
                   <input
                     id="bot-fund-amount"
                     type="number"
@@ -632,19 +595,12 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
                   Fund bot →
                 </Button>
               </div>
-              {fundSt === 'pending' && (
-                <p className="font-mono text-jtp-xs text-jtp-textDim">Sending… waiting for confirmation.</p>
-              )}
-              {fundSt === 'success' && fundMsg && (
-                <p className="font-mono text-jtp-xs text-[#3ddc84]">{fundMsg}</p>
-              )}
-              {fundSt === 'error' && fundMsg && (
-                <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{fundMsg}</p>
-              )}
+              {fundSt === 'pending' && <p className="font-mono text-jtp-xs text-jtp-textDim">Sending… waiting for confirmation.</p>}
+              {fundSt === 'success' && fundMsg && <p className="font-mono text-jtp-xs text-[#3ddc84]">{fundMsg}</p>}
+              {fundSt === 'error' && fundMsg && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{fundMsg}</p>}
             </div>
           )}
 
-          {/* Gas top-up */}
           <div className="border-t border-jtp-borderSubtle pt-2.5 space-y-1.5">
             <Button
               variant="secondary"
@@ -660,22 +616,14 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
                 You need at least 0.5 POL in your wallet to send gas.
               </p>
             )}
-            {gasSt === 'pending' && (
-              <p className="font-mono text-jtp-xs text-jtp-textDim">Sending POL… waiting for confirmation.</p>
-            )}
-            {gasSt === 'success' && gasMsg && (
-              <p className="font-mono text-jtp-xs text-[#3ddc84]">{gasMsg}</p>
-            )}
-            {gasSt === 'error' && gasMsg && (
-              <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{gasMsg}</p>
-            )}
+            {gasSt === 'pending' && <p className="font-mono text-jtp-xs text-jtp-textDim">Sending POL… waiting for confirmation.</p>}
+            {gasSt === 'success' && gasMsg && <p className="font-mono text-jtp-xs text-[#3ddc84]">{gasMsg}</p>}
+            {gasSt === 'error' && gasMsg && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{gasMsg}</p>}
           </div>
         </>
       )}
 
-      {walletErr && (
-        <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{walletErr}</p>
-      )}
+      {walletErr && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{walletErr}</p>}
     </div>
   );
 };
@@ -734,8 +682,6 @@ const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
 
   return (
     <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors">
-
-      {/* Row 1 — badge · BUY [outcome] · market title · status */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <span className="flex-shrink-0 mt-[1px]">
@@ -752,7 +698,6 @@ const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
         </span>
       </div>
 
-      {/* Row 2 — mono numbers: price · size · edge · detail chip · rel time */}
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-jtp-2xs pl-[calc(theme(spacing.2)+2.5rem)]">
         <span className="text-jtp-textMuted">@ {priceCents}¢</span>
         <span className="text-jtp-textMuted">{fmtUsd(trade.sizeUsd)}</span>
@@ -769,14 +714,12 @@ const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
         <span className="text-jtp-textFaint">{fmtRelTime(trade.createdAt)}</span>
       </div>
 
-      {/* Row 3 — reason (the WHY), 2-line clamp */}
       {trade.reason && (
         <p className="mt-1 font-mono text-jtp-2xs text-jtp-textFaint italic leading-relaxed line-clamp-2 pl-[calc(theme(spacing.2)+2.5rem)]">
           {trade.reason}
         </p>
       )}
 
-      {/* Error detail when failed */}
       {trade.status === 'failed' && trade.error && (
         <p className="mt-0.5 font-mono text-jtp-2xs text-[#ff5b52] pl-[calc(theme(spacing.2)+2.5rem)]">
           {trade.error}
@@ -786,14 +729,363 @@ const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
   );
 };
 
+// ─── Equity curve chart tooltip ────────────────────────────────────────────────
+
+// Mirrors the SimTooltip in WhatWorksPanel; renders cumulative $ P&L (can be negative).
+const PerfTooltip: React.FC<any> = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const pnl: number = payload[0]?.value ?? 0;
+  const sign = pnl >= 0 ? '+' : '';
+  const color = pnl >= 0 ? '#3ddc84' : '#ff5b52';
+  return (
+    <div
+      style={{ background: '#0d0f12', border: '1px solid #1b2026', borderRadius: 2 }}
+      className="px-3 py-2"
+    >
+      <span className="font-mono text-jtp-xs" style={{ color }}>
+        {sign}${Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+    </div>
+  );
+};
+
+// ─── Performance tab ───────────────────────────────────────────────────────────
+
+interface PerformanceTabProps {
+  perf: AutobotPerformance | null;
+  perfLoading: boolean;
+  trades: AutobotTrade[];
+  tradesLoading: boolean;
+  lastUpdated: string | null;
+}
+
+// Recharts AreaChart mirroring WhatWorksPanel's PaperWalletSimCard chart:
+// same library, same Area/XAxis/YAxis/Tooltip props, same gradient/fill approach.
+// dataKey is "pnl" (cumulative realized $, can go negative) instead of "balance".
+const PerformanceTab: React.FC<PerformanceTabProps> = ({
+  perf, perfLoading, trades, tradesLoading, lastUpdated,
+}) => {
+  if (perfLoading && !perf) {
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} variant="stat" />)}
+        </div>
+        <Skeleton className="h-36 w-full" />
+        <Skeleton variant="panel" className="h-24" />
+      </div>
+    );
+  }
+
+  const st = perf?.stats;
+  const curve = perf?.curve ?? [];
+  const chartData = curve.map((pt) => ({ t: pt.t, pnl: pt.pnl }));
+  const hasCurve = chartData.length >= 2;
+  const resolved = st?.resolved ?? 0;
+
+  const finalPnl = curve.length > 0 ? curve[curve.length - 1].pnl : 0;
+  const isUp = finalPnl >= 0;
+  const lineColor = isUp ? '#3ddc84' : '#ff5b52';
+  const areaId = isUp ? 'autobotAreaUp' : 'autobotAreaDown';
+
+  const yAxisFormatter = (v: number) => {
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+    return `${sign}$${abs.toFixed(0)}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+
+      {/* ── Stat tiles: 7 metrics across responsive grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <StatTile
+          label="REALIZED P&amp;L"
+          value={
+            st
+              ? st.realizedPnlUsd === 0
+                ? '$0.00'
+                : `${st.realizedPnlUsd >= 0 ? '+' : ''}${fmtUsd(st.realizedPnlUsd)}`
+              : '—'
+          }
+          valueColor={st ? pnlColor(st.realizedPnlUsd) : undefined}
+        />
+        <StatTile
+          label="RIGHT"
+          value={st ? String(st.wins) : '—'}
+          valueColor="text-[#3ddc84]"
+          subValue="trades won"
+        />
+        <StatTile
+          label="WRONG"
+          value={st ? String(st.losses) : '—'}
+          valueColor="text-[#ff5b52]"
+          subValue="trades lost"
+        />
+        <StatTile
+          label="WIN RATE"
+          value={st && resolved > 0 ? fmtPct(st.winRate) : '—'}
+          subValue={st && resolved > 0 ? `${resolved} resolved` : 'no resolved yet'}
+        />
+        <StatTile
+          label="MAX DRAWDOWN"
+          value={st ? fmtUsd(st.maxDrawdownUsd) : '—'}
+          valueColor="text-[#ff5b52]"
+        />
+        <StatTile
+          label="OPEN EXPOSURE"
+          value={st ? fmtUsd(st.openExposureUsd) : '—'}
+          valueColor="text-jtp-textMuted"
+        />
+        <StatTile
+          label="WALLET"
+          value={st ? fmtUsd(st.walletUsdce) : '—'}
+          subValue="USDC.e"
+          valueColor="text-jtp-text"
+        />
+      </div>
+
+      {/* ── Equity curve ── */}
+      {resolved === 0 ? (
+        <div
+          className="rounded-jtp-sm border border-jtp-borderSubtle flex items-center justify-center"
+          style={{ background: '#090b0d', minHeight: 140 }}
+        >
+          <p className="font-mono text-jtp-xs text-jtp-textFaint text-center max-w-xs px-4">
+            No resolved trades yet — Polymarket markets resolve over hours-to-days; win/loss fills in as they settle.
+          </p>
+        </div>
+      ) : hasCurve ? (
+        <div
+          className="rounded-jtp-sm overflow-hidden"
+          style={{ background: '#090b0d', height: 140 }}
+          aria-label="Cumulative realized P&L over time"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={lineColor} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={lineColor} stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="t" hide />
+              <YAxis
+                tickFormatter={yAxisFormatter}
+                tick={{ fill: '#565d66', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+              />
+              <RechartsTooltip
+                content={<PerfTooltip />}
+                cursor={{ stroke: '#1b2026', strokeWidth: 1 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="pnl"
+                stroke={lineColor}
+                strokeWidth={1.5}
+                fill={`url(#${areaId})`}
+                dot={false}
+                activeDot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <p className="font-mono text-jtp-xs text-jtp-textFaint py-2">
+          Building curve… more data points accumulate as markets settle.
+        </p>
+      )}
+
+      {/* ── Live trades feed ── */}
+      <Panel
+        label="LIVE TRADES"
+        noPadding
+        actions={
+          <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
+            {tradesLoading ? (
+              <>
+                <Spin />
+                <span className="text-jtp-textDim">updating…</span>
+              </>
+            ) : lastUpdated ? (
+              <>
+                <span className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse" aria-hidden="true" />
+                <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
+              </>
+            ) : null}
+          </span>
+        }
+      >
+        {trades.length === 0 ? (
+          <EmptyState
+            title="No trades yet"
+            description="Fund the wallet and switch to AUTO to start trading."
+          />
+        ) : (
+          <div className="divide-y-0">
+            {trades.map((trade) => (
+              <TradeCard key={trade.id} trade={trade} />
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+};
+
+// ─── Controls tab ──────────────────────────────────────────────────────────────
+
+interface ControlsTabProps {
+  status: AutobotStatus;
+  modeBusy: boolean;
+  modeError: string | null;
+  killBusy: boolean;
+  killErr: string | null;
+  onModeChange: (mode: 'off' | 'auto') => void;
+  onKill: () => void;
+  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) => Promise<void>;
+  onWithdrawOpen: () => void;
+  onRefresh: () => void;
+}
+
+const ControlsTab: React.FC<ControlsTabProps> = ({
+  status, modeBusy, modeError, killBusy, killErr,
+  onModeChange, onKill, onSetLimits, onWithdrawOpen, onRefresh,
+}) => {
+  const isAuto = status.mode === 'auto';
+
+  return (
+    <div className="flex flex-col gap-4">
+
+      {/* ── Mode toggle ── */}
+      <Panel label="BOT MODE">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+          <div className="flex-1">
+            <SegmentedControl<'off' | 'auto'>
+              segments={MODE_SEGS}
+              value={status.mode}
+              onChange={onModeChange}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            {modeBusy && <Spin />}
+            {isAuto && (
+              <span className="flex items-center gap-1.5 font-mono text-jtp-xs font-semibold text-[#3ddc84]" aria-live="polite">
+                <span className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse" aria-hidden="true" />
+                BOT LIVE
+              </span>
+            )}
+            {status.killSwitch && (
+              <Badge variant="loss" size="sm">KILL SWITCH ON</Badge>
+            )}
+          </div>
+        </div>
+        {modeError && (
+          <p role="alert" className="mt-2 text-jtp-xs text-[#ff5b52] font-mono">{modeError}</p>
+        )}
+      </Panel>
+
+      {/* ── Two-column: wallet + limits ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Bot wallet */}
+        <Panel
+          label="BOT WALLET"
+          actions={
+            <Button variant="secondary" onClick={onWithdrawOpen} className="!px-3 !py-1.5 text-jtp-xs">
+              Withdraw
+            </Button>
+          }
+        >
+          {/* Address */}
+          <div className="mb-4">
+            <div className="jtp-label mb-1">ADDRESS (POLYGON)</div>
+            <div className="flex items-center flex-wrap gap-1">
+              <span className="font-mono text-jtp-xs text-jtp-text break-all" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {status.address}
+              </span>
+              <CopyButton text={status.address} />
+            </div>
+          </div>
+
+          {/* Balances */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
+              <div className="jtp-label mb-1">USDC.e</div>
+              <div className="font-mono font-bold text-jtp-2xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {fmtUsd(status.balance.usdce)}
+              </div>
+            </div>
+            <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
+              <div className="jtp-label mb-1">POL (GAS)</div>
+              <div className="font-mono font-bold text-jtp-2xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {status.balance.pol.toFixed(3)}
+              </div>
+            </div>
+          </div>
+
+          <BotFundPanel botAddress={status.address} onSuccess={onRefresh} />
+
+          <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5 mt-3">
+            <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+              <span className="text-jtp-text font-semibold">Manual option:</span>{' '}
+              send <span className="text-jtp-text">USDC.e</span> +
+              ~$1 worth of <span className="text-jtp-text">POL</span> for gas on{' '}
+              <span className="text-jtp-text">Polygon</span> to the address above.
+            </p>
+          </div>
+        </Panel>
+
+        {/* Limits & kill switch */}
+        <Panel label="LIMITS &amp; KILL SWITCH">
+          <div className="mb-4">
+            <Button
+              variant="danger"
+              onClick={onKill}
+              isLoading={killBusy}
+              disabled={killBusy}
+              className="w-full !py-3 text-jtp-base font-bold tracking-widest"
+              aria-label="Emergency kill switch — stop all bot activity"
+            >
+              KILL SWITCH — STOP EVERYTHING NOW
+            </Button>
+            {status.killSwitch && (
+              <p className="mt-1.5 font-mono text-jtp-xs text-[#ff5b52]">
+                Kill switch is active. Bot is halted. Change mode to re-enable.
+              </p>
+            )}
+            {killErr && (
+              <p role="alert" className="mt-1.5 font-mono text-jtp-xs text-[#ff5b52]">{killErr}</p>
+            )}
+          </div>
+
+          <LimitsEditor limits={status.limits} onSave={onSetLimits} />
+        </Panel>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 const QuantAutoBotPanel: React.FC = () => {
   const { getToken } = useAuth();
 
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<BotTab>('performance');
+
   const [status, setStatus] = useState<AutobotStatus | null>(null);
+  const [perf, setPerf] = useState<AutobotPerformance | null>(null);
   const [trades, setTrades] = useState<AutobotTrade[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [loading, setLoading] = useState(true);      // initial full load
+  const [perfLoading, setPerfLoading] = useState(true);
+  const [tradesLoading, setTradesLoading] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const [modeError, setModeError] = useState<string | null>(null);
@@ -809,22 +1101,32 @@ const QuantAutoBotPanel: React.FC = () => {
 
   const fetchAll = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
+    setTradesLoading(!opts?.silent);
     setLoadErr(null);
     try {
       const token = await getToken();
-      const [st, tr] = await Promise.all([
+      const [st, tr, pf] = await Promise.allSettled([
         api.autobotStatus(token),
         api.autobotTrades(60, token),
+        api.autobotPerformance(token),
       ]);
-      setStatus(st);
-      setTrades(Array.isArray(tr) ? tr : []);
+
+      if (st.status === 'fulfilled') setStatus(st.value);
+      else if (!status) throw new Error((st as PromiseRejectedResult).reason?.message || 'Could not load bot status.');
+
+      if (tr.status === 'fulfilled') setTrades(Array.isArray(tr.value) ? tr.value : []);
+
+      if (pf.status === 'fulfilled') { setPerf(pf.value); setPerfLoading(false); }
+      else setPerfLoading(false);
+
       setLastUpdated(fmtTimestamp());
     } catch (ex: any) {
       setLoadErr(ex?.message || 'Could not load bot status.');
     } finally {
       setLoading(false);
+      setTradesLoading(false);
     }
-  }, [getToken]);
+  }, [getToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchAll();
@@ -880,20 +1182,20 @@ const QuantAutoBotPanel: React.FC = () => {
   const handleWithdraw = async (to: string) => {
     const token = await getToken();
     await api.autobotWithdraw(to, token);
-    // Refresh balance after withdraw
     fetchAll({ silent: true });
   };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ── Initial skeleton ───────────────────────────────────────────────────────
 
   if (loading && !status) {
     return (
       <div className="space-y-3">
         <Skeleton variant="block" className="h-14" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} variant="stat" />)}
+        <Skeleton variant="block" className="h-10" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} variant="stat" />)}
         </div>
-        <Skeleton variant="panel" className="h-24" />
+        <Skeleton className="h-36 w-full" />
         <Skeleton variant="panel" className="h-24" />
       </div>
     );
@@ -909,12 +1211,11 @@ const QuantAutoBotPanel: React.FC = () => {
   }
 
   const st = status!;
-  const isAuto = st.mode === 'auto';
 
   return (
     <div className="flex flex-col gap-4 animate-jtp-fade-in">
 
-      {/* ── 1. Honest banner ── */}
+      {/* ── Honesty banner — always visible above tabs ── */}
       <div
         className="rounded-[2px] border border-[rgba(232,162,61,0.4)] bg-[rgba(232,162,61,0.06)] px-4 py-3 flex flex-col sm:flex-row sm:items-start gap-2"
         role="note"
@@ -930,211 +1231,40 @@ const QuantAutoBotPanel: React.FC = () => {
         </p>
       </div>
 
-      {/* ── 2. Mode toggle ── */}
-      <Panel label="BOT MODE">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
-          <div className="flex-1">
-            <SegmentedControl<'off' | 'auto'>
-              segments={MODE_SEGS}
-              value={st.mode}
-              onChange={handleModeChange}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            {modeBusy && <Spin />}
-            {isAuto && (
-              <span
-                className="flex items-center gap-1.5 font-mono text-jtp-xs font-semibold text-[#3ddc84]"
-                aria-live="polite"
-              >
-                <span
-                  className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse"
-                  aria-hidden="true"
-                />
-                BOT LIVE
-              </span>
-            )}
-            {st.killSwitch && (
-              <Badge variant="loss" size="sm">KILL SWITCH ON</Badge>
-            )}
-          </div>
-        </div>
-        {modeError && (
-          <p role="alert" className="mt-2 text-jtp-xs text-[#ff5b52] font-mono">{modeError}</p>
-        )}
-      </Panel>
-
-      {/* ── Two-column layout for wallet + limits ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* ── 3. Bot wallet card ── */}
-        <Panel
-          label="BOT WALLET"
-          actions={
-            <Button
-              variant="secondary"
-              onClick={() => setWithdrawOpen(true)}
-              className="!px-3 !py-1.5 text-jtp-xs"
-            >
-              Withdraw
-            </Button>
-          }
-        >
-          {/* Address */}
-          <div className="mb-4">
-            <div className="jtp-label mb-1">ADDRESS (POLYGON)</div>
-            <div className="flex items-center flex-wrap gap-1">
-              <span
-                className="font-mono text-jtp-xs text-jtp-text break-all"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
-                {st.address}
-              </span>
-              <CopyButton text={st.address} />
-            </div>
-          </div>
-
-          {/* Balances */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
-              <div className="jtp-label mb-1">USDC.e</div>
-              <div
-                className="font-mono font-bold text-jtp-2xl text-jtp-text"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
-                {fmtUsd(st.balance.usdce)}
-              </div>
-            </div>
-            <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
-              <div className="jtp-label mb-1">POL (GAS)</div>
-              <div
-                className="font-mono font-bold text-jtp-2xl text-jtp-text"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
-                {st.balance.pol.toFixed(3)}
-              </div>
-            </div>
-          </div>
-
-          {/* One-click funding from the user's connected wallet */}
-          <BotFundPanel botAddress={st.address} onSuccess={() => fetchAll({ silent: true })} />
-
-          {/* Fallback: manual send note */}
-          <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5">
-            <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
-              <span className="text-jtp-text font-semibold">Manual option:</span>{' '}
-              send <span className="text-jtp-text">USDC.e</span> +
-              ~$1 worth of <span className="text-jtp-text">POL</span> for gas on{' '}
-              <span className="text-jtp-text">Polygon</span> to the address above.
-            </p>
-          </div>
-        </Panel>
-
-        {/* ── 4. Safety / limits card ── */}
-        <Panel label="LIMITS &amp; KILL SWITCH">
-          {/* KILL SWITCH — large, prominent */}
-          <div className="mb-4">
-            <Button
-              variant="danger"
-              onClick={handleKill}
-              isLoading={killBusy}
-              disabled={killBusy}
-              className="w-full !py-3 text-jtp-base font-bold tracking-widest"
-              aria-label="Emergency kill switch — stop all bot activity"
-            >
-              KILL SWITCH — STOP EVERYTHING NOW
-            </Button>
-            {st.killSwitch && (
-              <p className="mt-1.5 font-mono text-jtp-xs text-[#ff5b52]">
-                Kill switch is active. Bot is halted. Change mode to re-enable.
-              </p>
-            )}
-            {killErr && (
-              <p role="alert" className="mt-1.5 font-mono text-jtp-xs text-[#ff5b52]">{killErr}</p>
-            )}
-          </div>
-
-          {/* Editable limits */}
-          <LimitsEditor limits={st.limits} onSave={handleSetLimits} />
-        </Panel>
-      </div>
-
-      {/* ── 5. Live stats ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatTile
-          label="EXPOSURE"
-          value={fmtUsd(st.exposureUsd)}
-          valueColor="text-jtp-text"
-        />
-        <StatTile
-          label="REALIZED P&amp;L"
-          value={
-            st.stats.realizedPnlUsd === 0
-              ? '$0.00'
-              : `${st.stats.realizedPnlUsd >= 0 ? '+' : ''}${fmtUsd(st.stats.realizedPnlUsd)}`
-          }
-          valueColor={pnlColor(st.stats.realizedPnlUsd)}
-        />
-        <StatTile
-          label="WIN RATE"
-          value={st.stats.resolved > 0 ? fmtPct(st.stats.winRate) : '—'}
-          subValue={st.stats.resolved > 0 ? `${st.stats.wins}/${st.stats.resolved} resolved` : 'no resolved trades'}
-        />
-        <StatTile
-          label="TRADES"
-          value={String(st.stats.trades)}
-          subValue={`${st.stats.resolved} resolved`}
-        />
-        <StatTile
-          label="TODAY P&amp;L"
-          value={
-            st.daily.pnlUsd === 0
-              ? '$0.00'
-              : `${st.daily.pnlUsd >= 0 ? '+' : ''}${fmtUsd(st.daily.pnlUsd)}`
-          }
-          valueColor={pnlColor(st.daily.pnlUsd)}
-          subValue={`spent ${fmtUsd(st.daily.spentUsd)} today`}
+      {/* ── Tab bar ── */}
+      <div>
+        <SegmentedControl<BotTab>
+          segments={BOT_TAB_SEGS}
+          value={tab}
+          onChange={setTab}
         />
       </div>
 
-      {/* ── 6. Live trades — detailed cards ── */}
-      <Panel
-        label="LIVE TRADES"
-        noPadding
-        actions={
-          <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
-            {loading ? (
-              <>
-                <Spin />
-                <span className="text-jtp-textDim">updating…</span>
-              </>
-            ) : lastUpdated ? (
-              <>
-                <span
-                  className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse"
-                  aria-hidden="true"
-                />
-                <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
-              </>
-            ) : null}
-          </span>
-        }
-      >
-        {trades.length === 0 ? (
-          <EmptyState
-            title="No trades yet"
-            description="Fund the wallet and switch to AUTO to start trading."
-          />
-        ) : (
-          <div className="divide-y-0">
-            {trades.map((trade) => (
-              <TradeCard key={trade.id} trade={trade} />
-            ))}
-          </div>
-        )}
-      </Panel>
+      {/* ── Tab content ── */}
+      {tab === 'performance' ? (
+        <PerformanceTab
+          perf={perf}
+          perfLoading={perfLoading}
+          trades={trades}
+          tradesLoading={tradesLoading}
+          lastUpdated={lastUpdated}
+        />
+      ) : (
+        <ControlsTab
+          status={st}
+          modeBusy={modeBusy}
+          modeError={modeError}
+          killBusy={killBusy}
+          killErr={killErr}
+          onModeChange={handleModeChange}
+          onKill={handleKill}
+          onSetLimits={handleSetLimits}
+          onWithdrawOpen={() => setWithdrawOpen(true)}
+          onRefresh={() => fetchAll({ silent: true })}
+        />
+      )}
 
-      {/* ── Withdraw modal ── */}
+      {/* ── Withdraw modal — stays at root so it layers over both tabs ── */}
       {withdrawOpen && (
         <WithdrawModal
           onClose={() => setWithdrawOpen(false)}

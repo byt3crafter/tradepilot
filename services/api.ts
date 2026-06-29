@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -161,6 +161,7 @@ export interface ApiService {
   autobotKill(token?: string | null): Promise<AutobotStatus>;
   autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }, token?: string | null): Promise<AutobotStatus>;
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }>;
+  autobotPerformance(token?: string | null): Promise<AutobotPerformance>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -448,6 +449,7 @@ const api: ApiService = {
   autobotKill(token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/kill', {}, token); },
   autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }> { return this.post('/api/autobot/withdraw', { to }, token); },
+  autobotPerformance(token?: string | null): Promise<AutobotPerformance> { return this.get('/api/autobot/performance', token); },
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },
