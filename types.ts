@@ -937,3 +937,35 @@ export type ExchangeStatusMap = Record<string, {
   testnet: boolean;
   keyMask?: string;
 }>;
+
+export interface CryptoPerformance {
+  strategy: string;
+  stats: {
+    open: number;
+    resolved: number;
+    wins: number;
+    losses: number;
+    winRate: number;          // 0..1
+    realizedPnlUsd: number;
+    openPnlUsd: number;
+    avgRealizedYieldPct: number;
+  };
+  curve: { t: number; pnl: number }[];
+  byBand: { band: string; n: number; realizedYieldPct: number }[];
+}
+
+export interface CryptoPaperTrade {
+  id: string;
+  exchange: string;
+  strategy: string;
+  symbol: string;
+  base: string;
+  sizeUsd: number;
+  entryFundingPct: number;
+  status: 'open' | 'closed';
+  pnlUsd: number;
+  feesUsd: number;
+  openedAt: string;
+  closedAt?: string | null;
+  meta?: Record<string, unknown> | null;
+}

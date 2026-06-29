@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -201,6 +201,8 @@ export interface ApiService {
   exchangesFunding(exchange?: string, token?: string | null): Promise<CryptoFundingScan>;
   exchangesStatus(token?: string | null): Promise<ExchangeStatusMap>;
   exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap>;
+  exchangesPerformance(strategy?: string, token?: string | null): Promise<CryptoPerformance>;
+  exchangesPaperTrades(strategy?: string, limit?: number, token?: string | null): Promise<CryptoPaperTrade[]>;
 }
 
 export interface ChatGptPermissions {
@@ -497,6 +499,19 @@ const api: ApiService = {
   },
   exchangesStatus(token?: string | null): Promise<ExchangeStatusMap> { return this.get('/api/exchanges/status', token); },
   exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap> { return this.post('/api/exchanges/keys', body, token); },
+  exchangesPerformance(strategy?: string, token?: string | null): Promise<CryptoPerformance> {
+    const params = new URLSearchParams();
+    if (strategy) params.set('strategy', strategy);
+    const qs = params.toString();
+    return this.get(`/api/exchanges/performance${qs ? `?${qs}` : ''}`, token);
+  },
+  exchangesPaperTrades(strategy?: string, limit?: number, token?: string | null): Promise<CryptoPaperTrade[]> {
+    const params = new URLSearchParams();
+    if (strategy) params.set('strategy', strategy);
+    if (limit !== undefined) params.set('limit', String(limit));
+    const qs = params.toString();
+    return this.get(`/api/exchanges/paper-trades${qs ? `?${qs}` : ''}`, token);
+  },
 };
 
 export default api;
