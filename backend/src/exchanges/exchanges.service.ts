@@ -217,6 +217,113 @@ export class ExchangesService {
     return this.prisma.cexPaperTrade.findMany({ where: { strategy }, orderBy: { openedAt: 'desc' }, take: Math.min(limit, 200) });
   }
 
+  // ── VOLATILITY TRACKER + MOMENTUM (public data) ───────────────────────────────
+  private snapCache: { at: number; rows: any[] } | null = null;
+  private async snapshot(exchange = 'binance'): Promise<any[]> {
+    if (this.snapCache && Date.now() - this.snapCache.at < 60_000) return this.snapCache.rows;
+    const tickers = await (this.adapter(exchange) as any).get24hrTickers();
+    const rows = (tickers || [])
+      .filter((t: any) => t.symbol.endsWith('USDT') && Number(t.quoteVolume) > 0)
+      .map((t: any) => {
+        const last = Number(t.lastPrice), hi = Number(t.highPrice), lo = Number(t.lowPrice);
+        return {
+          symbol: t.symbol, base: t.symbol.replace(/USDT$/, ''),
+          last, changePct: Number(t.priceChangePercent),
+          rangePct: lo > 0 ? +(((hi - lo) / lo) * 100).toFixed(2) : 0, // 24h high-low range = vol proxy
+          volUsd: Number(t.quoteVolume),
+        };
+      });
+    this.snapCache = { at: Date.now(), rows };
+    return rows;
+  }
+
+  /** Volatility tracker — most volatile liquid coins + market regime (is vol high right now?). */
+  async volatilityScan(exchange = 'binance', minVolUsd = 20_000_000) {
+    const rows = (await this.snapshot(exchange)).filter((r) => r.volUsd >= minVolUsd);
+    const ranges = rows.map((r) => r.rangePct).sort((a, b) => a - b);
+    const median = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+    const movers = rows
+      .map((r) => ({ ...r, volRegime: r.rangePct > median * 1.6 ? 'high' : r.rangePct < median * 0.6 ? 'low' : 'normal' }))
+      .sort((a, b) => b.rangePct - a.rangePct)
+      .slice(0, 30);
+    return { exchange, marketMedianRangePct: +median.toFixed(2), highVolMarket: median > 6, movers, scannedAt: Date.now() };
+  }
+
+  /** Momentum scanner — strong, liquid, not blow-off uptrends (the "buy spot, ride, sell higher"). */
+  async momentumScan(exchange = 'binance', minVolUsd = 30_000_000) {
+    const rows = (await this.snapshot(exchange)).filter((r) => r.volUsd >= minVolUsd);
+    const cands = rows
+      .filter((r) => r.changePct >= 4 && r.changePct <= 30 && r.rangePct <= 40) // trending up, not parabolic
+      .map((r) => ({ ...r, score: +(r.changePct + Math.log10(r.volUsd)).toFixed(2) }))
+      .sort((a, b) => b.changePct - a.changePct)
+      .slice(0, 20);
+    return { exchange, candidates: cands, count: cands.length, scannedAt: Date.now() };
+  }
+
+  // momentum paper loop: buy the trend, exit on target / stop / time
+  private readonly MOM_TARGET = 0.08;  // +8%
+  private readonly MOM_STOP = 0.04;    // -4%
+  private readonly MOM_HOLD_H = 48;
+
+  async momentumPaperOpen(exchange = 'binance'): Promise<number> {
+    const { candidates } = await this.momentumScan(exchange);
+    const open = await this.prisma.cexPaperTrade.findMany({ where: { strategy: 'momentum', status: 'open' } });
+    const held = new Set(open.map((t) => t.symbol));
+    let created = 0;
+    for (const c of candidates) {
+      if (open.length + created >= this.MAX_OPEN) break;
+      if (held.has(c.symbol) || !c.last) continue;
+      await this.prisma.cexPaperTrade.create({
+        data: {
+          exchange, strategy: 'momentum', symbol: c.symbol, base: c.base, sizeUsd: this.PAPER_SIZE,
+          status: 'open', pnlUsd: -(this.PAPER_SIZE * this.FEE_RATE), feesUsd: this.PAPER_SIZE * this.FEE_RATE,
+          meta: { entryPrice: c.last, target: c.last * (1 + this.MOM_TARGET), stop: c.last * (1 - this.MOM_STOP), entryChangePct: c.changePct },
+        },
+      });
+      created++;
+    }
+    return created;
+  }
+
+  async momentumManage(exchange = 'binance'): Promise<{ checked: number; closed: number }> {
+    const open = await this.prisma.cexPaperTrade.findMany({ where: { strategy: 'momentum', status: 'open' } });
+    if (!open.length) return { checked: 0, closed: 0 };
+    const priceMap = new Map((await this.snapshot(exchange)).map((r) => [r.symbol, r.last]));
+    const now = Date.now();
+    let closed = 0;
+    for (const t of open) {
+      const meta: any = t.meta || {};
+      const entry = Number(meta.entryPrice) || 0;
+      const cur = priceMap.get(t.symbol) || 0;
+      if (!entry || !cur) continue;
+      const ageH = (now - t.openedAt.getTime()) / 3_600_000;
+      const hitTarget = cur >= (meta.target || Infinity);
+      const hitStop = cur <= (meta.stop || 0);
+      if (hitTarget || hitStop || ageH >= this.MOM_HOLD_H) {
+        const grossPnl = t.sizeUsd * (cur / entry - 1);
+        const pnl = grossPnl - t.sizeUsd * this.FEE_RATE; // exit fee (entry fee already in pnlUsd)
+        await this.prisma.cexPaperTrade.update({
+          where: { id: t.id },
+          data: { status: 'closed', closedAt: new Date(now), pnlUsd: t.pnlUsd + grossPnl - t.sizeUsd * this.FEE_RATE, feesUsd: t.feesUsd + t.sizeUsd * this.FEE_RATE, meta: { ...meta, exitPrice: cur, exitReason: hitTarget ? 'target' : hitStop ? 'stop' : 'time' } },
+        });
+        closed++;
+      }
+    }
+    return { checked: open.length, closed };
+  }
+
+  @Interval('cex-momentum-open', 20 * 60 * 1000)
+  async momentumOpenLoop() {
+    try { const n = await this.momentumPaperOpen('binance'); if (n) this.logger.log(`cex momentum: +${n} opened`); }
+    catch (e: any) { this.logger.warn(`cex momentum open: ${e?.message}`); }
+  }
+
+  @Interval('cex-momentum-manage', 10 * 60 * 1000)
+  async momentumManageLoop() {
+    try { const r = await this.momentumManage('binance'); if (r.closed) this.logger.log(`cex momentum: ${r.closed} closed`); }
+    catch (e: any) { this.logger.warn(`cex momentum manage: ${e?.message}`); }
+  }
+
   // ── live/testnet execution (needs stored credentials) ─────────────────────────
   private async tradeAdapter(exchange = 'binance'): Promise<BinanceAdapter> {
     const c = await this.getCredential(exchange);

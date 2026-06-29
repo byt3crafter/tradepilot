@@ -20,6 +20,16 @@ export class ExchangesController {
     return this.exchanges.fundingScan(exchange || 'binance');
   }
 
+  @Get('volatility')
+  volatility(@Query('exchange') exchange?: string) {
+    return this.exchanges.volatilityScan(exchange || 'binance');
+  }
+
+  @Get('momentum')
+  momentum(@Query('exchange') exchange?: string) {
+    return this.exchanges.momentumScan(exchange || 'binance');
+  }
+
   @Get('status')
   status() {
     return this.exchanges.credentialStatus();
