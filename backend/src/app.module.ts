@@ -26,6 +26,7 @@ import { NotebookModule } from './notebook/notebook.module';
 import { CtraderModule } from './ctrader/ctrader.module';
 import { QuantModule } from './quant/quant.module';
 import { AutobotModule } from './autobot/autobot.module';
+import { ExchangesModule } from './exchanges/exchanges.module';
 import { ChatgptModule } from './chatgpt/chatgpt.module';
 import { AiModule } from './ai/ai.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -73,6 +74,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     CtraderModule,
     QuantModule,
     AutobotModule,
+    ExchangesModule,
     ChatgptModule,
     AiModule,
     ScheduleModule.forRoot(),
