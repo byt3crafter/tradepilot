@@ -50,6 +50,12 @@ export class BinanceAdapter implements CexAdapter {
     return Number(d?.price) || 0;
   }
 
+  /** All 24h spot tickers (public, live) — momentum + volatility + current prices in one call. */
+  async get24hrTickers(): Promise<any[]> {
+    const d = await this.get('https://api.binance.com', '/api/v3/ticker/24hr');
+    return Array.isArray(d) ? d : [];
+  }
+
   // ── signed (needs key/secret) ────────────────────────────────────────────────
   private base(market: 'spot' | 'fapi'): string {
     if (market === 'fapi') return this.creds?.testnet ? 'https://testnet.binancefuture.com' : 'https://fapi.binance.com';
