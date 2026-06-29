@@ -186,36 +186,43 @@ export class AutobotService {
     if (bal.pol < 0.02) { this.logger.warn(`autobot ${w.address}: low POL for gas`); return; }
 
     // current exposure
-    const open = await this.prisma.agentTrade.findMany({ where: { userId: w.userId, status: { in: ['placed', 'filled'] } } });
-    const exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    let open = await this.prisma.agentTrade.findMany({ where: { userId: w.userId, status: { in: ['placed', 'filled'] } } });
+    let exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
     if (exposure >= w.maxTotalUsd) return; // fully deployed
 
-    // pick the best fresh signal we don't already hold
     const { signals } = await this.quant.signals();
     const held = new Set(open.map((t) => t.tokenId));
-    const pick = (signals || []).find((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) > 0);
-    if (!pick) return;
+    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) > 0);
 
-    const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, bal.usdce);
-    const sizeUsd = Math.floor(room * 100) / 100;
-    if (sizeUsd < 1) return;
-
-    // log intent first (audit), then attempt the order
-    const trade = await this.prisma.agentTrade.create({
-      data: {
-        userId: w.userId, market: pick.conditionId, tokenId: pick.tokenId, outcome: pick.outcome,
-        title: pick.title, side: 'BUY', sizeUsd, price: pick.price || (pick.priceCents || 0) / 100,
-        signalType: pick.type, status: 'pending',
-      },
-    });
-    try {
-      const orderId = await this.placeOrder(w, pick.tokenId, pick.price || (pick.priceCents || 0) / 100, sizeUsd);
-      await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'placed', orderId } });
-      await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
-      this.logger.log(`autobot ${w.address}: BUY ${pick.outcome} $${sizeUsd} @ ${pick.price} (${pick.type})`);
-    } catch (e: any) {
-      await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
-      this.logger.warn(`autobot ${w.address}: order failed — ${e?.message}`);
+    // place up to 3 fresh signals per tick so the book deploys (and the user sees activity) fast
+    let placed = 0;
+    let usdceLeft = bal.usdce;
+    for (const pick of fresh) {
+      if (placed >= 3 || exposure >= w.maxTotalUsd) break;
+      const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, usdceLeft);
+      const sizeUsd = Math.floor(room * 100) / 100;
+      if (sizeUsd < 1) break;
+      const price = pick.price || (pick.priceCents || 0) / 100;
+      // log intent first (audit) WITH full reasoning, then attempt the order
+      const trade = await this.prisma.agentTrade.create({
+        data: {
+          userId: w.userId, market: pick.conditionId, tokenId: pick.tokenId, outcome: pick.outcome,
+          title: pick.title, side: 'BUY', sizeUsd, price, signalType: pick.type,
+          reason: pick.reason || null, edgePct: pick.edgePct ?? null, detail: pick.detail || null,
+          status: 'pending',
+        },
+      });
+      try {
+        const orderId = await this.placeOrder(w, pick.tokenId, price, sizeUsd);
+        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'placed', orderId } });
+        await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
+        this.logger.log(`autobot ${w.address}: BUY ${pick.outcome} $${sizeUsd} @ ${price} (${pick.type})`);
+        exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
+      } catch (e: any) {
+        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
+        this.logger.warn(`autobot ${w.address}: order failed — ${e?.message}`);
+        break; // stop on first failure this tick (avoid spamming the same error)
+      }
     }
   }
 
