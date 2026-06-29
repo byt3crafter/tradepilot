@@ -225,22 +225,19 @@ export class ExchangesService {
     throw new Error(`trading not implemented for ${exchange}`);
   }
 
-  /** Connection test — lists futures balances (proves the key/secret work). */
+  /** Connection test — lists SPOT balances (the testnet key is a Spot key). */
   async testConnection(exchange = 'binance') {
     const c = await this.getCredential(exchange);
     const a = await this.tradeAdapter(exchange);
-    const balances = await (a as any).getBalances();
-    return { ok: true, exchange, testnet: c?.testnet, balances };
+    const balances = await (a as any).getSpotBalances();
+    return { ok: true, exchange, testnet: c?.testnet, market: 'spot', balances };
   }
 
-  /** Tiny test order (maiden voyage) — market BUY ~$usd of a perp. */
+  /** Tiny test order (maiden voyage) — SPOT market BUY ~$usd of a symbol. */
   async testTrade(exchange = 'binance', symbol = 'BTCUSDT', usd = 20) {
     const a: any = await this.tradeAdapter(exchange);
-    const price = await a.getPrice(symbol);
-    if (!price) throw new Error('no price');
-    const qty = +(usd / price).toFixed(3);
-    const order = await a.placeOrder({ symbol, side: 'BUY', type: 'MARKET', qty, market: 'fapi' });
-    return { ok: true, symbol, qty, price, order };
+    const order = await a.placeSpotMarketByQuote(symbol, 'BUY', usd);
+    return { ok: true, symbol, usd, market: 'spot', order };
   }
 
   @Interval('cex-funding-open', 30 * 60 * 1000)
