@@ -611,8 +611,22 @@ const QuantAutoBotPanel: React.FC = () => {
               send <span className="text-jtp-text">USDC.e</span> +
               ~$1 worth of <span className="text-jtp-text">POL</span> for gas on{' '}
               <span className="text-jtp-text">Polygon</span> to the address above.
+              {' '}Got native USDC? Convert it first ↓
             </p>
           </div>
+
+          {/* One-click swap: native USDC -> USDC.e on Polygon (Uniswap, pre-filled) */}
+          <a
+            href="https://app.uniswap.org/swap?chain=polygon&inputCurrency=0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359&outputCurrency=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center justify-center gap-2 rounded-[2px] border border-jtp-amber/40 bg-jtp-active hover:bg-jtp-activeHover text-jtp-amber font-mono font-bold uppercase tracking-wider text-[11px] px-3 py-2 transition-colors"
+          >
+            Swap USDC → USDC.e ↗
+          </a>
+          <p className="mt-1 font-mono text-jtp-2xs text-jtp-textFaint leading-relaxed">
+            Opens Uniswap (Polygon) pre-set: native USDC → USDC.e. 1:1 in value. Needs a little POL for gas.
+          </p>
         </Panel>
 
         {/* ── 4. Safety / limits card ── */}

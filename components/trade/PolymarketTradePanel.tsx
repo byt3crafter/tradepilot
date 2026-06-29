@@ -1082,7 +1082,7 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
                         <span className="font-mono font-semibold">USDC.e</span> (bridged).
                         Swap native USDC → USDC.e on a Polygon DEX (e.g.{' '}
                         <a
-                          href="https://app.uniswap.org/#/swap?chain=polygon"
+                          href="https://app.uniswap.org/swap?chain=polygon&inputCurrency=0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359&outputCurrency=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-jtp-amber underline underline-offset-2 hover:opacity-80"
