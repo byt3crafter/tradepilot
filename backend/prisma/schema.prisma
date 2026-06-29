@@ -669,6 +669,9 @@ model AgentTrade {
   sizeUsd    Float
   price      Float
   signalType String?   // 'arb' | 'ai' | 'copy'
+  reason     String?   // WHY the bot took it (the signal's rationale)
+  edgePct    Float?    // the edge the signal claimed
+  detail     String?   // e.g. "AI 92% vs crowd 50%" / "settlement-lag"
   orderId    String?
   status     String    @default("pending") // pending | placed | filled | failed | resolved
   error      String?
