@@ -9,6 +9,7 @@ import AiQuantPanel from '../components/quant/AiQuantPanel';
 import WhatWorksPanel from '../components/quant/WhatWorksPanel';
 import QuantArbPanel from '../components/quant/QuantArbPanel';
 import QuantSignalsPanel from '../components/quant/QuantSignalsPanel';
+import QuantAutoBotPanel from '../components/quant/QuantAutoBotPanel';
 import PolymarketTradePanel, { TradePrefill } from '../components/trade/PolymarketTradePanel';
 import {
   Panel,
@@ -21,7 +22,7 @@ import {
 } from '../components/ui';
 import type { Segment } from '../components/ui';
 
-type QuantMode = 'signals' | 'leaderboard' | 'terminal' | 'trade' | 'learning' | 'arbitrage';
+type QuantMode = 'signals' | 'leaderboard' | 'terminal' | 'trade' | 'learning' | 'arbitrage' | 'auto';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,7 @@ const Spinner: React.FC<{ className?: string }> = ({ className }) => (
 
 const MODE_SEGMENTS: Segment<QuantMode>[] = [
   { value: 'signals',     label: 'Signals' },
+  { value: 'auto',        label: 'Auto Bot' },
   { value: 'leaderboard', label: 'Leaderboard' },
   { value: 'terminal',    label: 'Terminal' },
   { value: 'trade',       label: 'Trade' },
@@ -791,6 +793,21 @@ const QuantPage: React.FC = () => {
       {mode === 'signals' ? (
         /* ── Signals — the "what to buy now" board ── */
         <QuantSignalsPanel onTrade={handleArbTrade} />
+
+      ) : mode === 'auto' ? (
+        /* ── Auto Bot — autonomous bot wallet + monitor ── */
+        <>
+          <div>
+            <h1 className="text-jtp-2xl font-semibold text-jtp-text tracking-tight">
+              Auto Bot
+            </h1>
+            <p className="text-jtp-lg text-jtp-textMuted mt-1.5 max-w-3xl">
+              Autonomous Polymarket trading from an isolated server-held wallet. Fund it, set your
+              limits, and switch to AUTO — the bot places trades on your behalf.
+            </p>
+          </div>
+          <QuantAutoBotPanel />
+        </>
 
       ) : mode === 'terminal' ? (
         /* ── Terminal — dense existing dashboard, harmonised tokens ── */

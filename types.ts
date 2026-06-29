@@ -841,6 +841,45 @@ export interface QuantSignalsResult {
   generatedAt: string;     // ISO datetime
 }
 
+// --- Auto Bot ---
+
+export interface AutobotStatus {
+  address: string;
+  mode: 'off' | 'auto';
+  killSwitch: boolean;
+  balance: { usdce: number; pol: number };
+  limits: { maxTotalUsd: number; maxPerTradeUsd: number; dailyLossLimitUsd: number };
+  daily: { spentUsd: number; pnlUsd: number };
+  exposureUsd: number;
+  stats: {
+    trades: number;
+    resolved: number;
+    wins: number;
+    winRate: number;
+    realizedPnlUsd: number;
+  };
+}
+
+export type AutobotTradeStatus = 'pending' | 'placed' | 'filled' | 'failed' | 'resolved';
+
+export interface AutobotTrade {
+  id: string;
+  createdAt: string;
+  market: string;
+  tokenId: string;
+  outcome: string;
+  title: string;
+  side: string;
+  sizeUsd: number;
+  price: number;
+  signalType: string;
+  status: AutobotTradeStatus;
+  error?: string | null;
+  roiPct?: number | null;
+  pnlUsd?: number | null;
+  resolvedAt?: string | null;
+}
+
 // --- Notebook ---
 
 export interface NotebookEntry {
