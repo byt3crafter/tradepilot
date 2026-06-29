@@ -66,6 +66,11 @@ export class QuantService implements OnApplicationBootstrap {
     return this.pm.searchMarkets(query, 120);
   }
 
+  /** Market resolutions by conditionId — used by the autobot trade resolver. */
+  resolutions(conditionIds: string[]) {
+    return this.pm.marketResolutions(conditionIds);
+  }
+
   /**
    * Arbitrage / mispricing scanner — the REAL edge (pure Polymarket math, no wallet copying):
    *  • cross-market: NegRisk (mutually-exclusive) events whose Yes prices sum < $1 →
@@ -758,7 +763,7 @@ export class QuantService implements OnApplicationBootstrap {
         edgePct: +(((trueP - entry) * 100)).toFixed(0),
         detail: `AI ${Math.round(trueP * 100)}% vs crowd ${Math.round(entry * 100)}%`,
         confidence: m.confidence ?? null, reason: d.rationale || '',
-        tokenId: m.tokenId || null, price: entry, conditionId: d.market,
+        tokenId: m.tokenId || null, price: entry, conditionId: d.market, outcomeIndex: m.outcomeIndex ?? null,
       };
     });
     let arbs: any[] = [];
@@ -769,7 +774,7 @@ export class QuantService implements OnApplicationBootstrap {
         priceCents: Math.round(a.price * 100), edgePct: a.edgePct,
         detail: 'settlement-lag · ends soon', confidence: null,
         reason: `Near-certain favourite at ${Math.round(a.price * 100)}¢ — collect the gap to $1.00 (after fees +${a.edgePct}%). High-probability, not guaranteed.`,
-        tokenId: a.tokenId || null, price: a.price, conditionId: a.conditionId,
+        tokenId: a.tokenId || null, price: a.price, conditionId: a.conditionId, outcomeIndex: a.outcomeIndex ?? null,
       }));
     } catch { /* arbs optional */ }
     const all = [...ai, ...arbs].sort((x, y) => (y.edgePct || 0) - (x.edgePct || 0));

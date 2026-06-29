@@ -106,6 +106,37 @@ export class AutobotService {
     };
   }
 
+  /** Real-money performance: equity curve (cumulative realized P&L) + win/loss stats. */
+  async performance(userId: string) {
+    const trades = await this.prisma.agentTrade.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
+    const resolved = trades.filter((t) => t.status === 'resolved');
+    const wins = resolved.filter((t) => (t.pnlUsd || 0) > 0).length;
+    const losses = resolved.length - wins;
+    const realizedPnl = resolved.reduce((s, t) => s + (t.pnlUsd || 0), 0);
+    const byTime = resolved.filter((t) => t.resolvedAt).sort((a, b) => a.resolvedAt!.getTime() - b.resolvedAt!.getTime());
+    let cum = 0;
+    const curve = byTime.map((t) => { cum += t.pnlUsd || 0; return { t: t.resolvedAt!.getTime(), pnl: +cum.toFixed(2) }; });
+    let peak = 0, maxdd = 0;
+    for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
+    const w = await this.getOrCreate(userId);
+    const bal = await this.balances(w.address);
+    const openExposure = trades.filter((t) => ['placed', 'filled'].includes(t.status)).reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    return {
+      stats: {
+        trades: trades.length,
+        open: trades.filter((t) => ['placed', 'filled'].includes(t.status)).length,
+        resolved: resolved.length,
+        wins, losses,
+        winRate: resolved.length ? wins / resolved.length : 0,
+        realizedPnlUsd: +realizedPnl.toFixed(2),
+        maxDrawdownUsd: +maxdd.toFixed(2),
+        walletUsdce: bal.usdce,
+        openExposureUsd: +openExposure.toFixed(2),
+      },
+      curve,
+    };
+  }
+
   async setMode(userId: string, mode: 'off' | 'auto') {
     const w = await this.getOrCreate(userId);
     if (mode === 'auto') {
@@ -207,6 +238,7 @@ export class AutobotService {
       const trade = await this.prisma.agentTrade.create({
         data: {
           userId: w.userId, market: pick.conditionId, tokenId: pick.tokenId, outcome: pick.outcome,
+          outcomeIndex: pick.outcomeIndex ?? null,
           title: pick.title, side: 'BUY', sizeUsd, price, signalType: pick.type,
           reason: pick.reason || null, edgePct: pick.edgePct ?? null, detail: pick.detail || null,
           status: 'pending',
@@ -230,6 +262,28 @@ export class AutobotService {
    * Place a real CLOB order from the agent wallet. Server-side signing via ethers.
    * Lazy-imports the CLOB client so a bad/missing dep can't break the whole app.
    */
+  // Resolve placed/filled trades against real market outcomes → win/loss + P&L.
+  @Interval('autobot-resolve', 10 * 60 * 1000)
+  async resolveTrades() {
+    const open = await this.prisma.agentTrade.findMany({ where: { status: { in: ['placed', 'filled'] }, outcomeIndex: { not: null } } });
+    if (!open.length) return;
+    const cids = [...new Set(open.map((t) => t.market).filter(Boolean) as string[])];
+    let res: any = {};
+    try { res = await this.quant.resolutions(cids); } catch { return; }
+    for (const t of open) {
+      const r = t.market ? res[t.market] : null;
+      if (!r || !r.closed || r.winningIndex == null) continue;
+      const price = t.price || 0;
+      if (price <= 0) continue;
+      const payoff = r.winningIndex === t.outcomeIndex ? 1 : 0;
+      const roiPct = ((payoff - price) / price) * 100;
+      const pnlUsd = t.sizeUsd * (payoff / price - 1);
+      await this.prisma.agentTrade.update({ where: { id: t.id }, data: { status: 'resolved', roiPct, pnlUsd, resolvedAt: new Date() } });
+      await this.prisma.pmAgentWallet.update({ where: { userId: t.userId }, data: { dailyPnlUsd: { increment: pnlUsd } } }).catch(() => {});
+      this.logger.log(`autobot resolve: ${payoff ? 'WON' : 'LOST'} ${t.outcome} pnl=$${pnlUsd.toFixed(2)}`);
+    }
+  }
+
   /** One-time: approve USDC.e for Polymarket's exchanges so the bot's BUYs can settle. */
   private async ensureAllowances(wallet: ethers.Wallet) {
     const usdc = new ethers.Contract(USDCE, ERC20, wallet);
