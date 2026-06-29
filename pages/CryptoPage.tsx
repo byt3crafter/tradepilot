@@ -3,6 +3,7 @@
  *
  * Tabs:
  *   Funding Arb   — LIVE: delta-neutral funding rate scanner, polls every 30s
+ *   What Works    — paper-trading learning loop: stats, equity curve, byBand table, positions
  *   Momentum      — described, coming
  *   Mean-Reversion— described, coming
  *   AI Signals    — described, coming
@@ -12,15 +13,24 @@
  * Gated by quantEnabled (same gate as Quant).
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Panel, Badge, SegmentedControl, EmptyState, Skeleton } from '../components/ui';
-import { CryptoFundingOpp, CryptoFundingScan, ExchangeStatusMap } from '../types';
+import { Panel, Badge, SegmentedControl, EmptyState, Skeleton, StatTile } from '../components/ui';
+import { CryptoFundingOpp, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CryptoTab =
   | 'funding_arb'
+  | 'what_works'
   | 'momentum'
   | 'mean_reversion'
   | 'ai_signals'
@@ -234,6 +244,368 @@ const FundingArbTab: React.FC<{ exchange: string; token: string | null }> = ({
   );
 };
 
+// ─── Tab: What Works ──────────────────────────────────────────────────────────
+
+const fmtUsd = (v: number) =>
+  '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const fmtPct = (v: number) =>
+  (v * 100).toFixed(1) + '%';
+
+const pnlColor = (v: number) =>
+  v > 0 ? 'text-[#3ddc84]' : v < 0 ? 'text-[#ff5b52]' : 'text-jtp-textMuted';
+
+const WhatWorksTooltip: React.FC<any> = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const pnl: number = payload[0]?.value ?? 0;
+  const sign = pnl >= 0 ? '+' : '';
+  const color = pnl >= 0 ? '#3ddc84' : '#ff5b52';
+  return (
+    <div
+      style={{ background: '#0d0f12', border: '1px solid #1b2026', borderRadius: 2 }}
+      className="px-3 py-2"
+    >
+      <span className="font-mono text-jtp-xs" style={{ color }}>
+        {sign}${Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+    </div>
+  );
+};
+
+const WhatWorksTab: React.FC<{ token: string | null }> = ({ token }) => {
+  const [perf, setPerf] = useState<CryptoPerformance | null>(null);
+  const [trades, setTrades] = useState<CryptoPaperTrade[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      const [perfData, tradesData] = await Promise.all([
+        api.exchangesPerformance('funding', token),
+        api.exchangesPaperTrades('funding', 60, token),
+      ]);
+      setPerf(perfData);
+      setTrades(tradesData);
+      setLastUpdated(new Date());
+    } catch (e: any) {
+      setError(e.message || 'Failed to load performance data');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(load, 15_000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [load]);
+
+  const updatedStr = lastUpdated
+    ? lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  const refreshBadge = updatedStr ? (
+    <span className="font-mono text-jtp-xs text-jtp-textDim flex items-center gap-1">
+      <RefreshIcon className="w-3 h-3 flex-shrink-0" />
+      updated {updatedStr}
+    </span>
+  ) : null;
+
+  if (error) {
+    return (
+      <Panel label="WHAT WORKS — FUNDING ARB" actions={refreshBadge}>
+        <div className="py-6 text-center">
+          <p className="text-jtp-loss text-jtp-md font-mono">{error}</p>
+          <button
+            onClick={load}
+            className="mt-3 text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted font-mono"
+          >
+            retry
+          </button>
+        </div>
+      </Panel>
+    );
+  }
+
+  if (loading && !perf) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} variant="stat" />)}
+        </div>
+        <Skeleton className="h-36 w-full" />
+        <Skeleton variant="panel" className="h-32" />
+      </div>
+    );
+  }
+
+  const st = perf?.stats;
+  const resolved = st?.resolved ?? 0;
+  const open = st?.open ?? 0;
+  const isEmpty = resolved === 0 && open === 0;
+
+  // Equity curve
+  const curve = perf?.curve ?? [];
+  const chartData = curve.map(pt => ({ t: pt.t, pnl: pt.pnl }));
+  const hasCurve = chartData.length >= 2;
+  const finalPnl = curve.length > 0 ? curve[curve.length - 1].pnl : 0;
+  const isUp = finalPnl >= 0;
+  const lineColor = isUp ? '#3ddc84' : '#ff5b52';
+  const areaId = isUp ? 'cryptoPerfAreaUp' : 'cryptoPerfAreaDown';
+
+  const yAxisFormatter = (v: number) => {
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+    return `${sign}$${abs.toFixed(0)}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* ── Stat tiles ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatTile label="OPEN" value={st ? String(st.open) : '—'} valueColor="text-[#e8a23d]" />
+        <StatTile label="RESOLVED" value={st ? String(st.resolved) : '—'} />
+        <StatTile
+          label="RIGHT"
+          value={st ? String(st.wins) : '—'}
+          valueColor="text-[#3ddc84]"
+          subValue="trades won"
+        />
+        <StatTile
+          label="WRONG"
+          value={st ? String(st.losses) : '—'}
+          valueColor="text-[#ff5b52]"
+          subValue="trades lost"
+        />
+        <StatTile
+          label="WIN RATE"
+          value={st && resolved > 0 ? fmtPct(st.winRate) : '—'}
+          subValue={resolved > 0 ? `${resolved} resolved` : 'no resolved yet'}
+        />
+        <StatTile
+          label="REALIZED P&amp;L"
+          value={
+            st
+              ? st.realizedPnlUsd === 0
+                ? '$0.00'
+                : `${st.realizedPnlUsd >= 0 ? '+' : ''}${fmtUsd(st.realizedPnlUsd)}`
+              : '—'
+          }
+          valueColor={st ? pnlColor(st.realizedPnlUsd) : undefined}
+        />
+        <StatTile
+          label="OPEN P&amp;L"
+          value={
+            st
+              ? st.openPnlUsd === 0
+                ? '$0.00'
+                : `${st.openPnlUsd >= 0 ? '+' : ''}${fmtUsd(st.openPnlUsd)}`
+              : '—'
+          }
+          valueColor={st ? pnlColor(st.openPnlUsd) : undefined}
+        />
+        <StatTile
+          label="AVG YIELD"
+          value={st && resolved > 0 ? `${st.avgRealizedYieldPct.toFixed(2)}%` : '—'}
+          subValue="realized/position"
+        />
+      </div>
+
+      {/* ── Equity curve ── */}
+      {isEmpty ? (
+        <EmptyState
+          title="Learning loop is warming up"
+          description="It opens paper funding positions every 30 min and accrues real funding hourly. Win/loss fills in as positions close after 72h."
+        />
+      ) : resolved === 0 ? (
+        <div
+          className="rounded-jtp-sm border border-jtp-borderSubtle flex items-center justify-center"
+          style={{ background: '#090b0d', minHeight: 140 }}
+        >
+          <p className="font-mono text-jtp-xs text-jtp-textFaint text-center max-w-xs px-4">
+            No resolved trades yet — funding accrues over hours; positions close after 72h. Curve builds as they settle.
+          </p>
+        </div>
+      ) : hasCurve ? (
+        <div
+          className="rounded-jtp-sm overflow-hidden"
+          style={{ background: '#090b0d', height: 140 }}
+          aria-label="Cumulative realized P&L over time"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={lineColor} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={lineColor} stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="t" hide />
+              <YAxis
+                tickFormatter={yAxisFormatter}
+                tick={{ fill: '#565d66', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+              />
+              <RechartsTooltip
+                content={<WhatWorksTooltip />}
+                cursor={{ stroke: '#1b2026', strokeWidth: 1 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="pnl"
+                stroke={lineColor}
+                strokeWidth={1.5}
+                fill={`url(#${areaId})`}
+                dot={false}
+                activeDot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : null}
+
+      {/* ── byBand learning table ── */}
+      {(perf?.byBand?.length ?? 0) > 0 && (
+        <Panel label="LEARNING — DOES THE HEADLINE FUNDING ACTUALLY PAY?">
+          <div className="overflow-x-auto">
+            <table className="w-full text-jtp-xs font-mono" role="table">
+              <thead>
+                <tr className="border-b border-jtp-border">
+                  <th
+                    scope="col"
+                    className="text-left py-2 pr-6 text-jtp-textDim font-normal tracking-wide uppercase"
+                  >
+                    Entry-Funding Band
+                  </th>
+                  <th
+                    scope="col"
+                    className="text-right py-2 pr-6 text-jtp-textDim font-normal tracking-wide uppercase"
+                  >
+                    N
+                  </th>
+                  <th
+                    scope="col"
+                    className="text-right py-2 text-jtp-textDim font-normal tracking-wide uppercase"
+                  >
+                    Realized Yield %
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {perf!.byBand.map((row, i) => {
+                  const yieldCls =
+                    row.realizedYieldPct > 0
+                      ? 'text-[#3ddc84]'
+                      : row.realizedYieldPct < 0
+                      ? 'text-[#ff5b52]'
+                      : 'text-jtp-textMuted';
+                  return (
+                    <tr
+                      key={i}
+                      className="border-b border-jtp-border/50 last:border-0 hover:bg-jtp-raised/50 transition-colors"
+                    >
+                      <td className="py-2 pr-6 text-jtp-textMuted tabular-nums">{row.band}</td>
+                      <td className="py-2 pr-6 text-right tabular-nums text-jtp-textMuted">{row.n}</td>
+                      <td className={`py-2 text-right tabular-nums font-semibold ${yieldCls}`}>
+                        {row.realizedYieldPct >= 0 ? '+' : ''}{row.realizedYieldPct.toFixed(3)}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-jtp-xs text-jtp-textDim font-mono leading-relaxed">
+            High headline rates often decay as funding resets, fees drag, and liquidation risk climbs.
+            This table shows actual realized yield across completed positions, grouped by the rate at entry.
+          </p>
+        </Panel>
+      )}
+
+      {/* ── Paper positions ── */}
+      <Panel label="PAPER POSITIONS" actions={refreshBadge} noPadding>
+        {trades.length === 0 ? (
+          <div className="px-4 py-4">
+            <EmptyState
+              title="No paper positions yet"
+              description="Positions open every 30 minutes when the scanner finds qualifying funding opportunities."
+            />
+          </div>
+        ) : (
+          <div>
+            {trades.map(t => {
+              const isOpen = t.status === 'open';
+              const pnlCls = t.pnlUsd > 0 ? 'text-[#3ddc84]' : t.pnlUsd < 0 ? 'text-[#ff5b52]' : 'text-jtp-textMuted';
+              const badgeVariant = isOpen ? 'warning' : t.pnlUsd >= 0 ? 'profit' : 'loss';
+              const badgeLabel = isOpen ? 'OPEN' : 'CLOSED';
+              return (
+                <div
+                  key={t.id}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 py-3 border-b border-jtp-border last:border-0 hover:bg-jtp-raised/40 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-semibold text-jtp-text text-jtp-sm">{t.symbol}</span>
+                      <Badge variant="neutral" size="xs">{t.base}</Badge>
+                      <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                        entry {t.entryFundingPct.toFixed(4)}%/8h
+                      </span>
+                    </div>
+                    <div className="mt-[3px] font-mono text-jtp-xs text-jtp-textDim tabular-nums">
+                      size{' '}
+                      <span className="text-jtp-textMuted">
+                        ${t.sizeUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className={`font-mono font-semibold tabular-nums text-jtp-sm ${pnlCls}`}>
+                      {t.pnlUsd >= 0 ? '+' : ''}
+                      ${Math.abs(t.pnlUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <Badge variant={badgeVariant} size="xs">{badgeLabel}</Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+
+      {/* ── Honest caption ── */}
+      <Panel label="HOW THIS WORKS">
+        <div className="space-y-2 text-jtp-sm text-jtp-textMuted leading-relaxed max-w-2xl">
+          <p>
+            <span className="text-jtp-amber font-semibold">
+              Paper, public-data — forward-proving the funding-arb edge before any real money.
+            </span>{' '}
+            Funding accrues over hours; positions close after 72h. Win/loss fills in as they settle.
+          </p>
+          <p>
+            This learning loop opens a simulated delta-neutral funding position every 30 minutes when conditions
+            are met, then tracks the real funding payments it would have collected. The band table above is the
+            honest answer: does a higher headline rate actually pay more after fees and decay?
+          </p>
+          <p className="font-mono text-jtp-xs text-jtp-textDim">
+            No real capital at risk. Once forward-proven, the Auto Bot tab will replicate these positions live.
+          </p>
+        </div>
+      </Panel>
+    </div>
+  );
+};
+
 // ─── "Coming" tab content ─────────────────────────────────────────────────────
 
 interface ComingTabProps {
@@ -366,6 +738,7 @@ const ConnectionTab: React.FC<{ token: string | null }> = ({ token }) => {
 
 const TAB_LABELS: { value: CryptoTab; label: string }[] = [
   { value: 'funding_arb',    label: 'Funding Arb' },
+  { value: 'what_works',     label: 'What Works' },
   { value: 'momentum',       label: 'Momentum' },
   { value: 'mean_reversion', label: 'Mean-Rev' },
   { value: 'ai_signals',     label: 'AI Signals' },
@@ -431,6 +804,10 @@ const CryptoPage: React.FC = () => {
       {/* Tab content */}
       {activeTab === 'funding_arb' && (
         <FundingArbTab exchange={activeExchange} token={accessToken} />
+      )}
+
+      {activeTab === 'what_works' && (
+        <WhatWorksTab token={accessToken} />
       )}
 
       {activeTab === 'momentum' && (
