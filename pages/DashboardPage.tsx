@@ -18,6 +18,7 @@ import MobileProfileMenu from '../components/ui/MobileProfileMenu';
 import { useTrade } from '../context/TradeContext';
 import BotPage from './BotPage';
 import QuantPage from './QuantPage';
+import CryptoPage from './CryptoPage';
 import Copilot from '../components/ai/Copilot';
 import StatusBar from '../components/StatusBar';
 
@@ -28,6 +29,7 @@ export type DashboardView =
   | 'playbooks'
   | 'analytics'
   | 'quant'
+  | 'crypto'
   | 'personalisation'
   | 'settings'
   | 'subscription'
@@ -43,6 +45,7 @@ const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
   analytics:        { title: 'Analytics',       subtitle: 'What your edge is made of' },
   playbooks:        { title: 'Playbooks',       subtitle: 'Your setups, measured' },
   quant:            { title: 'Quant',           subtitle: 'Polymarket wallet intelligence' },
+  crypto:           { title: 'Crypto',          subtitle: 'Multi-exchange trading engine' },
   settings:         { title: 'Settings',        subtitle: 'Profile & configuration' },
   personalisation:  { title: 'Personalisation', subtitle: '' },
   subscription:     { title: 'Subscription',    subtitle: '' },
@@ -209,6 +212,7 @@ const DashboardPage: React.FC = () => {
       case 'playbooks':        return <PlaybooksPage />;
       case 'analytics':        return <AnalyticsPage />;
       case 'quant':            return <QuantPage />;
+      case 'crypto':           return <CryptoPage />;
       case 'personalisation':  return <PersonalisationPage />;
       case 'settings':         return <SettingsPage />;
       case 'subscription':     return <SubscriptionPage />;
