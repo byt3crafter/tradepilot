@@ -41,4 +41,16 @@ export class ExchangesController {
   setKeys(@Body() b: { exchange: string; apiKey: string; apiSecret: string; testnet?: boolean }) {
     return this.exchanges.setCredential(b.exchange, b.apiKey, b.apiSecret, b.testnet ?? true);
   }
+
+  @UseGuards(AdminGuard)
+  @Post('test')
+  test(@Body('exchange') exchange?: string) {
+    return this.exchanges.testConnection(exchange || 'binance');
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('test-trade')
+  testTrade(@Body() b: { exchange?: string; symbol?: string; usd?: number }) {
+    return this.exchanges.testTrade(b.exchange || 'binance', b.symbol || 'BTCUSDT', b.usd || 20);
+  }
 }

@@ -216,6 +216,32 @@ export class ExchangesService {
     return this.prisma.cexPaperTrade.findMany({ where: { strategy }, orderBy: { openedAt: 'desc' }, take: Math.min(limit, 200) });
   }
 
+  // ── live/testnet execution (needs stored credentials) ─────────────────────────
+  private async tradeAdapter(exchange = 'binance'): Promise<BinanceAdapter> {
+    const c = await this.getCredential(exchange);
+    if (!c) throw new Error(`No API keys set for ${exchange} — add them in Admin → Exchange Keys.`);
+    if (exchange.toLowerCase() === 'binance') return new BinanceAdapter(c);
+    throw new Error(`trading not implemented for ${exchange}`);
+  }
+
+  /** Connection test — lists futures balances (proves the key/secret work). */
+  async testConnection(exchange = 'binance') {
+    const c = await this.getCredential(exchange);
+    const a = await this.tradeAdapter(exchange);
+    const balances = await (a as any).getBalances();
+    return { ok: true, exchange, testnet: c?.testnet, balances };
+  }
+
+  /** Tiny test order (maiden voyage) — market BUY ~$usd of a perp. */
+  async testTrade(exchange = 'binance', symbol = 'BTCUSDT', usd = 20) {
+    const a: any = await this.tradeAdapter(exchange);
+    const price = await a.getPrice(symbol);
+    if (!price) throw new Error('no price');
+    const qty = +(usd / price).toFixed(3);
+    const order = await a.placeOrder({ symbol, side: 'BUY', type: 'MARKET', qty, market: 'fapi' });
+    return { ok: true, symbol, qty, price, order };
+  }
+
   @Interval('cex-funding-open', 30 * 60 * 1000)
   async fundingOpenLoop() {
     try { const n = await this.fundingPaperOpen('binance'); if (n) this.logger.log(`cex funding paper: +${n} opened`); }
