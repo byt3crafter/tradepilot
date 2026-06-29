@@ -324,6 +324,123 @@ export class ExchangesService {
     catch (e: any) { this.logger.warn(`cex momentum manage: ${e?.message}`); }
   }
 
+  // ── CRYPTO AUTO BOT (autonomous testnet/live execution) ───────────────────────
+  private botConfig(exchange = 'binance') {
+    return this.prisma.cexBot.upsert({ where: { exchange }, create: { exchange }, update: {} });
+  }
+
+  async botStatus(exchange = 'binance') {
+    const cfg = await this.botConfig(exchange);
+    const trades = await this.prisma.cexBotTrade.findMany({ where: { exchange }, orderBy: { openedAt: 'desc' }, take: 200 });
+    const open = trades.filter((t) => t.status === 'open');
+    const closed = trades.filter((t) => t.status === 'closed');
+    const wins = closed.filter((t) => (t.pnlUsd || 0) > 0).length;
+    const realized = closed.reduce((s, t) => s + (t.pnlUsd || 0), 0);
+    const exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    let balances: any = null;
+    try { balances = await (await this.tradeAdapter(exchange)).getSpotBalances(); } catch { /* no creds */ }
+    return {
+      exchange, mode: cfg.mode, strategy: cfg.strategy, killSwitch: cfg.killSwitch,
+      limits: { maxPerTradeUsd: cfg.maxPerTradeUsd, maxTotalUsd: cfg.maxTotalUsd },
+      exposureUsd: +exposure.toFixed(2), balances,
+      stats: { open: open.length, resolved: closed.length, wins, losses: closed.length - wins, winRate: closed.length ? wins / closed.length : 0, realizedPnlUsd: +realized.toFixed(2) },
+    };
+  }
+
+  async botSetMode(exchange = 'binance', mode: 'off' | 'auto') {
+    if (mode === 'auto') {
+      const c = await this.getCredential(exchange);
+      if (!c) throw new Error('Set the exchange API keys in Admin → Exchange Keys first.');
+    }
+    await this.prisma.cexBot.upsert({ where: { exchange }, create: { exchange, mode, killSwitch: false }, update: { mode, killSwitch: false } });
+    return this.botStatus(exchange);
+  }
+
+  async botKill(exchange = 'binance') {
+    await this.prisma.cexBot.upsert({ where: { exchange }, create: { exchange, mode: 'off', killSwitch: true }, update: { mode: 'off', killSwitch: true } });
+    return this.botStatus(exchange);
+  }
+
+  async botSetLimits(exchange = 'binance', l: { maxPerTradeUsd?: number; maxTotalUsd?: number }) {
+    const data: any = {};
+    if (l.maxPerTradeUsd != null) data.maxPerTradeUsd = Math.max(5, Math.min(100000, l.maxPerTradeUsd));
+    if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(5, Math.min(1000000, l.maxTotalUsd));
+    await this.prisma.cexBot.upsert({ where: { exchange }, create: { exchange, ...data }, update: data });
+    return this.botStatus(exchange);
+  }
+
+  async botTrades(exchange = 'binance', limit = 60) {
+    return this.prisma.cexBotTrade.findMany({ where: { exchange }, orderBy: { openedAt: 'desc' }, take: Math.min(limit, 200) });
+  }
+
+  async botPerformance(exchange = 'binance') {
+    const trades = await this.prisma.cexBotTrade.findMany({ where: { exchange, status: 'closed' }, orderBy: { closedAt: 'asc' } });
+    let cum = 0;
+    const curve = trades.filter((t) => t.closedAt).map((t) => { cum += t.pnlUsd || 0; return { t: t.closedAt!.getTime(), pnl: +cum.toFixed(2) }; });
+    return { exchange, curve };
+  }
+
+  async botTick(exchange = 'binance') {
+    const cfg = await this.botConfig(exchange);
+    if (cfg.mode !== 'auto' || cfg.killSwitch) return;
+    let a: any;
+    try { a = await this.tradeAdapter(exchange); } catch { return; }
+    const prices = new Map((await this.snapshot(exchange)).map((r) => [r.symbol, r.last]));
+    const now = Date.now();
+    // manage exits
+    const open = await this.prisma.cexBotTrade.findMany({ where: { exchange, status: 'open' } });
+    for (const t of open) {
+      const cur = prices.get(t.symbol) || 0;
+      const entry = t.entryPrice || 0;
+      if (!cur || !entry) continue;
+      const ageH = (now - t.openedAt.getTime()) / 3_600_000;
+      const hitT = cur >= (t.target || Infinity), hitS = cur <= (t.stop || 0), timeUp = ageH >= this.MOM_HOLD_H;
+      if (!(hitT || hitS || timeUp)) continue;
+      try {
+        const sell = await a.placeSpotSell(t.symbol, t.qty || 0);
+        const recv = Number(sell.cummulativeQuoteQty) || cur * (t.qty || 0);
+        await this.prisma.cexBotTrade.update({
+          where: { id: t.id },
+          data: { status: 'closed', closedAt: new Date(now), pnlUsd: +(recv - t.sizeUsd).toFixed(2), exitReason: hitT ? 'target' : hitS ? 'stop' : 'time', meta: { ...(t.meta as any), exitPrice: cur, sellRecv: recv } },
+        });
+        this.logger.log(`cex bot: SELL ${t.symbol} pnl $${(recv - t.sizeUsd).toFixed(2)}`);
+      } catch (e: any) {
+        await this.prisma.cexBotTrade.update({ where: { id: t.id }, data: { error: String(e?.message || e).slice(0, 200) } });
+      }
+    }
+    // new entries
+    const openNow = await this.prisma.cexBotTrade.findMany({ where: { exchange, status: 'open' } });
+    let exposure = openNow.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    if (exposure >= cfg.maxTotalUsd) return;
+    const held = new Set(openNow.map((t) => t.symbol));
+    const { candidates } = await this.momentumScan(exchange);
+    for (const c of candidates) {
+      if (exposure >= cfg.maxTotalUsd) break;
+      if (held.has(c.symbol)) continue;
+      const size = Math.min(cfg.maxPerTradeUsd, cfg.maxTotalUsd - exposure);
+      if (size < 5) break;
+      try {
+        const order = await a.placeSpotMarketByQuote(c.symbol, 'BUY', size);
+        const execQty = Number(order.executedQty) || 0;
+        const quote = Number(order.cummulativeQuoteQty) || size;
+        const avg = execQty ? quote / execQty : c.last;
+        await this.prisma.cexBotTrade.create({
+          data: { exchange, strategy: 'momentum', symbol: c.symbol, base: c.base, side: 'BUY', sizeUsd: size, entryPrice: avg, qty: execQty, orderId: String(order.orderId || ''), status: 'open', target: avg * (1 + this.MOM_TARGET), stop: avg * (1 - this.MOM_STOP), meta: { entryChangePct: c.changePct } },
+        });
+        exposure += size;
+        this.logger.log(`cex bot: BUY ${c.symbol} $${size} @ ${avg}`);
+      } catch (e: any) {
+        await this.prisma.cexBotTrade.create({ data: { exchange, strategy: 'momentum', symbol: c.symbol, base: c.base, sizeUsd: size, entryPrice: c.last, status: 'failed', error: String(e?.message || e).slice(0, 200) } });
+      }
+    }
+  }
+
+  @Interval('cex-bot', 5 * 60 * 1000)
+  async botLoop() {
+    try { await this.botTick('binance'); }
+    catch (e: any) { this.logger.warn(`cex bot loop: ${e?.message}`); }
+  }
+
   // ── live/testnet execution (needs stored credentials) ─────────────────────────
   private async tradeAdapter(exchange = 'binance'): Promise<BinanceAdapter> {
     const c = await this.getCredential(exchange);

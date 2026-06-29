@@ -91,9 +91,30 @@ export class BinanceAdapter implements CexAdapter {
       .map((b: any) => ({ asset: b.asset, free: Number(b.free) || 0 }));
   }
 
-  /** Spot market order by USD amount (quoteOrderQty) — for "buy spot" testing. */
+  /** Spot market order by USD amount (quoteOrderQty) — for entries. */
   async placeSpotMarketByQuote(symbol: string, side: 'BUY' | 'SELL', quoteUsd: number): Promise<any> {
     return this.signed('POST', 'spot', '/api/v3/order', { symbol, side, type: 'MARKET', quoteOrderQty: quoteUsd });
+  }
+
+  // LOT_SIZE step per symbol (cached) — so SELL quantities respect precision.
+  private lotCache = new Map<string, { step: number; decimals: number }>();
+  private async lotStep(symbol: string): Promise<{ step: number; decimals: number }> {
+    if (this.lotCache.has(symbol)) return this.lotCache.get(symbol)!;
+    const d = await this.get(this.base('spot'), `/api/v3/exchangeInfo?symbol=${symbol}`);
+    const f = (d?.symbols?.[0]?.filters || []).find((x: any) => x.filterType === 'LOT_SIZE');
+    const stepStr = String(f?.stepSize || '0.00000001');
+    const step = Number(stepStr);
+    const decimals = (stepStr.split('.')[1] || '').replace(/0+$/, '').length;
+    const info = { step, decimals };
+    this.lotCache.set(symbol, info);
+    return info;
+  }
+
+  /** Spot MARKET SELL a base quantity (rounded down to lot step). */
+  async placeSpotSell(symbol: string, qty: number): Promise<any> {
+    const { decimals } = await this.lotStep(symbol);
+    const rounded = Number(qty.toFixed(decimals));
+    return this.signed('POST', 'spot', '/api/v3/order', { symbol, side: 'SELL', type: 'MARKET', quantity: rounded });
   }
 
   async getPositions(): Promise<any[]> {

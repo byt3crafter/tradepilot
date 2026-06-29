@@ -717,3 +717,42 @@ model CexPaperTrade {
   @@index([strategy, status])
   @@index([symbol, status])
 }
+
+// Crypto Auto Bot — autonomous testnet/live execution of proven strategies (momentum first).
+// Global "house" bot trading the admin-configured exchange account. Off by default.
+model CexBot {
+  id             String   @id @default(uuid())
+  exchange       String   @unique @default("binance")
+  mode           String   @default("off")       // off | auto
+  strategy       String   @default("momentum")  // momentum | funding
+  killSwitch     Boolean  @default(false)
+  maxPerTradeUsd Float    @default(20)
+  maxTotalUsd    Float    @default(100)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CexBotTrade {
+  id         String    @id @default(uuid())
+  exchange   String
+  strategy   String
+  symbol     String
+  base       String
+  side       String    @default("BUY")
+  sizeUsd    Float
+  entryPrice Float?
+  qty        Float?
+  orderId    String?
+  status     String    @default("open") // open | closed | failed
+  target     Float?
+  stop       Float?
+  pnlUsd     Float?
+  exitReason String?
+  error      String?
+  openedAt   DateTime  @default(now())
+  closedAt   DateTime?
+  meta       Json      @default("{}")
+
+  @@index([status])
+  @@index([symbol, status])
+}
