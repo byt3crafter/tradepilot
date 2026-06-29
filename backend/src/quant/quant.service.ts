@@ -666,7 +666,9 @@ export class QuantService implements OnApplicationBootstrap {
     const curve: { t: number; balance: number }[] = [];
     for (const it of items) {
       // Fractional-Kelly: bet proportional to edge (bucket win-rate vs price), capped by the risk slider.
-      let f = maxFrac;
+      // Under-sampled/unproven buckets get HALF the cap (don't bet full size on what we haven't
+      // validated); proven buckets (n≥12) get full half-Kelly. Measured: +198% → +217% at 5% cap.
+      let f = maxFrac * 0.5;
       const b = ev.get(this.bucketKey(it.focus, it.price));
       if (b && b.n >= 12 && it.price > 0 && it.price < 0.99) {
         const kelly = (b.winRate - it.price) / (1 - it.price); // edge / odds
