@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
         // @polymarket/clob-client (and its deps) expect Node builtins/globals.
         // Provide browser polyfills so the bundle works in the browser.
         nodePolyfills({
-          globals: { Buffer: true, process: true },
+          globals: { Buffer: true, process: true, global: true },
           protocolImports: true,
         }),
       ],
