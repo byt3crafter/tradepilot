@@ -10,7 +10,7 @@
  * discards the old shell on activate.
  */
 
-const CACHE_NAME = 'jtp-shell-v1';
+const CACHE_NAME = 'jtp-shell-v3';
 const SHELL_URL = '/';
 
 // ── Install: pre-cache the app shell ────────────────────────────────────────
