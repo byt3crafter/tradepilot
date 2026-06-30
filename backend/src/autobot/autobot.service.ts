@@ -86,7 +86,7 @@ export class AutobotService {
     const w = await this.getOrCreate(userId);
     const bal = await this.balances(w.address);
     const openTrades = await this.prisma.agentTrade.findMany({
-      where: { userId, status: { in: ['placed', 'filled'] } },
+      where: { userId, status: 'filled' },
       orderBy: { createdAt: 'desc' }, take: 50,
     });
     const exposure = openTrades.reduce((s, t) => s + (t.sizeUsd || 0), 0);
@@ -120,11 +120,11 @@ export class AutobotService {
     for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
     const w = await this.getOrCreate(userId);
     const bal = await this.balances(w.address);
-    const openExposure = trades.filter((t) => ['placed', 'filled'].includes(t.status)).reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    const openExposure = trades.filter((t) => t.status === 'filled').reduce((s, t) => s + (t.sizeUsd || 0), 0);
     return {
       stats: {
         trades: trades.length,
-        open: trades.filter((t) => ['placed', 'filled'].includes(t.status)).length,
+        open: trades.filter((t) => t.status === 'filled').length,
         resolved: resolved.length,
         wins, losses,
         winRate: resolved.length ? wins / resolved.length : 0,
@@ -225,7 +225,7 @@ export class AutobotService {
     if (bal.pol < 0.02) { this.logger.warn(`autobot ${w.address}: low POL for gas`); return; }
 
     // current exposure
-    let open = await this.prisma.agentTrade.findMany({ where: { userId: w.userId, status: { in: ['placed', 'filled'] } } });
+    let open = await this.prisma.agentTrade.findMany({ where: { userId: w.userId, status: 'filled' } });
     let exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
     if (exposure >= w.maxTotalUsd) return; // fully deployed
 
@@ -253,15 +253,21 @@ export class AutobotService {
         },
       });
       try {
-        const orderId = await this.placeOrder(w, pick.tokenId, price, sizeUsd);
-        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'placed', orderId } });
-        await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
-        this.logger.log(`autobot ${w.address}: BUY ${pick.outcome} $${sizeUsd} @ ${price} (${pick.type})`);
-        exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
+        const res = await this.placeOrder(w, pick.tokenId, price, sizeUsd);
+        if (res.filled) {
+          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId } });
+          await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
+          this.logger.log(`autobot ${w.address}: FILLED ${pick.outcome} $${sizeUsd} @ ${price} (${pick.type})`);
+          exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
+        } else {
+          // order did NOT fill — record honestly, take NO position, count NO P&L
+          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `not filled (status=${res.status})` } });
+          this.logger.warn(`autobot ${w.address}: order not filled — status=${res.status}`);
+        }
       } catch (e: any) {
         await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
         this.logger.warn(`autobot ${w.address}: order failed — ${e?.message}`);
-        break; // stop on first failure this tick (avoid spamming the same error)
+        break; // stop on first hard failure this tick
       }
     }
   }
@@ -273,7 +279,7 @@ export class AutobotService {
   // Resolve placed/filled trades against real market outcomes → win/loss + P&L.
   @Interval('autobot-resolve', 10 * 60 * 1000)
   async resolveTrades() {
-    const open = await this.prisma.agentTrade.findMany({ where: { status: { in: ['placed', 'filled'] }, outcomeIndex: { not: null } } });
+    const open = await this.prisma.agentTrade.findMany({ where: { status: 'filled', outcomeIndex: { not: null } } });
     if (!open.length) return;
     const cids = [...new Set(open.map((t) => t.market).filter(Boolean) as string[])];
     let res: any = {};
@@ -307,10 +313,9 @@ export class AutobotService {
     }
   }
 
-  private async placeOrder(w: any, tokenId: string, price: number, sizeUsd: number): Promise<string> {
+  private async placeOrder(w: any, tokenId: string, price: number, sizeUsd: number): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any }> {
     const wallet = this.signer(w.encPrivKey);
     await this.ensureAllowances(wallet); // first BUY sets approvals (one-time)
-    // dynamic import keeps clob-client out of the hot path unless actually trading
     const clobMod: any = await import('@polymarket/clob-client');
     const { ClobClient, Side, OrderType } = clobMod;
     const host = 'https://clob.polymarket.com';
@@ -329,9 +334,16 @@ export class AutobotService {
       await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { apiCreds: creds } });
     }
     const client = new ClobClient(host, 137, clobSigner, creds);
-    const size = Math.max(5, Math.round(sizeUsd / Math.max(price, 0.01))); // shares (min 5)
-    const order = await client.createOrder({ tokenID: tokenId, price, side: Side.BUY, size });
-    const resp = await client.postOrder(order, OrderType.GTC);
-    return resp?.orderID || resp?.orderId || 'submitted';
+    // MARKETABLE: cross the spread (+3% slippage cap) and FAK so it fills NOW or is killed —
+    // never rests as a phantom order. Previously GTC at the signal price rested unfilled,
+    // and the resolver counted those as fake wins. Now we only treat real fills as positions.
+    const limitPrice = Math.min(0.99, +(price * 1.03).toFixed(2));
+    const size = Math.max(5, Math.round(sizeUsd / Math.max(limitPrice, 0.01)));
+    const orderType = OrderType.FAK || OrderType.FOK || OrderType.GTC;
+    const order = await client.createOrder({ tokenID: tokenId, price: limitPrice, side: Side.BUY, size });
+    const resp = await client.postOrder(order, orderType);
+    const status = String(resp?.status || (resp?.success ? 'submitted' : 'failed'));
+    const filled = !!resp?.success && (status === 'matched' || Number(resp?.makingAmount) > 0 || Number(resp?.takingAmount) > 0);
+    return { orderId: resp?.orderID || resp?.orderId || null, filled, status, raw: resp };
   }
 }
