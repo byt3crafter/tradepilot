@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, ArbOpportunity, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, QuantPolicyBucket, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, ArbOpportunity, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -153,6 +153,7 @@ export interface ApiService {
   quantSimulation(bankroll: number, risk: number, sample?: 'live' | 'historical', token?: string | null): Promise<QuantSimulation>;
   quantArbs(token?: string | null): Promise<ArbScan>;
   quantSignals(token?: string | null): Promise<QuantSignalsResult>;
+  quantLearnedPolicy(token?: string | null): Promise<QuantPolicyBucket[]>;
 
   // Auto Bot
   autobotStatus(token?: string | null): Promise<AutobotStatus>;
@@ -474,6 +475,7 @@ const api: ApiService = {
   },
   quantArbs(token?: string | null): Promise<ArbScan> { return this.get('/api/quant/arbs', token); },
   quantSignals(token?: string | null): Promise<QuantSignalsResult> { return this.get('/api/quant/signals', token); },
+  quantLearnedPolicy(token?: string | null): Promise<QuantPolicyBucket[]> { return this.get('/api/quant/learning/policy', token); },
 
   // Auto Bot
   autobotStatus(token?: string | null): Promise<AutobotStatus> { return this.get('/api/autobot/status', token); },

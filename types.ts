@@ -714,6 +714,16 @@ export interface PolymarketMarket {
   outcomes: PolymarketOutcome[];
 }
 
+// --- Quant Learned Policy (engine-computed "what works" buckets) ---
+
+export interface QuantPolicyBucket {
+  focus: string;         // market category, e.g. "Sports"
+  priceBand: string;     // price range, e.g. "30-40¢"
+  avgRoi: number;        // percent, e.g. 46.1 = +46.1%
+  n: number;             // resolved sample count
+  decision: 'take' | 'skip' | 'explore';
+}
+
 // --- Quant Learning (predictions vs outcomes) ---
 
 export interface QuantLearningWallet {
