@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, QuantPolicyBucket, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, ArbOpportunity, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, QuantPolicyBucket, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, ArbOpportunity, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard, Analysis, AiOpportunity, AiStrategy } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -126,6 +126,12 @@ export interface ApiService {
   deletePropFirmTemplate(token: string, id: string): Promise<{ message: string }>;
   getPricingPlans(token: string): Promise<any[]>;
   updatePricingPlan(id: string, data: any, token: string): Promise<any>;
+
+  // Analysis Tracker
+  getAnalyses(brokerId: string, token: string): Promise<Analysis[]>;
+  createAnalysis(data: Partial<Analysis>, token: string): Promise<Analysis>;
+  updateAnalysis(id: string, data: Partial<Analysis>, token: string): Promise<Analysis>;
+  deleteAnalysis(id: string, token: string): Promise<{ message: string }>;
 
   // Notebook
   getNotebookEntries(token: string): Promise<NotebookEntry[]>;
@@ -426,6 +432,12 @@ const api: ApiService = {
   updateAssetSpec(id: string, data: Partial<AssetSpecification>, token: string): Promise<AssetSpecification> { return this.patch(`/api/assets/${id}`, data, token); },
   deleteAssetSpec(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/assets/${id}`, token); },
 
+  // Analysis Tracker Methods
+  getAnalyses(brokerId: string, token: string): Promise<Analysis[]> { return this.get(`/api/analyses?brokerId=${encodeURIComponent(brokerId)}`, token); },
+  createAnalysis(data: Partial<Analysis>, token: string): Promise<Analysis> { return this.post('/api/analyses', data, token); },
+  updateAnalysis(id: string, data: Partial<Analysis>, token: string): Promise<Analysis> { return this.patch(`/api/analyses/${id}`, data, token); },
+  deleteAnalysis(id: string, token: string): Promise<{ message: string }> { return this.delete(`/api/analyses/${id}`, token); },
+
   // Notebook Methods
   getNotebookEntries(token: string): Promise<NotebookEntry[]> { return this.get('/api/notebook', token); },
   createNotebookEntry(body: { date?: string; title?: string; content?: string; tags?: string[] }, token: string): Promise<NotebookEntry> { return this.post('/api/notebook', body, token); },
@@ -435,7 +447,7 @@ const api: ApiService = {
   // Market Data Methods
   getCandles(symbol: string, interval: string, start: string, end: string, token?: string | null): Promise<CandlesResult> {
     const params = new URLSearchParams({ symbol, interval, start, end });
-    return this.get<CandlesResult>(`/api/market-data/candles?${params.toString()}`, token);
+    return this.get(`/api/market-data/candles?${params.toString()}`, token);
   },
 
   // cTrader Methods

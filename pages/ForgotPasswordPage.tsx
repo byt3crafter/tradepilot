@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuthPage } from '../App';
+import { AuthPage } from '../types';
 import AuthCard from '../components/auth/AuthCard';
 import Button from '../components/ui/Button';
 

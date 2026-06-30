@@ -1581,7 +1581,7 @@ const ConnectionTab: React.FC<{ token: string | null }> = ({ token }) => {
 
       {!loading && !error && status && (
         <div className="space-y-3">
-          {Object.entries(status).map(([exchange, info]) => (
+          {(Object.entries(status) as [string, ExchangeStatusMap[string]][]).map(([exchange, info]) => (
             <div
               key={exchange}
               className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-jtp-raised border border-jtp-border rounded-[2px]"

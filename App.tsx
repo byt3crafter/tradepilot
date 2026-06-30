@@ -35,6 +35,7 @@ import InviteLandingPage from './pages/InviteLandingPage';
 import FeaturesPage from './pages/FeaturesPage';
 import { DEV_AUTH_BYPASS } from './utils/devAuth';
 import { getSurface, redirectToApp, redirectToMarketing, type Surface } from './utils/subdomain';
+import type { AuthPage } from './types';
 
 // Computed once when the module first loads — hostname is stable for the page lifetime.
 const SURFACE: Surface = getSurface();
