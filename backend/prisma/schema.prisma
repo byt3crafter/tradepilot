@@ -612,6 +612,7 @@ model AgentDecision {
   outcome     AgentOutcome?
 
   @@index([kind, createdAt])
+  @@index([subjectAddr, mode])
 }
 
 // Semantic memory (pgvector) — learnings/notes the agent can recall. Vector ops via raw SQL.

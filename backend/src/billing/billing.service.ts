@@ -8,6 +8,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Paddle, Environment, PaddleOptions } from '@paddle/paddle-node-sdk';
 
+/**
+ * Thrown ONLY when a webhook payload fails Paddle signature verification.
+ * The controller maps this (and nothing else) to HTTP 400 so a forged/invalid
+ * payload is not retried. Config/internal failures (e.g. missing secret) throw
+ * ordinary errors and must propagate as 5xx so Paddle keeps retrying.
+ */
+export class WebhookSignatureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WebhookSignatureError';
+  }
+}
+
 // Define locally as it seems missing from the generated client export or conflicting
 enum SubscriptionStatus {
   TRIALING = 'TRIALING',
@@ -227,9 +240,15 @@ export class BillingService {
 
       if (!subscriptions.length) {
         this.logger.log(`No active subscription found for user ${userId}.`);
-        // Only update if it was previously active? Or always ensure it matches?
-        // Let's safe-cancel if they had one.
-        if (user.subscriptionStatus === SubscriptionStatus.ACTIVE) {
+        // Paddle reports no entitling subscription. Downgrade for ANY currently
+        // entitled status (TRIALING / PAST_DUE / ACTIVE), not just ACTIVE — else a
+        // trialing/past-due user keeps paid access forever after their sub vanishes.
+        const entitledStatuses: SubscriptionStatus[] = [
+          SubscriptionStatus.ACTIVE,
+          SubscriptionStatus.TRIALING,
+          SubscriptionStatus.PAST_DUE,
+        ];
+        if (entitledStatuses.includes(user.subscriptionStatus as SubscriptionStatus)) {
           await this.prisma.user.update({
             where: { id: userId },
             data: { subscriptionStatus: SubscriptionStatus.CANCELED as any }
@@ -296,7 +315,9 @@ export class BillingService {
       return this.paddle.webhooks.unmarshal(rawBody, secret, signature);
     } catch (e: any) {
       this.logger.error(`Webhook signature verification failed: ${e.message}`);
-      throw new InternalServerErrorException('Invalid webhook signature');
+      // Distinct error type: only THIS becomes a 400 in the controller. A missing
+      // secret (above) throws InternalServerErrorException and must stay a 5xx.
+      throw new WebhookSignatureError('Invalid webhook signature');
     }
   }
 
@@ -309,16 +330,24 @@ export class BillingService {
       return;
     }
 
-    // Idempotency: Paddle retries deliveries and may send overlapping events.
-    // Skip anything we've already fully processed (dedupe by Paddle event id).
+    // Idempotency as a real CLAIM (not check-then-insert): INSERT the event-id row
+    // FIRST, before any non-idempotent effect (promo usedCount increment, referral
+    // grant, status writes). A unique-violation (Prisma P2002) means a concurrent or
+    // earlier delivery already claimed this event -> it was/ is being processed, so
+    // skip. This closes the race where two overlapping deliveries both passed a prior
+    // findUnique and both incremented the promo counter.
     const eventId = event.eventId || event.notificationId || event.event_id;
     if (eventId) {
-      const seen = await this.prisma.processedWebhookEvent
-        .findUnique({ where: { eventId } })
-        .catch(() => null);
-      if (seen) {
-        this.logger.log(`Skipping already-processed Paddle event ${eventId} (${eventType}).`);
-        return;
+      try {
+        await this.prisma.processedWebhookEvent.create({
+          data: { eventId, type: eventType },
+        });
+      } catch (e: any) {
+        if (e?.code === 'P2002') {
+          this.logger.log(`Skipping already-processed Paddle event ${eventId} (${eventType}).`);
+          return;
+        }
+        throw e;
       }
     }
 
@@ -326,6 +355,11 @@ export class BillingService {
     // `data` is camelCase (customerId, nextBilledAt, billingCycle, unitPrice...).
     // The previous code read snake_case (data.customer_id etc.) which was always
     // undefined, so EVERY event early-returned and no user was ever updated.
+    //
+    // Everything below runs AFTER the claim, so wrap it: if processing throws we
+    // RELEASE the claim (delete the row) before rethrowing, otherwise the 5xx-driven
+    // Paddle retry would be skipped by our own claim and the event lost forever.
+    try {
     const customerId = data.customerId;
     const subscriptionId = data.id;
 
@@ -528,12 +562,16 @@ export class BillingService {
       default:
         this.logger.log(`Unhandled Paddle webhook event type: ${eventType}`);
     }
-
-    // Mark this event processed so retries/duplicates are skipped (see top of method).
-    if (eventId) {
-      await this.prisma.processedWebhookEvent
-        .create({ data: { eventId, type: eventType } })
-        .catch(() => { /* already recorded by a concurrent delivery — fine */ });
+    } catch (err) {
+      // Processing failed AFTER the claim. Release it so the event can be retried:
+      // we rethrow (controller -> 5xx -> Paddle retry), but that retry would hit our
+      // own claim and be skipped unless we delete the row first.
+      if (eventId) {
+        await this.prisma.processedWebhookEvent
+          .delete({ where: { eventId } })
+          .catch(() => { /* best-effort release */ });
+      }
+      throw err;
     }
   }
 
@@ -595,8 +633,13 @@ export class BillingService {
       case 'canceled':
         return SubscriptionStatus.CANCELED;
       default:
-        this.logger.warn(`Unknown Paddle status encountered: ${paddleStatus}`);
-        return SubscriptionStatus.TRIALING;
+        // FAIL CLOSED: an unrecognised status must NEVER grant access. Defaulting to
+        // TRIALING (entitling) meant a typo/new Paddle status silently handed out paid
+        // access. Map unknown -> CANCELED (non-entitling) and log loudly so we notice.
+        this.logger.error(
+          `Unknown Paddle status "${paddleStatus}" — defaulting to CANCELED (non-entitling). Investigate.`,
+        );
+        return SubscriptionStatus.CANCELED;
     }
   }
   async getPricingPlans() {

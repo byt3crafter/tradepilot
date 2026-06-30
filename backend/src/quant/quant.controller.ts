@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { EntitlementGuard } from '../auth/guards/entitlement.guard';
 import { QuantService } from './quant.service';
 
-@UseGuards(JwtAccessGuard)
+// Paid/cost surface (Polymarket intelligence + AI verdict/scan). EntitlementGuard
+// enforces the paywall when free mode is OFF and no-ops while free mode is ON
+// (SystemConfig.freeMode).
+@UseGuards(JwtAccessGuard, EntitlementGuard)
 @SkipThrottle() // quant reads are JWT-guarded polling intelligence endpoints; costly POSTs re-throttled below
 @Controller('quant')
 export class QuantController {

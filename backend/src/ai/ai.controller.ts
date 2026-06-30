@@ -1,8 +1,11 @@
 import { Controller, Post, Get, Patch, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { EntitlementGuard } from '../auth/guards/entitlement.guard';
 import { AiService } from './ai.service';
 
-@UseGuards(JwtAccessGuard)
+// Paid/cost surface (Gemini/AI agent calls). EntitlementGuard enforces the paywall
+// when free mode is OFF and no-ops while free mode is ON (SystemConfig.freeMode).
+@UseGuards(JwtAccessGuard, EntitlementGuard)
 @Controller('ai')
 export class AiController {
   constructor(private readonly ai: AiService) {}

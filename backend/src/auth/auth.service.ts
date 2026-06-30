@@ -148,7 +148,6 @@ export class AuthService {
         this.logger.log(`User ${clerkId} has placeholder email (${user.email}). Attempting to fetch real email from Clerk...`);
         try {
           const clerkUser = await this.getClerkUserDetails(clerkId);
-          console.log(`[DEBUG] Clerk User Response for ${clerkId}:`, JSON.stringify(clerkUser));
 
           if (clerkUser && clerkUser.email_addresses?.length > 0) {
             const primaryId = clerkUser.primary_email_address_id;
