@@ -266,7 +266,7 @@ export class AutobotService {
       balance: bal,                                    // EOA (gas) wallet
       tradeableUsdce: trade.usdce,                      // real trading cash (deposit wallet if linked)
       availableUsd: Math.max(0, trade.usdce),           // cash free to deploy now
-      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5 },
+      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, orderType: w.orderType || 'limit' },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
       positionsValue: mtm.value,                         // live mark-to-market value of open positions
@@ -348,13 +348,14 @@ export class AutobotService {
     return this.status(userId);
   }
 
-  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) {
+  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: string }) {
     await this.getOrCreate(userId);
     const data: any = {};
     if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(1, Math.min(10000, l.maxTotalUsd));
     if (l.maxPerTradeUsd != null) data.maxPerTradeUsd = Math.max(0.5, Math.min(1000, l.maxPerTradeUsd));
     if (l.dailyLossLimitUsd != null) data.dailyLossLimitUsd = Math.max(0.5, Math.min(10000, l.dailyLossLimitUsd));
     if (l.minEdgePct != null) data.minEdgePct = Math.max(0, Math.min(100, l.minEdgePct));
+    if (l.orderType === 'limit' || l.orderType === 'market') data.orderType = l.orderType;
     await this.prisma.pmAgentWallet.update({ where: { userId }, data });
     return this.status(userId);
   }
@@ -595,15 +596,19 @@ export class AutobotService {
       w.apiCreds = creds; // reuse within this tick — re-deriving per order raced + failed some
     }
     const client = new ClobClient({ ...baseOpts, creds });
-    // MARKET (take liquidity now), FOK so it fills fully or is killed — never rests as a phantom.
-    // PRICE CAP: don't chase the book more than 3¢ above the wallet's entry — this stops the
-    // spread-bleed (the small unrealized loss on fresh fills). If the ask is above the cap, the
-    // FOK kills (no overpay) rather than filling at a worse price. price omitted → pure market.
-    const cap = price > 0 ? Math.min(0.99, +(price + 0.03).toFixed(2)) : undefined;
+    // ORDER TYPE (per the user's setting; default 'limit'):
+    //  • limit  — fill ONLY at the wallet's entry price (FAK; partial OK) → no spread bleed; may
+    //             not fill if the book moved away (that's fine — we don't overpay).
+    //  • market — take liquidity now, allow up to +3¢ over entry (FOK) → fills more, costs spread.
+    const isLimit = (w.orderType || 'limit') !== 'market';
+    const cap = price > 0
+      ? (isLimit ? +price.toFixed(2) : Math.min(0.99, +(price + 0.03).toFixed(2)))
+      : undefined;
+    const ot = isLimit ? (OrderType.FAK || OrderType.FOK) : OrderType.FOK;
     const resp = await client.createAndPostMarketOrder(
       { tokenID: tokenId, amount: sizeUsd, side: Side.BUY, ...(cap ? { price: cap } : {}) },
       undefined,
-      OrderType.FOK,
+      ot,
     );
     const status = String(resp?.status || (resp?.success ? 'submitted' : 'failed'));
     const filled = !!resp?.success && (status === 'matched' || status === 'live' || Number(resp?.makingAmount) > 0 || Number(resp?.takingAmount) > 0);
