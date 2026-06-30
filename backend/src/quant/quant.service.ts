@@ -481,6 +481,12 @@ export class QuantService implements OnApplicationBootstrap {
     return table;
   }
 
+  /** Public passthrough — market end timestamps (ms) per conditionId, for the trade history UI. */
+  async endDatesFor(conditionIds: string[]): Promise<Record<string, number>> {
+    if (!conditionIds.length) return {};
+    return this.pm.marketEndDates(conditionIds).catch(() => ({}));
+  }
+
   /** The learned policy table — what the engine has learned wins/loses, per feature bucket. */
   async learnedPolicy() {
     const t = await this.getEvTable();
