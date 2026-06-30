@@ -5,6 +5,7 @@ import { ethers } from 'ethers';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuantService } from '../quant/quant.service';
 import { BrainService } from '../brain/brain.service';
+import { ChatgptService } from '../chatgpt/chatgpt.service';
 
 // polygon-rpc.com now 401s; publicnode is a reliable keyless default.
 const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-bor-rpc.publicnode.com';
@@ -34,7 +35,41 @@ export class AutobotService {
     private readonly prisma: PrismaService,
     private readonly quant: QuantService,
     private readonly brain: BrainService,
+    private readonly chatgpt: ChatgptService,
   ) {}
+
+  /** Phase-2 brain: recall past lessons + a Codex verdict on the top candidate. Best-effort —
+   * if ChatGPT isn't connected/allowed or errors, returns null and the bot falls back to rules. */
+  private async aiReason(w: any, pick: any): Promise<{ take: boolean; conviction: number; rationale?: string } | null> {
+    try {
+      if (!(await this.chatgpt.isAllowed(w.userId, 'bot'))) return null;
+      const lessons = await this.prisma.brainEvent.findMany({
+        where: { userId: w.userId, module: 'polymarket', kind: 'learn' }, orderBy: { createdAt: 'desc' }, take: 8,
+      });
+      this.brain.publish({
+        userId: w.userId, module: 'polymarket', kind: 'recall',
+        title: `Recalled ${lessons.length} past lesson${lessons.length === 1 ? '' : 's'}`,
+        detail: lessons[0]?.title || 'no prior lessons yet — learning from scratch',
+        data: { count: lessons.length },
+      });
+      const lessonTxt = lessons.map((l) => `- ${l.title}: ${l.detail || ''}`).join('\n') || '(none yet)';
+      const instr = 'You are a disciplined prediction-market trader. Judge ONE candidate trade using the rationale + your past lessons. Be selective — skip weak/uncertain edges. Reply STRICT JSON only: {"take":boolean,"conviction":0..1,"rationale":"one sentence"}.';
+      const input = `Candidate: ${pick.title}\nBuy ${pick.outcome} @ ${(((pick.price) || 0) * 100).toFixed(0)}¢ · claimed edge ${pick.edgePct ?? '?'}% · signal ${pick.type}\nWhy: ${pick.reason || pick.detail || ''}\nPast lessons:\n${lessonTxt}\nJSON only.`;
+      const out = await this.chatgpt.complete(w.userId, instr, input);
+      const m = out.match(/\{[\s\S]*\}/);
+      const v = m ? JSON.parse(m[0]) : null;
+      if (!v) return null;
+      const conviction = Math.max(0, Math.min(1, Number(v.conviction) || 0));
+      this.brain.publish({
+        userId: w.userId, module: 'polymarket', kind: 'research',
+        title: `AI verdict: ${v.take ? 'TAKE' : 'SKIP'} · conviction ${(conviction * 100).toFixed(0)}%`,
+        detail: v.rationale, data: { take: !!v.take, conviction, rationale: v.rationale, title: pick.title },
+      });
+      return { take: !!v.take, conviction, rationale: v.rationale };
+    } catch {
+      return null;
+    }
+  }
 
   // ── key encryption (AES-256-GCM) ──────────────────────────────────────────
   private key(): Buffer {
@@ -315,14 +350,26 @@ export class AutobotService {
 
     // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").
     let placed = 0;
+    let researched = 0;
     let usdceLeft = bal.usdce;
     for (const pick of fresh) {
       if (placed >= 1 || exposure >= w.maxTotalUsd) break;
+      // 🧠 Phase-2 reasoning: recall lessons + a Codex verdict on this candidate (best-effort,
+      // capped per tick). If the brain vetoes, skip it and try the next; conviction scales size.
+      let conviction = 1;
+      if (researched < 3) {
+        const ai = await this.aiReason(w, pick);
+        researched++;
+        if (ai && !ai.take) {
+          this.brain.publish({ userId: w.userId, module: 'polymarket', kind: 'skip', title: `Skipped — brain vetoed ${pick.outcome}`, detail: ai.rationale, data: { title: pick.title } });
+          continue;
+        }
+        if (ai) conviction = Math.max(0.4, ai.conviction);
+      }
       // DYNAMIC money management: half-Kelly fraction of the live bankroll, scaled by the
-      // signal's edge — bigger edge / bigger bankroll ⇒ bigger bet; weak edge ⇒ ~$1 minimum.
-      // Capped by per-trade limit, remaining total exposure, and available USDC.e.
+      // signal's edge AND the brain's conviction. Capped by per-trade/total/available limits.
       const edgeFrac = Math.min(0.25, Math.max(0, (pick.edgePct || 0) / 100)); // edge as fraction (cap 25%)
-      const kellyUsd = bal.usdce * edgeFrac * 0.5;                              // half-Kelly of bankroll
+      const kellyUsd = bal.usdce * edgeFrac * 0.5 * conviction;                 // half-Kelly × conviction
       const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, usdceLeft);
       if (room < 1) break;
       const sizeUsd = Math.max(1, Math.floor(Math.min(kellyUsd, room) * 100) / 100);

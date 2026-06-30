@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { BrainService } from '../brain/brain.service';
 import { CexAdapter } from './cex-adapter.interface';
 import { BinanceAdapter } from './adapters/binance.adapter';
 
@@ -17,7 +18,20 @@ export class ExchangesService {
     // bybit: new BybitAdapter(),  ← future: one file, plugs in here
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly brain: BrainService,
+  ) {}
+
+  // The crypto bot is a single shared/admin bot; its brain neurons stream to the operator
+  // (first ADMIN user) so they appear on the Brain dashboard. Cached.
+  private _opId: string | null = null;
+  private async operatorUserId(): Promise<string | null> {
+    if (this._opId) return this._opId;
+    const u = await this.prisma.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } }).catch(() => null);
+    this._opId = u?.id || null;
+    return this._opId;
+  }
 
   list() {
     return { exchanges: Object.keys(this.adapters) };
@@ -406,6 +420,8 @@ export class ExchangesService {
           data: { status: 'closed', closedAt: new Date(now), pnlUsd: +(recv - t.sizeUsd).toFixed(2), exitReason: hitT ? 'target' : hitS ? 'stop' : 'time', meta: { ...(t.meta as any), exitPrice: cur, sellRecv: recv } },
         });
         this.logger.log(`cex bot: SELL ${t.symbol} pnl $${(recv - t.sizeUsd).toFixed(2)}`);
+        { const opId2 = await this.operatorUserId(); const pnl = +(recv - t.sizeUsd).toFixed(2);
+          if (opId2) this.brain.publish({ userId: opId2, module: 'crypto', kind: 'learn', title: `${pnl >= 0 ? 'WON' : 'LOST'} ${t.base || t.symbol} ${pnl >= 0 ? '+' : ''}$${pnl}`, detail: `exit ${hitT ? 'target' : hitS ? 'stop' : 'time'} @ ${cur}`, data: { symbol: t.symbol, pnlUsd: pnl, won: pnl >= 0, exit: hitT ? 'target' : hitS ? 'stop' : 'time' } }); }
       } catch (e: any) {
         await this.prisma.cexBotTrade.update({ where: { id: t.id }, data: { error: String(e?.message || e).slice(0, 200) } });
       }
@@ -416,6 +432,8 @@ export class ExchangesService {
     if (exposure >= cfg.maxTotalUsd) return;
     const held = new Set(openNow.map((t) => t.symbol));
     const { candidates } = await this.momentumScan(exchange);
+    const opId = await this.operatorUserId();
+    if (opId) this.brain.publish({ userId: opId, module: 'crypto', kind: 'tick', title: `Crypto scan · ${candidates.length} momentum candidates`, detail: `${exchange} · held ${held.size} · exposure $${exposure.toFixed(0)}`, data: { candidates: candidates.length, held: held.size, exposure } });
     for (const c of candidates) {
       if (exposure >= cfg.maxTotalUsd) break;
       if (held.has(c.symbol)) continue;
@@ -431,6 +449,7 @@ export class ExchangesService {
         });
         exposure += size;
         this.logger.log(`cex bot: BUY ${c.symbol} $${size} @ ${avg}`);
+        if (opId) this.brain.publish({ userId: opId, module: 'crypto', kind: 'execute', title: `BUY ${c.base} $${size}`, detail: `momentum +${c.changePct?.toFixed?.(1) ?? '?'}% 24h @ ${avg}`, data: { symbol: c.symbol, base: c.base, sizeUsd: size, entryPrice: avg } });
       } catch (e: any) {
         await this.prisma.cexBotTrade.create({ data: { exchange, strategy: 'momentum', symbol: c.symbol, base: c.base, sizeUsd: size, entryPrice: c.last, status: 'failed', error: String(e?.message || e).slice(0, 200) } });
       }
