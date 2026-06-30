@@ -496,6 +496,12 @@ export class AutobotService {
       ts: (+a.timestamp || 0) * 1000, slug: a.slug, icon: a.icon, conditionId: a.conditionId, side: a.side,
     }));
 
+    // Attach market resolve times (when each market settles) to open + history rows.
+    const endCids = [...new Set([...open.map((o) => o.conditionId), ...history.map((h) => h.conditionId)].filter(Boolean))] as string[];
+    const ends = await this.quant.endDatesFor(endCids).catch(() => ({} as Record<string, number>));
+    for (const o of open) (o as any).endDate = ends[o.conditionId] || null;
+    for (const h of history) (h as any).endDate = ends[h.conditionId] || null;
+
     return {
       stats: {
         trades: byMkt.size, open: open.length, resolved: settled.length, wins, losses,
