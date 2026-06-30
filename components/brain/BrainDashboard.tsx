@@ -78,11 +78,13 @@ function getApiBase(): string {
 }
 
 function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const t = dateStr ? new Date(dateStr).getTime() : NaN;
+  if (!Number.isFinite(t)) return 'now'; // never render "Invalid Date"
+  const diff = Date.now() - t;
   if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return new Date(dateStr).toLocaleDateString();
+  return new Date(t).toLocaleDateString();
 }
 
 /** Quadratic bezier path string curving gently toward the hexagon center */
@@ -804,7 +806,7 @@ export default function BrainDashboard() {
         if (res.ok) {
           const json = await res.json();
           if (json?.success && Array.isArray(json.data) && mountedRef.current) {
-            setEvents((json.data as BrainEvent[]).slice(0, MAX_FEED_EVENTS));
+            setEvents((json.data as BrainEvent[]).filter((e) => e && e.kind && (e as any).kind !== 'ping').slice(0, MAX_FEED_EVENTS));
           }
         }
       } catch {
