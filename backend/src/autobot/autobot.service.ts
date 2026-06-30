@@ -320,10 +320,8 @@ export class AutobotService {
 
   private async placeOrder(w: any, tokenId: string, price: number, sizeUsd: number): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any }> {
     const wallet = this.signer(w.encPrivKey);
-    await this.ensureAllowances(wallet); // first BUY sets approvals (one-time)
     // CLOB **V2** (Polymarket upgraded the exchange 2026-04-28: order struct + EIP-712 domain
-    // version bumped 1→2; the old @polymarket/clob-client produces V1 orders the V2 exchange
-    // rejects with "invalid order version"). clob-client-v2 builds the correct V2 order.
+    // bumped 1→2; old @polymarket/clob-client → "invalid order version"). clob-client-v2 builds V2.
     const clobMod: any = await import('@polymarket/clob-client-v2');
     const { ClobClient, Side, OrderType, SignatureTypeV2, Chain } = clobMod;
     const host = 'https://clob.polymarket.com';
@@ -335,7 +333,15 @@ export class AutobotService {
       signMessage: (m: any) => wallet.signMessage(m),
       provider: wallet.provider,
     };
-    const baseOpts: any = { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.EOA, funderAddress: address };
+    // V2 no longer allows a bare EOA as maker ("maker address not allowed"). Working bots
+    // (e.g. Polycop) trade through a Polymarket **proxy/deposit wallet**: the EOA only SIGNS,
+    // the proxy is the maker+funder and holds the deposited USDC. Set PM_BOT_FUNDER to the
+    // wallet's Polymarket proxy address → POLY_PROXY mode. Without it we fall back to EOA.
+    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+    if (!funder) await this.ensureAllowances(wallet); // EOA mode: approve from the EOA
+    const baseOpts: any = funder
+      ? { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.POLY_PROXY, funderAddress: funder }
+      : { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.EOA, funderAddress: address };
     let creds = w.apiCreds;
     if (!creds) {
       creds = await new ClobClient(baseOpts).createOrDeriveApiKey();
