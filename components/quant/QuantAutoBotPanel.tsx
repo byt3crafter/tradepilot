@@ -372,6 +372,188 @@ const ExportKeyModal: React.FC<{
   );
 };
 
+// ─── Link Polymarket Account section ──────────────────────────────────────────
+
+interface LinkPolymarketSectionProps {
+  status: AutobotStatus;
+  onLink: (address: string) => Promise<void>;
+  onUnlink: () => Promise<void>;
+}
+
+const LinkPolymarketSection: React.FC<LinkPolymarketSectionProps> = ({ status, onLink, onUnlink }) => {
+  const [addr, setAddr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [copiedFunder, setCopiedFunder] = useState(false);
+
+  const isValidAddr = /^0x[a-fA-F0-9]{40}$/.test(addr.trim());
+
+  const handleLink = async () => {
+    if (!isValidAddr) { setMsg({ kind: 'err', text: 'Enter a valid 0x Ethereum address (42 characters).' }); return; }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await onLink(addr.trim());
+      setAddr('');
+      setMsg({ kind: 'ok', text: 'Polymarket account linked.' });
+    } catch (ex: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setMsg({ kind: 'err', text: ex?.message || 'Failed to link account.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUnlink = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await onUnlink();
+      setMsg({ kind: 'ok', text: 'Polymarket account unlinked.' });
+    } catch (ex: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setMsg({ kind: 'err', text: ex?.message || 'Failed to unlink.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyFunder = () => {
+    if (!status.funderAddress) return;
+    navigator.clipboard.writeText(status.funderAddress).then(() => {
+      setCopiedFunder(true);
+      setTimeout(() => setCopiedFunder(false), 1800);
+    }).catch(() => { /* ignore */ });
+  };
+
+  const truncFunder = (a: string) =>
+    a.length > 18 ? `${a.slice(0, 10)}…${a.slice(-8)}` : a;
+
+  if (status.linked && status.funderAddress) {
+    return (
+      <div
+        className="rounded-[2px] border border-[rgba(61,220,132,0.35)] bg-[rgba(61,220,132,0.06)] px-3 py-3 mt-3"
+        role="status"
+      >
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[#3ddc84] font-mono text-jtp-xs font-semibold flex-shrink-0">&#10003; Linked to Polymarket:</span>
+            <span
+              className="font-mono text-jtp-xs text-[#3ddc84] break-all"
+              title={status.funderAddress}
+              style={{ fontVariantNumeric: 'tabular-nums' }}
+            >
+              {truncFunder(status.funderAddress)}
+            </span>
+            <button
+              type="button"
+              onClick={copyFunder}
+              title="Copy Polymarket proxy address"
+              className="flex-shrink-0 font-mono text-jtp-2xs text-jtp-textDim hover:text-jtp-amber transition-colors px-1.5 py-0.5 border border-jtp-borderStrong rounded-[2px] select-none"
+              aria-label="Copy linked Polymarket address"
+            >
+              {copiedFunder ? 'COPIED' : 'COPY'}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={handleUnlink}
+            disabled={busy}
+            className="flex-shrink-0 font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-jtp-borderStrong text-jtp-textMuted hover:text-[#ff5b52] hover:border-[rgba(255,91,82,0.4)] transition-colors disabled:opacity-50"
+          >
+            {busy ? 'Unlinking…' : 'Unlink'}
+          </button>
+        </div>
+        {msg && (
+          <p role="alert" className={`mt-1.5 font-mono text-jtp-xs ${msg.kind === 'ok' ? 'text-[#3ddc84]' : 'text-[#ff5b52]'}`}>
+            {msg.text}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-[2px] border border-[rgba(232,162,61,0.45)] bg-[rgba(232,162,61,0.06)] px-3 py-3 mt-3 space-y-3"
+      role="note"
+    >
+      <div>
+        <p className="jtp-label text-[#e8a23d] mb-1">LINK POLYMARKET ACCOUNT</p>
+        <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+          To trade live, link your Polymarket account. The bot signs from the wallet above but trades
+          from your <span className="text-jtp-text">Polymarket proxy wallet</span> (which holds your deposited USDC.e funds).
+        </p>
+      </div>
+
+      <ol className="space-y-1.5 pl-0 list-none" aria-label="Setup steps">
+        <li className="flex gap-2 font-mono text-jtp-xs text-jtp-textMuted">
+          <span className="flex-shrink-0 text-[#e8a23d] font-semibold w-4 text-right">1.</span>
+          <span>
+            Export this wallet&apos;s private key (button above) and import it into{' '}
+            <span className="text-jtp-text">Phantom</span> or{' '}
+            <span className="text-jtp-text">MetaMask</span> — OR use your own Polymarket-connected wallet.
+          </span>
+        </li>
+        <li className="flex gap-2 font-mono text-jtp-xs text-jtp-textMuted">
+          <span className="flex-shrink-0 text-[#e8a23d] font-semibold w-4 text-right">2.</span>
+          <span>
+            On{' '}
+            <a
+              href="https://polymarket.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#e8a23d] underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              polymarket.com
+            </a>
+            , connect the wallet and <span className="text-jtp-text">deposit USDC</span> — Polymarket creates your proxy/deposit wallet automatically.
+          </span>
+        </li>
+        <li className="flex gap-2 font-mono text-jtp-xs text-jtp-textMuted">
+          <span className="flex-shrink-0 text-[#e8a23d] font-semibold w-4 text-right">3.</span>
+          <span>
+            Copy your Polymarket <span className="text-jtp-text">deposit / account address</span> (the proxy — shown in your Polymarket profile or the CLOB API).
+          </span>
+        </li>
+        <li className="flex gap-2 font-mono text-jtp-xs text-jtp-textMuted">
+          <span className="flex-shrink-0 text-[#e8a23d] font-semibold w-4 text-right">4.</span>
+          <span>Paste it below and click <span className="text-jtp-text">Link</span>.</span>
+        </li>
+      </ol>
+
+      <div className="space-y-1.5">
+        <label className="jtp-label text-jtp-2xs block" htmlFor="polymarket-funder-addr">
+          POLYMARKET PROXY / DEPOSIT ADDRESS
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="polymarket-funder-addr"
+            type="text"
+            value={addr}
+            onChange={(e) => { setAddr(e.target.value); setMsg(null); }}
+            placeholder="0x… your Polymarket proxy/deposit address"
+            spellCheck={false}
+            autoComplete="off"
+            className="flex-1 min-w-0 bg-jtp-bg border border-[rgba(232,162,61,0.45)] rounded-[2px] px-2.5 py-2 text-jtp-xs font-mono text-jtp-text placeholder:text-jtp-textDim focus:outline-none focus:border-[rgba(232,162,61,0.8)] transition-colors"
+          />
+          <button
+            type="button"
+            onClick={handleLink}
+            disabled={busy || !addr.trim()}
+            className="flex-shrink-0 font-mono text-jtp-xs font-bold uppercase tracking-wider px-3 py-2 rounded-[2px] bg-[rgba(232,162,61,0.14)] text-[#e8a23d] border border-[rgba(232,162,61,0.45)] hover:bg-[rgba(232,162,61,0.24)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busy ? <Spin /> : 'Link'}
+          </button>
+        </div>
+        {msg && (
+          <p role="alert" className={`font-mono text-jtp-xs ${msg.kind === 'ok' ? 'text-[#3ddc84]' : 'text-[#ff5b52]'}`}>
+            {msg.text}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Limits editor ─────────────────────────────────────────────────────────────
 
 interface LimitsState {
@@ -1237,11 +1419,14 @@ interface ControlsTabProps {
   onWithdrawOpen: () => void;
   onExportKeyOpen: () => void;
   onRefresh: () => void;
+  onLink: (address: string) => Promise<void>;
+  onUnlink: () => Promise<void>;
 }
 
 const ControlsTab: React.FC<ControlsTabProps> = ({
   status, modeBusy, modeError, killBusy, killErr,
   onModeChange, onKill, onSetLimits, onWithdrawOpen, onExportKeyOpen, onRefresh,
+  onLink, onUnlink,
 }) => {
   const isAuto = status.mode === 'auto';
 
@@ -1273,6 +1458,11 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
         </div>
         {modeError && (
           <p role="alert" className="mt-2 text-jtp-xs text-[#ff5b52] font-mono">{modeError}</p>
+        )}
+        {!status.linked && (
+          <p className="mt-2 font-mono text-jtp-xs text-[#e8a23d]" role="note">
+            Auto mode won&apos;t place real trades until your Polymarket account is linked (see Bot Wallet below).
+          </p>
         )}
       </Panel>
 
@@ -1321,6 +1511,8 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
           </div>
 
           <BotFundPanel botAddress={status.address} onSuccess={onRefresh} />
+
+          <LinkPolymarketSection status={status} onLink={onLink} onUnlink={onUnlink} />
 
           <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5 mt-3">
             <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
@@ -1484,6 +1676,17 @@ const QuantAutoBotPanel: React.FC = () => {
     return api.autobotExportKey(token);
   };
 
+  // ── Set funder (link / unlink Polymarket account) ──────────────────────────
+
+  const handleSetFunder = async (address: string) => {
+    const token = await getToken();
+    const updated = await api.autobotSetFunder(address, token);
+    setStatus(updated);
+  };
+
+  const handleLink = async (address: string) => handleSetFunder(address);
+  const handleUnlink = async () => handleSetFunder('');
+
   // ── Initial skeleton ───────────────────────────────────────────────────────
 
   if (loading && !status) {
@@ -1561,6 +1764,8 @@ const QuantAutoBotPanel: React.FC = () => {
           onWithdrawOpen={() => setWithdrawOpen(true)}
           onExportKeyOpen={() => setExportKeyOpen(true)}
           onRefresh={() => fetchAll({ silent: true })}
+          onLink={handleLink}
+          onUnlink={handleUnlink}
         />
       )}
 
