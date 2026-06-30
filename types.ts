@@ -862,9 +862,16 @@ export interface AutobotStatus {
   funderAddress?: string | null;
   /** True when funderAddress is set and the bot can place real orders. */
   linked?: boolean;
+  /**
+   * The REAL trading bankroll — Polymarket internal collateral when a deposit
+   * wallet is linked; falls back to the EOA USDC.e balance when unlinked.
+   */
+  tradeableUsdce?: number;
+  /** Cash free to deploy right now (tradeableUsdce − exposureUsd). */
+  availableUsd?: number;
 }
 
-export type AutobotTradeStatus = 'pending' | 'placed' | 'filled' | 'failed' | 'resolved';
+export type AutobotTradeStatus = 'pending' | 'placed' | 'filled' | 'failed' | 'resolved' | 'unfilled';
 
 export interface AutobotTrade {
   id: string;

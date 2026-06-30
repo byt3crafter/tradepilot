@@ -164,6 +164,7 @@ export interface ApiService {
   autobotPerformance(token?: string | null): Promise<AutobotPerformance>;
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }>;
   autobotSetFunder(address: string, token?: string | null): Promise<AutobotStatus>;
+  autobotClearTrades(id: string | undefined, token?: string | null): Promise<AutobotStatus>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -472,6 +473,7 @@ const api: ApiService = {
   autobotPerformance(token?: string | null): Promise<AutobotPerformance> { return this.get('/api/autobot/performance', token); },
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }> { return this.post('/api/autobot/export-key', {}, token); },
   autobotSetFunder(address: string, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/funder', { address }, token); },
+  autobotClearTrades(id: string | undefined, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/clear-trades', id !== undefined ? { id } : {}, token); },
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },

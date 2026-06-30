@@ -81,7 +81,10 @@ const STATUS_VARIANT: Record<AutobotTrade['status'], 'neutral' | 'info' | 'profi
   filled:   'warning',
   failed:   'loss',
   resolved: 'profit',
+  unfilled: 'neutral',
 };
+
+const isClearable = (s: AutobotTrade['status']) => s === 'failed' || s === 'unfilled';
 
 const SIGNAL_LABELS: Record<string, string> = {
   arb:  'ARB',
@@ -677,9 +680,10 @@ const resolvedStatusLabel = (trade: AutobotTrade): StatusLabelResult => {
     if (pnl >= 0) return { label: `WON +${roi.toFixed(1)}%`, variant: 'profit' };
     return { label: `LOST ${Math.abs(roi).toFixed(1)}%`, variant: 'loss' };
   }
-  if (trade.status === 'failed')   return { label: 'FAILED',  variant: 'loss' };
-  if (trade.status === 'filled')   return { label: 'PLACED',  variant: 'info' };
-  if (trade.status === 'placed')   return { label: 'PLACED',  variant: 'info' };
+  if (trade.status === 'failed')   return { label: 'FAILED',   variant: 'loss' };
+  if (trade.status === 'unfilled') return { label: 'UNFILLED', variant: 'neutral' };
+  if (trade.status === 'filled')   return { label: 'PLACED',   variant: 'info' };
+  if (trade.status === 'placed')   return { label: 'PLACED',   variant: 'info' };
   return { label: 'PENDING', variant: 'neutral' };
 };
 
@@ -696,14 +700,26 @@ const fmtRelTime = (iso: string) => {
 
 // ─── TradeCard ─────────────────────────────────────────────────────────────────
 
-const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
+interface TradeCardProps {
+  trade: AutobotTrade;
+  onClear?: () => void;
+  clearBusy?: boolean;
+}
+
+const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
   const { label: statusLabel, variant: statusVariant } = resolvedStatusLabel(trade);
   const sigVariant = SIGNAL_BADGE_VARIANT[trade.signalType] ?? 'neutral';
   const sigLabel   = SIGNAL_LABELS[trade.signalType] ?? trade.signalType.toUpperCase();
   const priceCents = (trade.price * 100).toFixed(0);
+  const dim = isClearable(trade.status);
 
   return (
-    <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors">
+    <div
+      className={[
+        'px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors',
+        dim ? 'opacity-55' : '',
+      ].join(' ')}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <span className="flex-shrink-0 mt-[1px]">
@@ -715,9 +731,21 @@ const TradeCard: React.FC<{ trade: AutobotTrade }> = ({ trade }) => {
             <span className="text-jtp-text font-normal">{trade.title}</span>
           </p>
         </div>
-        <span className="flex-shrink-0 mt-[1px]">
+        <div className="flex items-center gap-2 flex-shrink-0 mt-[1px]">
           <Badge variant={statusVariant} size="xs">{statusLabel}</Badge>
-        </span>
+          {isClearable(trade.status) && onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={clearBusy}
+              title="Dismiss this failed attempt"
+              aria-label="Dismiss failed trade attempt"
+              className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-[2px] border border-jtp-borderStrong text-jtp-textDim hover:text-[#ff5b52] hover:border-[rgba(255,91,82,0.45)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-mono text-jtp-xs leading-none"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-jtp-2xs pl-[calc(theme(spacing.2)+2.5rem)]">
@@ -779,13 +807,15 @@ interface PerformanceTabProps {
   trades: AutobotTrade[];
   tradesLoading: boolean;
   lastUpdated: string | null;
+  onClearTrades: (id?: string) => Promise<void>;
+  clearBusy: boolean;
 }
 
 // Recharts AreaChart mirroring WhatWorksPanel's PaperWalletSimCard chart:
 // same library, same Area/XAxis/YAxis/Tooltip props, same gradient/fill approach.
 // dataKey is "pnl" (cumulative realized $, can go negative) instead of "balance".
 const PerformanceTab: React.FC<PerformanceTabProps> = ({
-  perf, perfLoading, trades, tradesLoading, lastUpdated,
+  perf, perfLoading, trades, tradesLoading, lastUpdated, onClearTrades, clearBusy,
 }) => {
   if (perfLoading && !perf) {
     return (
@@ -924,38 +954,61 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       )}
 
       {/* ── Live trades feed ── */}
-      <Panel
-        label="LIVE TRADES"
-        noPadding
-        actions={
-          <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
-            {tradesLoading ? (
-              <>
-                <Spin />
-                <span className="text-jtp-textDim">updating…</span>
-              </>
-            ) : lastUpdated ? (
-              <>
-                <span className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse" aria-hidden="true" />
-                <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
-              </>
-            ) : null}
-          </span>
-        }
-      >
-        {trades.length === 0 ? (
-          <EmptyState
-            title="No trades yet"
-            description="Fund the wallet and switch to AUTO to start trading."
-          />
-        ) : (
-          <div className="divide-y-0">
-            {trades.map((trade) => (
-              <TradeCard key={trade.id} trade={trade} />
-            ))}
-          </div>
-        )}
-      </Panel>
+      {(() => {
+        const hasClearable = trades.some((t) => isClearable(t.status));
+        return (
+          <Panel
+            label="LIVE TRADES"
+            noPadding
+            actions={
+              <div className="flex items-center gap-3 flex-wrap">
+                {hasClearable && (
+                  <button
+                    type="button"
+                    onClick={() => onClearTrades(undefined)}
+                    disabled={clearBusy}
+                    className="font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-[rgba(255,91,82,0.35)] text-[#ff5b52] bg-[rgba(255,91,82,0.07)] hover:bg-[rgba(255,91,82,0.14)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Clear all failed and unfilled trade attempts"
+                  >
+                    {clearBusy ? <Spin /> : 'Clear failed'}
+                  </button>
+                )}
+                <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
+                  {tradesLoading ? (
+                    <>
+                      <Spin />
+                      <span className="text-jtp-textDim">updating…</span>
+                    </>
+                  ) : lastUpdated ? (
+                    <>
+                      <span className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse" aria-hidden="true" />
+                      <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
+                    </>
+                  ) : null}
+                </span>
+              </div>
+            }
+          >
+            {trades.length === 0 ? (
+              <EmptyState
+                title="No trades yet"
+                description="Fund the wallet and switch to AUTO to start trading."
+              />
+            ) : (
+              <div className="divide-y-0">
+                {trades.map((trade) => (
+                  <TradeCard
+                    key={trade.id}
+                    trade={trade}
+                    onClear={isClearable(trade.status) ? () => onClearTrades(trade.id) : undefined}
+                    clearBusy={clearBusy}
+                  />
+                ))}
+              </div>
+            )}
+          </Panel>
+        );
+      })()}
     </div>
   );
 };
@@ -1020,6 +1073,13 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
         )}
       </Panel>
 
+      {/* ── Money management — shown when Polymarket account is linked ── */}
+      {status.linked && (
+        <Panel label="MONEY MANAGEMENT">
+          <MoneyManagementSection status={status} />
+        </Panel>
+      )}
+
       {/* ── Two-column: wallet + limits ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
@@ -1048,32 +1108,61 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
             </div>
           </div>
 
-          {/* Balances */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
-              <div className="jtp-label mb-1">USDC.e</div>
-              <div className="font-mono font-bold text-jtp-2xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {fmtUsd(status.balance.usdce)}
+          {/* Balances — when linked: shown as secondary "gas / signer wallet"; when unlinked: shown as the fundable wallet */}
+          {status.linked ? (
+            <div className="mb-4">
+              <div className="jtp-label mb-1 text-jtp-textDim">GAS / SIGNER WALLET</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-jtp-bg border border-jtp-borderSubtle rounded-[2px] px-3 py-2">
+                  <div className="jtp-label text-jtp-2xs mb-0.5 text-jtp-textFaint">USDC.e</div>
+                  <div className="font-mono font-semibold text-jtp-md text-jtp-textDim" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtUsd(status.balance.usdce)}
+                  </div>
+                  <div className="font-mono text-jtp-2xs text-jtp-textFaint mt-0.5">signer only — ~$1 needed</div>
+                </div>
+                <div className="bg-jtp-bg border border-jtp-borderSubtle rounded-[2px] px-3 py-2">
+                  <div className="jtp-label text-jtp-2xs mb-0.5 text-jtp-textFaint">POL</div>
+                  <div className="font-mono font-semibold text-jtp-md text-jtp-textDim" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {status.balance.pol.toFixed(3)}
+                  </div>
+                  <div className="font-mono text-jtp-2xs text-jtp-textFaint mt-0.5">gas</div>
+                </div>
+              </div>
+              <p className="mt-2 font-mono text-jtp-2xs text-jtp-textFaint leading-relaxed">
+                This is the bot&apos;s signing key — it authorises orders but the real trading
+                funds live in your Polymarket account (shown in Trading Balance above).
+                Keep ~$1 USDC.e + a small POL balance here for gas.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
+                <div className="jtp-label mb-1">USDC.e</div>
+                <div className="font-mono font-bold text-jtp-2xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtUsd(status.balance.usdce)}
+                </div>
+              </div>
+              <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
+                <div className="jtp-label mb-1">POL (GAS)</div>
+                <div className="font-mono font-bold text-jtp-2xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {status.balance.pol.toFixed(3)}
+                </div>
               </div>
             </div>
-            <div className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3">
-              <div className="jtp-label mb-1">POL (GAS)</div>
-              <div className="font-mono font-bold text-jtp-2xl text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {status.balance.pol.toFixed(3)}
-              </div>
-            </div>
-          </div>
+          )}
 
           <LinkPolymarketSection status={status} onLink={onLink} onUnlink={onUnlink} />
 
-          <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5 mt-3">
-            <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
-              <span className="text-jtp-text font-semibold">Manual option:</span>{' '}
-              send <span className="text-jtp-text">USDC.e</span> +
-              ~$1 worth of <span className="text-jtp-text">POL</span> for gas on{' '}
-              <span className="text-jtp-text">Polygon</span> to the address above.
-            </p>
-          </div>
+          {!status.linked && (
+            <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5 mt-3">
+              <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+                <span className="text-jtp-text font-semibold">Manual option:</span>{' '}
+                send <span className="text-jtp-text">USDC.e</span> +
+                ~$1 worth of <span className="text-jtp-text">POL</span> for gas on{' '}
+                <span className="text-jtp-text">Polygon</span> to the address above.
+              </p>
+            </div>
+          )}
         </Panel>
 
         {/* Limits & kill switch */}
@@ -1106,6 +1195,105 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
   );
 };
 
+// ─── Money management section ──────────────────────────────────────────────────
+
+interface MoneyManagementSectionProps {
+  status: AutobotStatus;
+}
+
+const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status }) => {
+  const tradeable = status.tradeableUsdce ?? 0;
+  const available = status.availableUsd ?? 0;
+  const inPositions = status.exposureUsd ?? 0;
+  const realizedPnl = status.stats.realizedPnlUsd;
+
+  return (
+    <div className="space-y-3">
+      {/* ── Four money tiles ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Trading Balance — prominent green */}
+        <div
+          className="bg-jtp-bg border border-[rgba(61,220,132,0.35)] rounded-[2px] px-3 py-3 flex flex-col gap-1"
+          aria-label="Trading balance"
+        >
+          <div className="jtp-label text-[#3ddc84]">TRADING BALANCE</div>
+          <div
+            className="font-mono font-bold text-jtp-2xl text-[#3ddc84]"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {fmtUsd(tradeable)}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">bankroll</div>
+        </div>
+
+        {/* Available */}
+        <div
+          className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
+          aria-label="Available cash"
+        >
+          <div className="jtp-label">AVAILABLE</div>
+          <div
+            className="font-mono font-bold text-jtp-2xl text-jtp-text"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {fmtUsd(available)}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">free to deploy</div>
+        </div>
+
+        {/* In Positions */}
+        <div
+          className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
+          aria-label="Capital in open positions"
+        >
+          <div className="jtp-label">IN POSITIONS</div>
+          <div
+            className="font-mono font-bold text-jtp-2xl text-jtp-textMuted"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {fmtUsd(inPositions)}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">open exposure</div>
+        </div>
+
+        {/* Realized P&L */}
+        <div
+          className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
+          aria-label="Realized profit and loss"
+        >
+          <div className="jtp-label">REALIZED P&amp;L</div>
+          <div
+            className={`font-mono font-bold text-jtp-2xl ${pnlColor(realizedPnl)}`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {realizedPnl === 0
+              ? '$0.00'
+              : `${realizedPnl >= 0 ? '+' : ''}${fmtUsd(realizedPnl)}`}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">closed trades</div>
+        </div>
+      </div>
+
+      {/* ── Sizing explainer ── */}
+      <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5">
+        <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+          The bot sizes each trade dynamically — half-Kelly of your bankroll scaled by the
+          signal&apos;s edge — capped at your Max-per-trade (
+          <span className="text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {fmtUsd(status.limits.maxPerTradeUsd)}
+          </span>
+          ). It stops opening new trades when Available hits{' '}
+          <span className="text-jtp-text">$0</span> or Max-total exposure (
+          <span className="text-jtp-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {fmtUsd(status.limits.maxTotalUsd)}
+          </span>
+          ) is reached.
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 const QuantAutoBotPanel: React.FC = () => {
@@ -1127,6 +1315,7 @@ const QuantAutoBotPanel: React.FC = () => {
   const [modeBusy, setModeBusy] = useState(false);
   const [killBusy, setKillBusy] = useState(false);
   const [killErr, setKillErr] = useState<string | null>(null);
+  const [clearBusy, setClearBusy] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [exportKeyOpen, setExportKeyOpen] = useState(false);
 
@@ -1228,6 +1417,22 @@ const QuantAutoBotPanel: React.FC = () => {
     return api.autobotExportKey(token);
   };
 
+  // ── Clear failed / unfilled trades ────────────────────────────────────────
+
+  const handleClearTrades = async (id?: string) => {
+    setClearBusy(true);
+    try {
+      const token = await getToken();
+      const updated = await api.autobotClearTrades(id, token);
+      if (updated) setStatus(updated);
+      await fetchAll({ silent: true });
+    } catch {
+      // silent — the trades list will refresh on next poll
+    } finally {
+      setClearBusy(false);
+    }
+  };
+
   // ── Set funder (link / unlink Polymarket account) ──────────────────────────
 
   const handleSetFunder = async (address: string) => {
@@ -1302,6 +1507,8 @@ const QuantAutoBotPanel: React.FC = () => {
           trades={trades}
           tradesLoading={tradesLoading}
           lastUpdated={lastUpdated}
+          onClearTrades={handleClearTrades}
+          clearBusy={clearBusy}
         />
       ) : (
         <ControlsTab
