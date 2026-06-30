@@ -660,6 +660,19 @@ model PmAgentWallet {
   updatedAt         DateTime @updatedAt
 }
 
+model BrainEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  module    String   // 'polymarket' | 'crypto' | 'forex' | ...
+  kind      String   // tick|research|recall|decide|skip|execute|learn|note
+  title     String
+  detail    String?
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model AgentTrade {
   id         String    @id @default(uuid())
   userId     String
