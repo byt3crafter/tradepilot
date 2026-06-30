@@ -557,16 +557,18 @@ interface LimitsState {
   maxTotalUsd: string;
   maxPerTradeUsd: string;
   dailyLossLimitUsd: string;
+  minEdgePct: string;
 }
 
 const LimitsEditor: React.FC<{
   limits: AutobotStatus['limits'];
-  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) => Promise<void>;
+  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) => Promise<void>;
 }> = ({ limits, onSave }) => {
   const [vals, setVals] = useState<LimitsState>({
     maxTotalUsd: String(limits.maxTotalUsd),
     maxPerTradeUsd: String(limits.maxPerTradeUsd),
     dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
+    minEdgePct: String(limits.minEdgePct ?? 5),
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -577,13 +579,15 @@ const LimitsEditor: React.FC<{
     if (
       prevLimits.current.maxTotalUsd !== limits.maxTotalUsd ||
       prevLimits.current.maxPerTradeUsd !== limits.maxPerTradeUsd ||
-      prevLimits.current.dailyLossLimitUsd !== limits.dailyLossLimitUsd
+      prevLimits.current.dailyLossLimitUsd !== limits.dailyLossLimitUsd ||
+      prevLimits.current.minEdgePct !== limits.minEdgePct
     ) {
       prevLimits.current = limits;
       setVals({
         maxTotalUsd: String(limits.maxTotalUsd),
         maxPerTradeUsd: String(limits.maxPerTradeUsd),
         dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
+        minEdgePct: String(limits.minEdgePct ?? 5),
       });
     }
   }, [limits]);
@@ -592,14 +596,19 @@ const LimitsEditor: React.FC<{
     const maxTotalUsd = parseFloat(vals.maxTotalUsd);
     const maxPerTradeUsd = parseFloat(vals.maxPerTradeUsd);
     const dailyLossLimitUsd = parseFloat(vals.dailyLossLimitUsd);
+    const minEdgePct = parseFloat(vals.minEdgePct);
     if ([maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd].some(isNaN)) {
       setErr('All limits must be valid numbers.');
+      return;
+    }
+    if (isNaN(minEdgePct) || minEdgePct < 0 || minEdgePct > 100) {
+      setErr('Min edge % must be between 0 and 100.');
       return;
     }
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd });
+      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (ex: any) {
@@ -634,6 +643,29 @@ const LimitsEditor: React.FC<{
       {field('maxPerTradeUsd', 'MAX PER TRADE', 'Maximum USDC.e per single trade')}
       {field('maxTotalUsd', 'MAX TOTAL EXPOSURE', 'Total open exposure cap')}
       {field('dailyLossLimitUsd', 'DAILY LOSS LIMIT', 'Bot pauses if daily loss hits this')}
+
+      {/* Min Edge % — separate field since it uses % not $ */}
+      <div className="flex flex-col gap-1">
+        <label className="jtp-label" htmlFor="limit-minEdgePct">MIN EDGE %</label>
+        <div className="flex items-center gap-1">
+          <input
+            id="limit-minEdgePct"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            value={vals.minEdgePct}
+            onChange={(e) => setVals((v) => ({ ...v, minEdgePct: e.target.value }))}
+            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-2.5 py-1.5 text-jtp-xs font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            aria-describedby="limit-minEdgePct-help"
+          />
+          <span className="font-mono text-jtp-textDim text-jtp-xs">%</span>
+        </div>
+        <span id="limit-minEdgePct-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
+          Only take signals with edge &ge; this % (higher = fewer, stronger trades)
+        </span>
+      </div>
+
       {err && <p role="alert" className="text-jtp-xs text-[#ff5b52]">{err}</p>}
       <Button
         variant="secondary"
@@ -1023,7 +1055,7 @@ interface ControlsTabProps {
   killErr: string | null;
   onModeChange: (mode: 'off' | 'auto') => void;
   onKill: () => void;
-  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) => Promise<void>;
+  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) => Promise<void>;
   onWithdrawOpen: () => void;
   onExportKeyOpen: () => void;
   onLink: (address: string) => Promise<void>;
@@ -1396,7 +1428,7 @@ const QuantAutoBotPanel: React.FC = () => {
 
   // ── Limits ─────────────────────────────────────────────────────────────────
 
-  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) => {
+  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) => {
     const token = await getToken();
     const updated = await api.autobotSetLimits(limits, token);
     setStatus(updated);
