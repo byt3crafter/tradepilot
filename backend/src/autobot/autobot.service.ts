@@ -81,10 +81,18 @@ export class AutobotService {
     }
   }
 
+  /** The wallet the bot actually TRADES from: the linked Polymarket deposit/proxy wallet if set
+   * (that's where deposited USDC.e lives), else the EOA. This is the real bankroll. */
+  private async tradeable(w: any): Promise<{ usdce: number; pol: number }> {
+    const addr = (w.funderAddress || '').trim() || w.address;
+    return this.balances(addr);
+  }
+
   // ── public API ────────────────────────────────────────────────────────────
   async status(userId: string) {
     const w = await this.getOrCreate(userId);
-    const bal = await this.balances(w.address);
+    const bal = await this.balances(w.address);       // EOA: the gas/signer wallet
+    const trade = await this.tradeable(w);            // deposit wallet: the real trading funds
     const openTrades = await this.prisma.agentTrade.findMany({
       where: { userId, status: 'filled' },
       orderBy: { createdAt: 'desc' }, take: 50,
@@ -100,7 +108,9 @@ export class AutobotService {
       linked: !!w.funderAddress,
       mode: w.mode,
       killSwitch: w.killSwitch,
-      balance: bal,
+      balance: bal,                                    // EOA (gas) wallet
+      tradeableUsdce: trade.usdce,                      // real trading cash (deposit wallet if linked)
+      availableUsd: Math.max(0, trade.usdce),           // cash free to deploy now
       limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
@@ -121,7 +131,7 @@ export class AutobotService {
     let peak = 0, maxdd = 0;
     for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
     const w = await this.getOrCreate(userId);
-    const bal = await this.balances(w.address);
+    const bal = await this.tradeable(w); // real trading funds (deposit wallet if linked)
     const openExposure = trades.filter((t) => t.status === 'filled').reduce((s, t) => s + (t.sizeUsd || 0), 0);
     return {
       stats: {
@@ -152,8 +162,8 @@ export class AutobotService {
   async setMode(userId: string, mode: 'off' | 'auto') {
     const w = await this.getOrCreate(userId);
     if (mode === 'auto') {
-      const bal = await this.balances(w.address);
-      if (bal.usdce < 1) throw new BadRequestException('Fund the bot wallet with USDC.e before enabling Auto.');
+      const bal = await this.tradeable(w); // check the deposit wallet (real trading funds) if linked
+      if (bal.usdce < 1) throw new BadRequestException('Fund the bot wallet (or link a funded Polymarket account) before enabling Auto.');
     }
     await this.prisma.pmAgentWallet.update({ where: { userId }, data: { mode, killSwitch: false } });
     return this.status(userId);
@@ -232,9 +242,13 @@ export class AutobotService {
       this.logger.warn(`autobot ${w.address}: daily loss limit hit → halted`);
       return;
     }
-    const bal = await this.balances(w.address);
+    // Bankroll = the real trading funds: the linked deposit wallet (else the EOA).
+    const linked = !!(w.funderAddress || '').trim();
+    const bal = await this.tradeable(w);
     if (bal.usdce < 1) return; // nothing to trade
-    if (bal.pol < 0.02) { this.logger.warn(`autobot ${w.address}: low POL for gas`); return; }
+    // POL gas is only needed for EOA-mode on-chain approvals; deposit-wallet CLOB orders are
+    // off-chain signed (gasless), and the proxy holds no POL — so skip the gas check when linked.
+    if (!linked && bal.pol < 0.02) { this.logger.warn(`autobot ${w.address}: low POL for gas`); return; }
 
     // current exposure
     let open = await this.prisma.agentTrade.findMany({ where: { userId: w.userId, status: 'filled' } });
