@@ -276,13 +276,15 @@ const DashboardPage: React.FC = () => {
             <AppTopBar />
           </div>
 
-          {/* Scrollable view content */}
+          {/* View content — main is a flex column so children can claim h-full.
+              The inner div is the scroll container for all views that overflow;
+              BrainDashboard uses h-full + overflow-hidden to stay viewport-bounded. */}
           <main
-            className="flex-1 overflow-y-auto bg-jtp-bg"
+            className="flex-1 flex flex-col min-h-0 bg-jtp-bg"
             id="main-content"
             tabIndex={-1}
           >
-            <div className="px-5 py-[18px] pb-10 min-h-full">
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-[18px] pb-10">
               {renderView()}
             </div>
           </main>

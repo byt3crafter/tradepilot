@@ -806,7 +806,7 @@ export default function BrainDashboard() {
         if (res.ok) {
           const json = await res.json();
           if (json?.success && Array.isArray(json.data) && mountedRef.current) {
-            setEvents((json.data as BrainEvent[]).filter((e) => e && e.kind && (e as any).kind !== 'ping').slice(0, MAX_FEED_EVENTS));
+            setEvents((json.data as BrainEvent[]).filter((e) => e && e.kind && e.title && (e as any).kind !== 'ping').slice(0, MAX_FEED_EVENTS));
           }
         }
       } catch {
@@ -829,6 +829,7 @@ export default function BrainDashboard() {
         try {
           const event = JSON.parse(e.data) as BrainEvent;
           if ((event as any).kind === 'ping') return; // heartbeat — keep-alive only, not a neuron
+          if (!event.title) return; // skip titleless events — never render a blank card
           setEvents(prev => [event, ...prev].slice(0, MAX_FEED_EVENTS));
           setNewestId(event.id);
           fireNode(event.kind);
@@ -876,10 +877,7 @@ export default function BrainDashboard() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="flex flex-col gap-4"
-      style={{ minHeight: 'calc(100vh - 140px)' }}
-    >
+    <div className="h-full flex flex-col gap-3 overflow-hidden">
       {/* ── Header bar ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 flex-shrink-0">
         {/* Title + live indicator */}
@@ -948,7 +946,7 @@ export default function BrainDashboard() {
         {/* Left panel: neural network visualization */}
         <div className="flex flex-col gap-4 min-h-0">
           <div
-            className="relative flex-1 min-h-[340px] lg:min-h-[480px] bg-jtp-panel border border-jtp-border rounded-[3px] flex items-center justify-center overflow-hidden"
+            className="relative flex-1 min-h-[280px] bg-jtp-panel border border-jtp-border rounded-[3px] flex items-center justify-center overflow-hidden"
           >
             {/* Ambient purple radial glow behind the SVG */}
             <div
@@ -962,7 +960,7 @@ export default function BrainDashboard() {
 
             {/* Neural network SVG — aspect-square so it has real height (viewBox-only SVG
                 collapses to 0 inside a centered flex). Bigger = the centerpiece. */}
-            <div className="w-full aspect-square max-w-[460px] p-6 mx-auto">
+            <div className="w-full h-full p-6">
               <BrainNetwork
                 activeNodes={activeNodes}
                 activationKeys={activationKeys}
@@ -1045,7 +1043,7 @@ export default function BrainDashboard() {
           </div>
 
           {/* Scrollable events */}
-          <div className="flex-1 min-h-0 p-3 min-h-[200px]">
+          <div className="flex-1 min-h-0 p-3">
             <ThoughtFeed events={events} newestId={newestId} />
           </div>
         </div>
