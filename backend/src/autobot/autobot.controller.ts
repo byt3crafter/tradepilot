@@ -95,6 +95,12 @@ export class AutobotController {
   }
 
   @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Post('copilot')
+  copilot(@Req() req: any, @Body('question') question: string) {
+    return this.bot.copilot(req.user.sub, question);
+  }
+
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Post('close')
   close(@Req() req: any, @Body('tokenId') tokenId: string) {
     return this.bot.closePosition(req.user.sub, tokenId);
