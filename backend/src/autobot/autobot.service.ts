@@ -238,9 +238,14 @@ export class AutobotService {
     let usdceLeft = bal.usdce;
     for (const pick of fresh) {
       if (placed >= 3 || exposure >= w.maxTotalUsd) break;
+      // DYNAMIC money management: half-Kelly fraction of the live bankroll, scaled by the
+      // signal's edge — bigger edge / bigger bankroll ⇒ bigger bet; weak edge ⇒ ~$1 minimum.
+      // Capped by per-trade limit, remaining total exposure, and available USDC.e.
+      const edgeFrac = Math.min(0.25, Math.max(0, (pick.edgePct || 0) / 100)); // edge as fraction (cap 25%)
+      const kellyUsd = bal.usdce * edgeFrac * 0.5;                              // half-Kelly of bankroll
       const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, usdceLeft);
-      const sizeUsd = Math.floor(room * 100) / 100;
-      if (sizeUsd < 1) break;
+      if (room < 1) break;
+      const sizeUsd = Math.max(1, Math.floor(Math.min(kellyUsd, room) * 100) / 100);
       const price = pick.price || (pick.priceCents || 0) / 100;
       // log intent first (audit) WITH full reasoning, then attempt the order
       const trade = await this.prisma.agentTrade.create({
