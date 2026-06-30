@@ -1348,64 +1348,86 @@ interface MoneyManagementSectionProps {
 }
 
 const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status }) => {
-  const tradeable = status.tradeableUsdce ?? 0;
-  const available = status.availableUsd ?? 0;
-  const inPositions = status.exposureUsd ?? 0;
-  const realizedPnl = status.stats.realizedPnlUsd;
+  const portfolio     = status.portfolioValue ?? 0;
+  const available     = status.availableUsd ?? status.tradeableUsdce ?? 0;
+  const positionsVal  = status.positionsValue ?? status.exposureUsd ?? 0;
+  const openPositions = status.openPositions ?? 0;
+  const unrealizedPnl = status.unrealizedPnlUsd ?? 0;
+  const realizedPnl   = status.stats.realizedPnlUsd;
 
   return (
     <div className="space-y-3">
-      {/* ── Four money tiles ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Trading Balance — prominent green */}
+      {/* ── Five money tiles ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+
+        {/* PORTFOLIO — prominent, mirrors Polymarket "Portfolio" figure */}
         <div
           className="bg-jtp-bg border border-[rgba(61,220,132,0.35)] rounded-[2px] px-3 py-3 flex flex-col gap-1"
-          aria-label="Trading balance"
+          aria-label="Portfolio total value"
         >
-          <div className="jtp-label text-[#3ddc84]">TRADING BALANCE</div>
+          <div className="jtp-label text-[#3ddc84]">PORTFOLIO</div>
           <div
             className="font-mono font-bold text-jtp-2xl text-[#3ddc84]"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {fmtUsd(tradeable)}
+            {fmtUsd(portfolio)}
           </div>
-          <div className="font-mono text-jtp-2xs text-jtp-textFaint">bankroll</div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">cash + positions</div>
         </div>
 
-        {/* Available */}
+        {/* CASH (available) */}
         <div
           className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
           aria-label="Available cash"
         >
-          <div className="jtp-label">AVAILABLE</div>
+          <div className="jtp-label">CASH</div>
           <div
             className="font-mono font-bold text-jtp-2xl text-jtp-text"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
             {fmtUsd(available)}
           </div>
-          <div className="font-mono text-jtp-2xs text-jtp-textFaint">free to deploy</div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">available</div>
         </div>
 
-        {/* In Positions */}
+        {/* IN POSITIONS */}
         <div
           className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
-          aria-label="Capital in open positions"
+          aria-label="Live value of open positions"
         >
           <div className="jtp-label">IN POSITIONS</div>
           <div
             className="font-mono font-bold text-jtp-2xl text-jtp-textMuted"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {fmtUsd(inPositions)}
+            {fmtUsd(positionsVal)}
           </div>
-          <div className="font-mono text-jtp-2xs text-jtp-textFaint">open exposure</div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">
+            {openPositions > 0 ? `${openPositions} open` : 'no open bets'}
+          </div>
         </div>
 
-        {/* Realized P&L */}
+        {/* UNREALIZED P&L */}
         <div
           className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
-          aria-label="Realized profit and loss"
+          aria-label="Unrealized profit and loss on open positions"
+        >
+          <div className="jtp-label">UNREALIZED P&amp;L</div>
+          <div
+            className={`font-mono font-bold text-jtp-2xl ${pnlColor(unrealizedPnl)}`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {unrealizedPnl === 0
+              ? '$0.00'
+              : `${unrealizedPnl >= 0 ? '+' : ''}${fmtUsd(unrealizedPnl)}`}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">unrealized / open</div>
+        </div>
+
+        {/* REALIZED P&L */}
+        <div
+          className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
+          aria-label="Realized profit and loss from settled trades"
         >
           <div className="jtp-label">REALIZED P&amp;L</div>
           <div
@@ -1416,8 +1438,18 @@ const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status 
               ? '$0.00'
               : `${realizedPnl >= 0 ? '+' : ''}${fmtUsd(realizedPnl)}`}
           </div>
-          <div className="font-mono text-jtp-2xs text-jtp-textFaint">closed trades</div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">realized / settled</div>
         </div>
+      </div>
+
+      {/* ── P&L explainer ── */}
+      <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2">
+        <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+          <span className="text-jtp-text font-semibold">Unrealized</span> = live value of open
+          bets (moves until they settle).{' '}
+          <span className="text-jtp-text font-semibold">Realized</span> = locked-in profit from
+          resolved markets.
+        </p>
       </div>
 
       {/* ── Sizing explainer ── */}

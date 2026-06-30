@@ -869,6 +869,14 @@ export interface AutobotStatus {
   tradeableUsdce?: number;
   /** Cash free to deploy right now (tradeableUsdce − exposureUsd). */
   availableUsd?: number;
+  /** Total portfolio value (cash + live mark-to-market value of open positions). Matches Polymarket "Portfolio". */
+  portfolioValue?: number;
+  /** Live mark-to-market value of open positions. Moves until markets settle. */
+  positionsValue?: number;
+  /** Live unrealized P&L on open positions (can be negative due to entry spread). */
+  unrealizedPnlUsd?: number;
+  /** Count of currently open positions. */
+  openPositions?: number;
   /** Per-strategy enable flags (from GET /api/autobot/status). */
   strategies?: { copy: boolean; ai: boolean; arb: boolean };
   /** Per-strategy scorecard (from GET /api/autobot/status). */
