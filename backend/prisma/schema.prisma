@@ -656,6 +656,7 @@ model PmAgentWallet {
   dayStamp          String   @default("")      // YYYY-MM-DD daily reset key
   apiCreds          Json?                       // cached CLOB api creds
   funderAddress     String?                     // linked Polymarket proxy/deposit wallet (POLY_PROXY maker); null = not linked
+  strategies        Json?                       // {copy,ai,arb} enable flags; null = all enabled
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
