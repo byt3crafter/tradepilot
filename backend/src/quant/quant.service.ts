@@ -757,6 +757,48 @@ export class QuantService implements OnApplicationBootstrap {
    * edges (AI-judgment open calls + settlement-lag arbs) into one ranked list with a tradeable
    * tokenId, so the user can act manually in one click. The learning loops keep running behind it.
    */
+  /** COPY-TOP-WALLET signals — the validated paper strategy (the +200%+ sim) surfaced live:
+   * recent BUYs by qualified wallets that pass the same gate as recordPaperSignals (focus block,
+   * price 0.25–0.98 excl the 0.40–0.50 dead zone, learned-EV bucket). Each carries the market
+   * end date so the bot can prefer fast-resolving markets (Sports = best focus AND settles same-day). */
+  async copySignals(): Promise<any[]> {
+    try {
+      const trades = await this.pm.recentTrades(1000);
+      const addrs = [...new Set(trades.map((t: any) => String(t.proxyWallet || '').toLowerCase()))];
+      const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true, edgeLcb: { lte: 0.10 } }, select: { address: true, marketFocus: true } });
+      const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
+      const ev = await this.getEvTable();
+      const PRIOR_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price', 'Crypto Up/Down']);
+      const MIN_SAMPLE = 12, EV_THRESHOLD = 2;
+      const picked: any[] = []; const seen = new Set<string>();
+      for (const t of trades) {
+        const addr = String(t.proxyWallet || '').toLowerCase();
+        if (!focusMap.has(addr)) continue;
+        const price = Number(t.price);
+        if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.25 && price < 0.98 && t.conditionId)) continue;
+        if (price >= 0.40 && price < 0.50) continue; // coin-flip dead zone
+        const focus = focusMap.get(addr);
+        if (PRIOR_BLOCK.has(focus || 'Mixed')) continue;
+        const b = ev.get(this.bucketKey(focus, price));
+        const pass = b && b.n >= MIN_SAMPLE ? b.mean > EV_THRESHOLD : price >= 0.30;
+        if (!pass) continue;
+        const tok = t.asset || t.tokenId;
+        if (!tok || seen.has(tok)) continue; seen.add(tok);
+        picked.push({
+          type: 'copy' as const, title: t.title || '', action: 'BUY', outcome: t.outcome || '',
+          priceCents: Math.round(price * 100), edgePct: Math.max(5, b && b.n >= MIN_SAMPLE ? Math.round(b.mean) : 6),
+          detail: `copying top ${focus} wallet`, confidence: null,
+          reason: `Top qualified ${focus} wallet bought ${t.outcome} @ ${Math.round(price * 100)}¢ — mirroring proven edge`,
+          tokenId: tok, price, conditionId: t.conditionId, outcomeIndex: t.outcomeIndex ?? null,
+        });
+        if (picked.length >= 25) break;
+      }
+      const ends = await this.pm.marketEndDates([...new Set(picked.map((p) => p.conditionId))]).catch(() => ({} as any));
+      for (const p of picked) p.endDate = ends[p.conditionId] || null;
+      return picked;
+    } catch { return []; }
+  }
+
   async signals() {
     const aiRows = (await this.prisma.agentDecision.findMany({
       where: { kind: 'paper_copy', mode: 'ai_judgment', outcome: null },
@@ -786,7 +828,21 @@ export class QuantService implements OnApplicationBootstrap {
         tokenId: a.tokenId || null, price: a.price, conditionId: a.conditionId, outcomeIndex: a.outcomeIndex ?? null,
       }));
     } catch { /* arbs optional */ }
-    const all = [...ai, ...arbs].sort((x, y) => (y.edgePct || 0) - (x.edgePct || 0));
+    // COPY top wallets (the validated strategy) + attach end dates to AI signals too.
+    const copy = await this.copySignals();
+    const aiCids = [...new Set(ai.map((s: any) => s.conditionId).filter(Boolean))] as string[];
+    const aiEnds = await this.pm.marketEndDates(aiCids).catch(() => ({} as any));
+    for (const s of ai as any[]) s.endDate = aiEnds[s.conditionId] || null;
+    const now = Date.now();
+    const all = [...copy, ...ai, ...arbs];
+    // Prefer FAST-resolving markets (resolve within 7 days float up — Sports settles same-day),
+    // then by edge. Stops the book from being all weeks-out narrative bets.
+    all.sort((x: any, y: any) => {
+      const fx = (x.endDate || Infinity) - now < 7 * 864e5 ? 0 : 1;
+      const fy = (y.endDate || Infinity) - now < 7 * 864e5 ? 0 : 1;
+      if (fx !== fy) return fx - fy;
+      return (y.edgePct || 0) - (x.edgePct || 0);
+    });
     return { signals: all.slice(0, 40), generatedAt: Date.now() };
   }
 
