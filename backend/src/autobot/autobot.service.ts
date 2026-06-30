@@ -248,6 +248,15 @@ export class AutobotService {
     const resolved = allTrades.filter((t) => t.status === 'resolved');
     const realizedPnl = resolved.reduce((s, t) => s + (t.pnlUsd || 0), 0);
     const wins = resolved.filter((t) => (t.pnlUsd || 0) > 0).length;
+    // TODAY's P&L (matches Polymarket's 1D view): portfolio change since the start of today.
+    const portfolioValue = +(trade.usdce + mtm.value).toFixed(2);
+    const today = new Date().toISOString().slice(0, 10);
+    let pfOpen = w.pfDayOpen;
+    if (w.pfDayStamp !== today || pfOpen == null) {
+      pfOpen = portfolioValue;
+      this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { pfDayStamp: today, pfDayOpen: portfolioValue } }).catch(() => {});
+    }
+    const todayPnlUsd = +(portfolioValue - (pfOpen ?? portfolioValue)).toFixed(2);
     return {
       address: w.address,
       funderAddress: w.funderAddress || null, // linked Polymarket proxy (POLY_PROXY maker)
@@ -261,8 +270,9 @@ export class AutobotService {
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
       positionsValue: mtm.value,                         // live mark-to-market value of open positions
-      unrealizedPnlUsd: mtm.unrealizedPnl,               // live P&L on open positions (matches Polymarket)
-      portfolioValue: +(trade.usdce + mtm.value).toFixed(2), // cash + positions = total portfolio
+      unrealizedPnlUsd: mtm.unrealizedPnl,               // total open P&L vs entry (the honest -$ number)
+      todayPnlUsd,                                        // change since start of today (matches Polymarket 1D)
+      portfolioValue,                                    // cash + positions = total portfolio
       openPositions: mtm.count,
       strategies: this.strategiesOf(w),                  // {copy,ai,arb} enable flags
       strategyStats: this.rateStrategies(allTrades),     // per-strategy scorecard (rate what works)
@@ -585,10 +595,13 @@ export class AutobotService {
       w.apiCreds = creds; // reuse within this tick — re-deriving per order raced + failed some
     }
     const client = new ClobClient({ ...baseOpts, creds });
-    // MARKET order (take liquidity now): amount = $ to spend on a BUY; FOK so it fills fully or
-    // is killed — never rests as a phantom. Auto-resolves tickSize + negRisk exchange per market.
+    // MARKET (take liquidity now), FOK so it fills fully or is killed — never rests as a phantom.
+    // PRICE CAP: don't chase the book more than 3¢ above the wallet's entry — this stops the
+    // spread-bleed (the small unrealized loss on fresh fills). If the ask is above the cap, the
+    // FOK kills (no overpay) rather than filling at a worse price. price omitted → pure market.
+    const cap = price > 0 ? Math.min(0.99, +(price + 0.03).toFixed(2)) : undefined;
     const resp = await client.createAndPostMarketOrder(
-      { tokenID: tokenId, amount: sizeUsd, side: Side.BUY },
+      { tokenID: tokenId, amount: sizeUsd, side: Side.BUY, ...(cap ? { price: cap } : {}) },
       undefined,
       OrderType.FOK,
     );
