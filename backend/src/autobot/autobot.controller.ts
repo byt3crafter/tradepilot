@@ -46,4 +46,10 @@ export class AutobotController {
   withdraw(@Req() req: any, @Body('to') to: string) {
     return this.bot.withdraw(req.user.sub, to);
   }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('export-key')
+  exportKey(@Req() req: any) {
+    return this.bot.exportPrivateKey(req.user.sub);
+  }
 }
