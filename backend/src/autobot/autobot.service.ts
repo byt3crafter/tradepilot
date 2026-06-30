@@ -352,9 +352,13 @@ export class AutobotService {
       const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
       const d: any = await r.json();
       const arr = Array.isArray(d) ? d : [];
-      const value = arr.reduce((s: number, p: any) => s + (Number(p.currentValue) || 0), 0);
-      const unreal = arr.reduce((s: number, p: any) => s + (Number(p.cashPnl) || 0), 0);
-      const v = { value: +value.toFixed(2), unrealizedPnl: +unreal.toFixed(2), count: arr.length };
+      // Only LIVE positions (currentValue > 1¢) count as "open/unrealized". Worthless settled
+      // losers (currentValue ≈ 0) are realized losses — counting them as unrealized is what made
+      // the two tabs disagree. Their loss flows into realized via (total − unrealized).
+      const live = arr.filter((p: any) => Number(p.currentValue) > 0.01);
+      const value = live.reduce((s: number, p: any) => s + (Number(p.currentValue) || 0), 0);
+      const unreal = live.reduce((s: number, p: any) => s + (Number(p.cashPnl) || 0), 0);
+      const v = { value: +value.toFixed(2), unrealizedPnl: +unreal.toFixed(2), count: live.length };
       this.posCache.set(funder, { v, t: Date.now() });
       return v;
     } catch { return c?.v ?? { value: 0, unrealizedPnl: 0, count: 0 }; }
@@ -450,16 +454,31 @@ export class AutobotService {
       if (a.title) m.title = a.title;
       byMkt.set(cid, m);
     }
-    const settled = [...byMkt.values()].filter((m) => !openCids.has(m.conditionId) && (m.cost > 0 || m.proceeds > 0))
-      .map((m) => ({ conditionId: m.conditionId, title: m.title, slug: m.slug, icon: m.icon, ts: m.ts * 1000, cost: +m.cost.toFixed(2), proceeds: +m.proceeds.toFixed(2), pnlUsd: +(m.proceeds - m.cost).toFixed(2), win: (m.proceeds - m.cost) > 0 }))
-      .sort((a, b) => b.ts - a.ts);
-    const realizedPnl = +settled.reduce((s, m) => s + m.pnlUsd, 0).toFixed(2);
-    const wins = settled.filter((m) => m.win).length;
-    const losses = settled.length - wins;
+    // Reliable win/loss: WON = distinct redeemed markets (REDEEM events paid out); LOST = settled
+    // losers still sitting at ~0 value in /positions. (Per-market $ is anchored to truth below.)
+    const redeemByCid = new Map<string, any>();
+    for (const a of acts) {
+      if (a.type !== 'REDEEM' || !a.conditionId) continue;
+      const r = redeemByCid.get(a.conditionId) || { conditionId: a.conditionId, title: a.title, slug: a.slug, icon: a.icon, proceeds: 0, ts: 0, win: true };
+      r.proceeds += +a.usdcSize || 0; r.ts = Math.max(r.ts, (+a.timestamp || 0) * 1000);
+      if (a.title) r.title = a.title;
+      redeemByCid.set(a.conditionId, r);
+    }
+    const wonList = [...redeemByCid.values()].map((r) => {
+      const cost = byMkt.get(r.conditionId)?.cost || 0;
+      return { conditionId: r.conditionId, title: r.title, slug: r.slug, icon: r.icon, ts: r.ts, cost: +cost.toFixed(2), proceeds: +r.proceeds.toFixed(2), pnlUsd: cost ? +(r.proceeds - cost).toFixed(2) : null, win: true };
+    });
+    const lostList = positions.filter((p: any) => Number(p.currentValue) <= 0.01 && Number(p.initialValue) > 0)
+      .map((p: any) => ({ conditionId: p.conditionId, title: p.title, slug: p.slug, icon: p.icon, outcome: p.outcome, ts: 0, cost: +(+p.initialValue || 0).toFixed(2), proceeds: 0, pnlUsd: +(+p.cashPnl || 0).toFixed(2), win: false }));
+    const settled = [...wonList, ...lostList].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    const realizedPnl = 0; // fallback only — realized is anchored to ground truth below
+    const wins = wonList.length;
+    const losses = lostList.length;
 
-    // equity curve (cumulative realized, chronological) + max drawdown
-    const chrono = [...settled].sort((a, b) => a.ts - b.ts);
-    let cum = 0; const curve = chrono.map((m) => { cum += m.pnlUsd; return { t: m.ts, pnl: +cum.toFixed(2) }; });
+    // equity curve (cumulative of settled markets with known P&L) + max drawdown — illustrative;
+    // the headline realized number is truth-anchored, not summed from this.
+    const chrono = settled.filter((m) => m.pnlUsd != null).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    let cum = 0; const curve = chrono.map((m) => { cum += m.pnlUsd!; return { t: m.ts, pnl: +cum.toFixed(2) }; });
     let peak = 0, maxdd = 0; for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
 
     // ANCHOR realized to the ground truth (Total − Unrealized) — the proceeds-vs-cost grouping above
