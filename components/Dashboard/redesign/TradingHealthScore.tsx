@@ -156,17 +156,10 @@ const TradingHealthScore: React.FC<TradingHealthScoreProps> = ({ closedTrades })
   const color   = hasData ? ringColor(score) : '#1c2128';
   const offset  = hasData ? CIRCUMFERENCE * (1 - score / 100) : CIRCUMFERENCE;
 
-  const footnote = (
-    <span
-      className="font-mono text-jtp-2xs text-jtp-textDim"
-      style={{ letterSpacing: '0.02em' }}
-    >
-      WR 20% · PF 20% · W/L 15% · CONS 15% · DD 15% · R 15%
-    </span>
-  );
+  const weightChips = ['WR 20%', 'PF 20%', 'W/L 15%', 'CONS 15%', 'DD 15%', 'R 15%'];
 
   return (
-    <Panel label="TRADING HEALTH" actions={footnote} className="h-full">
+    <Panel label="TRADING HEALTH" className="h-full">
       <div className="flex flex-col sm:flex-row items-start gap-5">
 
         {/* ── Ring gauge ── */}
@@ -279,6 +272,27 @@ const TradingHealthScore: React.FC<TradingHealthScoreProps> = ({ closedTrades })
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Weight footnote — flex-wrap so all chips stay visible at any width */}
+      <div
+        className="flex flex-wrap gap-x-2 gap-y-1 mt-3 pt-3"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+        aria-label="Score component weights"
+      >
+        {weightChips.map((chip, i) => (
+          <React.Fragment key={chip}>
+            <span
+              className="font-mono text-jtp-2xs text-jtp-textDim whitespace-nowrap"
+              style={{ letterSpacing: '0.02em' }}
+            >
+              {chip}
+            </span>
+            {i < weightChips.length - 1 && (
+              <span className="font-mono text-jtp-2xs text-jtp-textDim opacity-40" aria-hidden="true">·</span>
+            )}
+          </React.Fragment>
+        ))}
       </div>
     </Panel>
   );
