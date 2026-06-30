@@ -67,10 +67,14 @@ function DataTable<T extends Record<string, any>>({
 
   return (
     <div
-      className={`overflow-auto ${className}`}
-      style={maxHeight ? { maxHeight } : undefined}
+      className={`overflow-x-auto ${className}`}
+      style={{
+        ...(maxHeight ? { maxHeight, overflowY: 'auto' } : {}),
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'thin',
+      }}
     >
-      <table className="w-full border-collapse" style={{ fontSize: '13px' }}>
+      <table className="w-full min-w-[520px] border-collapse" style={{ fontSize: '13px' }}>
         {/* Sticky header */}
         <thead className="sticky top-0 z-10 bg-jtp-raised">
           <tr style={{ borderBottom: '1px solid rgba(232,162,61,0.3)' }}>
