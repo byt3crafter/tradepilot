@@ -130,6 +130,41 @@ export class AutobotService {
     return new ethers.Wallet(this.decrypt(encPrivKey), this.provider);
   }
 
+  // ── strategy toggles + per-strategy rating ────────────────────────────────
+  private strategiesOf(w: any): { copy: boolean; ai: boolean; arb: boolean } {
+    const s = (w?.strategies as any) || {};
+    return { copy: s.copy !== false, ai: s.ai !== false, arb: s.arb !== false }; // default all on
+  }
+
+  /** Per-strategy scorecard from resolved trades — so the user can RATE what works. */
+  private rateStrategies(trades: any[]) {
+    const out: Record<string, { trades: number; resolved: number; wins: number; winRate: number; pnlUsd: number }> = {
+      copy: { trades: 0, resolved: 0, wins: 0, winRate: 0, pnlUsd: 0 },
+      ai: { trades: 0, resolved: 0, wins: 0, winRate: 0, pnlUsd: 0 },
+      arb: { trades: 0, resolved: 0, wins: 0, winRate: 0, pnlUsd: 0 },
+    };
+    for (const t of trades) {
+      const k = (t.signalType || '').toLowerCase();
+      if (!out[k]) continue;
+      out[k].trades++;
+      if (t.status === 'resolved') {
+        out[k].resolved++;
+        if ((t.pnlUsd || 0) > 0) out[k].wins++;
+        out[k].pnlUsd += t.pnlUsd || 0;
+      }
+    }
+    for (const k of Object.keys(out)) { const r = out[k]; r.winRate = r.resolved ? r.wins / r.resolved : 0; r.pnlUsd = +r.pnlUsd.toFixed(2); }
+    return out;
+  }
+
+  async setStrategies(userId: string, s: { copy?: boolean; ai?: boolean; arb?: boolean }) {
+    const w = await this.getOrCreate(userId);
+    const cur = this.strategiesOf(w);
+    const next = { copy: s.copy ?? cur.copy, ai: s.ai ?? cur.ai, arb: s.arb ?? cur.arb };
+    await this.prisma.pmAgentWallet.update({ where: { userId }, data: { strategies: next } });
+    return this.status(userId);
+  }
+
   private async balances(address: string): Promise<{ usdce: number; pol: number }> {
     try {
       const usdc = new ethers.Contract(USDCE, ERC20, this.provider);
@@ -203,6 +238,8 @@ export class AutobotService {
       limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5 },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
+      strategies: this.strategiesOf(w),                  // {copy,ai,arb} enable flags
+      strategyStats: this.rateStrategies(allTrades),     // per-strategy scorecard (rate what works)
       stats: { trades: allTrades.length, resolved: resolved.length, wins, winRate: resolved.length ? wins / resolved.length : 0, realizedPnlUsd: realizedPnl },
     };
   }
@@ -360,7 +397,8 @@ export class AutobotService {
     const held = new Set(open.map((t) => t.tokenId));
     // Only take signals whose edge clears the user's minimum — fewer, stronger trades.
     const minEdge = w.minEdgePct ?? 5;
-    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge);
+    const strat = this.strategiesOf(w); // only act on strategies the user enabled
+    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge && strat[s.type as 'copy' | 'ai' | 'arb'] !== false);
 
     // 🧠 thinking pulse — what the brain is watching this cycle (free, no LLM)
     const top = [...fresh].sort((a: any, b: any) => (b.edgePct || 0) - (a.edgePct || 0)).slice(0, 3);

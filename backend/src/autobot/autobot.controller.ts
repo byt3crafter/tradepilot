@@ -64,4 +64,10 @@ export class AutobotController {
   clearTrades(@Req() req: any, @Body('id') id?: string) {
     return this.bot.clearTrades(req.user.sub, id);
   }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('strategies')
+  strategies(@Req() req: any, @Body() body: { copy?: boolean; ai?: boolean; arb?: boolean }) {
+    return this.bot.setStrategies(req.user.sub, body || {});
+  }
 }
