@@ -5,6 +5,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- app.jtradepilot.com is the AUTHENTICATED app only. Signed-out visitors are sent to the
+       marketing site. Runs BEFORE React/any bundle so it's immune to cache/SW state.
+       Clerk's __client_uat cookie is "0"/absent when signed out, a timestamp when signed in. -->
+  <script>
+    (function () {
+      if (location.hostname !== 'app.jtradepilot.com') return;
+      var authPaths = ['/login', '/signup', '/sso-callback', '/forgot-password', '/reset-password', '/verify-email'];
+      if (authPaths.indexOf(location.pathname) !== -1) return;
+      var m = document.cookie.match(/(?:^|;\s*)__client_uat=([^;]*)/);
+      var signedIn = m && m[1] && m[1] !== '0';
+      if (!signedIn) location.replace('https://jtradepilot.com/');
+    })();
+  </script>
+
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B5TZBTQXQK"></script>
   <script>
