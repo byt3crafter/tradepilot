@@ -202,6 +202,171 @@ const WithdrawModal: React.FC<{
   );
 };
 
+// ─── Export private key modal ──────────────────────────────────────────────────
+
+interface ExportKeyData {
+  address: string;
+  privateKey: string;
+}
+
+const ExportKeyModal: React.FC<{
+  onClose: () => void;
+  onExport: () => Promise<ExportKeyData>;
+}> = ({ onClose, onExport }) => {
+  const [phase, setPhase] = useState<'warn' | 'loading' | 'reveal'>('warn');
+  const [keyData, setKeyData] = useState<ExportKeyData | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [copiedAddr, setCopiedAddr] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+
+  const handleReveal = async () => {
+    setPhase('loading');
+    setErr(null);
+    try {
+      const data = await onExport();
+      setKeyData(data);
+      setPhase('reveal');
+    } catch (ex: any) {
+      setErr(ex?.message || 'Could not export key.');
+      setPhase('warn');
+    }
+  };
+
+  const handleClose = () => {
+    // Clear sensitive data before closing
+    setKeyData(null);
+    onClose();
+  };
+
+  const copyText = (text: string, setCopied: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }).catch(() => { /* ignore */ });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Export bot wallet private key"
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+    >
+      <div
+        className="bg-jtp-panel border border-jtp-border rounded-[2px] w-full max-w-md mx-4 overflow-hidden"
+        style={{ borderTop: '2px solid rgba(255,91,82,0.55)' }}
+      >
+        <header className="flex items-center justify-between px-4 py-3 border-b border-jtp-border">
+          <span className="jtp-label tracking-widest text-[#ff5b52]">EXPORT PRIVATE KEY</span>
+          <button type="button" onClick={handleClose} aria-label="Close"
+                  className="text-jtp-textDim hover:text-jtp-text text-lg leading-none">×</button>
+        </header>
+
+        <div className="p-4 space-y-4">
+          {/* Warning — always shown */}
+          <div className="rounded-[2px] border border-[rgba(255,91,82,0.35)] bg-[rgba(255,91,82,0.08)] px-3 py-3">
+            <p className="font-mono text-jtp-xs text-[#ff5b52] leading-relaxed font-semibold">
+              &#9888;&#65039; Your private key controls this wallet and its funds. Anyone who sees it can take everything.
+              Never share it, never paste it anywhere online. Reveal only on a device you trust.
+            </p>
+          </div>
+
+          {phase === 'warn' && (
+            <>
+              {err && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{err}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex-1 font-mono text-jtp-xs font-semibold px-3 py-2 rounded-[2px] border border-jtp-border text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderStrong transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReveal}
+                  className="flex-1 font-mono text-jtp-xs font-semibold px-3 py-2 rounded-[2px] bg-[rgba(255,91,82,0.12)] text-[#ff5b52] border border-[rgba(255,91,82,0.35)] hover:bg-[rgba(255,91,82,0.20)] transition-colors"
+                >
+                  Reveal key
+                </button>
+              </div>
+            </>
+          )}
+
+          {phase === 'loading' && (
+            <div className="flex items-center gap-2 font-mono text-jtp-xs text-jtp-textDim">
+              <Spin />
+              <span>Fetching key…</span>
+            </div>
+          )}
+
+          {phase === 'reveal' && keyData && (
+            <>
+              {/* Address */}
+              <div>
+                <div className="jtp-label mb-1">ADDRESS</div>
+                <div className="flex items-center gap-2 rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-2">
+                  <span className="font-mono text-jtp-xs text-jtp-text break-all flex-1" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {keyData.address}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(keyData.address, setCopiedAddr)}
+                    className="flex-shrink-0 font-mono text-jtp-2xs text-jtp-textDim hover:text-jtp-amber transition-colors px-1.5 py-0.5 border border-jtp-borderStrong rounded-[2px] select-none"
+                    aria-label="Copy address"
+                  >
+                    {copiedAddr ? 'COPIED' : 'COPY'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Private key */}
+              <div>
+                <div className="jtp-label mb-1">PRIVATE KEY</div>
+                <div className="flex items-start gap-2 rounded-[2px] border border-[rgba(255,91,82,0.35)] bg-jtp-bg px-3 py-2">
+                  <span className="font-mono text-jtp-xs text-[#ff5b52] break-all flex-1 select-all leading-relaxed" style={{ fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>
+                    {keyData.privateKey}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(keyData.privateKey, setCopiedKey)}
+                    className="flex-shrink-0 font-mono text-jtp-2xs text-jtp-textDim hover:text-jtp-amber transition-colors px-1.5 py-0.5 border border-jtp-borderStrong rounded-[2px] select-none mt-0.5"
+                    aria-label="Copy private key"
+                  >
+                    {copiedKey ? 'COPIED' : 'COPY'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Import instructions */}
+              <div className="rounded-[2px] border border-jtp-borderSubtle bg-jtp-bg px-3 py-2.5">
+                <p className="jtp-label mb-1">IMPORT INTO PHANTOM / METAMASK</p>
+                <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+                  <span className="text-jtp-text font-semibold">Phantom:</span>{' '}
+                  &#9776; menu &rarr; Add/Connect Wallet &rarr; Import Private Key &rarr; paste this key &rarr; it imports the wallet on Polygon. Your USDC.e + funds will appear.
+                </p>
+                <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed mt-1.5">
+                  <span className="text-jtp-text font-semibold">MetaMask:</span>{' '}
+                  Account selector &rarr; Add account or hardware wallet &rarr; Import account &rarr; paste private key &rarr; add the Polygon network if prompted.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-full font-mono text-jtp-xs font-semibold px-3 py-2 rounded-[2px] border border-jtp-border text-jtp-textMuted hover:text-jtp-text hover:border-jtp-borderStrong transition-colors"
+              >
+                Done — close
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Limits editor ─────────────────────────────────────────────────────────────
 
 interface LimitsState {
@@ -950,12 +1115,13 @@ interface ControlsTabProps {
   onKill: () => void;
   onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) => Promise<void>;
   onWithdrawOpen: () => void;
+  onExportKeyOpen: () => void;
   onRefresh: () => void;
 }
 
 const ControlsTab: React.FC<ControlsTabProps> = ({
   status, modeBusy, modeError, killBusy, killErr,
-  onModeChange, onKill, onSetLimits, onWithdrawOpen, onRefresh,
+  onModeChange, onKill, onSetLimits, onWithdrawOpen, onExportKeyOpen, onRefresh,
 }) => {
   const isAuto = status.mode === 'auto';
 
@@ -997,9 +1163,14 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
         <Panel
           label="BOT WALLET"
           actions={
-            <Button variant="secondary" onClick={onWithdrawOpen} className="!px-3 !py-1.5 text-jtp-xs">
-              Withdraw
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="secondary" onClick={onExportKeyOpen} className="!px-3 !py-1.5 text-jtp-xs">
+                Export private key
+              </Button>
+              <Button variant="secondary" onClick={onWithdrawOpen} className="!px-3 !py-1.5 text-jtp-xs">
+                Withdraw
+              </Button>
+            </div>
           }
         >
           {/* Address */}
@@ -1093,6 +1264,7 @@ const QuantAutoBotPanel: React.FC = () => {
   const [killBusy, setKillBusy] = useState(false);
   const [killErr, setKillErr] = useState<string | null>(null);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [exportKeyOpen, setExportKeyOpen] = useState(false);
 
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1185,6 +1357,13 @@ const QuantAutoBotPanel: React.FC = () => {
     fetchAll({ silent: true });
   };
 
+  // ── Export key ─────────────────────────────────────────────────────────────
+
+  const handleExportKey = async (): Promise<{ address: string; privateKey: string }> => {
+    const token = await getToken();
+    return api.autobotExportKey(token);
+  };
+
   // ── Initial skeleton ───────────────────────────────────────────────────────
 
   if (loading && !status) {
@@ -1260,6 +1439,7 @@ const QuantAutoBotPanel: React.FC = () => {
           onKill={handleKill}
           onSetLimits={handleSetLimits}
           onWithdrawOpen={() => setWithdrawOpen(true)}
+          onExportKeyOpen={() => setExportKeyOpen(true)}
           onRefresh={() => fetchAll({ silent: true })}
         />
       )}
@@ -1269,6 +1449,14 @@ const QuantAutoBotPanel: React.FC = () => {
         <WithdrawModal
           onClose={() => setWithdrawOpen(false)}
           onWithdraw={handleWithdraw}
+        />
+      )}
+
+      {/* ── Export private key modal ── */}
+      {exportKeyOpen && (
+        <ExportKeyModal
+          onClose={() => setExportKeyOpen(false)}
+          onExport={handleExportKey}
         />
       )}
     </div>
