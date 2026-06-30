@@ -6,7 +6,7 @@ import React, {
   memo,
 } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { brainStreamUrl } from '../../services/api';
+import api, { brainStreamUrl } from '../../services/api';
 import type { BrainEvent, BrainScoreboard, BrainScoreboardModule } from '../../types';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -20,6 +20,8 @@ const KIND_COLORS: Record<string, string> = {
   execute:  '#3ddc84',
   learn:    '#ff5b9e',
   note:     '#9aa3ad',
+  error:    '#ff5b52',
+  debug:    '#565d66',
 };
 
 const KIND_ICONS: Record<string, string> = {
@@ -31,6 +33,8 @@ const KIND_ICONS: Record<string, string> = {
   execute:  '▶',
   learn:    '✦',
   note:     '◻',
+  error:    '✕',
+  debug:    '·',
 };
 
 // The six pipeline stages that map to brain network nodes
@@ -68,6 +72,9 @@ const AMBIENT_EDGES: Array<[PipelineNode, PipelineNode]> = [
 
 const MODULES = ['all', 'polymarket', 'crypto', 'forex'] as const;
 type ModuleFilter = typeof MODULES[number];
+
+const VERBOSITY_LEVELS = ['quiet', 'normal', 'verbose', 'debug'] as const;
+type VerbosityLevel = typeof VERBOSITY_LEVELS[number];
 
 const MAX_FEED_EVENTS = 80;
 
@@ -486,15 +493,19 @@ const EventCard = memo(function EventCard({
   const color = KIND_COLORS[event.kind] || '#9aa3ad';
   const icon = KIND_ICONS[event.kind] || '◻';
 
+  const isError = event.kind === 'error';
+
   return (
     <div
-      className={`flex gap-3 px-3 py-2.5 rounded-[2px] border bg-jtp-panel flex-shrink-0 ${
+      className={`flex gap-3 px-3 py-2.5 rounded-[2px] border flex-shrink-0 ${
         isNewest ? 'animate-jtp-slide-in' : ''
       }`}
       style={{
-        borderColor: '#1b2026',
+        backgroundColor: isError ? 'rgba(255,91,82,0.06)' : undefined,
+        borderColor: isError ? 'rgba(255,91,82,0.28)' : '#1b2026',
         borderLeftColor: color,
         borderLeftWidth: '2px',
+        boxShadow: isError ? '0 0 10px rgba(255,91,82,0.10), inset 0 0 0 1px rgba(255,91,82,0.08)' : 'none',
       }}
     >
       {/* Icon column */}
@@ -710,6 +721,13 @@ export default function BrainDashboard() {
     return window.innerWidth < 768 ? 5 : 12;
   });
 
+  // ── Verbosity ──
+  const [verbosity, setVerbosity] = useState<VerbosityLevel>('normal');
+  const [verbosityBusy, setVerbosityBusy] = useState(false);
+
+  // ── Errors-only filter ──
+  const [errorsOnly, setErrorsOnly] = useState(false);
+
   // ── Refs (stable across renders) ──
   const esRef         = useRef<EventSource | null>(null);
   const reconnTimerRef = useRef<number | null>(null);
@@ -734,6 +752,33 @@ export default function BrainDashboard() {
       /* silent — scoreboard is non-critical */
     }
   }, [getToken]);
+
+  // ── Verbosity init (fetch once on mount) ──
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const result = await api.brainGetLevel(token);
+        if (!cancelled && VERBOSITY_LEVELS.includes(result.level as VerbosityLevel)) {
+          setVerbosity(result.level as VerbosityLevel);
+        }
+      } catch { /* silent — default stays 'normal' */ }
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Verbosity change handler ──
+  const handleVerbosityChange = async (level: VerbosityLevel) => {
+    if (level === verbosity || verbosityBusy) return;
+    setVerbosity(level); // optimistic
+    setVerbosityBusy(true);
+    try {
+      const token = await getToken();
+      await api.brainSetLevel(level, token);
+    } catch { /* silent — optimistic state stays */ }
+    finally { setVerbosityBusy(false); }
+  };
 
   // ── Node fire animation ──
   const fireNode = useCallback((kind: string) => {
@@ -874,12 +919,15 @@ export default function BrainDashboard() {
   // Derive learn events for scoreboard P&L/win stats
   const learnEventsByModule = events.filter(e => e.kind === 'learn');
 
+  // Apply errors-only client-side filter
+  const feedEvents = errorsOnly ? events.filter(e => e.kind === 'error') : events;
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="h-full flex flex-col gap-3 overflow-hidden">
       {/* ── Header bar ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3 flex-shrink-0">
+      <div className="flex items-start justify-between flex-wrap gap-3 flex-shrink-0">
         {/* Title + live indicator */}
         <div className="flex items-center gap-3">
           <h1 className="font-mono font-bold text-jtp-text uppercase tracking-[0.06em] text-[15px] flex items-center gap-2">
@@ -904,39 +952,101 @@ export default function BrainDashboard() {
           </div>
         </div>
 
-        {/* Module filter chips */}
-        <div
-          className="flex items-center gap-1.5 flex-wrap"
-          role="group"
-          aria-label="Filter by module"
-        >
-          {MODULES.map(mod => {
-            const isActive = activeModule === mod;
-            return (
-              <button
-                key={mod}
-                onClick={() => handleModuleChange(mod)}
-                aria-pressed={isActive}
-                className="px-3 py-1 rounded-[2px] font-mono text-[9.5px] uppercase tracking-wider border transition-all duration-150 capitalize"
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: '#a855f718',
-                        borderColor: '#a855f745',
-                        color: '#a855f7',
-                        boxShadow: '0 0 8px #a855f720',
-                      }
-                    : {
-                        backgroundColor: 'transparent',
-                        borderColor: '#1b2026',
-                        color: '#69727c',
-                      }
-                }
-              >
-                {mod === 'all' ? 'All' : mod}
-              </button>
-            );
-          })}
+        {/* Right side: module chips + errors-only + verbosity */}
+        <div className="flex flex-col items-end gap-2">
+          {/* Module filter chips + errors-only */}
+          <div
+            className="flex items-center gap-1.5 flex-wrap justify-end"
+            role="group"
+            aria-label="Filter by module"
+          >
+            {MODULES.map(mod => {
+              const isActive = activeModule === mod;
+              return (
+                <button
+                  key={mod}
+                  onClick={() => handleModuleChange(mod)}
+                  aria-pressed={isActive}
+                  className="px-3 py-1 rounded-[2px] font-mono text-[9.5px] uppercase tracking-wider border transition-all duration-150 capitalize"
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: '#a855f718',
+                          borderColor: '#a855f745',
+                          color: '#a855f7',
+                          boxShadow: '0 0 8px #a855f720',
+                        }
+                      : {
+                          backgroundColor: 'transparent',
+                          borderColor: '#1b2026',
+                          color: '#69727c',
+                        }
+                  }
+                >
+                  {mod === 'all' ? 'All' : mod}
+                </button>
+              );
+            })}
+            {/* Errors-only filter chip */}
+            <button
+              onClick={() => setErrorsOnly(v => !v)}
+              aria-pressed={errorsOnly}
+              className="px-3 py-1 rounded-[2px] font-mono text-[9.5px] uppercase tracking-wider border transition-all duration-150"
+              style={
+                errorsOnly
+                  ? {
+                      backgroundColor: 'rgba(255,91,82,0.14)',
+                      borderColor: 'rgba(255,91,82,0.45)',
+                      color: '#ff5b52',
+                      boxShadow: '0 0 8px rgba(255,91,82,0.18)',
+                    }
+                  : {
+                      backgroundColor: 'transparent',
+                      borderColor: '#1b2026',
+                      color: '#69727c',
+                    }
+              }
+              title="Show only error events in the feed"
+            >
+              Errors only
+            </button>
+          </div>
+
+          {/* Verbosity selector */}
+          <div className="flex items-center gap-1.5" role="group" aria-label="Brain verbosity level">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-jtp-textFaint">
+              Verbosity:
+            </span>
+            {VERBOSITY_LEVELS.map((level, i) => (
+              <React.Fragment key={level}>
+                {i > 0 && (
+                  <span className="font-mono text-[9px] text-jtp-textFaint select-none">·</span>
+                )}
+                <button
+                  onClick={() => handleVerbosityChange(level)}
+                  aria-pressed={verbosity === level}
+                  disabled={verbosityBusy}
+                  title={
+                    level === 'verbose' || level === 'debug'
+                      ? 'Streams extra traces (e.g. unfilled-order details) to debug fast'
+                      : undefined
+                  }
+                  className={[
+                    'font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border transition-all duration-150',
+                    'disabled:cursor-not-allowed',
+                    verbosity === level
+                      ? 'text-[#a855f7] bg-[rgba(168,85,247,0.15)] border-[rgba(168,85,247,0.4)]'
+                      : 'text-jtp-textDim hover:text-jtp-textMuted border-transparent hover:border-jtp-borderStrong',
+                  ].join(' ')}
+                >
+                  {level}
+                </button>
+              </React.Fragment>
+            ))}
+            {verbosityBusy && (
+              <span className="font-mono text-[9px] text-jtp-textFaint animate-pulse">…</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -983,6 +1093,11 @@ export default function BrainDashboard() {
               aria-hidden="true"
             >
               {events.length} events
+              {errorsOnly && events.filter(e => e.kind === 'error').length > 0 && (
+                <span style={{ color: '#ff5b52' }}>
+                  {' '}({events.filter(e => e.kind === 'error').length} errors)
+                </span>
+              )}
             </div>
           </div>
 
@@ -1037,14 +1152,14 @@ export default function BrainDashboard() {
                 </span>
               )}
               <span className="font-mono text-[9.5px] text-jtp-textFaint tabular-nums">
-                {events.length} / {MAX_FEED_EVENTS}
+                {feedEvents.length}{errorsOnly ? ' errors' : ` / ${MAX_FEED_EVENTS}`}
               </span>
             </div>
           </div>
 
           {/* Scrollable events */}
           <div className="flex-1 min-h-0 p-3">
-            <ThoughtFeed events={events} newestId={newestId} />
+            <ThoughtFeed events={feedEvents} newestId={newestId} />
           </div>
         </div>
       </div>

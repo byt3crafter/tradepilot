@@ -562,7 +562,7 @@ interface LimitsState {
 
 const LimitsEditor: React.FC<{
   limits: AutobotStatus['limits'];
-  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) => Promise<void>;
+  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }) => Promise<void>;
 }> = ({ limits, onSave }) => {
   const [vals, setVals] = useState<LimitsState>({
     maxTotalUsd: String(limits.maxTotalUsd),
@@ -570,6 +570,7 @@ const LimitsEditor: React.FC<{
     dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
     minEdgePct: String(limits.minEdgePct ?? 5),
   });
+  const [orderType, setOrderType] = useState<'limit' | 'market'>(limits.orderType ?? 'limit');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -580,7 +581,8 @@ const LimitsEditor: React.FC<{
       prevLimits.current.maxTotalUsd !== limits.maxTotalUsd ||
       prevLimits.current.maxPerTradeUsd !== limits.maxPerTradeUsd ||
       prevLimits.current.dailyLossLimitUsd !== limits.dailyLossLimitUsd ||
-      prevLimits.current.minEdgePct !== limits.minEdgePct
+      prevLimits.current.minEdgePct !== limits.minEdgePct ||
+      prevLimits.current.orderType !== limits.orderType
     ) {
       prevLimits.current = limits;
       setVals({
@@ -589,6 +591,7 @@ const LimitsEditor: React.FC<{
         dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
         minEdgePct: String(limits.minEdgePct ?? 5),
       });
+      setOrderType(limits.orderType ?? 'limit');
     }
   }, [limits]);
 
@@ -608,7 +611,7 @@ const LimitsEditor: React.FC<{
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct });
+      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct, orderType });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (ex: any) {
@@ -663,6 +666,33 @@ const LimitsEditor: React.FC<{
         </div>
         <span id="limit-minEdgePct-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
           Only take signals with edge &ge; this % (higher = fewer, stronger trades)
+        </span>
+      </div>
+
+      {/* Order Type toggle */}
+      <div className="flex flex-col gap-1">
+        <span className="jtp-label">ORDER TYPE</span>
+        <div className="flex gap-2" role="group" aria-label="Order type">
+          {(['limit', 'market'] as const).map((ot) => (
+            <button
+              key={ot}
+              type="button"
+              onClick={() => setOrderType(ot)}
+              aria-pressed={orderType === ot}
+              className={[
+                'flex-1 font-mono text-jtp-xs font-semibold px-3 py-2 rounded-[2px] border transition-colors capitalize',
+                orderType === ot
+                  ? 'bg-[rgba(232,162,61,0.14)] text-[#e8a23d] border-[rgba(232,162,61,0.45)]'
+                  : 'bg-jtp-bg text-jtp-textMuted border-jtp-borderStrong hover:border-jtp-borderFocus hover:text-jtp-text',
+              ].join(' ')}
+            >
+              {ot}
+            </button>
+          ))}
+        </div>
+        <span className="text-jtp-2xs text-jtp-textFaint font-mono">
+          Limit = fill at the wallet&apos;s price, no spread bleed (may not always fill).
+          Market = take liquidity now (pays the spread).
         </span>
       </div>
 
@@ -1157,7 +1187,7 @@ interface ControlsTabProps {
   killErr: string | null;
   onModeChange: (mode: 'off' | 'auto') => void;
   onKill: () => void;
-  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) => Promise<void>;
+  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }) => Promise<void>;
   onWithdrawOpen: () => void;
   onExportKeyOpen: () => void;
   onLink: (address: string) => Promise<void>;
@@ -1354,11 +1384,12 @@ const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status 
   const openPositions = status.openPositions ?? 0;
   const unrealizedPnl = status.unrealizedPnlUsd ?? 0;
   const realizedPnl   = status.stats.realizedPnlUsd;
+  const todayPnl      = status.todayPnlUsd ?? 0;
 
   return (
     <div className="space-y-3">
-      {/* ── Five money tiles ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {/* ── Six money tiles ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
 
         {/* PORTFOLIO — prominent, mirrors Polymarket "Portfolio" figure */}
         <div
@@ -1439,6 +1470,23 @@ const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status 
               : `${realizedPnl >= 0 ? '+' : ''}${fmtUsd(realizedPnl)}`}
           </div>
           <div className="font-mono text-jtp-2xs text-jtp-textFaint">realized / settled</div>
+        </div>
+
+        {/* TODAY P&L */}
+        <div
+          className="bg-jtp-bg border border-jtp-border rounded-[2px] px-3 py-3 flex flex-col gap-1"
+          aria-label="Today's profit and loss — matches Polymarket 1-day figure"
+        >
+          <div className="jtp-label">TODAY</div>
+          <div
+            className={`font-mono font-bold text-jtp-2xl ${pnlColor(todayPnl)}`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {todayPnl === 0
+              ? '$0.00'
+              : `${todayPnl >= 0 ? '+' : ''}${fmtUsd(todayPnl)}`}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">today (1d) — matches Polymarket</div>
         </div>
       </div>
 
@@ -1575,7 +1623,7 @@ const QuantAutoBotPanel: React.FC = () => {
 
   // ── Limits ─────────────────────────────────────────────────────────────────
 
-  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) => {
+  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }) => {
     const token = await getToken();
     const updated = await api.autobotSetLimits(limits, token);
     setStatus(updated);

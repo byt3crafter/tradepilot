@@ -848,7 +848,8 @@ export interface AutobotStatus {
   mode: 'off' | 'auto';
   killSwitch: boolean;
   balance: { usdce: number; pol: number };
-  limits: { maxTotalUsd: number; maxPerTradeUsd: number; dailyLossLimitUsd: number; minEdgePct?: number };
+  limits: { maxTotalUsd: number; maxPerTradeUsd: number; dailyLossLimitUsd: number; minEdgePct?: number; orderType?: 'limit' | 'market' };
+  todayPnlUsd?: number;
   daily: { spentUsd: number; pnlUsd: number };
   exposureUsd: number;
   stats: {
@@ -1086,7 +1087,9 @@ export type BrainKind =
   | 'skip'
   | 'execute'
   | 'learn'
-  | 'note';
+  | 'note'
+  | 'error'
+  | 'debug';
 
 export interface BrainEvent {
   id: string;
