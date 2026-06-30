@@ -93,4 +93,16 @@ export class AutobotController {
   assess(@Req() req: any, @Body() body: any) {
     return this.bot.assess(req.user.sub, body || {});
   }
+
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Post('close')
+  close(@Req() req: any, @Body('tokenId') tokenId: string) {
+    return this.bot.closePosition(req.user.sub, tokenId);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('close-all')
+  closeAll(@Req() req: any) {
+    return this.bot.closeAll(req.user.sub);
+  }
 }
