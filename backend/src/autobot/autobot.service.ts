@@ -96,6 +96,8 @@ export class AutobotService {
     const wins = resolved.filter((t) => (t.pnlUsd || 0) > 0).length;
     return {
       address: w.address,
+      funderAddress: w.funderAddress || null, // linked Polymarket proxy (POLY_PROXY maker)
+      linked: !!w.funderAddress,
       mode: w.mode,
       killSwitch: w.killSwitch,
       balance: bal,
@@ -135,6 +137,16 @@ export class AutobotService {
       },
       curve,
     };
+  }
+
+  /** Link the user's Polymarket proxy/deposit wallet (the maker the bot trades from). The
+   * EOA stays the signer; the proxy holds the deposited USDC. Pass empty string to unlink. */
+  async setFunder(userId: string, address: string) {
+    await this.getOrCreate(userId);
+    const addr = (address || '').trim();
+    if (addr && !/^0x[a-fA-F0-9]{40}$/.test(addr)) throw new BadRequestException('Invalid wallet address.');
+    await this.prisma.pmAgentWallet.update({ where: { userId }, data: { funderAddress: addr || null, apiCreds: null } });
+    return this.status(userId);
   }
 
   async setMode(userId: string, mode: 'off' | 'auto') {

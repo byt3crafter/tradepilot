@@ -52,4 +52,10 @@ export class AutobotController {
   exportKey(@Req() req: any) {
     return this.bot.exportPrivateKey(req.user.sub);
   }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('funder')
+  funder(@Req() req: any, @Body('address') address: string) {
+    return this.bot.setFunder(req.user.sub, address);
+  }
 }
