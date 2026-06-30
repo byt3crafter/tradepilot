@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { ethers } from 'ethers';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuantService } from '../quant/quant.service';
+import { BrainService } from '../brain/brain.service';
 
 // polygon-rpc.com now 401s; publicnode is a reliable keyless default.
 const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-bor-rpc.publicnode.com';
@@ -32,6 +33,7 @@ export class AutobotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quant: QuantService,
+    private readonly brain: BrainService,
   ) {}
 
   // ── key encryption (AES-256-GCM) ──────────────────────────────────────────
@@ -303,6 +305,14 @@ export class AutobotService {
     const minEdge = w.minEdgePct ?? 5;
     const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge);
 
+    // 🧠 thinking pulse — scanned the book this cycle
+    this.brain.publish({
+      userId: w.userId, module: 'polymarket', kind: 'tick',
+      title: `Scanned ${(signals || []).length} signals · ${fresh.length} clear edge ≥${minEdge}%`,
+      detail: `bankroll $${bal.usdce.toFixed(2)} · held ${held.size} · exposure $${exposure.toFixed(2)}`,
+      data: { scanned: (signals || []).length, fresh: fresh.length, minEdge, bankroll: bal.usdce, held: held.size, exposure },
+    });
+
     // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").
     let placed = 0;
     let usdceLeft = bal.usdce;
@@ -317,6 +327,13 @@ export class AutobotService {
       if (room < 1) break;
       const sizeUsd = Math.max(1, Math.floor(Math.min(kellyUsd, room) * 100) / 100);
       const price = pick.price || (pick.priceCents || 0) / 100;
+      // 🧠 the brain decides — stream it live
+      this.brain.publish({
+        userId: w.userId, module: 'polymarket', kind: 'decide',
+        title: `${pick.type?.toUpperCase() || 'SIGNAL'} · BUY ${pick.outcome} @ ${(price * 100).toFixed(0)}¢`,
+        detail: pick.reason || pick.detail || pick.title,
+        data: { title: pick.title, outcome: pick.outcome, price, edgePct: pick.edgePct ?? null, sizeUsd, signalType: pick.type, bankroll: bal.usdce },
+      });
       // log intent first (audit) WITH full reasoning, then attempt the order
       const trade = await this.prisma.agentTrade.create({
         data: {
@@ -333,6 +350,12 @@ export class AutobotService {
           await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId } });
           await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
           this.logger.log(`autobot ${w.address}: FILLED ${pick.outcome} $${sizeUsd} @ ${price} (${pick.type})`);
+          this.brain.publish({
+            userId: w.userId, module: 'polymarket', kind: 'execute',
+            title: `FILLED · ${pick.outcome} $${sizeUsd}`,
+            detail: pick.title,
+            data: { title: pick.title, outcome: pick.outcome, price, sizeUsd, orderId: res.orderId },
+          });
           exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
         } else {
           // order did NOT fill — record honestly, take NO position, count NO P&L
@@ -369,6 +392,12 @@ export class AutobotService {
       const pnlUsd = t.sizeUsd * (payoff / price - 1);
       await this.prisma.agentTrade.update({ where: { id: t.id }, data: { status: 'resolved', roiPct, pnlUsd, resolvedAt: new Date() } });
       await this.prisma.pmAgentWallet.update({ where: { userId: t.userId }, data: { dailyPnlUsd: { increment: pnlUsd } } }).catch(() => {});
+      this.brain.publish({
+        userId: t.userId, module: 'polymarket', kind: 'learn',
+        title: `${payoff ? 'WON' : 'LOST'} · ${t.outcome} ${pnlUsd >= 0 ? '+' : ''}$${pnlUsd.toFixed(2)}`,
+        detail: `${t.title || ''} — entry ${(price * 100).toFixed(0)}¢, ${t.signalType || ''} signal ${payoff ? 'paid off' : 'missed'}`,
+        data: { title: t.title, outcome: t.outcome, won: !!payoff, pnlUsd, roiPct, signalType: t.signalType, edgePct: t.edgePct },
+      });
       this.logger.log(`autobot resolve: ${payoff ? 'WON' : 'LOST'} ${t.outcome} pnl=$${pnlUsd.toFixed(2)}`);
     }
   }
