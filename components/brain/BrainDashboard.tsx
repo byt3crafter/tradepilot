@@ -948,7 +948,7 @@ export default function BrainDashboard() {
         {/* Left panel: neural network visualization */}
         <div className="flex flex-col gap-4 min-h-0">
           <div
-            className="relative flex-1 min-h-[300px] lg:min-h-[380px] bg-jtp-panel border border-jtp-border rounded-[3px] flex items-center justify-center overflow-hidden"
+            className="relative flex-1 min-h-[340px] lg:min-h-[480px] bg-jtp-panel border border-jtp-border rounded-[3px] flex items-center justify-center overflow-hidden"
           >
             {/* Ambient purple radial glow behind the SVG */}
             <div
@@ -960,8 +960,9 @@ export default function BrainDashboard() {
               }}
             />
 
-            {/* Neural network SVG */}
-            <div className="w-full h-full max-w-[340px] max-h-[340px] p-6 mx-auto">
+            {/* Neural network SVG — aspect-square so it has real height (viewBox-only SVG
+                collapses to 0 inside a centered flex). Bigger = the centerpiece. */}
+            <div className="w-full aspect-square max-w-[460px] p-6 mx-auto">
               <BrainNetwork
                 activeNodes={activeNodes}
                 activationKeys={activationKeys}
