@@ -311,7 +311,7 @@ export class AutobotService {
     const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
     if (!funder) return this.balances(w.address);
     const c = this.collCache.get(w.userId);
-    if (c && Date.now() - c.t < 30000) return { usdce: c.v, pol: 999 };
+    if (c && Date.now() - c.t < 5000) return { usdce: c.v, pol: 999 };
     try {
       const wallet = this.signer(w.encPrivKey);
       const clobMod: any = await import('@polymarket/clob-client-v2');
@@ -347,7 +347,7 @@ export class AutobotService {
   private async positionsMtm(funder: string): Promise<{ value: number; unrealizedPnl: number; count: number }> {
     if (!funder) return { value: 0, unrealizedPnl: 0, count: 0 };
     const c = this.posCache.get(funder);
-    if (c && Date.now() - c.t < 30000) return c.v;
+    if (c && Date.now() - c.t < 5000) return c.v;
     try {
       const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
       const d: any = await r.json();
