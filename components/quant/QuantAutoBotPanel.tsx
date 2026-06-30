@@ -1375,30 +1375,36 @@ const OpenRow: React.FC<OpenRowProps> = ({ pos, onClose, closeBusy }) => {
 };
 
 // Settled market row (Won / Lost)
-const SettledRow: React.FC<{ item: AutobotPerformanceSettled }> = ({ item }) => (
-  <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors flex items-center gap-3 min-w-0">
-    <MarketIcon icon={item.icon} />
-    <div className="flex-1 min-w-0">
-      <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{item.title}</p>
-      <span
-        className="font-mono text-jtp-2xs text-jtp-textMuted"
-        style={{ fontVariantNumeric: 'tabular-nums' }}
-      >
-        ${item.cost.toFixed(2)}&nbsp;→&nbsp;
-        <span className="text-jtp-text">${item.proceeds.toFixed(2)}</span>
-      </span>
+const SettledRow: React.FC<{ item: AutobotPerformanceSettled }> = ({ item }) => {
+  // Cost is unknown for a few old markets (not in our records / Polymarket grouping mismatch).
+  // Don't show a misleading "$0 → …"; show the payout + win/loss badge instead.
+  const knownCost = item.cost > 0 && item.pnlUsd != null;
+  return (
+    <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors flex items-center gap-3 min-w-0">
+      <MarketIcon icon={item.icon} />
+      <div className="flex-1 min-w-0">
+        <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{item.title}</p>
+        <span className="font-mono text-jtp-2xs text-jtp-textMuted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {knownCost ? (
+            <>${item.cost.toFixed(2)}&nbsp;→&nbsp;<span className="text-jtp-text">${item.proceeds.toFixed(2)}</span></>
+          ) : (
+            <>{item.win ? 'won' : 'lost'} · payout&nbsp;<span className="text-jtp-text">${item.proceeds.toFixed(2)}</span></>
+          )}
+        </span>
+      </div>
+      <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+        {knownCost ? (
+          <span className={`font-mono text-jtp-xs font-semibold ${pnlColor(item.pnlUsd!)}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {item.pnlUsd! >= 0 ? '+' : ''}{fmtUsd(item.pnlUsd!)}
+          </span>
+        ) : (
+          <span className={`font-mono text-jtp-2xs font-bold uppercase ${item.win ? 'text-jtp-green' : 'text-jtp-red'}`}>{item.win ? 'WON' : 'LOST'}</span>
+        )}
+        <span className="font-mono text-jtp-2xs text-jtp-textFaint">{fmtRelTimeMs(item.ts)}</span>
+      </div>
     </div>
-    <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
-      <span
-        className={`font-mono text-jtp-xs font-semibold ${pnlColor(item.pnlUsd)}`}
-        style={{ fontVariantNumeric: 'tabular-nums' }}
-      >
-        {item.pnlUsd >= 0 ? '+' : ''}{fmtUsd(item.pnlUsd)}
-      </span>
-      <span className="font-mono text-jtp-2xs text-jtp-textFaint">{fmtRelTimeMs(item.ts)}</span>
-    </div>
-  </div>
-);
+  );
+};
 
 // ─── Performance tab ───────────────────────────────────────────────────────────
 
