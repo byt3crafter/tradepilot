@@ -943,6 +943,45 @@ export interface AutobotTrade {
   detail?: string | null;
 }
 
+export interface AutobotPerformanceHistoryItem {
+  type: string;          // 'TRADE' | 'REDEEM' | 'MERGE' | etc.
+  title: string;
+  outcome?: string;
+  usdcSize: number;
+  price?: number;
+  ts: number;            // ms epoch
+  slug?: string;
+  icon?: string;
+  conditionId?: string;
+  side?: string;         // 'BUY' | 'SELL' (when type === 'TRADE')
+}
+
+export interface AutobotPerformanceOpenPosition {
+  conditionId: string;
+  tokenId: string;
+  title: string;
+  outcome?: string;
+  slug?: string;
+  icon?: string;
+  cost: number;
+  value: number;
+  pnlUsd: number;
+  price: number;
+  size: number;
+}
+
+export interface AutobotPerformanceSettled {
+  conditionId: string;
+  title: string;
+  slug?: string;
+  icon?: string;
+  ts: number;            // ms epoch
+  cost: number;
+  proceeds: number;
+  pnlUsd: number;
+  win: boolean;
+}
+
 export interface AutobotPerformance {
   stats: {
     trades: number;
@@ -950,13 +989,22 @@ export interface AutobotPerformance {
     resolved: number;
     wins: number;
     losses: number;
-    winRate: number;       // 0..1
-    realizedPnlUsd: number;
+    winRate: number;           // 0..1
+    realizedPnlUsd: number;    // ground-truth realized (matches Polymarket)
+    unrealizedPnlUsd?: number;
+    totalPnlUsd?: number;
+    portfolioValue?: number;
     maxDrawdownUsd: number;
     walletUsdce: number;
     openExposureUsd: number;
   };
   curve: { t: number; pnl: number }[]; // t = ms epoch, pnl = cumulative realized P&L
+  /** Polymarket activity feed, newest first */
+  history?: AutobotPerformanceHistoryItem[];
+  /** Live open positions from Polymarket */
+  open?: AutobotPerformanceOpenPosition[];
+  /** Settled/resolved markets */
+  settled?: AutobotPerformanceSettled[];
 }
 
 // --- Notebook ---
