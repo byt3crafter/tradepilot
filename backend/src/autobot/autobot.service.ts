@@ -462,7 +462,15 @@ export class AutobotService {
     let cum = 0; const curve = chrono.map((m) => { cum += m.pnlUsd; return { t: m.ts, pnl: +cum.toFixed(2) }; });
     let peak = 0, maxdd = 0; for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
 
-    const openExposure = +open.reduce((s, o) => s + o.value, 0).toFixed(2);
+    // ANCHOR realized to the ground truth (Total − Unrealized) — the proceeds-vs-cost grouping above
+    // is unreliable (the 500-event window can cut off a winner's BUY → inflated). The derived value
+    // always matches Polymarket. We keep the per-market `settled` list for the win/loss breakdown.
+    const positionsValue = +open.reduce((s, o) => s + o.value, 0).toFixed(2);
+    const unrealized = +open.reduce((s, o) => s + o.pnlUsd, 0).toFixed(2);
+    const portfolioValue = +(bal.usdce + positionsValue).toFixed(2);
+    const totalPnl = w.netDepositsUsd > 0 ? +(portfolioValue - w.netDepositsUsd).toFixed(2) : null;
+    const realizedTrue = totalPnl != null ? +(totalPnl - unrealized).toFixed(2) : realizedPnl;
+    const openExposure = positionsValue;
     // History feed = raw Polymarket activity, newest first (mirrors Polymarket's History tab)
     const history = acts.slice().sort((a, b) => (+b.timestamp || 0) - (+a.timestamp || 0)).slice(0, 100).map((a) => ({
       type: a.type, title: a.title, outcome: a.outcome, usdcSize: +(+a.usdcSize || 0).toFixed(2), price: +a.price || 0,
@@ -473,7 +481,11 @@ export class AutobotService {
       stats: {
         trades: byMkt.size, open: open.length, resolved: settled.length, wins, losses,
         winRate: settled.length ? wins / settled.length : 0,
-        realizedPnlUsd: realizedPnl, maxDrawdownUsd: +maxdd.toFixed(2),
+        realizedPnlUsd: realizedTrue,            // ground-truth realized (matches Polymarket)
+        unrealizedPnlUsd: unrealized,
+        totalPnlUsd: totalPnl,
+        portfolioValue,
+        maxDrawdownUsd: +maxdd.toFixed(2),
         walletUsdce: bal.usdce, openExposureUsd: openExposure,
       },
       curve, history, open, settled,
