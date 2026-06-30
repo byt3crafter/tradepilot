@@ -64,6 +64,10 @@ function toClobSigner(signer: JsonRpcSigner) {
 const getEthereum = (): any => // eslint-disable-line @typescript-eslint/no-explicit-any
   typeof window !== 'undefined' ? (window as any).ethereum : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
 
+// Detect mobile browser once (doesn't change during a session)
+const isMobileBrowser =
+  typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
 const truncate = (a: string) => (a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
 
 /** Format a 0..1 price as cents, e.g. 0.62 → "62¢" */
@@ -1004,18 +1008,42 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
           <Panel label="WALLET">
             <div className="space-y-4">
               {!hasWallet ? (
-                <p className="text-jtp-md text-jtp-textMuted">
-                  No injected wallet detected.{' '}
-                  <a
-                    href="https://metamask.io/download/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-jtp-blue hover:underline font-medium"
-                  >
-                    Install MetaMask
-                  </a>{' '}
-                  or another Polygon wallet.
-                </p>
+                isMobileBrowser ? (
+                  /* Mobile + no injected wallet: offer wallet in-app browser deep links */
+                  <div className="space-y-3">
+                    <p className="text-jtp-md text-jtp-textMuted leading-relaxed">
+                      Open JTradePilot inside your wallet's browser so it can inject the wallet.
+                    </p>
+                    <a
+                      href="https://metamask.app.link/dapp/jtradepilot.com"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-[#f6851b] text-white hover:opacity-90 transition-opacity"
+                    >
+                      Open in MetaMask
+                    </a>
+                    <a
+                      href="https://phantom.app/ul/browse/https%3A%2F%2Fjtradepilot.com?ref=jtradepilot.com"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-[#ab9ff2] text-[#08090b] hover:opacity-90 transition-opacity"
+                    >
+                      Open in Phantom
+                    </a>
+                    <p className="text-jtp-xs text-jtp-textDim font-mono leading-relaxed">
+                      On mobile, connect from inside your wallet's browser (tap a button above), or use the desktop site.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-jtp-md text-jtp-textMuted">
+                    No injected wallet detected.{' '}
+                    <a
+                      href="https://metamask.io/download/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-jtp-blue hover:underline font-medium"
+                    >
+                      Install MetaMask
+                    </a>{' '}
+                    or another Polygon wallet.
+                  </p>
+                )
               ) : !address ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-jtp-md text-jtp-textSoft">

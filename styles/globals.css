@@ -61,6 +61,9 @@ body {
 ::-webkit-scrollbar-thumb  { background: #262c34; border-radius: 1px; }
 ::-webkit-scrollbar-thumb:hover { background: #e8a23d; }
 
+/* ── SegmentedControl — hide scrollbar while allowing horizontal scroll ─────── */
+.seg-scrollable::-webkit-scrollbar { display: none; }
+
 /* ── Number / money rendering ──────────────────────────────────────────────── */
 /*
   Apply .jtp-num to any element containing a money value or stat number.

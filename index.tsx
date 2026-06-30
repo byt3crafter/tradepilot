@@ -14,3 +14,12 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Register service worker for PWA offline shell support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Ignore registration failures (e.g. in localhost non-HTTPS, or blocked by policy)
+    });
+  });
+}
