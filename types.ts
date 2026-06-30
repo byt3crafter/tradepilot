@@ -858,6 +858,10 @@ export interface AutobotStatus {
     winRate: number;
     realizedPnlUsd: number;
   };
+  /** Polymarket proxy/deposit wallet linked to this bot (CLOB V2 requires it). */
+  funderAddress?: string | null;
+  /** True when funderAddress is set and the bot can place real orders. */
+  linked?: boolean;
 }
 
 export type AutobotTradeStatus = 'pending' | 'placed' | 'filled' | 'failed' | 'resolved';
