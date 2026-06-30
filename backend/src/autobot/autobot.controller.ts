@@ -70,4 +70,27 @@ export class AutobotController {
   strategies(@Req() req: any, @Body() body: { copy?: boolean; ai?: boolean; arb?: boolean }) {
     return this.bot.setStrategies(req.user.sub, body || {});
   }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('arb-config')
+  arbConfig(@Req() req: any, @Body() body: any) {
+    return this.bot.setArbConfig(req.user.sub, body || {});
+  }
+
+  @Get('opportunities')
+  opportunities(@Req() req: any) {
+    return this.bot.opportunities(req.user.sub);
+  }
+
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Post('manual-trade')
+  manualTrade(@Req() req: any, @Body() body: any) {
+    return this.bot.manualTrade(req.user.sub, body || {});
+  }
+
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Post('assess')
+  assess(@Req() req: any, @Body() body: any) {
+    return this.bot.assess(req.user.sub, body || {});
+  }
 }

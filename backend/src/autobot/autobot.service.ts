@@ -165,6 +165,88 @@ export class AutobotService {
     return this.status(userId);
   }
 
+  /** Arb thresholds the user sets themselves (no hard-coding). Merged with existing + defaults. */
+  arbConfigOf(w: any) {
+    const c = (w?.arbConfig as any) || {};
+    return {
+      safeMinPrice: c.safeMinPrice ?? 0.95, safeMaxHrs: c.safeMaxHrs ?? 24,
+      immMinPrice: c.immMinPrice ?? 0.90, immMaxHrs: c.immMaxHrs ?? 6,
+      minEdgePct: c.minEdgePct ?? 0,
+    };
+  }
+
+  async setArbConfig(userId: string, cfg: any) {
+    const w = await this.getOrCreate(userId);
+    const num = (v: any, lo: number, hi: number) => { const n = Number(v); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : undefined; };
+    const clean: any = {};
+    if (cfg.safeMinPrice != null) clean.safeMinPrice = num(cfg.safeMinPrice, 0.5, 0.999);
+    if (cfg.safeMaxHrs != null) clean.safeMaxHrs = num(cfg.safeMaxHrs, 0.5, 720);
+    if (cfg.immMinPrice != null) clean.immMinPrice = num(cfg.immMinPrice, 0.5, 0.999);
+    if (cfg.immMaxHrs != null) clean.immMaxHrs = num(cfg.immMaxHrs, 0.25, 168);
+    if (cfg.minEdgePct != null) clean.minEdgePct = num(cfg.minEdgePct, 0, 50);
+    const merged = { ...((w.arbConfig as any) || {}), ...clean };
+    await this.prisma.pmAgentWallet.update({ where: { userId }, data: { arbConfig: merged } });
+    return this.status(userId);
+  }
+
+  /** Live arb opportunities (user's thresholds) enriched with EdgeScore — for the manual quick list.
+   * `smartMoney` = a qualified top wallet is ALSO buying this market (strategy confirmation). */
+  async opportunities(userId: string) {
+    const w = await this.getOrCreate(userId);
+    const scan = await this.quant.scanArbs(this.arbConfigOf(w));
+    const lag = scan.settlementLag || [];
+    let smart = new Set<string>();
+    try {
+      const copy = await this.quant.copySignals();
+      smart = new Set((copy || []).map((c: any) => c.conditionId).filter(Boolean));
+    } catch { /* edgescore optional */ }
+    const enriched = lag.map((o: any) => ({ ...o, smartMoney: smart.has(o.conditionId) }));
+    return { settlementLag: enriched, crossMarket: scan.crossMarket || [], scannedAt: scan.scannedAt };
+  }
+
+  /** On-demand AI verdict for ONE opportunity (button-triggered). Cached 1h + throttled = token-safe.
+   * Returns the AI's read on the outcome so the user can decide before manually trading. */
+  async assess(userId: string, body: { tokenId?: string; conditionId?: string; title?: string; outcome?: string; price?: number; edgePct?: number; detail?: string; type?: string }) {
+    const w = await this.getOrCreate(userId);
+    const pick = {
+      tokenId: body.tokenId, conditionId: body.conditionId, title: body.title || '', outcome: body.outcome || '',
+      price: body.price || 0, edgePct: body.edgePct ?? 0, type: body.type || 'arb', detail: body.detail || '',
+    };
+    const ai = await this.aiReason(w, pick);
+    return { ai: ai || { take: null, conviction: null, rationale: 'AI not connected or not allowed for the bot.' } };
+  }
+
+  /** Manually place ONE trade from the quick list. Enforces every limit — refuses if cap/cash reached. */
+  async manualTrade(userId: string, body: { tokenId: string; conditionId?: string; price: number; outcome?: string; outcomeIndex?: number; sizeUsd?: number; title?: string; type?: string }) {
+    const w = await this.getOrCreate(userId);
+    if (w.killSwitch) throw new BadRequestException('Kill switch is on — re-enable the bot first.');
+    if (!body.tokenId || !(body.price > 0)) throw new BadRequestException('Invalid order.');
+    const bal = await this.tradeable(w);
+    const open = await this.prisma.agentTrade.findMany({ where: { userId, status: 'filled' } });
+    const exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    if (exposure >= w.maxTotalUsd) throw new BadRequestException(`Max-total exposure ($${w.maxTotalUsd}) reached — raise the limit or wait for positions to settle.`);
+    const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, bal.usdce);
+    const sizeUsd = Math.max(1, Math.floor(Math.min(body.sizeUsd || w.maxPerTradeUsd, room) * 100) / 100);
+    if (bal.usdce < 1 || sizeUsd < 1) throw new BadRequestException(`Not enough cash (available $${bal.usdce.toFixed(2)}).`);
+    const trade = await this.prisma.agentTrade.create({
+      data: { userId, market: body.conditionId || '', tokenId: body.tokenId, outcome: body.outcome || '', outcomeIndex: body.outcomeIndex ?? null, title: body.title || '', side: 'BUY', sizeUsd, price: body.price, signalType: body.type || 'arb', detail: 'manual', status: 'pending' },
+    });
+    try {
+      const res = await this.placeOrder(w, body.tokenId, body.price, sizeUsd);
+      if (res.filled) {
+        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId } });
+        this.brain.publish({ userId, module: 'polymarket', kind: 'execute', title: `MANUAL · ${body.outcome} $${sizeUsd}`, detail: `Manual arb @ ${Math.round(body.price * 100)}¢`, data: { title: body.title, sizeUsd, price: body.price, orderId: res.orderId, manual: true } });
+      } else {
+        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `status=${res.status}` } });
+      }
+      return { ok: true, filled: res.filled, status: res.status };
+    } catch (e: any) {
+      await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
+      this.brain.error({ userId, module: 'polymarket', title: `Manual order FAILED · ${body.outcome}`, detail: String(e?.message || e).slice(0, 200), data: {} });
+      throw new BadRequestException(`Order failed: ${String(e?.message || e).slice(0, 160)}`);
+    }
+  }
+
   private async balances(address: string): Promise<{ usdce: number; pol: number }> {
     try {
       const usdc = new ethers.Contract(USDCE, ERC20, this.provider);
@@ -275,6 +357,7 @@ export class AutobotService {
       portfolioValue,                                    // cash + positions = total portfolio
       openPositions: mtm.count,
       strategies: this.strategiesOf(w),                  // {copy,ai,arb} enable flags
+      arbConfig: this.arbConfigOf(w),                    // user-set arb thresholds
       strategyStats: this.rateStrategies(allTrades),     // per-strategy scorecard (rate what works)
       stats: { trades: allTrades.length, resolved: resolved.length, wins, winRate: resolved.length ? wins / resolved.length : 0, realizedPnlUsd: realizedPnl },
     };
@@ -430,21 +513,22 @@ export class AutobotService {
     let exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
     if (exposure >= w.maxTotalUsd) return; // fully deployed
 
-    const { signals } = await this.quant.signals();
+    const { signals } = await this.quant.signals(w.arbConfig || undefined);
     const held = new Set(open.map((t) => t.tokenId));
     // Only take signals whose edge clears the user's minimum — fewer, stronger trades.
     const minEdge = w.minEdgePct ?? 5;
     const strat = this.strategiesOf(w); // only act on strategies the user enabled
     const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge && strat[s.type as 'copy' | 'ai' | 'arb'] !== false);
+    const arbN = (signals || []).filter((s: any) => s.type === 'arb').length;
 
     // 🧠 thinking pulse — what the brain is watching this cycle (free, no LLM)
     const top = [...fresh].sort((a: any, b: any) => (b.edgePct || 0) - (a.edgePct || 0)).slice(0, 3);
     const watching = top.map((s: any) => `${(s.title || s.outcome || '?').slice(0, 28)} (${(s.edgePct || 0).toFixed(0)}%)`).join(' · ') || 'no setup yet — waiting';
     this.brain.publish({
       userId: w.userId, module: 'polymarket', kind: 'tick',
-      title: `Watching ${(signals || []).length} markets · ${fresh.length} with edge ≥${minEdge}%`,
-      detail: `👀 ${watching} · bankroll $${bal.usdce.toFixed(2)} · ${held.size} open`,
-      data: { scanned: (signals || []).length, fresh: fresh.length, minEdge, bankroll: bal.usdce, held: held.size, exposure, watching: top.map((s: any) => ({ title: s.title, edgePct: s.edgePct })) },
+      title: `Watching ${(signals || []).length} markets · ${fresh.length} with edge ≥${minEdge}% · ${arbN} arb`,
+      detail: `👀 ${watching} · bankroll $${bal.usdce.toFixed(2)} · ${held.size} open · ${arbN} arb live`,
+      data: { scanned: (signals || []).length, fresh: fresh.length, arb: arbN, minEdge, bankroll: bal.usdce, held: held.size, exposure, watching: top.map((s: any) => ({ title: s.title, edgePct: s.edgePct })) },
     });
 
     // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").

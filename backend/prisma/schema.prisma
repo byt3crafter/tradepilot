@@ -658,6 +658,7 @@ model PmAgentWallet {
   funderAddress     String?                     // linked Polymarket proxy/deposit wallet (POLY_PROXY maker); null = not linked
   strategies        Json?                       // {copy,ai,arb} enable flags; null = all enabled
   orderType         String   @default("limit")  // 'limit' (fill at wallet price, no spread bleed) | 'market'
+  arbConfig         Json?                       // user-set arb thresholds {safeMinPrice,safeMaxHrs,immMinPrice,immMaxHrs,minEdgePct}; null = defaults
   pfDayStamp        String?                     // YYYY-MM-DD for the portfolio day-open snapshot
   pfDayOpen         Float?                      // portfolio value at start of day (for Today P&L)
   createdAt         DateTime @default(now())

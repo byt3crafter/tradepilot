@@ -79,9 +79,17 @@ export class QuantService implements OnApplicationBootstrap {
    *    ended/ending → buy the favorite, collect the gap at resolution.
    * Edges are shown AFTER a 2% fee/slippage buffer, so only genuinely profitable ones surface.
    */
-  async scanArbs() {
+  async scanArbs(opts?: { safeMinPrice?: number; safeMaxHrs?: number; immMinPrice?: number; immMaxHrs?: number; minEdgePct?: number }) {
     const FEE = 0.02;
     const now = Date.now();
+    // User-configurable thresholds (no hard-coding) — fall back to sane defaults.
+    const cfg = {
+      safeMinPrice: opts?.safeMinPrice ?? 0.95,
+      safeMaxHrs: opts?.safeMaxHrs ?? 24,
+      immMinPrice: opts?.immMinPrice ?? 0.90,
+      immMaxHrs: opts?.immMaxHrs ?? 6,
+      minEdgePct: opts?.minEdgePct ?? 0,
+    };
 
     const events = await this.pm.activeEvents(150);
     const cross: any[] = [];
@@ -131,11 +139,11 @@ export class QuantService implements OnApplicationBootstrap {
       //   • safe     — near-certain favorite (≥95¢) resolving within 24h (classic riskless-ish lag)
       //   • imminent — strong favorite (90–95¢) resolving within 6h ("last opportunity", your idea)
       let tier: string | null = null;
-      if (fav >= 0.95 && fav < 0.999 && hrs <= 24) tier = 'safe';
-      else if (fav >= 0.90 && fav < 0.95 && hrs <= 6) tier = 'imminent';
+      if (fav >= cfg.safeMinPrice && fav < 0.999 && hrs <= cfg.safeMaxHrs) tier = 'safe';
+      else if (fav >= cfg.immMinPrice && fav < cfg.safeMinPrice && hrs <= cfg.immMaxHrs) tier = 'imminent';
       if (!tier) continue;
       const edge = (1 - fav) / fav;
-      if (edge > FEE) lag.push({
+      if (edge > FEE && (edge - FEE) * 100 >= cfg.minEdgePct) lag.push({
         type: 'lag', tier, title: m.question, slug: m.slug, outcome: oc[idx] || `#${idx}`,
         price: +fav.toFixed(3), tokenId: tk[idx], conditionId: m.conditionId, outcomeIndex: idx,
         edgePct: +((edge - FEE) * 100).toFixed(2), endsAt: end, endsInH: +hrs.toFixed(1),
@@ -809,7 +817,7 @@ export class QuantService implements OnApplicationBootstrap {
     } catch { return []; }
   }
 
-  async signals() {
+  async signals(arbCfg?: any) {
     const aiRows = (await this.prisma.agentDecision.findMany({
       where: { kind: 'paper_copy', mode: 'ai_judgment', outcome: null },
       orderBy: { createdAt: 'desc' }, take: 60,
@@ -829,7 +837,7 @@ export class QuantService implements OnApplicationBootstrap {
     });
     let arbs: any[] = [];
     try {
-      const scan = await this.scanArbs();
+      const scan = await this.scanArbs(arbCfg || undefined);
       arbs = (scan.settlementLag || []).map((a: any) => ({
         type: 'arb' as const, title: a.title, action: 'BUY', outcome: a.outcome,
         priceCents: Math.round(a.price * 100), edgePct: a.edgePct, endDate: a.endsAt || null,
