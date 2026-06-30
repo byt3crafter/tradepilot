@@ -167,6 +167,14 @@ export class AutobotService {
     return this.prisma.agentTrade.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: Math.min(limit, 200) });
   }
 
+  /** Reveal the bot wallet's private key so the user can import it into their own wallet
+   * (Phantom/MetaMask). It's their wallet + funds — full self-custody. Sensitive: returned once. */
+  async exportPrivateKey(userId: string) {
+    const w = await this.prisma.pmAgentWallet.findUnique({ where: { userId } });
+    if (!w) throw new BadRequestException('No bot wallet.');
+    return { address: w.address, privateKey: this.decrypt(w.encPrivKey) };
+  }
+
   async withdraw(userId: string, to: string) {
     if (!ethers.isAddress(to)) throw new BadRequestException('Invalid destination address.');
     const w = await this.getOrCreate(userId);
