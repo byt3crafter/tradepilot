@@ -894,6 +894,10 @@ export interface AutobotStatus {
     immMaxHrs: number;
     minEdgePct: number;
   };
+  /** Total deposited by the user — set via POST /api/autobot/limits { netDepositsUsd }. */
+  netDepositsUsd?: number;
+  /** Ground-truth P&L = portfolioValue − netDepositsUsd. Null when netDepositsUsd is not set. */
+  totalPnlUsd?: number | null;
 }
 
 // --- Manual Arb Desk opportunity (from GET /api/autobot/opportunities) ---

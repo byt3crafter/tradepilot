@@ -559,18 +559,21 @@ interface LimitsState {
   dailyLossLimitUsd: string;
   minEdgePct: string;
   maxSettlementDays: string;
+  netDepositsUsd: string;
 }
 
 const LimitsEditor: React.FC<{
   limits: AutobotStatus['limits'];
-  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }) => Promise<void>;
-}> = ({ limits, onSave }) => {
+  netDepositsUsd?: number;
+  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => Promise<void>;
+}> = ({ limits, netDepositsUsd: netDepositsUsdProp, onSave }) => {
   const [vals, setVals] = useState<LimitsState>({
     maxTotalUsd: String(limits.maxTotalUsd),
     maxPerTradeUsd: String(limits.maxPerTradeUsd),
     dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
     minEdgePct: String(limits.minEdgePct ?? 5),
     maxSettlementDays: String(limits.maxSettlementDays ?? 7),
+    netDepositsUsd: netDepositsUsdProp != null ? String(netDepositsUsdProp) : '',
   });
   const [orderType, setOrderType] = useState<'limit' | 'market'>(limits.orderType ?? 'limit');
   const [saving, setSaving] = useState(false);
@@ -588,16 +591,25 @@ const LimitsEditor: React.FC<{
       prevLimits.current.maxSettlementDays !== limits.maxSettlementDays
     ) {
       prevLimits.current = limits;
-      setVals({
+      setVals((v) => ({
+        ...v,
         maxTotalUsd: String(limits.maxTotalUsd),
         maxPerTradeUsd: String(limits.maxPerTradeUsd),
         dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
         minEdgePct: String(limits.minEdgePct ?? 5),
         maxSettlementDays: String(limits.maxSettlementDays ?? 7),
-      });
+      }));
       setOrderType(limits.orderType ?? 'limit');
     }
   }, [limits]);
+
+  const prevNetDepositsRef = useRef<number | undefined>(netDepositsUsdProp);
+  useEffect(() => {
+    if (prevNetDepositsRef.current !== netDepositsUsdProp) {
+      prevNetDepositsRef.current = netDepositsUsdProp;
+      setVals((v) => ({ ...v, netDepositsUsd: netDepositsUsdProp != null ? String(netDepositsUsdProp) : '' }));
+    }
+  }, [netDepositsUsdProp]);
 
   const handleSave = async () => {
     const maxTotalUsd = parseFloat(vals.maxTotalUsd);
@@ -605,6 +617,8 @@ const LimitsEditor: React.FC<{
     const dailyLossLimitUsd = parseFloat(vals.dailyLossLimitUsd);
     const minEdgePct = parseFloat(vals.minEdgePct);
     const maxSettlementDays = parseInt(vals.maxSettlementDays, 10);
+    const netDepositsUsdRaw = parseFloat(vals.netDepositsUsd);
+    const netDepositsUsd = !isNaN(netDepositsUsdRaw) && netDepositsUsdRaw >= 0 ? netDepositsUsdRaw : undefined;
     if ([maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd].some(isNaN)) {
       setErr('All limits must be valid numbers.');
       return;
@@ -620,7 +634,7 @@ const LimitsEditor: React.FC<{
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct, orderType, maxSettlementDays });
+      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct, orderType, maxSettlementDays, ...(netDepositsUsd !== undefined ? { netDepositsUsd } : {}) });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (ex: any) {
@@ -655,6 +669,7 @@ const LimitsEditor: React.FC<{
       {field('maxPerTradeUsd', 'MAX PER TRADE', 'Maximum USDC.e per single trade')}
       {field('maxTotalUsd', 'MAX TOTAL EXPOSURE', 'Total open exposure cap')}
       {field('dailyLossLimitUsd', 'DAILY LOSS LIMIT', 'Bot pauses if daily loss hits this')}
+      {field('netDepositsUsd', 'TOTAL DEPOSITED', 'What you\'ve put in — used for true P&L.')}
 
       {/* Min Edge % — separate field since it uses % not $ */}
       <div className="flex flex-col gap-1">
@@ -1476,7 +1491,7 @@ interface ControlsTabProps {
   killErr: string | null;
   onModeChange: (mode: 'off' | 'auto') => void;
   onKill: () => void;
-  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }) => Promise<void>;
+  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => Promise<void>;
   onWithdrawOpen: () => void;
   onExportKeyOpen: () => void;
   onLink: (address: string) => Promise<void>;
@@ -1653,7 +1668,7 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
             )}
           </div>
 
-          <LimitsEditor limits={status.limits} onSave={onSetLimits} />
+          <LimitsEditor limits={status.limits} netDepositsUsd={status.netDepositsUsd} onSave={onSetLimits} />
         </Panel>
       </div>
     </div>
@@ -1674,13 +1689,58 @@ const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status 
   const unrealizedPnl = status.unrealizedPnlUsd ?? 0;
   const realizedPnl   = status.stats.realizedPnlUsd;
   const todayPnl      = status.todayPnlUsd ?? 0;
+  const totalPnl      = status.totalPnlUsd ?? null;
+  const netDeposits   = status.netDepositsUsd;
+
+  // Border color for Total P&L tile — green when profit, red when loss, amber when unset
+  const totalPnlBorderColor =
+    totalPnl === null
+      ? 'rgba(232,162,61,0.45)'
+      : totalPnl >= 0
+        ? 'rgba(61,220,132,0.55)'
+        : 'rgba(255,91,82,0.55)';
 
   return (
     <div className="space-y-3">
-      {/* ── Six money tiles ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* ── Seven money tiles (Total P&L is the headline) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
 
-        {/* PORTFOLIO — prominent, mirrors Polymarket "Portfolio" figure */}
+        {/* TOTAL P&L — ground-truth headline metric: portfolioValue − netDeposits */}
+        <div
+          className="bg-jtp-bg rounded-[2px] px-3 py-3 flex flex-col gap-1 col-span-2 sm:col-span-2 lg:col-span-1"
+          style={{ border: `2px solid ${totalPnlBorderColor}` }}
+          aria-label="Total P&L vs deposits — the real profit number"
+        >
+          <div
+            className="jtp-label"
+            style={{ color: totalPnl === null ? '#e8a23d' : totalPnl >= 0 ? '#3ddc84' : '#ff5b52' }}
+          >
+            TOTAL P&amp;L
+          </div>
+          <div
+            className={`font-mono font-bold text-jtp-2xl ${
+              totalPnl === null
+                ? 'text-[#e8a23d]'
+                : totalPnl >= 0
+                  ? 'text-[#3ddc84]'
+                  : 'text-[#ff5b52]'
+            }`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {totalPnl === null
+              ? 'set deposits →'
+              : totalPnl === 0
+                ? '$0.00'
+                : `${totalPnl >= 0 ? '+' : ''}${fmtUsd(totalPnl)}`}
+          </div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint leading-snug">
+            {totalPnl !== null && netDeposits != null
+              ? `vs deposits (${fmtUsd(netDeposits)}) — the real number`
+              : 'set deposits in Limits below'}
+          </div>
+        </div>
+
+        {/* PORTFOLIO — mirrors Polymarket "Portfolio" figure */}
         <div
           className="bg-jtp-bg border border-[rgba(61,220,132,0.35)] rounded-[2px] px-3 py-3 flex flex-col gap-1"
           aria-label="Portfolio total value"
@@ -1758,7 +1818,7 @@ const MoneyManagementSection: React.FC<MoneyManagementSectionProps> = ({ status 
               ? '$0.00'
               : `${realizedPnl >= 0 ? '+' : ''}${fmtUsd(realizedPnl)}`}
           </div>
-          <div className="font-mono text-jtp-2xs text-jtp-textFaint">realized / settled</div>
+          <div className="font-mono text-jtp-2xs text-jtp-textFaint">settled trades (may lag)</div>
         </div>
 
         {/* TODAY P&L */}
@@ -1927,7 +1987,7 @@ const QuantAutoBotPanel: React.FC = () => {
 
   // ── Limits ─────────────────────────────────────────────────────────────────
 
-  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }) => {
+  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => {
     const token = await getToken();
     const updated = await api.autobotSetLimits(limits, token);
     setStatus(updated);
