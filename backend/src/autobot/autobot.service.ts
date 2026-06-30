@@ -410,15 +410,17 @@ export class AutobotService {
     const resolved = allTrades.filter((t) => t.status === 'resolved');
     const realizedPnl = resolved.reduce((s, t) => s + (t.pnlUsd || 0), 0);
     const wins = resolved.filter((t) => (t.pnlUsd || 0) > 0).length;
-    // TODAY's P&L (matches Polymarket's 1D view): portfolio change since the start of today.
+    // TODAY's P&L = change in TOTAL P&L (portfolio − deposits) since day start. Tracking total-pnl
+    // (not raw portfolio) means a DEPOSIT doesn't show up as a "gain" — fixes the inflated Today.
     const portfolioValue = +(trade.usdce + mtm.value).toFixed(2);
+    const totalNow = +(portfolioValue - (w.netDepositsUsd || 0)).toFixed(2);
     const today = new Date().toISOString().slice(0, 10);
     let pfOpen = w.pfDayOpen;
     if (w.pfDayStamp !== today || pfOpen == null) {
-      pfOpen = portfolioValue;
-      this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { pfDayStamp: today, pfDayOpen: portfolioValue } }).catch(() => {});
+      pfOpen = totalNow;
+      this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { pfDayStamp: today, pfDayOpen: totalNow } }).catch(() => {});
     }
-    const todayPnlUsd = +(portfolioValue - (pfOpen ?? portfolioValue)).toFixed(2);
+    const todayPnlUsd = +(totalNow - (pfOpen ?? totalNow)).toFixed(2);
     // TRUTH-SOURCED P&L (matches Polymarket): Total = portfolio − deposits. Realized is then
     // DERIVED as Total − Unrealized, so the three always reconcile and match Polymarket — instead
     // of the per-trade tally that drifted (missed booking settled wins).
