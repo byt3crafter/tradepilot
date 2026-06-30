@@ -41,6 +41,7 @@ const LagRow: React.FC<{
       side: 'BUY',
       title: item.title,
       outcome: item.outcome,
+      slug: item.slug,
     });
   };
 
@@ -87,7 +88,8 @@ const CrossLegRow: React.FC<{
   leg: CrossMarketArb['legs'][number];
   onTrade: (prefill: TradePrefill) => void;
   event: string;
-}> = ({ leg, onTrade, event }) => {
+  slug: string;
+}> = ({ leg, onTrade, event, slug }) => {
   const priceCents = Math.round(leg.yesPrice * 100);
 
   const handleTrade = () => {
@@ -97,6 +99,7 @@ const CrossLegRow: React.FC<{
       side: 'BUY',
       title: `${event} — ${leg.title}`,
       outcome: 'Yes',
+      slug,
     });
   };
 
@@ -164,7 +167,7 @@ const CrossRow: React.FC<{
       {expanded && (
         <div className="border-t border-jtp-borderSubtle">
           {item.legs.map((leg, i) => (
-            <CrossLegRow key={`${leg.tokenId}-${i}`} leg={leg} onTrade={onTrade} event={item.event} />
+            <CrossLegRow key={`${leg.tokenId}-${i}`} leg={leg} onTrade={onTrade} event={item.event} slug={item.slug} />
           ))}
           <div className="px-4 py-2 text-jtp-xs text-jtp-textDim italic bg-jtp-bg">
             Buy <span className="text-jtp-text font-medium">every</span> leg's Yes to lock the edge — watch liquidity and slippage on each.
