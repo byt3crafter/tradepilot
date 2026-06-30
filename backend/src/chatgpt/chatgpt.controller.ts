@@ -1,13 +1,16 @@
 import { Controller, Get, Post, Patch, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { EntitlementGuard } from '../auth/guards/entitlement.guard';
 import { ChatgptService } from './chatgpt.service';
 
 interface AuthedRequest extends Request {
   user: { sub: string };
 }
 
-@UseGuards(JwtAccessGuard)
+// Paid/cost surface (ChatGPT integration). EntitlementGuard enforces the paywall
+// when free mode is OFF and no-ops while free mode is ON (SystemConfig.freeMode).
+@UseGuards(JwtAccessGuard, EntitlementGuard)
 @Controller('chatgpt')
 export class ChatgptController {
   constructor(private readonly chatgpt: ChatgptService) {}

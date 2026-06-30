@@ -43,6 +43,13 @@ describe('BillingService.handleWebhookEvent', () => {
         update: jest.fn().mockResolvedValue({ ...baseUser }),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
+      processedWebhookEvent: {
+        create: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+      promoCode: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
     service = new BillingService(prisma as any, config as any);
   });
@@ -103,5 +110,46 @@ describe('BillingService.handleWebhookEvent', () => {
       (c: any[]) => c[0]?.where?.id === 'referrer_1',
     );
     expect(referrerLookup).toBeUndefined();
+  });
+
+  it('claims the event id FIRST and skips a duplicate delivery (P2002), guarding the promo increment', async () => {
+    // Simulate the claim row already existing (unique violation) -> already processed.
+    prisma.processedWebhookEvent.create.mockRejectedValueOnce(
+      Object.assign(new Error('Unique constraint'), { code: 'P2002' }),
+    );
+
+    await service.handleWebhookEvent({
+      eventId: 'evt_dup',
+      eventType: 'transaction.completed',
+      data: { customerId: 'ctm_123', customData: { promo_code: 'SAVE10' } },
+    });
+
+    // Duplicate => we returned before any effect: no user lookup, no promo increment.
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.promoCode.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('claims before processing on the first delivery (insert happens up-front)', async () => {
+    await service.handleWebhookEvent({
+      eventId: 'evt_new',
+      eventType: 'subscription.activated',
+      data: { id: 'sub_1', customerId: 'ctm_123', status: 'active' },
+    });
+    expect(prisma.processedWebhookEvent.create).toHaveBeenCalledWith({
+      data: { eventId: 'evt_new', type: 'subscription.activated' },
+    });
+    expect(prisma.user.update).toHaveBeenCalled();
+  });
+
+  it('maps an unknown Paddle status to a NON-entitling status (CANCELED), never TRIALING', async () => {
+    await service.handleWebhookEvent({
+      eventType: 'subscription.updated',
+      data: { id: 'sub_x', customerId: 'ctm_123', status: 'some_new_paddle_status' },
+    });
+    const call = prisma.user.update.mock.calls.find(
+      (c: any[]) => c[0]?.data?.subscriptionStatus !== undefined,
+    );
+    expect(call).toBeDefined();
+    expect(call[0].data.subscriptionStatus).toBe('CANCELED');
   });
 });

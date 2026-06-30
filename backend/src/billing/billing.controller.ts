@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Headers, Req, HttpCode, HttpStatus, Logger, UseGuards, Get, RawBodyRequest, InternalServerErrorException, BadRequestException } from '@nestjs/common';
-import { BillingService } from './billing.service';
+import { BillingService, WebhookSignatureError } from './billing.service';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
@@ -80,14 +80,22 @@ export class BillingController {
       throw new InternalServerErrorException('Webhook processing failed: No body');
     }
 
-    // 1. Verify signature. A bad/forged signature is permanent — return 400 so
-    //    Paddle does NOT retry (retrying a forged payload is pointless/abusive).
+    // 1. Verify signature. Return 400 ONLY for a genuine invalid/forged signature —
+    //    that is permanent, so Paddle should NOT retry. Any OTHER failure here
+    //    (missing PADDLE_WEBHOOK_SECRET_KEY, internal/transient error) must propagate
+    //    as 5xx so Paddle DOES retry — turning these into 400 silently dropped real,
+    //    correctly-signed webhooks whenever the server was misconfigured.
     let event;
     try {
       event = await this.billingService.unmarshalWebhook(rawBody.toString(), signature);
     } catch (err: any) {
-      this.logger.error(`✗ Webhook signature verification failed: ${err.message}`);
-      throw new BadRequestException('Invalid webhook signature');
+      if (err instanceof WebhookSignatureError) {
+        this.logger.error(`✗ Webhook signature verification failed: ${err.message}`);
+        throw new BadRequestException('Invalid webhook signature');
+      }
+      // Config/internal error — do NOT swallow as 400; let it surface as 5xx so Paddle retries.
+      this.logger.error(`✗ Webhook verification error (non-signature, will 5xx for retry): ${err.message}`);
+      throw err;
     }
 
     if (!event) {

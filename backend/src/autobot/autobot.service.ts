@@ -42,6 +42,31 @@ export class AutobotService {
   private codexHour = { n: 0, start: 0 };                            // hourly Codex-call throttle
   private readonly CODEX_MAX_PER_HOUR = 20;
 
+  // ── per-wallet async mutex ──────────────────────────────────────────────────
+  // Every money-critical section (place/close) for a given userId runs strictly one-at-a-time.
+  // This is the single root-cause fix for the bug cluster: it removes the TOCTOU window between
+  // "read balance/exposure" and "place order" by serialising all order-placing per wallet.
+  private locks = new Map<string, Promise<unknown>>();
+  private withWalletLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.locks.get(userId) ?? Promise.resolve();
+    // chain after the previous holder settles (resolve OR reject — a failure must not jam the queue)
+    const run = prev.then(() => fn(), () => fn());
+    const tail = run.then(() => undefined, () => undefined); // swallowed tail keeps the chain alive
+    this.locks.set(userId, tail);
+    // best-effort cleanup so the map doesn't grow unbounded once a wallet is idle
+    tail.finally(() => { if (this.locks.get(userId) === tail) this.locks.delete(userId); });
+    return run;
+  }
+
+  /** Re-read the wallet row from the DB (defeats stale in-memory snapshots for mode/killSwitch/
+   * daily counters/deposits). Carries over an in-memory apiCreds if the DB hasn't caught up. */
+  private async freshWallet(w: any): Promise<any> {
+    const fresh = await this.prisma.pmAgentWallet.findUnique({ where: { id: w.id } });
+    if (!fresh) return w;
+    if (w.apiCreds && !fresh.apiCreds) fresh.apiCreds = w.apiCreds;
+    return fresh;
+  }
+
   /** Phase-2 brain: recall past lessons + a Codex verdict on the top candidate. Best-effort —
    * if ChatGPT isn't connected/allowed or errors, returns null and the bot falls back to rules.
    * Token-frugal: caches each market's verdict for 1h + caps Codex calls per hour. */
@@ -249,29 +274,51 @@ export class AutobotService {
   /** Sell a single open position NOW (exit on your terms). Market sell, floored at mark −5¢ so it
    * fills without dumping. Books the realized P&L on the matching trade + a learn neuron. */
   async closePosition(userId: string, tokenId: string) {
-    const w = await this.getOrCreate(userId);
+    const w0 = await this.getOrCreate(userId);
     if (!tokenId) throw new BadRequestException('Missing position.');
-    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
-    let pos: any = null;
-    try {
-      const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
-      const arr: any = await r.json();
-      pos = (Array.isArray(arr) ? arr : []).find((p: any) => String(p.asset) === String(tokenId));
-    } catch { /* */ }
-    const shares = Number(pos?.size) || 0;
-    if (!pos || shares <= 0) throw new BadRequestException('No open shares for this position (maybe already settled).');
-    const mark = Number(pos.curPrice) || Number(pos.avgPrice) || 0.5;
-    const res = await this.placeOrder(w, tokenId, mark, shares, 'SELL');
-    if (!res.filled) throw new BadRequestException(`Sell not filled (status ${res.status}) — book may be thin, try again or wait for settlement.`);
-    const proceeds = +(shares * mark).toFixed(2);
-    const trade = await this.prisma.agentTrade.findFirst({ where: { userId, tokenId, status: 'filled' }, orderBy: { createdAt: 'desc' } });
-    if (trade) {
-      const pnl = +(proceeds - (trade.sizeUsd || 0)).toFixed(2);
-      await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'resolved', pnlUsd: pnl, roiPct: trade.sizeUsd ? +((pnl / trade.sizeUsd) * 100).toFixed(1) : null, resolvedAt: new Date(), detail: 'closed manually' } });
-      this.brain.publish({ userId, module: 'polymarket', kind: 'learn', title: `Closed ${trade.outcome} ${pnl >= 0 ? '+' : ''}$${pnl}`, detail: `Manual exit @ ~${Math.round(mark * 100)}¢ — booked $${pnl}`, data: { pnl, proceeds, manual: true } });
-    }
-    this.collCache.delete(w.userId); this.posCache.delete(funder); // force fresh balances next read
-    return { ok: true, filled: true, proceeds };
+    // Serialise every close/place for this wallet so two concurrent closes can't both sell (M5/M10).
+    return this.withWalletLock(userId, async () => {
+      const w = await this.freshWallet(w0);
+      const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+      // RE-READ the LIVE position size inside the lock (force-fresh — this fetch is uncached).
+      let pos: any = null;
+      try {
+        const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
+        const arr: any = await r.json();
+        pos = (Array.isArray(arr) ? arr : []).find((p: any) => String(p.asset) === String(tokenId));
+      } catch { /* */ }
+      const shares = Number(pos?.size) || 0;
+      if (!pos || shares <= 0) {
+        // IDEMPOTENT: nothing live to sell (already closed/settled by a prior call or resolution).
+        // Make sure no filled rows are left orphaned — resolve any stragglers at $0 proceeds (M10).
+        await this.prisma.agentTrade.updateMany({ where: { userId, tokenId, status: 'filled' }, data: { status: 'resolved', resolvedAt: new Date(), detail: 'closed (no live shares)' } });
+        return { ok: true, filled: false, proceeds: 0, alreadyClosed: true };
+      }
+      const mark = Number(pos.curPrice) || Number(pos.avgPrice) || 0.5;
+      const res = await this.placeOrder(w, tokenId, mark, shares, 'SELL');
+      if (!res.filled) throw new BadRequestException(`Sell not filled (status ${res.status}) — book may be thin, try again or wait for settlement.`);
+      // Book proceeds from the ACTUAL executed price/shares; fall back to the capped sell price
+      // (mark−5¢), NEVER the optimistic full mark (M9/M17).
+      const soldShares = res.filledShares && res.filledShares > 0 ? res.filledShares : shares;
+      const execPrice = res.avgPrice && res.avgPrice > 0 ? res.avgPrice : (res.cap ?? mark);
+      const proceeds = res.filledUsd && res.filledUsd > 0 ? +res.filledUsd.toFixed(2) : +(soldShares * execPrice).toFixed(2);
+      // Book against the SUM of ALL matching filled rows' cost (not just the latest) so partial /
+      // multi-fill entries reconcile, and resolve them atomically to prevent a double-sell (M5/M10).
+      const rows = await this.prisma.agentTrade.findMany({ where: { userId, tokenId, status: 'filled' } });
+      const totalCost = rows.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+      const pnl = +(proceeds - totalCost).toFixed(2);
+      const now = new Date();
+      for (const tr of rows) {
+        const share = totalCost > 0 ? (tr.sizeUsd || 0) / totalCost : (rows.length ? 1 / rows.length : 1);
+        const rowPnl = +((proceeds * share) - (tr.sizeUsd || 0)).toFixed(2);
+        await this.prisma.agentTrade.update({ where: { id: tr.id }, data: { status: 'resolved', pnlUsd: rowPnl, roiPct: tr.sizeUsd ? +((rowPnl / tr.sizeUsd) * 100).toFixed(1) : null, resolvedAt: now, detail: 'closed manually' } });
+      }
+      // Realized P&L from manual closes feeds the daily breaker so manual losses count (M4/M11).
+      if (rows.length) await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailyPnlUsd: { increment: pnl } } }).catch(() => {});
+      if (rows.length) this.brain.publish({ userId, module: 'polymarket', kind: 'learn', title: `Closed ${rows[0].outcome} ${pnl >= 0 ? '+' : ''}$${pnl}`, detail: `Manual exit @ ~${Math.round(execPrice * 100)}¢ — booked $${pnl}`, data: { pnl, proceeds, manual: true } });
+      this.collCache.delete(w.userId); this.posCache.delete(funder); // force fresh balances next read
+      return { ok: true, filled: true, proceeds };
+    });
   }
 
   /** Sell EVERY open position now. Returns per-position results (some may fail on thin books). */
@@ -284,6 +331,9 @@ export class AutobotService {
       const d: any = await r.json(); arr = Array.isArray(d) ? d : [];
     } catch { /* */ }
     const results: any[] = [];
+    // Each closePosition() takes the per-wallet lock and re-reads the LIVE size itself, so this
+    // outer snapshot can be stale without harm and we must NOT hold the lock here (re-entrant
+    // deadlock) — locking is delegated per position, which also serialises the sells (M5/M10).
     for (const p of arr) {
       if (!(Number(p.size) > 0)) continue;
       try { const r = await this.closePosition(userId, String(p.asset)); results.push({ tokenId: p.asset, ...r }); }
@@ -294,33 +344,53 @@ export class AutobotService {
 
   /** Manually place ONE trade from the quick list. Enforces every limit — refuses if cap/cash reached. */
   async manualTrade(userId: string, body: { tokenId: string; conditionId?: string; price: number; outcome?: string; outcomeIndex?: number; sizeUsd?: number; title?: string; type?: string }) {
-    const w = await this.getOrCreate(userId);
-    if (w.killSwitch) throw new BadRequestException('Kill switch is on — re-enable the bot first.');
+    const w0 = await this.getOrCreate(userId);
     if (!body.tokenId || !(body.price > 0)) throw new BadRequestException('Invalid order.');
-    const bal = await this.tradeable(w);
-    const open = await this.prisma.agentTrade.findMany({ where: { userId, status: 'filled' } });
-    const exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
-    if (exposure >= w.maxTotalUsd) throw new BadRequestException(`Max-total exposure ($${w.maxTotalUsd}) reached — raise the limit or wait for positions to settle.`);
-    const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, bal.usdce);
-    const sizeUsd = Math.max(1, Math.floor(Math.min(body.sizeUsd || w.maxPerTradeUsd, room) * 100) / 100);
-    if (bal.usdce < 1 || sizeUsd < 1) throw new BadRequestException(`Not enough cash (available $${bal.usdce.toFixed(2)}).`);
-    const trade = await this.prisma.agentTrade.create({
-      data: { userId, market: body.conditionId || '', tokenId: body.tokenId, outcome: body.outcome || '', outcomeIndex: body.outcomeIndex ?? null, title: body.title || '', side: 'BUY', sizeUsd, price: body.price, signalType: body.type || 'arb', detail: 'manual', status: 'pending' },
-    });
-    try {
-      const res = await this.placeOrder(w, body.tokenId, body.price, sizeUsd);
-      if (res.filled) {
-        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId } });
-        this.brain.publish({ userId, module: 'polymarket', kind: 'execute', title: `MANUAL · ${body.outcome} $${sizeUsd}`, detail: `Manual arb @ ${Math.round(body.price * 100)}¢`, data: { title: body.title, sizeUsd, price: body.price, orderId: res.orderId, manual: true } });
-      } else {
-        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `status=${res.status}` } });
+    // Serialise with every other order-placing section for this wallet (M1/M8 TOCTOU).
+    return this.withWalletLock(userId, async () => {
+      // RE-READ everything fresh inside the lock — no stale snapshots (M3/M4/M11).
+      const w = await this.freshWallet(w0);
+      if (w.killSwitch) throw new BadRequestException('Kill switch is on — re-enable the bot first.');
+      // Manual activity must respect (and later feed) the daily breakers (M4/M11).
+      if (w.dailyPnlUsd <= -Math.abs(w.dailyLossLimitUsd)) throw new BadRequestException(`Daily loss limit ($${w.dailyLossLimitUsd}) hit — paused for today.`);
+      const bal = await this.tradeable(w, true); // force-fresh cash (bypass 5s cache)
+      if (w.maxDrawdownUsd > 0 && w.netDepositsUsd > 0) {
+        const funderAddr = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+        const mtm = await this.positionsMtm(funderAddr);
+        const totalPnl = (bal.usdce + mtm.value) - w.netDepositsUsd;
+        if (totalPnl <= -Math.abs(w.maxDrawdownUsd)) throw new BadRequestException(`Max drawdown (−$${w.maxDrawdownUsd}) hit — bot halted; close positions or raise the limit.`);
       }
-      return { ok: true, filled: res.filled, status: res.status };
-    } catch (e: any) {
-      await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
-      this.brain.error({ userId, module: 'polymarket', title: `Manual order FAILED · ${body.outcome}`, detail: String(e?.message || e).slice(0, 200), data: {} });
-      throw new BadRequestException(`Order failed: ${String(e?.message || e).slice(0, 160)}`);
-    }
+      const open = await this.prisma.agentTrade.findMany({ where: { userId, status: 'filled' } });
+      const exposure = open.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+      if (exposure >= w.maxTotalUsd) throw new BadRequestException(`Max-total exposure ($${w.maxTotalUsd}) reached — raise the limit or wait for positions to settle.`);
+      // Room is the binding cap. NO Math.max(1,…) floor — that floor used to bypass the caps and
+      // overspend; instead clamp the requested size to room and reject outright when room < 1 (M1/M8).
+      const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, bal.usdce);
+      if (bal.usdce < 1 || room < 1) throw new BadRequestException(`Not enough room (available $${bal.usdce.toFixed(2)}, cap room $${Math.max(0, room).toFixed(2)}).`);
+      const sizeUsd = Math.floor(Math.min(body.sizeUsd || w.maxPerTradeUsd, room) * 100) / 100;
+      if (sizeUsd < 1) throw new BadRequestException(`Order too small after caps (size $${sizeUsd.toFixed(2)}).`);
+      const trade = await this.prisma.agentTrade.create({
+        data: { userId, market: body.conditionId || '', tokenId: body.tokenId, outcome: body.outcome || '', outcomeIndex: body.outcomeIndex ?? null, title: body.title || '', side: 'BUY', sizeUsd, price: body.price, signalType: body.type || 'arb', detail: 'manual', status: 'pending' },
+      });
+      try {
+        const res = await this.placeOrder(w, body.tokenId, body.price, sizeUsd);
+        if (res.filled) {
+          const execPrice = res.avgPrice && res.avgPrice > 0 ? +res.avgPrice.toFixed(4) : body.price;
+          // Persist the ACTUAL executed price so resolution books P&L on truth, not the signal price (M9).
+          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId, price: execPrice } });
+          // Manual fills now count toward the daily-spend breaker (M11).
+          await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } }).catch(() => {});
+          this.brain.publish({ userId, module: 'polymarket', kind: 'execute', title: `MANUAL · ${body.outcome} $${sizeUsd}`, detail: `Manual arb @ ${Math.round(execPrice * 100)}¢`, data: { title: body.title, sizeUsd, price: execPrice, orderId: res.orderId, manual: true } });
+        } else {
+          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `status=${res.status}` } });
+        }
+        return { ok: true, filled: res.filled, status: res.status };
+      } catch (e: any) {
+        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
+        this.brain.error({ userId, module: 'polymarket', title: `Manual order FAILED · ${body.outcome}`, detail: String(e?.message || e).slice(0, 200), data: {} });
+        throw new BadRequestException(`Order failed: ${String(e?.message || e).slice(0, 160)}`);
+      }
+    });
   }
 
   private async balances(address: string): Promise<{ usdce: number; pol: number }> {
@@ -337,11 +407,12 @@ export class AutobotService {
   /** Real tradeable USDC bankroll. When linked, the deposit wallet's funds live INSIDE Polymarket's
    * CLOB (not as an on-chain token — the proxy shows 0 on-chain), so read the internal COLLATERAL
    * balance via getBalanceAllowance. Else the EOA's on-chain balance. Cached 30s (status polls). */
-  private async tradeable(w: any): Promise<{ usdce: number; pol: number }> {
+  private async tradeable(w: any, force = false): Promise<{ usdce: number; pol: number }> {
     const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
-    if (!funder) return this.balances(w.address);
+    if (!funder) return this.balances(w.address); // EOA path is always a live on-chain read
     const c = this.collCache.get(w.userId);
-    if (c && Date.now() - c.t < 5000) return { usdce: c.v, pol: 999 };
+    // `force` bypasses the 5s cache for the money-critical read taken inside the wallet lock.
+    if (!force && c && Date.now() - c.t < 5000) return { usdce: c.v, pol: 999 };
     try {
       const wallet = this.signer(w.encPrivKey);
       const clobMod: any = await import('@polymarket/clob-client-v2');
@@ -467,6 +538,12 @@ export class AutobotService {
     try { const r = await fetch(`https://data-api.polymarket.com/activity?user=${funder}&limit=500`, { headers }); const d: any = await r.json(); acts = Array.isArray(d) ? d : []; } catch { /* */ }
     try { const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers }); const d: any = await r.json(); positions = Array.isArray(d) ? d : []; } catch { /* */ }
 
+    // Our OWN trade records = the reliable cost basis per market (the activity window can miss an
+    // old BUY → that's why Won showed $0 cost → +$0). Sum what the bot actually paid per market.
+    const myTrades = await this.prisma.agentTrade.findMany({ where: { userId, status: { in: ['filled', 'resolved'] } }, select: { market: true, sizeUsd: true } });
+    const costByMarket = new Map<string, number>();
+    for (const t of myTrades) { if (t.market) costByMarket.set(t.market, (costByMarket.get(t.market) || 0) + (t.sizeUsd || 0)); }
+
     // OPEN positions (live value) — drives the Open view + Close buttons
     const open = positions.filter((p) => Number(p.currentValue) > 0.01).map((p) => ({
       conditionId: p.conditionId, tokenId: String(p.asset), title: p.title, outcome: p.outcome, slug: p.slug, icon: p.icon,
@@ -497,7 +574,8 @@ export class AutobotService {
       redeemByCid.set(a.conditionId, r);
     }
     const wonList = [...redeemByCid.values()].map((r) => {
-      const cost = byMkt.get(r.conditionId)?.cost || 0;
+      // cost: prefer activity-window BUYs, fall back to our own trade records (always known).
+      const cost = byMkt.get(r.conditionId)?.cost || costByMarket.get(r.conditionId) || 0;
       return { conditionId: r.conditionId, title: r.title, slug: r.slug, icon: r.icon, ts: r.ts, cost: +cost.toFixed(2), proceeds: +r.proceeds.toFixed(2), pnlUsd: cost ? +(r.proceeds - cost).toFixed(2) : null, win: true };
     });
     const lostList = positions.filter((p: any) => Number(p.currentValue) <= 0.01 && Number(p.initialValue) > 0)
@@ -706,7 +784,6 @@ export class AutobotService {
     // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").
     let placed = 0;
     let researched = 0;
-    let usdceLeft = bal.usdce;
     for (const pick of fresh) {
       if (placed >= 1 || exposure >= w.maxTotalUsd) break;
       // 🧠 Phase-2 reasoning: recall lessons + a Codex verdict on this candidate (best-effort,
@@ -724,54 +801,91 @@ export class AutobotService {
       // DYNAMIC money management: half-Kelly fraction of the live bankroll, scaled by the
       // signal's edge AND the brain's conviction. Capped by per-trade/total/available limits.
       const edgeFrac = Math.min(0.25, Math.max(0, (pick.edgePct || 0) / 100)); // edge as fraction (cap 25%)
-      const kellyUsd = bal.usdce * edgeFrac * 0.5 * conviction;                 // half-Kelly × conviction
-      const room = Math.min(w.maxPerTradeUsd, w.maxTotalUsd - exposure, usdceLeft);
-      if (room < 1) break;
-      const sizeUsd = Math.max(1, Math.floor(Math.min(kellyUsd, room) * 100) / 100);
       const price = pick.price || (pick.priceCents || 0) / 100;
-      // 🧠 the brain decides — stream it live
-      this.brain.publish({
-        userId: w.userId, module: 'polymarket', kind: 'decide',
-        title: `${pick.type?.toUpperCase() || 'SIGNAL'} · BUY ${pick.outcome} @ ${(price * 100).toFixed(0)}¢`,
-        detail: pick.reason || pick.detail || pick.title,
-        data: { title: pick.title, outcome: pick.outcome, price, edgePct: pick.edgePct ?? null, sizeUsd, signalType: pick.type, bankroll: bal.usdce },
-      });
-      // log intent first (audit) WITH full reasoning, then attempt the order
-      const trade = await this.prisma.agentTrade.create({
-        data: {
-          userId: w.userId, market: pick.conditionId, tokenId: pick.tokenId, outcome: pick.outcome,
-          outcomeIndex: pick.outcomeIndex ?? null,
-          title: pick.title, side: 'BUY', sizeUsd, price, signalType: pick.type,
-          reason: pick.reason || null, edgePct: pick.edgePct ?? null, detail: pick.detail || null,
-          status: 'pending',
-        },
-      });
-      try {
-        const res = await this.placeOrder(w, pick.tokenId, price, sizeUsd);
-        if (res.filled) {
-          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId } });
-          await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
-          this.logger.log(`autobot ${w.address}: FILLED ${pick.outcome} $${sizeUsd} @ ${price} (${pick.type})`);
-          this.brain.publish({
-            userId: w.userId, module: 'polymarket', kind: 'execute',
-            title: `FILLED · ${pick.outcome} $${sizeUsd}`,
-            detail: pick.title,
-            data: { title: pick.title, outcome: pick.outcome, price, sizeUsd, orderId: res.orderId },
-          });
-          exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
-        } else {
+      // ── MONEY-CRITICAL SECTION ──────────────────────────────────────────────
+      // Serialise per wallet AND re-read every input fresh inside the lock so a manual trade /
+      // close / kill that landed since the tick started can't be raced (M1/M3/M4/M8/M11).
+      const outcome: 'stop' | 'skip' | 'placed' = await this.withWalletLock(w.userId, async () => {
+        const fw = await this.freshWallet(w);
+        // M3 — kill-switch / mode flipped since the tick began.
+        if (fw.mode !== 'auto' || fw.killSwitch) return 'stop';
+        // M4 — daily-loss breaker on FRESH counters (manual closes now feed dailyPnlUsd too).
+        if (fw.dailyPnlUsd <= -Math.abs(fw.dailyLossLimitUsd)) {
+          await this.prisma.pmAgentWallet.update({ where: { id: fw.id }, data: { mode: 'off', killSwitch: true } }).catch(() => {});
+          this.brain.error({ userId: fw.userId, module: 'polymarket', title: `Daily loss −$${fw.dailyLossLimitUsd} hit — bot halted`, detail: `Daily P&L $${(fw.dailyPnlUsd || 0).toFixed(2)}`, data: { dailyPnlUsd: fw.dailyPnlUsd } });
+          return 'stop';
+        }
+        const freshBal = await this.tradeable(w, true); // force-fresh cash (bypass 5s cache)
+        // M4 — max-drawdown breaker on FRESH deposits + live value.
+        if (fw.maxDrawdownUsd > 0 && fw.netDepositsUsd > 0) {
+          const funderAddr = (fw.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+          const mtm = await this.positionsMtm(funderAddr);
+          const totalPnl = (freshBal.usdce + mtm.value) - fw.netDepositsUsd;
+          if (totalPnl <= -Math.abs(fw.maxDrawdownUsd)) {
+            await this.prisma.pmAgentWallet.update({ where: { id: fw.id }, data: { mode: 'off', killSwitch: true } }).catch(() => {});
+            this.brain.error({ userId: fw.userId, module: 'polymarket', title: `Max drawdown −$${fw.maxDrawdownUsd} hit — bot HALTED`, detail: `Down $${(-totalPnl).toFixed(2)} total — stopped to protect capital`, data: { totalPnl } });
+            return 'stop';
+          }
+        }
+        // M1/M8 — re-read filled trades + cash, recompute exposure + room; abort if room < 1.
+        const freshOpen = await this.prisma.agentTrade.findMany({ where: { userId: fw.userId, status: 'filled' } });
+        const freshExposure = freshOpen.reduce((s, t) => s + (t.sizeUsd || 0), 0);
+        if (freshExposure >= fw.maxTotalUsd) return 'stop';
+        const room = Math.min(fw.maxPerTradeUsd, fw.maxTotalUsd - freshExposure, freshBal.usdce);
+        if (room < 1) return 'stop';
+        const kellyUsd = freshBal.usdce * edgeFrac * 0.5 * conviction; // half-Kelly × conviction on FRESH cash
+        // Clamp to room. NO Math.max(1,…) floor — that floor used to push a size past the caps.
+        const sizeUsd = Math.floor(Math.min(kellyUsd, room) * 100) / 100;
+        if (sizeUsd < 1) return 'skip';
+        // 🧠 the brain decides — stream it live
+        this.brain.publish({
+          userId: fw.userId, module: 'polymarket', kind: 'decide',
+          title: `${pick.type?.toUpperCase() || 'SIGNAL'} · BUY ${pick.outcome} @ ${(price * 100).toFixed(0)}¢`,
+          detail: pick.reason || pick.detail || pick.title,
+          data: { title: pick.title, outcome: pick.outcome, price, edgePct: pick.edgePct ?? null, sizeUsd, signalType: pick.type, bankroll: freshBal.usdce },
+        });
+        // log intent first (audit) WITH full reasoning, then attempt the order
+        const trade = await this.prisma.agentTrade.create({
+          data: {
+            userId: fw.userId, market: pick.conditionId, tokenId: pick.tokenId, outcome: pick.outcome,
+            outcomeIndex: pick.outcomeIndex ?? null,
+            title: pick.title, side: 'BUY', sizeUsd, price, signalType: pick.type,
+            reason: pick.reason || null, edgePct: pick.edgePct ?? null, detail: pick.detail || null,
+            status: 'pending',
+          },
+        });
+        try {
+          const res = await this.placeOrder(w, pick.tokenId, price, sizeUsd);
+          if (res.filled) {
+            // Persist the ACTUAL executed price so resolution books P&L on truth, not the signal price (M9).
+            const execPrice = res.avgPrice && res.avgPrice > 0 ? +res.avgPrice.toFixed(4) : price;
+            await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'filled', orderId: res.orderId, price: execPrice } });
+            await this.prisma.pmAgentWallet.update({ where: { id: fw.id }, data: { dailySpentUsd: { increment: sizeUsd } } });
+            this.logger.log(`autobot ${w.address}: FILLED ${pick.outcome} $${sizeUsd} @ ${execPrice} (${pick.type})`);
+            this.brain.publish({
+              userId: fw.userId, module: 'polymarket', kind: 'execute',
+              title: `FILLED · ${pick.outcome} $${sizeUsd}`,
+              detail: pick.title,
+              data: { title: pick.title, outcome: pick.outcome, price: execPrice, sizeUsd, orderId: res.orderId },
+            });
+            exposure = freshExposure + sizeUsd; // keep the outer loop guard coherent
+            return 'placed';
+          }
           // order did NOT fill — $0 spent, NO position. DELETE the row so unfilled attempts don't
           // pile up and look like committed money; the brain trace keeps it for debugging.
           await this.prisma.agentTrade.delete({ where: { id: trade.id } }).catch(() => {});
           this.logger.warn(`autobot ${w.address}: order not filled — status=${res.status} ${JSON.stringify(res.raw || {}).slice(0, 240)}`);
-          this.brain.trace({ userId: w.userId, module: 'polymarket', title: `Unfilled · ${pick.outcome} (status ${res.status})`, detail: JSON.stringify(res.raw || {}).slice(0, 200), data: { status: res.status, raw: res.raw } });
+          this.brain.trace({ userId: fw.userId, module: 'polymarket', title: `Unfilled · ${pick.outcome} (status ${res.status})`, detail: JSON.stringify(res.raw || {}).slice(0, 200), data: { status: res.status, raw: res.raw } });
+          return 'skip';
+        } catch (e: any) {
+          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
+          this.logger.warn(`autobot ${w.address}: order failed — ${e?.message}`);
+          this.brain.error({ userId: fw.userId, module: 'polymarket', title: `Order FAILED · ${pick.outcome}`, detail: String(e?.message || e).slice(0, 200), data: { title: pick.title } });
+          return 'stop'; // stop on first hard failure this tick
         }
-      } catch (e: any) {
-        await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
-        this.logger.warn(`autobot ${w.address}: order failed — ${e?.message}`);
-        this.brain.error({ userId: w.userId, module: 'polymarket', title: `Order FAILED · ${pick.outcome}`, detail: String(e?.message || e).slice(0, 200), data: { title: pick.title } });
-        break; // stop on first hard failure this tick
-      }
+      });
+      if (outcome === 'stop') break;
+      if (outcome === 'placed') placed++;
     }
   }
 
@@ -790,6 +904,8 @@ export class AutobotService {
     for (const t of open) {
       const r = t.market ? res[t.market] : null;
       if (!r || !r.closed || r.winningIndex == null) continue;
+      // t.price is the ACTUAL executed entry price (persisted at fill from the order response /
+      // capped fill — not the optimistic signal price), so the booked P&L is on truth (M9/M17).
       const price = t.price || 0;
       if (price <= 0) continue;
       const payoff = r.winningIndex === t.outcomeIndex ? 1 : 0;
@@ -822,7 +938,7 @@ export class AutobotService {
     }
   }
 
-  private async placeOrder(w: any, tokenId: string, price: number, amount: number, side: 'BUY' | 'SELL' = 'BUY'): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any }> {
+  private async placeOrder(w: any, tokenId: string, price: number, amount: number, side: 'BUY' | 'SELL' = 'BUY'): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any; cap?: number; avgPrice?: number; filledShares?: number; filledUsd?: number }> {
     const wallet = this.signer(w.encPrivKey);
     // CLOB **V2** (Polymarket upgraded the exchange 2026-04-28: order struct + EIP-712 domain
     // bumped 1→2; old @polymarket/clob-client → "invalid order version"). clob-client-v2 builds V2.
@@ -872,7 +988,17 @@ export class AutobotService {
       ot,
     );
     const status = String(resp?.status || (resp?.success ? 'submitted' : 'failed'));
-    const filled = !!resp?.success && (status === 'matched' || status === 'live' || Number(resp?.makingAmount) > 0 || Number(resp?.takingAmount) > 0);
-    return { orderId: resp?.orderID || resp?.orderId || null, filled, status, raw: resp };
+    const makingAmount = Number(resp?.makingAmount) || 0; // BUY: USDC paid · SELL: shares sold
+    const takingAmount = Number(resp?.takingAmount) || 0; // BUY: shares bought · SELL: USDC received
+    const filled = !!resp?.success && (status === 'matched' || status === 'live' || makingAmount > 0 || takingAmount > 0);
+    // ACTUAL executed price/size from the order response (so callers book truth, not the optimistic
+    // mark/signal price). Fall back to the capped price (price±buffer) — never the raw mark.
+    let avgPrice = Number(resp?.price) || 0;
+    let filledShares = isBuy ? takingAmount : makingAmount;
+    let filledUsd = isBuy ? makingAmount : takingAmount;
+    if (!(avgPrice > 0 && avgPrice <= 1) && filledShares > 0 && filledUsd > 0) avgPrice = filledUsd / filledShares;
+    if (!(avgPrice > 0 && avgPrice <= 1)) avgPrice = cap ?? price; // last resort: the capped (realistic) price
+    if (!(filledShares > 0)) filledShares = avgPrice > 0 ? amount / (isBuy ? avgPrice : 1) : 0;
+    return { orderId: resp?.orderID || resp?.orderId || null, filled, status, raw: resp, cap, avgPrice, filledShares, filledUsd };
   }
 }

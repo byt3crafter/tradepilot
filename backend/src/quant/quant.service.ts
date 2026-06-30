@@ -95,7 +95,9 @@ export class QuantService implements OnApplicationBootstrap {
     const cross: any[] = [];
     for (const e of events) {
       if (!(e.negRisk || e.enableNegRisk)) continue; // mutually-exclusive sets only
-      const mks = (e.markets || []).filter((m: any) => m.enableOrderBook !== false && !m.closed);
+      const allMarkets = (e.markets || []);
+      const fullCount = allMarkets.length; // M12: full set size BEFORE filtering closed/no-book legs
+      const mks = allMarkets.filter((m: any) => m.enableOrderBook !== false && !m.closed);
       if (mks.length < 2) continue;
       const legs: any[] = [];
       let ok = true;
@@ -107,6 +109,11 @@ export class QuantService implements OnApplicationBootstrap {
         legs.push({ title: m.groupItemTitle || m.question, yesPrice: pr[0], tokenId: tk[0] });
       }
       if (!ok || legs.length < 2) continue;
+      // M12: a NegRisk arb is riskless ONLY if we can buy EVERY mutually-exclusive outcome.
+      // If any leg was filtered out (closed / no order book), buying the survivors is not a
+      // hedge — exactly-one-pays-$1 no longer holds, so 1 - sumYes over a partial set is a
+      // phantom edge. Require the surviving legs to cover the COMPLETE set.
+      if (legs.length !== fullCount) continue;
       const sumYes = legs.reduce((s, l) => s + l.yesPrice, 0);
       const edge = 1 - sumYes; // buy-all-yes underpriced
       if (edge > FEE) {
@@ -367,8 +374,8 @@ export class QuantService implements OnApplicationBootstrap {
 
       // Backfill this wallet's closed positions as resolved paper-copy decisions ONCE
       // (in-sample/historical) so the learning panel + paper-wallet sim have data fast.
-      const already = await this.prisma.agentDecision.count({ where: { subjectAddr: address, mode: 'backfill' } });
-      if (already === 0 && closedPos.length) {
+      const already = await this.prisma.agentDecision.findFirst({ where: { subjectAddr: address, mode: 'backfill' }, select: { id: true } });
+      if (!already && closedPos.length) {
         for (const c of closedPos) {
           await this.prisma.agentDecision.create({
             data: {
@@ -521,6 +528,9 @@ export class QuantService implements OnApplicationBootstrap {
         const addr = String(t.proxyWallet || '').toLowerCase();
         const price = Number(t.price);
         if (!focusMap.has(addr)) return false; // qualified wallets only
+        // M18: never copy ultra-short MINUTE markets — 5-min coin-flips bleed to fees and
+        // pollute the EV table / learnedPolicy / sim. Same exclusion signals() applies.
+        if (QuantService.MINUTE_MARKET.test(String(t.title || ''))) return false;
         // HARD price floor 0.25 — bands <0.20 lose -100%/-33% across every pass; the learned
         // gate could otherwise override the 0.30 prior on a falsely-positive bucket. Guard it.
         if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.25 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
@@ -576,14 +586,41 @@ export class QuantService implements OnApplicationBootstrap {
     if (!open.length) return 0;
     const conds = [...new Set(open.map((d) => d.market).filter(Boolean) as string[])];
     const res = await this.resolveMarkets(conds);
+    const now = Date.now();
+    const AGE_OUT_MS = 14 * 24 * 3600 * 1000; // N1(b): markets unresolved this long past end get aged out
     let resolved = 0;
+    // N1: write a TERMINAL outcome (the `outcome` relation) for any decision that can never
+    // resolve normally, so it leaves the `outcome: null` pending set. Creating the AgentOutcome
+    // IS what sets AgentDecision.outcome (it's a 1:1 relation, not a scalar), so this is exactly
+    // the "set the decision's outcome so it exits the pending set" the head-of-line fix needs.
+    const terminate = async (decisionId: string, notes: string) => {
+      await this.prisma.agentOutcome.create({
+        data: { decisionId, realizedPnl: 0, roiPct: 0, success: false, resolvedAt: new Date(), notes },
+      }).catch(() => {});
+      resolved++;
+    };
     for (const d of open) {
       const r = d.market ? res[d.market] : null;
-      if (!r || !r.closed || r.winningIndex == null) continue;
       const meta: any = d.meta || {};
+      // N1(b): market still hasn't resolved. If it's well past its expected end (or just very
+      // old), age it out as 'expired' so a delisted / never-settling market can't permanently
+      // jam the front of the FIFO queue and starve newer resolvable decisions.
+      if (!r || !r.closed) {
+        const endsAt = Number(meta.endsAt) || 0;
+        const tooOld =
+          now - d.createdAt.getTime() > AGE_OUT_MS ||
+          (endsAt > 0 && now - endsAt > AGE_OUT_MS);
+        if (tooOld) await terminate(d.id, 'expired (market never resolved)');
+        continue;
+      }
+      // N1(a): closed but no winning index (voided / invalid / delisted resolution) — there is
+      // no payoff to compute, so write a TERMINAL 'void' outcome instead of skipping forever.
       const oi = Number(meta.outcomeIndex) || 0;
       const entry = Number(meta.entryPrice) || 0;
-      if (entry <= 0) continue;
+      if (r.winningIndex == null || !(entry > 0)) {
+        await terminate(d.id, r.winningIndex == null ? 'void (closed, no winning index)' : 'void (missing entry price)');
+        continue;
+      }
       const payoff = r.winningIndex === oi ? 1 : 0; // binary outcome settles to {0,1}
       const roiPct = ((payoff - entry) / entry) * 100;
       await this.prisma.agentOutcome.create({
@@ -755,6 +792,8 @@ export class QuantService implements OnApplicationBootstrap {
     let created = 0;
     for (const a of lags) {
       if (!a.conditionId || a.outcomeIndex == null) continue;
+      // M18: never paper-take ultra-short MINUTE markets — same exclusion as signals().
+      if (QuantService.MINUTE_MARKET.test(String(a.title || ''))) continue;
       try {
         await this.prisma.agentDecision.create({
           data: {
@@ -802,6 +841,8 @@ export class QuantService implements OnApplicationBootstrap {
       for (const t of trades) {
         const addr = String(t.proxyWallet || '').toLowerCase();
         if (!focusMap.has(addr)) continue;
+        // M18: skip ultra-short MINUTE markets (5-min coin-flips) — same exclusion as signals().
+        if (QuantService.MINUTE_MARKET.test(String(t.title || ''))) continue;
         const price = Number(t.price);
         if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.25 && price < 0.98 && t.conditionId)) continue;
         if (price >= 0.40 && price < 0.50) continue; // coin-flip dead zone
@@ -950,8 +991,8 @@ export class QuantService implements OnApplicationBootstrap {
       let bf = 0;
       for (const w of top) {
         if (bf >= 10) break;
-        const has = await this.prisma.agentDecision.count({ where: { subjectAddr: w.address, mode: 'backfill' } });
-        if (has === 0) { await this.scanWallet(w.address).catch(() => {}); bf++; await new Promise((r) => setTimeout(r, 400)); }
+        const has = await this.prisma.agentDecision.findFirst({ where: { subjectAddr: w.address, mode: 'backfill' }, select: { id: true } });
+        if (!has) { await this.scanWallet(w.address).catch(() => {}); bf++; await new Promise((r) => setTimeout(r, 400)); }
       }
       if (created || resolved || bf) this.logger.log(`paper loop: +${created} signals, ${resolved} resolved, ${bf} backfilled`);
     } catch (e: any) {

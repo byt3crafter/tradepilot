@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Observable, Subject, filter } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -34,21 +34,28 @@ export interface BrainEventInput {
 @Injectable()
 export class BrainService {
   private readonly bus = new Subject<any>();
-  private level: BrainLevel = (process.env.BRAIN_LEVEL as BrainLevel) || 'normal';
+  private readonly logger = new Logger(BrainService.name);
+  /** Verbosity is PER-USER (was a global singleton — N2). Keyed by userId; falls back to default. */
+  private readonly levels = new Map<string, BrainLevel>();
+  private readonly defaultLevel: BrainLevel = (process.env.BRAIN_LEVEL as BrainLevel) || 'normal';
 
   constructor(private readonly prisma: PrismaService) {}
 
-  setLevel(l: BrainLevel) { if (['quiet', 'normal', 'verbose', 'debug'].includes(l)) this.level = l; return this.level; }
-  getLevel() { return this.level; }
+  setLevel(userId: string, l: BrainLevel) {
+    if (['quiet', 'normal', 'verbose', 'debug'].includes(l)) this.levels.set(userId, l);
+    return this.getLevel(userId);
+  }
+  getLevel(userId: string): BrainLevel { return this.levels.get(userId) ?? this.defaultLevel; }
 
   /** Always surfaced — a failure in any module. Shows red in the feed + persists for debugging. */
   error(e: { userId: string; module: string; title: string; detail?: string; data?: any }) {
     return this.publish({ ...e, kind: 'error' });
   }
 
-  /** Verbose trace — only emitted when verbosity is 'verbose' or 'debug'. For fast debugging. */
+  /** Verbose trace — only emitted when the FIRING USER's verbosity is 'verbose' or 'debug'. Gated per-user (N2). */
   trace(e: { userId: string; module: string; title: string; detail?: string; data?: any }) {
-    if (this.level === 'verbose' || this.level === 'debug') return this.publish({ ...e, kind: 'debug' });
+    const level = this.getLevel(e.userId);
+    if (level === 'verbose' || level === 'debug') return this.publish({ ...e, kind: 'debug' });
   }
 
   /** Fire a neuron — push to the live stream + persist (fire-and-forget). */
@@ -57,7 +64,7 @@ export class BrainService {
     this.bus.next(evt);
     this.prisma.brainEvent
       .create({ data: { userId: e.userId, module: e.module, kind: e.kind, title: e.title, detail: e.detail ?? null, data: e.data ?? undefined } })
-      .catch(() => {});
+      .catch((err) => this.logger.warn(`brain event persist failed (${e.module}/${e.kind}): ${err?.message ?? err}`));
     return evt;
   }
 
@@ -77,16 +84,23 @@ export class BrainService {
   /** "Is the brain working?" — activity + outcome stats per module. */
   async scoreboard(userId: string) {
     const since = new Date(Date.now() - 7 * 864e5);
-    const events = await this.prisma.brainEvent.findMany({ where: { userId, createdAt: { gte: since } }, select: { module: true, kind: true } });
+    const grouped = await this.prisma.brainEvent.groupBy({
+      by: ['module', 'kind'],
+      where: { userId, createdAt: { gte: since } },
+      _count: { _all: true },
+    });
     const byModule: Record<string, any> = {};
-    for (const e of events) {
-      const m = (byModule[e.module] ??= { module: e.module, decided: 0, executed: 0, learned: 0, skipped: 0 });
-      if (e.kind === 'decide') m.decided++;
-      else if (e.kind === 'execute') m.executed++;
-      else if (e.kind === 'learn') m.learned++;
-      else if (e.kind === 'skip') m.skipped++;
+    let total = 0;
+    for (const g of grouped) {
+      const count = g._count._all;
+      total += count;
+      const m = (byModule[g.module] ??= { module: g.module, decided: 0, executed: 0, learned: 0, skipped: 0 });
+      if (g.kind === 'decide') m.decided += count;
+      else if (g.kind === 'execute') m.executed += count;
+      else if (g.kind === 'learn') m.learned += count;
+      else if (g.kind === 'skip') m.skipped += count;
     }
-    return { modules: Object.values(byModule), total: events.length };
+    return { modules: Object.values(byModule), total };
   }
 }
 

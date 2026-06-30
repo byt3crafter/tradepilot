@@ -33,13 +33,13 @@ export class BrainController {
 
   @UseGuards(JwtAccessGuard)
   @Get('level')
-  level() {
-    return { level: this.brain.getLevel() };
+  level(@Req() req: any) {
+    return { level: this.brain.getLevel(req.user.sub) };
   }
 
   @UseGuards(JwtAccessGuard)
   @Post('level')
-  setLevel(@Body('level') level: any) {
-    return { level: this.brain.setLevel(level) };
+  setLevel(@Req() req: any, @Body('level') level: any) {
+    return { level: this.brain.setLevel(req.user.sub, level) };
   }
 }
