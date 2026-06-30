@@ -351,13 +351,16 @@ export class AutobotService {
     // wallet's Polymarket proxy address → POLY_PROXY mode. Without it we fall back to EOA.
     const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
     if (!funder) await this.ensureAllowances(wallet); // EOA mode: approve from the EOA
+    // Linked = a Polymarket V2 deposit wallet → POLY_1271 (signatureType 3, EIP-1271 smart-wallet
+    // sig). POLY_PROXY (1) is rejected with "use the deposit wallet flow" for these.
     const baseOpts: any = funder
-      ? { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.POLY_PROXY, funderAddress: funder }
+      ? { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.POLY_1271, funderAddress: funder }
       : { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.EOA, funderAddress: address };
     let creds = w.apiCreds;
     if (!creds) {
       creds = await new ClobClient(baseOpts).createOrDeriveApiKey();
       await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { apiCreds: creds } });
+      w.apiCreds = creds; // reuse within this tick — re-deriving per order raced + failed some
     }
     const client = new ClobClient({ ...baseOpts, creds });
     // MARKET order (take liquidity now): amount = $ to spend on a BUY; FOK so it fills fully or
