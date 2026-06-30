@@ -418,33 +418,65 @@ export class AutobotService {
   }
 
   /** Real-money performance: equity curve (cumulative realized P&L) + win/loss stats. */
+  /** Performance sourced ENTIRELY from Polymarket (data-api) — the same place the wallet lives, so
+   * the app mirrors Polymarket exactly. History = the activity feed; realized/win-loss/curve are
+   * computed by matching BUY cost vs SELL+REDEEM proceeds per market on SETTLED markets (anything
+   * not currently holding live value). No dependency on the internal trade log (which drifted). */
   async performance(userId: string) {
-    const trades = await this.prisma.agentTrade.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
-    const resolved = trades.filter((t) => t.status === 'resolved');
-    const wins = resolved.filter((t) => (t.pnlUsd || 0) > 0).length;
-    const losses = resolved.length - wins;
-    const realizedPnl = resolved.reduce((s, t) => s + (t.pnlUsd || 0), 0);
-    const byTime = resolved.filter((t) => t.resolvedAt).sort((a, b) => a.resolvedAt!.getTime() - b.resolvedAt!.getTime());
-    let cum = 0;
-    const curve = byTime.map((t) => { cum += t.pnlUsd || 0; return { t: t.resolvedAt!.getTime(), pnl: +cum.toFixed(2) }; });
-    let peak = 0, maxdd = 0;
-    for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
     const w = await this.getOrCreate(userId);
-    const bal = await this.tradeable(w); // real trading funds (deposit wallet if linked)
-    const openExposure = trades.filter((t) => t.status === 'filled').reduce((s, t) => s + (t.sizeUsd || 0), 0);
+    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+    const bal = await this.tradeable(w);
+    const headers = { 'User-Agent': 'JTradePilot/1.0' } as any;
+    let acts: any[] = [], positions: any[] = [];
+    try { const r = await fetch(`https://data-api.polymarket.com/activity?user=${funder}&limit=500`, { headers }); const d: any = await r.json(); acts = Array.isArray(d) ? d : []; } catch { /* */ }
+    try { const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers }); const d: any = await r.json(); positions = Array.isArray(d) ? d : []; } catch { /* */ }
+
+    // OPEN positions (live value) — drives the Open view + Close buttons
+    const open = positions.filter((p) => Number(p.currentValue) > 0.01).map((p) => ({
+      conditionId: p.conditionId, tokenId: String(p.asset), title: p.title, outcome: p.outcome, slug: p.slug, icon: p.icon,
+      cost: +(+p.initialValue || 0).toFixed(2), value: +(+p.currentValue || 0).toFixed(2), pnlUsd: +(+p.cashPnl || 0).toFixed(2), price: +(+p.curPrice || 0), size: +p.size,
+    }));
+    const openCids = new Set(open.map((o) => o.conditionId));
+
+    // Group activity by market → cost (BUY) vs proceeds (SELL+REDEEM). Settled = not currently open.
+    const byMkt = new Map<string, any>();
+    for (const a of acts) {
+      const cid = a.conditionId; if (!cid) continue;
+      const m = byMkt.get(cid) || { conditionId: cid, title: a.title, slug: a.slug, icon: a.icon, cost: 0, proceeds: 0, ts: 0 };
+      const usd = +a.usdcSize || 0;
+      if (a.type === 'BUY') m.cost += usd;
+      else if (a.type === 'SELL' || a.type === 'REDEEM') m.proceeds += usd;
+      m.ts = Math.max(m.ts, +a.timestamp || 0);
+      if (a.title) m.title = a.title;
+      byMkt.set(cid, m);
+    }
+    const settled = [...byMkt.values()].filter((m) => !openCids.has(m.conditionId) && (m.cost > 0 || m.proceeds > 0))
+      .map((m) => ({ conditionId: m.conditionId, title: m.title, slug: m.slug, icon: m.icon, ts: m.ts * 1000, cost: +m.cost.toFixed(2), proceeds: +m.proceeds.toFixed(2), pnlUsd: +(m.proceeds - m.cost).toFixed(2), win: (m.proceeds - m.cost) > 0 }))
+      .sort((a, b) => b.ts - a.ts);
+    const realizedPnl = +settled.reduce((s, m) => s + m.pnlUsd, 0).toFixed(2);
+    const wins = settled.filter((m) => m.win).length;
+    const losses = settled.length - wins;
+
+    // equity curve (cumulative realized, chronological) + max drawdown
+    const chrono = [...settled].sort((a, b) => a.ts - b.ts);
+    let cum = 0; const curve = chrono.map((m) => { cum += m.pnlUsd; return { t: m.ts, pnl: +cum.toFixed(2) }; });
+    let peak = 0, maxdd = 0; for (const p of curve) { peak = Math.max(peak, p.pnl); maxdd = Math.max(maxdd, peak - p.pnl); }
+
+    const openExposure = +open.reduce((s, o) => s + o.value, 0).toFixed(2);
+    // History feed = raw Polymarket activity, newest first (mirrors Polymarket's History tab)
+    const history = acts.slice().sort((a, b) => (+b.timestamp || 0) - (+a.timestamp || 0)).slice(0, 100).map((a) => ({
+      type: a.type, title: a.title, outcome: a.outcome, usdcSize: +(+a.usdcSize || 0).toFixed(2), price: +a.price || 0,
+      ts: (+a.timestamp || 0) * 1000, slug: a.slug, icon: a.icon, conditionId: a.conditionId, side: a.side,
+    }));
+
     return {
       stats: {
-        trades: trades.length,
-        open: trades.filter((t) => t.status === 'filled').length,
-        resolved: resolved.length,
-        wins, losses,
-        winRate: resolved.length ? wins / resolved.length : 0,
-        realizedPnlUsd: +realizedPnl.toFixed(2),
-        maxDrawdownUsd: +maxdd.toFixed(2),
-        walletUsdce: bal.usdce,
-        openExposureUsd: +openExposure.toFixed(2),
+        trades: byMkt.size, open: open.length, resolved: settled.length, wins, losses,
+        winRate: settled.length ? wins / settled.length : 0,
+        realizedPnlUsd: realizedPnl, maxDrawdownUsd: +maxdd.toFixed(2),
+        walletUsdce: bal.usdce, openExposureUsd: openExposure,
       },
-      curve,
+      curve, history, open, settled,
     };
   }
 
