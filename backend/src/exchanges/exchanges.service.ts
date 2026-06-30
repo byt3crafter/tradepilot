@@ -459,7 +459,11 @@ export class ExchangesService {
   @Interval('cex-bot', 5 * 60 * 1000)
   async botLoop() {
     try { await this.botTick('binance'); }
-    catch (e: any) { this.logger.warn(`cex bot loop: ${e?.message}`); }
+    catch (e: any) {
+      this.logger.warn(`cex bot loop: ${e?.message}`);
+      const op = await this.operatorUserId();
+      if (op) this.brain.error({ userId: op, module: 'crypto', title: 'Crypto bot tick error', detail: String(e?.message || e).slice(0, 200), data: {} });
+    }
   }
 
   // ── live/testnet execution (needs stored credentials) ─────────────────────────

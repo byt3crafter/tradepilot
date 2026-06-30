@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, Sse, UseGuards, MessageEvent } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, Sse, UseGuards, MessageEvent } from '@nestjs/common';
 import { Observable, map, merge, interval } from 'rxjs';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { SseJwtGuard } from './sse-jwt.guard';
@@ -29,5 +29,17 @@ export class BrainController {
   @Get('scoreboard')
   scoreboard(@Req() req: any) {
     return this.brain.scoreboard(req.user.sub);
+  }
+
+  @UseGuards(JwtAccessGuard)
+  @Get('level')
+  level() {
+    return { level: this.brain.getLevel() };
+  }
+
+  @UseGuards(JwtAccessGuard)
+  @Post('level')
+  setLevel(@Body('level') level: any) {
+    return { level: this.brain.setLevel(level) };
   }
 }

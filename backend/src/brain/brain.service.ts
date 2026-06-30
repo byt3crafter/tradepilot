@@ -16,7 +16,11 @@ export type BrainKind =
   | 'skip'      // considered + rejected a candidate
   | 'execute'   // placed a real order
   | 'learn'     // a trade resolved → lesson written to memory
-  | 'note';     // freeform status
+  | 'note'      // freeform status
+  | 'error'     // something FAILED (always surfaced)
+  | 'debug';    // verbose trace (only when verbosity is on)
+
+export type BrainLevel = 'quiet' | 'normal' | 'verbose' | 'debug';
 
 export interface BrainEventInput {
   userId: string;
@@ -30,8 +34,22 @@ export interface BrainEventInput {
 @Injectable()
 export class BrainService {
   private readonly bus = new Subject<any>();
+  private level: BrainLevel = (process.env.BRAIN_LEVEL as BrainLevel) || 'normal';
 
   constructor(private readonly prisma: PrismaService) {}
+
+  setLevel(l: BrainLevel) { if (['quiet', 'normal', 'verbose', 'debug'].includes(l)) this.level = l; return this.level; }
+  getLevel() { return this.level; }
+
+  /** Always surfaced — a failure in any module. Shows red in the feed + persists for debugging. */
+  error(e: { userId: string; module: string; title: string; detail?: string; data?: any }) {
+    return this.publish({ ...e, kind: 'error' });
+  }
+
+  /** Verbose trace — only emitted when verbosity is 'verbose' or 'debug'. For fast debugging. */
+  trace(e: { userId: string; module: string; title: string; detail?: string; data?: any }) {
+    if (this.level === 'verbose' || this.level === 'debug') return this.publish({ ...e, kind: 'debug' });
+  }
 
   /** Fire a neuron — push to the live stream + persist (fire-and-forget). */
   publish(e: BrainEventInput) {
