@@ -441,6 +441,10 @@ export class QuantService implements OnApplicationBootstrap {
   // self-update. Generalizes to unseen markets via features (baby-brain), not brute force.
   // Junk/novelty markets that pollute the "politics" tag — never trade these.
   static readonly NOVELTY = /\bgta\b|grand theft|jesus|\bchrist\b|rapture|second coming|\baliens?\b|extraterrestrial|bigfoot|loch ness|nostradamus/i;
+  // Ultra-short MINUTE markets (e.g. "... Up or Down - June 30, 9:40AM-9:45AM ET"). Pure 50/50
+  // coin-flips that bleed to fees every few minutes. Identified by a time-RANGE in the title — this
+  // does NOT block normal crypto markets (no time window). The "not stupid things" exclusion.
+  static readonly MINUTE_MARKET = /\d{1,2}:\d{2}\s*(?:am|pm)?\s*[-–—]\s*\d{1,2}:\d{2}\s*(?:am|pm)/i;
 
   private evCache: { at: number; table: Map<string, { mean: number; n: number; winRate: number }> } | null = null;
   private bucketKey(focus: string | null | undefined, price: number): string {
@@ -852,7 +856,8 @@ export class QuantService implements OnApplicationBootstrap {
     const aiEnds = await this.pm.marketEndDates(aiCids).catch(() => ({} as any));
     for (const s of ai as any[]) s.endDate = aiEnds[s.conditionId] || null;
     const now = Date.now();
-    const all = [...copy, ...ai, ...arbs];
+    // Drop ultra-short minute-markets (5-min coin-flips) from EVERY source — they bleed to fees.
+    const all = [...copy, ...ai, ...arbs].filter((s: any) => !QuantService.MINUTE_MARKET.test(s.title || ''));
     // Prefer FAST-resolving markets (resolve within 7 days float up — Sports settles same-day),
     // then by edge. Stops the book from being all weeks-out narrative bets.
     all.sort((x: any, y: any) => {
