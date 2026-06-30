@@ -38,6 +38,7 @@ import {
   Button,
 } from '../ui';
 import type { Segment } from '../ui';
+import QuantCopilot from './QuantCopilot';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1995,6 +1996,9 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
           <LimitsEditor limits={status.limits} netDepositsUsd={status.netDepositsUsd} onSave={onSetLimits} />
         </Panel>
       </div>
+
+      {/* ── AI Copilot ── */}
+      <QuantCopilot />
     </div>
   );
 };

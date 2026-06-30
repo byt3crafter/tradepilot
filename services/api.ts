@@ -169,6 +169,7 @@ export interface ApiService {
   autobotSetStrategies(s: { copy?: boolean; ai?: boolean; arb?: boolean }, token?: string | null): Promise<AutobotStatus>;
   autobotClose(tokenId: string, token?: string | null): Promise<{ ok: boolean; filled: boolean; proceeds: number }>;
   autobotCloseAll(token?: string | null): Promise<{ closed: number; total: number; results: Array<{ tokenId: string; ok: boolean; proceeds?: number; error?: string }> }>;
+  autobotCopilot(question: string, token?: string | null): Promise<{ answer: string }>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -494,6 +495,7 @@ const api: ApiService = {
   autobotSetStrategies(s: { copy?: boolean; ai?: boolean; arb?: boolean }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/strategies', s, token); },
   autobotClose(tokenId: string, token?: string | null): Promise<{ ok: boolean; filled: boolean; proceeds: number }> { return this.post('/api/autobot/close', { tokenId }, token); },
   autobotCloseAll(token?: string | null): Promise<{ closed: number; total: number; results: Array<{ tokenId: string; ok: boolean; proceeds?: number; error?: string }> }> { return this.post('/api/autobot/close-all', {}, token); },
+  autobotCopilot(question: string, token?: string | null): Promise<{ answer: string }> { return this.post('/api/autobot/copilot', { question }, token); },
 
   // Manual Arb Desk
   autobotOpportunities(token?: string | null): Promise<{ settlementLag: ArbOpportunity[]; crossMarket: ArbOpportunity[]; scannedAt: string }> { return this.get('/api/autobot/opportunities', token); },
