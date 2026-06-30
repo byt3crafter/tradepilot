@@ -715,6 +715,7 @@ export default function BrainDashboard() {
         if (!mountedRef.current) return;
         try {
           const event = JSON.parse(e.data) as BrainEvent;
+          if ((event as any).kind === 'ping') return; // heartbeat — keep-alive only, not a neuron
           setEvents(prev => [event, ...prev].slice(0, MAX_FEED_EVENTS));
           setNewestId(event.id);
           fireNode(event.kind);
