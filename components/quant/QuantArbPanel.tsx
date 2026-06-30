@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { ArbScan, CrossMarketArb, SettlementLagArb } from '../../types';
 import { TradePrefill } from '../trade/PolymarketTradePanel';
 import { Panel, Button, EmptyState } from '../ui';
+import QuantManualArbDesk from './QuantManualArbDesk';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -247,6 +248,18 @@ const QuantArbPanel: React.FC<Props> = ({ onTrade }) => {
 
   return (
     <div className="flex flex-col gap-4 animate-jtp-fade-in">
+
+      {/* ── Manual Arb Desk ── */}
+      <QuantManualArbDesk />
+
+      {/* ── Divider ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-jtp-borderSubtle" />
+        <span className="font-mono text-jtp-2xs text-jtp-textMuted tracking-[0.12em] uppercase">
+          Legacy Scanner
+        </span>
+        <div className="flex-1 h-px bg-jtp-borderSubtle" />
+      </div>
 
       {/* ── Honest disclaimer ── */}
       <div className="px-4 py-3 bg-jtp-panel border border-jtp-borderSubtle rounded-[2px] text-jtp-xs text-jtp-textMuted leading-relaxed">

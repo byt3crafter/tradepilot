@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, ArbOpportunity, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -223,6 +223,12 @@ export interface ApiService {
   brainScoreboard(token?: string | null): Promise<BrainScoreboard>;
   brainGetLevel(token?: string | null): Promise<{ level: string }>;
   brainSetLevel(level: 'quiet' | 'normal' | 'verbose' | 'debug', token?: string | null): Promise<{ level: string }>;
+
+  // Manual Arb Desk
+  autobotOpportunities(token?: string | null): Promise<{ settlementLag: ArbOpportunity[]; crossMarket: ArbOpportunity[]; scannedAt: string }>;
+  autobotManualTrade(body: { tokenId: string; conditionId: string; price: number; outcome: string; outcomeIndex: number; sizeUsd?: number; title: string; type: 'arb' }, token?: string | null): Promise<{ ok: boolean; filled: boolean; status: string }>;
+  autobotAssess(body: { tokenId: string; conditionId: string; title: string; outcome: string; price: number; edgePct: number; detail?: string; type: 'arb' }, token?: string | null): Promise<{ ai: { take: boolean | null; conviction: number | null; rationale: string } }>;
+  autobotSetArbConfig(cfg: { safeMinPrice?: number; safeMaxHrs?: number; immMinPrice?: number; immMaxHrs?: number; minEdgePct?: number }, token?: string | null): Promise<AutobotStatus>;
 }
 
 export interface ChatGptPermissions {
@@ -482,6 +488,12 @@ const api: ApiService = {
   autobotSetFunder(address: string, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/funder', { address }, token); },
   autobotClearTrades(id: string | undefined, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/clear-trades', id !== undefined ? { id } : {}, token); },
   autobotSetStrategies(s: { copy?: boolean; ai?: boolean; arb?: boolean }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/strategies', s, token); },
+
+  // Manual Arb Desk
+  autobotOpportunities(token?: string | null): Promise<{ settlementLag: ArbOpportunity[]; crossMarket: ArbOpportunity[]; scannedAt: string }> { return this.get('/api/autobot/opportunities', token); },
+  autobotManualTrade(body: { tokenId: string; conditionId: string; price: number; outcome: string; outcomeIndex: number; sizeUsd?: number; title: string; type: 'arb' }, token?: string | null): Promise<{ ok: boolean; filled: boolean; status: string }> { return this.post('/api/autobot/manual-trade', body, token); },
+  autobotAssess(body: { tokenId: string; conditionId: string; title: string; outcome: string; price: number; edgePct: number; detail?: string; type: 'arb' }, token?: string | null): Promise<{ ai: { take: boolean | null; conviction: number | null; rationale: string } }> { return this.post('/api/autobot/assess', body, token); },
+  autobotSetArbConfig(cfg: { safeMinPrice?: number; safeMaxHrs?: number; immMinPrice?: number; immMaxHrs?: number; minEdgePct?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/arb-config', cfg, token); },
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },
