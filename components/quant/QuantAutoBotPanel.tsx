@@ -20,7 +20,14 @@ import {
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { AutobotStatus, AutobotTrade, AutobotPerformance } from '../../types';
+import {
+  AutobotStatus,
+  AutobotTrade,
+  AutobotPerformance,
+  AutobotPerformanceHistoryItem,
+  AutobotPerformanceOpenPosition,
+  AutobotPerformanceSettled,
+} from '../../types';
 import {
   Panel,
   StatTile,
@@ -805,6 +812,17 @@ const fmtRelTime = (iso: string) => {
   return `${Math.floor(h / 24)}d ago`;
 };
 
+const fmtRelTimeMs = (ms: number) => {
+  const diff = Date.now() - ms;
+  const s = Math.floor(diff / 1000);
+  if (s < 60)   return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60)   return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)   return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
+
 // ─── TradeCard ─────────────────────────────────────────────────────────────────
 
 interface TradeCardProps {
@@ -1106,6 +1124,236 @@ const TradeFilterBar: React.FC<TradeFilterBarProps> = ({
   );
 };
 
+// ─── Polymarket-mirrored row components ────────────────────────────────────────
+
+// Filter type for the Polymarket-mirrored trade view
+type PerfFilter = 'history' | 'open' | 'won' | 'lost';
+
+interface PerfFilterBarProps {
+  filter: PerfFilter;
+  onFilter: (f: PerfFilter) => void;
+  historyCount: number;
+  openCount: number;
+  wonCount: number;
+  lostCount: number;
+}
+
+const PerfFilterBar: React.FC<PerfFilterBarProps> = ({
+  filter, onFilter, historyCount, openCount, wonCount, lostCount,
+}) => {
+  const chips: { value: PerfFilter; label: string }[] = [
+    { value: 'history', label: `History (${historyCount})` },
+    { value: 'open',    label: `Open (${openCount})` },
+    { value: 'won',     label: `Won (${wonCount})` },
+    { value: 'lost',    label: `Lost (${lostCount})` },
+  ];
+
+  const chipBase =
+    'font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border transition-colors whitespace-nowrap select-none';
+  const chipInactive =
+    'bg-jtp-bg text-jtp-textMuted border-jtp-borderStrong hover:text-jtp-text hover:border-jtp-borderFocus';
+
+  const chipClass = (v: PerfFilter): string => {
+    if (v !== filter) return `${chipBase} ${chipInactive}`;
+    if (v === 'won')  return `${chipBase} bg-[rgba(61,220,132,0.10)] text-[#3ddc84] border-[rgba(61,220,132,0.40)]`;
+    if (v === 'lost') return `${chipBase} bg-[rgba(255,91,82,0.10)] text-[#ff5b52] border-[rgba(255,91,82,0.40)]`;
+    return `${chipBase} bg-[rgba(232,162,61,0.14)] text-[#e8a23d] border-[rgba(232,162,61,0.45)]`;
+  };
+
+  return (
+    <div className="px-4 pt-3 pb-2 border-b border-jtp-borderSubtle">
+      <div className="flex flex-wrap gap-1.5 items-center" role="group" aria-label="Filter trade history">
+        {chips.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={filter === value}
+            onClick={() => onFilter(value)}
+            className={chipClass(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Shared market icon — small rounded img with graceful fallback
+const MarketIcon: React.FC<{ icon?: string; title?: string }> = ({ icon, title }) =>
+  icon ? (
+    <img
+      src={icon}
+      alt=""
+      aria-hidden="true"
+      title={title}
+      className="w-7 h-7 rounded-full flex-shrink-0 object-cover bg-jtp-control"
+      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    />
+  ) : (
+    <div className="w-7 h-7 rounded-full flex-shrink-0 bg-jtp-control border border-jtp-borderStrong" aria-hidden="true" />
+  );
+
+// History row — mirrors Polymarket History tab
+const HistoryRow: React.FC<{ item: AutobotPerformanceHistoryItem }> = ({ item }) => {
+  const isTrade = item.type === 'TRADE';
+  const isBuy   = item.side === 'BUY';
+
+  const badgeLabel = isTrade ? (isBuy ? 'BUY' : 'SELL') : item.type;
+  const badgeVariant: 'neutral' | 'info' | 'profit' | 'loss' | 'warning' =
+    isTrade ? (isBuy ? 'info' : 'warning') : 'profit';
+
+  return (
+    <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors flex items-center gap-3 min-w-0">
+      <MarketIcon icon={item.icon} />
+      <span className="flex-shrink-0">
+        <Badge variant={badgeVariant} size="xs">{badgeLabel}</Badge>
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{item.title}</p>
+        {item.outcome && (
+          <p className={`font-mono text-jtp-2xs font-semibold ${outcomeColor(item.outcome)}`}>
+            {item.outcome}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+        <span
+          className="font-mono text-jtp-xs text-jtp-text font-semibold"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
+          ${item.usdcSize.toFixed(2)}
+        </span>
+        <span className="font-mono text-jtp-2xs text-jtp-textFaint">{fmtRelTimeMs(item.ts)}</span>
+      </div>
+    </div>
+  );
+};
+
+// Open position row — with Close button (same confirm-phase pattern as TradeCard)
+interface OpenRowProps {
+  pos: AutobotPerformanceOpenPosition;
+  onClose?: () => Promise<void>;
+  closeBusy?: boolean;
+}
+
+const OpenRow: React.FC<OpenRowProps> = ({ pos, onClose, closeBusy }) => {
+  const [closePhase, setClosePhase] = useState<'idle' | 'confirm'>('idle');
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startConfirm = () => {
+    setClosePhase('confirm');
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    confirmTimerRef.current = setTimeout(() => setClosePhase('idle'), 5000);
+  };
+  const cancelConfirm = () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setClosePhase('idle');
+  };
+  const doClose = async () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setClosePhase('idle');
+    if (onClose) await onClose();
+  };
+
+  return (
+    <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors">
+      <div className="flex items-center gap-3 min-w-0 flex-wrap">
+        <MarketIcon icon={pos.icon} />
+        <div className="flex-1 min-w-0">
+          <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{pos.title}</p>
+          {pos.outcome && (
+            <p className={`font-mono text-jtp-2xs font-semibold ${outcomeColor(pos.outcome)}`}>
+              {pos.outcome}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+          {/* Cost → Value */}
+          <span
+            className="font-mono text-jtp-2xs text-jtp-textMuted"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            ${pos.cost.toFixed(2)}&nbsp;→&nbsp;
+            <span className="text-jtp-text">${pos.value.toFixed(2)}</span>
+          </span>
+          {/* P&L */}
+          <span
+            className={`font-mono text-jtp-xs font-semibold ${pnlColor(pos.pnlUsd)}`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {pos.pnlUsd >= 0 ? '+' : ''}{fmtUsd(pos.pnlUsd)}
+          </span>
+          {/* Close button */}
+          {onClose && (
+            closeBusy ? (
+              <span className="flex items-center gap-1 font-mono text-jtp-2xs text-jtp-textDim" aria-label="Closing position">
+                <Spin /> closing…
+              </span>
+            ) : closePhase === 'confirm' ? (
+              <span className="flex items-center gap-1" role="group" aria-label="Confirm close position">
+                <span className="font-mono text-jtp-2xs text-[#ff5b52] font-semibold">Sell?</span>
+                <button
+                  type="button"
+                  onClick={doClose}
+                  aria-label="Confirm sell position"
+                  className="flex items-center justify-center w-5 h-5 rounded-[2px] border border-[rgba(61,220,132,0.5)] text-[#3ddc84] hover:bg-[rgba(61,220,132,0.12)] transition-colors font-mono text-jtp-xs leading-none font-bold"
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelConfirm}
+                  aria-label="Cancel sell"
+                  className="flex items-center justify-center w-5 h-5 rounded-[2px] border border-jtp-borderStrong text-jtp-textDim hover:text-jtp-text transition-colors font-mono text-jtp-xs leading-none"
+                >
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={startConfirm}
+                title="Close position — sell at current market price"
+                aria-label="Close position"
+                className="flex-shrink-0 font-mono text-jtp-2xs font-semibold px-2 py-0.5 rounded-[2px] border border-[rgba(255,91,82,0.4)] text-[#ff5b52] bg-[rgba(255,91,82,0.07)] hover:bg-[rgba(255,91,82,0.15)] transition-colors"
+              >
+                Close
+              </button>
+            )
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Settled market row (Won / Lost)
+const SettledRow: React.FC<{ item: AutobotPerformanceSettled }> = ({ item }) => (
+  <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors flex items-center gap-3 min-w-0">
+    <MarketIcon icon={item.icon} />
+    <div className="flex-1 min-w-0">
+      <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{item.title}</p>
+      <span
+        className="font-mono text-jtp-2xs text-jtp-textMuted"
+        style={{ fontVariantNumeric: 'tabular-nums' }}
+      >
+        ${item.cost.toFixed(2)}&nbsp;→&nbsp;
+        <span className="text-jtp-text">${item.proceeds.toFixed(2)}</span>
+      </span>
+    </div>
+    <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+      <span
+        className={`font-mono text-jtp-xs font-semibold ${pnlColor(item.pnlUsd)}`}
+        style={{ fontVariantNumeric: 'tabular-nums' }}
+      >
+        {item.pnlUsd >= 0 ? '+' : ''}{fmtUsd(item.pnlUsd)}
+      </span>
+      <span className="font-mono text-jtp-2xs text-jtp-textFaint">{fmtRelTimeMs(item.ts)}</span>
+    </div>
+  </div>
+);
+
 // ─── Performance tab ───────────────────────────────────────────────────────────
 
 interface PerformanceTabProps {
@@ -1129,8 +1377,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   perf, perfLoading, trades, tradesLoading, lastUpdated, onClearTrades, clearBusy,
   onClose, closingId, onCloseAll, closeAllBusy,
 }) => {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [strategyFilter, setStrategyFilter] = useState<StrategyFilter>('all');
+  const [perfFilter, setPerfFilter] = useState<PerfFilter>('history');
 
   if (perfLoading && !perf) {
     return (
@@ -1162,10 +1409,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     return `${sign}$${abs.toFixed(0)}`;
   };
 
+  // Polymarket-sourced lists
+  const historyItems: AutobotPerformanceHistoryItem[] = perf?.history ?? [];
+  const openPositions: AutobotPerformanceOpenPosition[] = perf?.open ?? [];
+  const wonItems: AutobotPerformanceSettled[] = perf?.settled?.filter((s) => s.win) ?? [];
+  const lostItems: AutobotPerformanceSettled[] = perf?.settled?.filter((s) => !s.win) ?? [];
+
+  // Open count: prefer live positions from perf, fall back to DB trades
+  const openCount = openPositions.length > 0
+    ? openPositions.length
+    : trades.filter((t) => t.status === 'filled').length;
+
+  const hasClearable = trades.some((t) => isClearable(t.status));
+
   return (
     <div className="flex flex-col gap-4">
 
-      {/* ── Stat tiles: 7 metrics across responsive grid ── */}
+      {/* ── Stat tiles: 7 metrics driven by Polymarket ground-truth ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <StatTile
           label="REALIZED P&amp;L"
@@ -1177,6 +1437,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               : '—'
           }
           valueColor={st ? pnlColor(st.realizedPnlUsd) : undefined}
+          subValue="from Polymarket"
         />
         <StatTile
           label="RIGHT"
@@ -1268,113 +1529,131 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </p>
       )}
 
-      {/* ── Live trades feed ── */}
-      {(() => {
-        const hasClearable = trades.some((t) => isClearable(t.status));
-        const openCount = trades.filter((t) => t.status === 'filled').length;
-        const filteredTrades = trades.filter(
-          (t) => matchesStatusFilter(t, statusFilter) && matchesStrategyFilter(t, strategyFilter),
-        );
-        const isFiltered = statusFilter !== 'all' || strategyFilter !== 'all';
-        const panelLabel = trades.length > 0
-          ? isFiltered
-            ? `LIVE TRADES — ${filteredTrades.length} of ${trades.length}`
-            : `LIVE TRADES — ${trades.length}`
-          : 'LIVE TRADES';
-        const emptyFilterMsg = (() => {
-          const parts: string[] = [];
-          if (strategyFilter !== 'all') {
-            parts.push(STRATEGY_CHIPS.find((c) => c.value === strategyFilter)?.label ?? strategyFilter);
-          }
-          if (statusFilter !== 'all') {
-            parts.push(STATUS_CHIPS.find((c) => c.value === statusFilter)?.label ?? statusFilter);
-          }
-          return parts.length ? `No ${parts.join(' ')} trades yet.` : 'No trades yet.';
-        })();
-
-        return (
-          <Panel
-            label={panelLabel}
-            noPadding
-            actions={
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Close all open positions */}
-                {openCount >= 1 && (
-                  <button
-                    type="button"
-                    onClick={onCloseAll}
-                    disabled={closeAllBusy || closingId !== null}
-                    className="font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-[rgba(255,91,82,0.45)] text-[#ff5b52] bg-[rgba(255,91,82,0.09)] hover:bg-[rgba(255,91,82,0.18)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                    aria-label={`Close all ${openCount} open position${openCount === 1 ? '' : 's'}`}
-                  >
-                    {closeAllBusy ? <Spin /> : null}
-                    Close all open ({openCount})
-                  </button>
-                )}
-                {hasClearable && (
-                  <button
-                    type="button"
-                    onClick={() => onClearTrades(undefined)}
-                    disabled={clearBusy}
-                    className="font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-[rgba(255,91,82,0.35)] text-[#ff5b52] bg-[rgba(255,91,82,0.07)] hover:bg-[rgba(255,91,82,0.14)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    aria-label="Clear all failed and unfilled trade attempts"
-                  >
-                    {clearBusy ? <Spin /> : 'Clear failed'}
-                  </button>
-                )}
-                <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
-                  {tradesLoading ? (
-                    <>
-                      <Spin />
-                      <span className="text-jtp-textDim">updating…</span>
-                    </>
-                  ) : lastUpdated ? (
-                    <>
-                      <span className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse" aria-hidden="true" />
-                      <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
-                    </>
-                  ) : null}
-                </span>
-              </div>
-            }
-          >
-            {trades.length === 0 ? (
-              <EmptyState
-                title="No trades yet"
-                description="Fund the wallet and switch to AUTO to start trading."
-              />
-            ) : (
-              <>
-                <TradeFilterBar
-                  trades={trades}
-                  statusFilter={statusFilter}
-                  strategyFilter={strategyFilter}
-                  onStatusChange={setStatusFilter}
-                  onStrategyChange={setStrategyFilter}
-                />
-                {filteredTrades.length === 0 ? (
-                  <div className="px-4 py-8 text-center">
-                    <p className="font-mono text-jtp-xs text-jtp-textFaint">{emptyFilterMsg}</p>
-                  </div>
-                ) : (
-                  <div className="divide-y-0">
-                    {filteredTrades.map((trade) => (
-                      <TradeCard
-                        key={trade.id}
-                        trade={trade}
-                        onClear={isClearable(trade.status) ? () => onClearTrades(trade.id) : undefined}
-                        clearBusy={clearBusy}
-                        onClose={trade.status === 'filled' && trade.tokenId ? () => onClose(trade.tokenId) : undefined}
-                        closeBusy={closingId === trade.id}
-                      />
-                    ))}
-                  </div>
-                )}
-              </>
+      {/* ── Polymarket-mirrored History / Positions panel ── */}
+      <Panel
+        label="LIVE TRADES"
+        noPadding
+        actions={
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Close all open positions — uses perf.open count when available */}
+            {openCount >= 1 && (
+              <button
+                type="button"
+                onClick={onCloseAll}
+                disabled={closeAllBusy || closingId !== null}
+                className="font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-[rgba(255,91,82,0.45)] text-[#ff5b52] bg-[rgba(255,91,82,0.09)] hover:bg-[rgba(255,91,82,0.18)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                aria-label={`Close all ${openCount} open position${openCount === 1 ? '' : 's'}`}
+              >
+                {closeAllBusy ? <Spin /> : null}
+                Close all open ({openCount})
+              </button>
             )}
-          </Panel>
-        );
-      })()}
+            {hasClearable && (
+              <button
+                type="button"
+                onClick={() => onClearTrades(undefined)}
+                disabled={clearBusy}
+                className="font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-[rgba(255,91,82,0.35)] text-[#ff5b52] bg-[rgba(255,91,82,0.07)] hover:bg-[rgba(255,91,82,0.14)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Clear all failed and unfilled trade attempts"
+              >
+                {clearBusy ? <Spin /> : 'Clear failed'}
+              </button>
+            )}
+            <span className="font-mono text-jtp-xs text-jtp-textMuted flex items-center gap-2" aria-live="polite">
+              {tradesLoading ? (
+                <>
+                  <Spin />
+                  <span className="text-jtp-textDim">updating…</span>
+                </>
+              ) : lastUpdated ? (
+                <>
+                  <span className="inline-block w-2 h-2 rounded-full bg-[#3ddc84] animate-pulse" aria-hidden="true" />
+                  <span className="font-semibold text-jtp-textMuted">updated {lastUpdated}</span>
+                </>
+              ) : null}
+            </span>
+          </div>
+        }
+      >
+        {/* Filter chips */}
+        <PerfFilterBar
+          filter={perfFilter}
+          onFilter={setPerfFilter}
+          historyCount={historyItems.length}
+          openCount={openPositions.length}
+          wonCount={wonItems.length}
+          lostCount={lostItems.length}
+        />
+
+        {/* History view — Polymarket activity feed */}
+        {perfFilter === 'history' && (
+          historyItems.length === 0 ? (
+            <EmptyState
+              title="No activity yet"
+              description="Polymarket buys, sells, and redeems will appear here once the account is linked and trades are placed."
+            />
+          ) : (
+            <div className="divide-y-0">
+              {historyItems.map((item, idx) => (
+                <HistoryRow key={`${item.ts}-${idx}`} item={item} />
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Open positions view */}
+        {perfFilter === 'open' && (
+          openPositions.length === 0 ? (
+            <EmptyState
+              title="No open positions"
+              description="Live open positions from Polymarket will appear here."
+            />
+          ) : (
+            <div className="divide-y-0">
+              {openPositions.map((pos) => (
+                <OpenRow
+                  key={pos.tokenId || pos.conditionId}
+                  pos={pos}
+                  onClose={pos.tokenId ? () => onClose(pos.tokenId) : undefined}
+                  closeBusy={closingId === pos.tokenId}
+                />
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Won markets view */}
+        {perfFilter === 'won' && (
+          wonItems.length === 0 ? (
+            <EmptyState
+              title="No won markets yet"
+              description="Markets you won will appear here once they settle."
+            />
+          ) : (
+            <div className="divide-y-0">
+              {wonItems.map((item, idx) => (
+                <SettledRow key={`${item.conditionId}-${idx}`} item={item} />
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Lost markets view */}
+        {perfFilter === 'lost' && (
+          lostItems.length === 0 ? (
+            <EmptyState
+              title="No lost markets yet"
+              description="Markets you lost will appear here once they settle."
+            />
+          ) : (
+            <div className="divide-y-0">
+              {lostItems.map((item, idx) => (
+                <SettledRow key={`${item.conditionId}-${idx}`} item={item} />
+              ))}
+            </div>
+          )
+        )}
+      </Panel>
     </div>
   );
 };
@@ -2059,7 +2338,10 @@ const QuantAutoBotPanel: React.FC = () => {
   // ── Close all open positions ───────────────────────────────────────────────
 
   const handleCloseAll = useCallback(async () => {
-    const openCount = trades.filter((t) => t.status === 'filled').length;
+    // Prefer live count from Polymarket open positions; fall back to DB trades
+    const openCount = (perf?.open?.length ?? 0) > 0
+      ? perf!.open!.length
+      : trades.filter((t) => t.status === 'filled').length;
     if (!window.confirm(`Sell all ${openCount} open position${openCount === 1 ? '' : 's'} now?`)) return;
     setCloseAllBusy(true);
     try {
@@ -2072,7 +2354,7 @@ const QuantAutoBotPanel: React.FC = () => {
     } finally {
       setCloseAllBusy(false);
     }
-  }, [getToken, trades, fetchAll, showToast]);
+  }, [getToken, perf, trades, fetchAll, showToast]);
 
   // ── Set funder (link / unlink Polymarket account) ──────────────────────────
 
