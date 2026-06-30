@@ -403,7 +403,7 @@ export class AutobotService {
       balance: bal,                                    // EOA (gas) wallet
       tradeableUsdce: trade.usdce,                      // real trading cash (deposit wallet if linked)
       availableUsd: Math.max(0, trade.usdce),           // cash free to deploy now
-      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, maxSettlementDays: w.maxSettlementDays ?? 7, orderType: w.orderType || 'limit' },
+      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, maxSettlementDays: w.maxSettlementDays ?? 7, maxDrawdownUsd: w.maxDrawdownUsd ?? 0, orderType: w.orderType || 'limit' },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
       positionsValue: mtm.value,                         // live mark-to-market value of open positions
@@ -548,7 +548,7 @@ export class AutobotService {
     return this.status(userId);
   }
 
-  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; netDepositsUsd?: number; orderType?: string }) {
+  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; maxDrawdownUsd?: number; netDepositsUsd?: number; orderType?: string }) {
     await this.getOrCreate(userId);
     const data: any = {};
     if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(1, Math.min(10000, l.maxTotalUsd));
@@ -556,6 +556,7 @@ export class AutobotService {
     if (l.dailyLossLimitUsd != null) data.dailyLossLimitUsd = Math.max(0.5, Math.min(10000, l.dailyLossLimitUsd));
     if (l.minEdgePct != null) data.minEdgePct = Math.max(0, Math.min(100, l.minEdgePct));
     if (l.maxSettlementDays != null) data.maxSettlementDays = Math.max(0, Math.min(365, l.maxSettlementDays));
+    if (l.maxDrawdownUsd != null) data.maxDrawdownUsd = Math.max(0, Math.min(1_000_000, l.maxDrawdownUsd));
     if (l.netDepositsUsd != null) data.netDepositsUsd = Math.max(0, Math.min(1_000_000, l.netDepositsUsd));
     if (l.orderType === 'limit' || l.orderType === 'market') data.orderType = l.orderType;
     await this.prisma.pmAgentWallet.update({ where: { userId }, data });
@@ -622,6 +623,17 @@ export class AutobotService {
     // Bankroll = the real trading funds: the linked deposit wallet (else the EOA).
     const linked = !!(w.funderAddress || '').trim();
     const bal = await this.tradeable(w);
+    // MAX-DRAWDOWN circuit breaker — halt if total P&L (portfolio − deposits) drops below the limit.
+    if (w.maxDrawdownUsd > 0 && w.netDepositsUsd > 0) {
+      const funderAddr = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+      const mtm = await this.positionsMtm(funderAddr);
+      const totalPnl = (bal.usdce + mtm.value) - w.netDepositsUsd;
+      if (totalPnl <= -Math.abs(w.maxDrawdownUsd)) {
+        await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { mode: 'off', killSwitch: true } });
+        this.brain.error({ userId: w.userId, module: 'polymarket', title: `Max drawdown −$${w.maxDrawdownUsd} hit — bot HALTED`, detail: `Down $${(-totalPnl).toFixed(2)} total — stopped to protect capital`, data: { totalPnl } });
+        return;
+      }
+    }
     if (bal.usdce < 1) return; // nothing to trade
     // POL gas is only needed for EOA-mode on-chain approvals; deposit-wallet CLOB orders are
     // off-chain signed (gasless), and the proxy holds no POL — so skip the gas check when linked.
