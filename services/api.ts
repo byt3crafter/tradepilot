@@ -1,5 +1,5 @@
 
-import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance } from "../types";
+import { AdminStats, AdminUser, BrokerAccount, Candle, ChecklistRule, ObjectiveProgress, SmartLimitProgress, Playbook, Trade, TradeJournal, PlaybookStats, AssetSpecification, CommunityPlaybook, AccountAnalytics, Notification, SystemConfig, User, NotebookEntry, PmWallet, PmPosition, QuantVerdict, QuantFeedItem, QuantLearning, QuantDecision, QuantSimulation, AiJournalAnalysis, AiAgentResult, AgentTool, AgentRun, ScheduledAgent, ScheduledAgentFrequency, PolymarketMarket, ArbScan, QuantSignalsResult, AutobotStatus, AutobotTrade, AutobotPerformance, CryptoFundingScan, ExchangeStatusMap, CryptoPerformance, CryptoPaperTrade, CryptoMomentum, CryptoVolatility, CryptoBotStatus, CryptoBotTrade, CryptoBotPerformance, BrainEvent, BrainScoreboard } from "../types";
 
 export interface CandlesResult {
   symbol: string;
@@ -216,6 +216,10 @@ export interface ApiService {
   exchangesBotSetMode(body: { exchange: string; mode: string }, token?: string | null): Promise<CryptoBotStatus>;
   exchangesBotKill(exchange?: string, token?: string | null): Promise<CryptoBotStatus>;
   exchangesBotSetLimits(body: { exchange: string; maxPerTradeUsd: number; maxTotalUsd: number }, token?: string | null): Promise<CryptoBotStatus>;
+
+  // Brain (live AI pipeline)
+  brainEvents(module?: string, token?: string | null): Promise<BrainEvent[]>;
+  brainScoreboard(token?: string | null): Promise<BrainScoreboard>;
 }
 
 export interface ChatGptPermissions {
@@ -562,6 +566,23 @@ const api: ApiService = {
   exchangesBotSetLimits(body: { exchange: string; maxPerTradeUsd: number; maxTotalUsd: number }, token?: string | null): Promise<CryptoBotStatus> {
     return this.post('/api/exchanges/bot/limits', body, token);
   },
+
+  // Brain (live AI pipeline)
+  brainEvents(module?: string, token?: string | null): Promise<BrainEvent[]> {
+    const q = module && module !== 'all' ? `?module=${encodeURIComponent(module)}` : '';
+    return this.get(`/api/brain/events${q}`, token);
+  },
+  brainScoreboard(token?: string | null): Promise<BrainScoreboard> {
+    return this.get('/api/brain/scoreboard', token);
+  },
 };
+
+/** Build the EventSource URL for the brain SSE stream. */
+export function brainStreamUrl(token: string, module?: string): string {
+  const base = getApiUrl();
+  const params = new URLSearchParams({ token });
+  if (module && module !== 'all') params.set('module', module);
+  return `${base}/api/brain/stream?${params.toString()}`;
+}
 
 export default api;

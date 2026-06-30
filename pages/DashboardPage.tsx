@@ -21,8 +21,10 @@ import QuantPage from './QuantPage';
 import CryptoPage from './CryptoPage';
 import Copilot from '../components/ai/Copilot';
 import StatusBar from '../components/StatusBar';
+import BrainDashboard from '../components/brain/BrainDashboard';
 
 export type DashboardView =
+  | 'brain'
   | 'dashboard'
   | 'journal'
   | 'notebook'
@@ -39,6 +41,7 @@ export type DashboardView =
 export type SettingsSubView = 'profile' | 'accounts' | 'checklist' | 'security' | 'assets' | 'billing' | 'ai';
 
 const VIEW_META: Record<DashboardView, { title: string; subtitle: string }> = {
+  brain:            { title: 'Brain',           subtitle: 'Live AI neural pipeline' },
   dashboard:        { title: 'Dashboard',       subtitle: 'Account & rule status' },
   journal:          { title: 'Journal',         subtitle: 'Log · review · learn' },
   notebook:         { title: 'Notebook',        subtitle: 'Daily reflections & notes' },
@@ -207,6 +210,7 @@ const DashboardPage: React.FC = () => {
     }
 
     switch (currentView) {
+      case 'brain':            return <BrainDashboard />;
       case 'journal':          return <TradeJournal />;
       case 'notebook':         return <NotebookPage />;
       case 'playbooks':        return <PlaybooksPage />;

@@ -13,7 +13,7 @@ export const ViewProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Persist the current page across refreshes (the app has no router, so without this
   // a refresh always drops back to the dashboard).
   const [currentView, setCurrentView] = useState<DashboardView>(() => {
-    try { return (localStorage.getItem('jtp.view') as DashboardView) || 'dashboard'; } catch { return 'dashboard'; }
+    try { return (localStorage.getItem('jtp.view') as DashboardView) || 'brain'; } catch { return 'brain'; }
   });
   const [currentSubView, setCurrentSubView] = useState<SettingsSubView>(() => {
     try { return (localStorage.getItem('jtp.subView') as SettingsSubView) || 'accounts'; } catch { return 'accounts'; }

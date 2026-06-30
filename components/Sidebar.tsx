@@ -10,6 +10,20 @@ import Button from './ui/Button';
 
 // ─── Icon set (minimal inline SVGs matching the comp) ─────────────────────────
 
+const BrainSvg = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="w-4 h-4">
+    {/* Hexagonal neural nodes */}
+    <polygon points="8,1.5 11,3.5 11,7 8,9 5,7 5,3.5" strokeLinejoin="round" />
+    <circle cx="3" cy="10" r="1.5" />
+    <circle cx="13" cy="10" r="1.5" />
+    <circle cx="8" cy="14" r="1.5" />
+    {/* Synaptic connections */}
+    <line x1="5" y1="7" x2="3" y2="8.5" strokeLinecap="round" />
+    <line x1="11" y1="7" x2="13" y2="8.5" strokeLinecap="round" />
+    <line x1="8" y1="9" x2="8" y2="12.5" strokeLinecap="round" />
+  </svg>
+);
+
 const JournalSvg = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
     <rect x="3" y="2" width="10" height="12" rx="1.5" />
@@ -379,6 +393,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <nav className="flex-1 px-3 py-[6px] flex flex-col gap-[2px] overflow-y-auto">
           {isSubscribed && (
             <>
+              <NavItem
+                icon={<BrainSvg />}
+                label="Brain"
+                isActive={currentView === 'brain'}
+                isCollapsed={isSidebarCollapsed}
+                onClick={() => handleNav('brain')}
+              />
               <NavItem
                 icon={<DashboardSvg />}
                 label="Dashboard"
