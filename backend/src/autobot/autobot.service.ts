@@ -385,6 +385,11 @@ export class AutobotService {
       this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { pfDayStamp: today, pfDayOpen: portfolioValue } }).catch(() => {});
     }
     const todayPnlUsd = +(portfolioValue - (pfOpen ?? portfolioValue)).toFixed(2);
+    // TRUTH-SOURCED P&L (matches Polymarket): Total = portfolio − deposits. Realized is then
+    // DERIVED as Total − Unrealized, so the three always reconcile and match Polymarket — instead
+    // of the per-trade tally that drifted (missed booking settled wins).
+    const totalPnl = w.netDepositsUsd > 0 ? +(portfolioValue - w.netDepositsUsd).toFixed(2) : null;
+    const realizedShown = totalPnl != null ? +(totalPnl - mtm.unrealizedPnl).toFixed(2) : +realizedPnl.toFixed(2);
     return {
       address: w.address,
       funderAddress: w.funderAddress || null, // linked Polymarket proxy (POLY_PROXY maker)
@@ -403,12 +408,12 @@ export class AutobotService {
       portfolioValue,                                    // cash + positions = total portfolio
       netDepositsUsd: w.netDepositsUsd || 0,
       // GROUND TRUTH — portfolio minus what you put in. Can't be fooled by missed per-trade bookings.
-      totalPnlUsd: w.netDepositsUsd > 0 ? +(portfolioValue - w.netDepositsUsd).toFixed(2) : null,
+      totalPnlUsd: totalPnl,
       openPositions: mtm.count,
       strategies: this.strategiesOf(w),                  // {copy,ai,arb} enable flags
       arbConfig: this.arbConfigOf(w),                    // user-set arb thresholds
       strategyStats: this.rateStrategies(allTrades),     // per-strategy scorecard (rate what works)
-      stats: { trades: allTrades.length, resolved: resolved.length, wins, winRate: resolved.length ? wins / resolved.length : 0, realizedPnlUsd: realizedPnl },
+      stats: { trades: allTrades.length, resolved: resolved.length, wins, winRate: resolved.length ? wins / resolved.length : 0, realizedPnlUsd: realizedShown },
     };
   }
 
