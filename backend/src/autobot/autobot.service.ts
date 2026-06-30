@@ -38,11 +38,31 @@ export class AutobotService {
     private readonly chatgpt: ChatgptService,
   ) {}
 
+  private verdictCache = new Map<string, { v: any; t: number }>(); // per-market verdict cache (1h)
+  private codexHour = { n: 0, start: 0 };                            // hourly Codex-call throttle
+  private readonly CODEX_MAX_PER_HOUR = 20;
+
   /** Phase-2 brain: recall past lessons + a Codex verdict on the top candidate. Best-effort —
-   * if ChatGPT isn't connected/allowed or errors, returns null and the bot falls back to rules. */
+   * if ChatGPT isn't connected/allowed or errors, returns null and the bot falls back to rules.
+   * Token-frugal: caches each market's verdict for 1h + caps Codex calls per hour. */
   private async aiReason(w: any, pick: any): Promise<{ take: boolean; conviction: number; rationale?: string } | null> {
     try {
       if (!(await this.chatgpt.isAllowed(w.userId, 'bot'))) return null;
+      const key = String(pick.conditionId || pick.tokenId || pick.title || '');
+      // 1) cache — never pay to re-research the same market within an hour
+      const cached = this.verdictCache.get(key);
+      if (cached && Date.now() - cached.t < 3_600_000) {
+        this.brain.publish({ userId: w.userId, module: 'polymarket', kind: 'recall', title: `Cached verdict · ${cached.v.take ? 'TAKE' : 'SKIP'} (${(cached.v.conviction * 100).toFixed(0)}%)`, detail: `${pick.outcome} — reused, no token spend`, data: cached.v });
+        return cached.v;
+      }
+      // 2) throttle — cap Codex calls/hour so cost stays tiny
+      const now = Date.now();
+      if (now - this.codexHour.start > 3_600_000) this.codexHour = { n: 0, start: now };
+      if (this.codexHour.n >= this.CODEX_MAX_PER_HOUR) {
+        this.brain.publish({ userId: w.userId, module: 'polymarket', kind: 'note', title: 'Reasoning throttled — saving tokens', detail: `hit ${this.CODEX_MAX_PER_HOUR}/hr cap; deciding on rules this cycle`, data: {} });
+        return null;
+      }
+      this.codexHour.n++;
       const lessons = await this.prisma.brainEvent.findMany({
         where: { userId: w.userId, module: 'polymarket', kind: 'learn' }, orderBy: { createdAt: 'desc' }, take: 8,
       });
@@ -65,7 +85,9 @@ export class AutobotService {
         title: `AI verdict: ${v.take ? 'TAKE' : 'SKIP'} · conviction ${(conviction * 100).toFixed(0)}%`,
         detail: v.rationale, data: { take: !!v.take, conviction, rationale: v.rationale, title: pick.title },
       });
-      return { take: !!v.take, conviction, rationale: v.rationale };
+      const result = { take: !!v.take, conviction, rationale: v.rationale };
+      this.verdictCache.set(key, { v: result, t: Date.now() });
+      return result;
     } catch {
       return null;
     }
@@ -340,12 +362,14 @@ export class AutobotService {
     const minEdge = w.minEdgePct ?? 5;
     const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge);
 
-    // 🧠 thinking pulse — scanned the book this cycle
+    // 🧠 thinking pulse — what the brain is watching this cycle (free, no LLM)
+    const top = [...fresh].sort((a: any, b: any) => (b.edgePct || 0) - (a.edgePct || 0)).slice(0, 3);
+    const watching = top.map((s: any) => `${(s.title || s.outcome || '?').slice(0, 28)} (${(s.edgePct || 0).toFixed(0)}%)`).join(' · ') || 'no setup yet — waiting';
     this.brain.publish({
       userId: w.userId, module: 'polymarket', kind: 'tick',
-      title: `Scanned ${(signals || []).length} signals · ${fresh.length} clear edge ≥${minEdge}%`,
-      detail: `bankroll $${bal.usdce.toFixed(2)} · held ${held.size} · exposure $${exposure.toFixed(2)}`,
-      data: { scanned: (signals || []).length, fresh: fresh.length, minEdge, bankroll: bal.usdce, held: held.size, exposure },
+      title: `Watching ${(signals || []).length} markets · ${fresh.length} with edge ≥${minEdge}%`,
+      detail: `👀 ${watching} · bankroll $${bal.usdce.toFixed(2)} · ${held.size} open`,
+      data: { scanned: (signals || []).length, fresh: fresh.length, minEdge, bankroll: bal.usdce, held: held.size, exposure, watching: top.map((s: any) => ({ title: s.title, edgePct: s.edgePct })) },
     });
 
     // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").
