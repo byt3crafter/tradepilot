@@ -115,6 +115,45 @@ function prevPipelineNode(kind: PipelineNode): PipelineNode {
     : PIPELINE_NODES[idx - 1];
 }
 
+// ─── Ambient Animation Definitions ────────────────────────────────────────────
+// All computed once at module load — zero React state, zero re-renders from these.
+
+/** Very faint, slow-breathing nebula circles that add depth to the background. */
+const BG_NEBULA_ITEMS: Array<{
+  id: string; cx: number; cy: number; r: number; rv: string;
+  color: string; durR: string; durO: string; beginO: string;
+}> = [
+  { id: 'nb0', cx: 72,  cy: 72,  r: 28, rv: '22;36;22', color: '#3a7bd5', durR: '14s', durO: '11s', beginO: '0s'   },
+  { id: 'nb1', cx: 228, cy: 88,  r: 22, rv: '16;30;16', color: '#a855f7', durR: '11s', durO: '15s', beginO: '3.5s' },
+  { id: 'nb2', cx: 200, cy: 218, r: 25, rv: '19;33;19', color: '#00d1ff', durR: '17s', durO: '9s',  beginO: '6.1s' },
+  { id: 'nb3', cx: 85,  cy: 212, r: 20, rv: '14;28;14', color: '#e8a23d', durR: '13s', durO: '12s', beginO: '1.4s' },
+];
+
+/**
+ * Ambient synapse sparks — always-on idle particles drifting along edges.
+ * Visually lighter than real-event particles (smaller r, lower opacity, 4-8x slower).
+ * 8 on pipeline edges + 4 on ambient cross-connections = 12 total.
+ * Path strings are resolved once here so rendering is pure JSX, no per-frame work.
+ */
+const AMBIENT_PARTICLE_DEFS: Array<{
+  id: string; path: string; dur: string; begin: string; color: string; r: number;
+}> = [
+  // Pipeline edges
+  { id: 'ap0', path: edgePath('tick',     'research'), dur: '3.1s', begin: '0s',    color: KIND_COLORS.tick,     r: 1.5 },
+  { id: 'ap1', path: edgePath('research', 'recall'),   dur: '3.8s', begin: '0.9s',  color: KIND_COLORS.research, r: 1.8 },
+  { id: 'ap2', path: edgePath('recall',   'decide'),   dur: '3.4s', begin: '2.1s',  color: KIND_COLORS.recall,   r: 1.5 },
+  { id: 'ap3', path: edgePath('decide',   'execute'),  dur: '4.2s', begin: '3.3s',  color: KIND_COLORS.decide,   r: 1.6 },
+  { id: 'ap4', path: edgePath('execute',  'learn'),    dur: '3.6s', begin: '0.5s',  color: KIND_COLORS.execute,  r: 1.5 },
+  { id: 'ap5', path: edgePath('learn',    'tick'),     dur: '4.0s', begin: '1.7s',  color: KIND_COLORS.learn,    r: 1.7 },
+  { id: 'ap6', path: edgePath('tick',     'research'), dur: '5.1s', begin: '4.2s',  color: KIND_COLORS.research, r: 1.3 },
+  { id: 'ap7', path: edgePath('recall',   'decide'),   dur: '4.7s', begin: '2.8s',  color: KIND_COLORS.decide,   r: 1.4 },
+  // Ambient cross-connections
+  { id: 'aa0', path: ambientEdgePath('tick',     'recall'),   dur: '5.5s', begin: '0.7s',  color: KIND_COLORS.tick,    r: 1.2 },
+  { id: 'aa1', path: ambientEdgePath('research', 'decide'),   dur: '6.2s', begin: '2.4s',  color: KIND_COLORS.recall,  r: 1.2 },
+  { id: 'aa2', path: ambientEdgePath('recall',   'execute'),  dur: '5.8s', begin: '4.5s',  color: KIND_COLORS.decide,  r: 1.3 },
+  { id: 'aa3', path: ambientEdgePath('decide',   'learn'),    dur: '6.5s', begin: '1.2s',  color: KIND_COLORS.learn,   r: 1.1 },
+];
+
 // ─── Brain SVG Network ─────────────────────────────────────────────────────────
 
 interface Particle {
@@ -128,10 +167,13 @@ const BrainNetwork = memo(function BrainNetwork({
   activeNodes,
   activationKeys,
   particles,
+  ambientCount,
 }: {
   activeNodes: Set<string>;
   activationKeys: Record<string, number>;
   particles: Particle[];
+  /** Number of ambient particles to render (0 = reduced-motion / off). */
+  ambientCount: number;
 }) {
   return (
     <svg
@@ -171,7 +213,39 @@ const BrainNetwork = memo(function BrainNetwork({
           <stop offset="0%" stopColor="#a855f7" stopOpacity="0.12" />
           <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
         </radialGradient>
+        {/* Ambient particle glow — softer/dimmer than event particle filters */}
+        <filter id="ambient-glow" x="-150%" y="-150%" width="400%" height="400%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
+
+      {/* Background neural current — very faint nebula circles for depth.
+          Pure SMIL, zero JS, zero setState. Opacity max ~0.045. */}
+      {ambientCount > 0 && BG_NEBULA_ITEMS.map(({ id, cx, cy, r, rv, color, durR, durO, beginO }) => (
+        <circle key={id} cx={cx} cy={cy} r={r} fill={color} opacity="0.02">
+          <animate
+            attributeName="r"
+            values={rv}
+            dur={durR}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines="0.5 0 0.5 1; 0.5 0 0.5 1"
+          />
+          <animate
+            attributeName="opacity"
+            values="0.01;0.045;0.01"
+            dur={durO}
+            begin={beginO}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines="0.5 0 0.5 1; 0.5 0 0.5 1"
+          />
+        </circle>
+      ))}
 
       {/* Central ambient glow */}
       <circle cx="150" cy="150" r="80" fill="url(#core-gradient)" />
@@ -220,13 +294,40 @@ const BrainNetwork = memo(function BrainNetwork({
         );
       })}
 
-      {/* Synapse particles */}
+      {/* Ambient synapse sparks — idle neural activity between real events.
+          SMIL animateMotion loops forever with staggered begin offsets.
+          Clearly lighter than real-event particles: smaller r, lower opacity, 4-9x slower.
+          React updates existing DOM nodes in-place so SMIL timings are never interrupted. */}
+      {ambientCount > 0 && AMBIENT_PARTICLE_DEFS.slice(0, ambientCount).map(def => (
+        <g key={def.id}>
+          {/* Glow halo */}
+          <circle r={def.r * 2.5} fill={def.color} opacity="0.07" filter="url(#ambient-glow)">
+            <animateMotion
+              dur={def.dur}
+              begin={def.begin}
+              repeatCount="indefinite"
+              path={def.path}
+            />
+          </circle>
+          {/* Core spark */}
+          <circle r={def.r} fill={def.color} opacity="0.28">
+            <animateMotion
+              dur={def.dur}
+              begin={def.begin}
+              repeatCount="indefinite"
+              path={def.path}
+            />
+          </circle>
+        </g>
+      ))}
+
+      {/* Real-event synapse particles — much brighter/faster than ambient layer */}
       {particles.map(p => {
         const path = edgePath(p.from, p.to);
         return (
           <g key={p.id}>
-            {/* Trail glow */}
-            <circle r="8" fill={p.color} opacity="0.15" filter="url(#particle-bloom)">
+            {/* Trail glow — bumped opacity vs ambient for clear contrast */}
+            <circle r="8" fill={p.color} opacity="0.28" filter="url(#particle-bloom)">
               <animateMotion dur="0.75s" begin="0s" fill="remove" path={path} />
             </circle>
             {/* Core dot */}
@@ -597,6 +698,16 @@ export default function BrainDashboard() {
   const [activationKeys, setActivationKeys] = useState<Record<string, number>>({});
   const [particles, setParticles] = useState<Particle[]>([]);
 
+  // ── Ambient particle count — computed once at mount, never changes ──
+  // Respects prefers-reduced-motion and scales down on mobile.
+  // Zero API calls / setState per frame — purely controls how many SMIL
+  // elements the SVG renders; the animation itself is handled by the browser.
+  const [ambientCount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+    return window.innerWidth < 768 ? 5 : 12;
+  });
+
   // ── Refs (stable across renders) ──
   const esRef         = useRef<EventSource | null>(null);
   const reconnTimerRef = useRef<number | null>(null);
@@ -853,6 +964,7 @@ export default function BrainDashboard() {
                 activeNodes={activeNodes}
                 activationKeys={activationKeys}
                 particles={particles}
+                ambientCount={ambientCount}
               />
             </div>
 
