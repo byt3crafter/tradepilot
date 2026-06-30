@@ -1050,13 +1050,42 @@ const WhatWorksPanel: React.FC = () => {
             <div className="px-4 pt-3 pb-1">
               <InSampleDisclaimer />
             </div>
-            <DataTable
-              columns={WALLET_COLS}
-              data={wallets}
-              keyFn={(w) => w.address}
-              maxHeight="300px"
-              emptyMessage="No wallets found."
-            />
+
+            {/* Mobile card list — replaces the table below sm */}
+            <div className="sm:hidden divide-y divide-jtp-borderSubtle">
+              {wallets.map((w) => (
+                <div key={w.address} className="px-4 py-3 flex flex-col gap-[6px]">
+                  {/* Wallet identifier */}
+                  <span className="font-mono text-jtp-xs text-jtp-textMuted font-semibold">
+                    {truncateAddr(w.address)}
+                  </span>
+                  {/* Stats row: WIN% · ROI · verdict */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-mono text-jtp-xs">
+                      <span className="text-jtp-textFaint">WIN%</span>{' '}
+                      <span className="text-jtp-text">{fmtWinRate(w.winRate)}</span>
+                    </span>
+                    <span className={`font-mono text-jtp-xs ${roiColor(w.avgRoi)}`}>
+                      ROI {fmtRoi(w.avgRoi)}
+                    </span>
+                    <Badge variant={VERDICT_VARIANT[w.verdict] ?? 'neutral'} size="xs">
+                      {w.verdict}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table — hidden on mobile */}
+            <div className="hidden sm:block">
+              <DataTable
+                columns={WALLET_COLS}
+                data={wallets}
+                keyFn={(w) => w.address}
+                maxHeight="300px"
+                emptyMessage="No wallets found."
+              />
+            </div>
           </div>
         )}
       </Panel>

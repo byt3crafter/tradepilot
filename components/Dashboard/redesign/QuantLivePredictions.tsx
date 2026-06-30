@@ -1,11 +1,14 @@
 /**
- * QuantLivePredictions — compact "Live predictions" strip for the Quant dashboard view.
+ * QuantLivePredictions — "Bot Trades (live)" strip for the Quant dashboard view.
  *
- * Fetches GET /api/quant/learning/decisions?sample=live&limit=8
+ * Fetches GET /api/autobot/trades?limit=8 (real money, real bot trades).
  * Polls every 45 s.
  *
- * Each row:  relative-time · wallet (pseudonym / short addr) · BUY/SELL outcomeLabel @ Xc
- *            · market title (truncated) · result badge (WON +x% / LOST x% / PENDING)
+ * Each row:  relative-time · signal badge · BUY {outcome} @ {price}¢
+ *            · status chip · P&L / ROI
+ *
+ * Authentication fix: token is now correctly passed as the second positional
+ * argument to autobotTrades(limit, token) — never dropped on the floor.
  *
  * REAL DATA ONLY — graceful empty / loading states; no fake data.
  */
@@ -13,7 +16,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useView } from '../../../context/ViewContext';
 import api from '../../../services/api';
-import type { QuantDecision } from '../../../types';
+import type { AutobotTrade, AutobotTradeStatus } from '../../../types';
 import Panel from '../../ui/Panel';
 import Badge from '../../ui/Badge';
 import Skeleton from '../../ui/Skeleton';
@@ -33,13 +36,23 @@ function relTime(iso: string): string {
   return `${d}d ago`;
 }
 
-function truncateAddr(addr: string): string {
-  if (!addr) return '';
-  return addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
+function fmtPrice(price: number): string {
+  // Polymarket prices are 0–1 (probability). Display as cents.
+  const cents = price <= 1 ? price * 100 : price;
+  return `${cents.toFixed(0)}¢`;
 }
 
-function walletLabel(d: QuantDecision): string {
-  return d.pseudonym?.trim() ? d.pseudonym : truncateAddr(d.wallet);
+function statusBadge(status: AutobotTradeStatus): {
+  variant: 'profit' | 'loss' | 'warning' | 'neutral';
+  label: string;
+} {
+  switch (status) {
+    case 'resolved': return { variant: 'profit', label: 'RESOLVED' };
+    case 'filled':   return { variant: 'neutral', label: 'FILLED' };
+    case 'placed':   return { variant: 'neutral', label: 'PLACED' };
+    case 'failed':   return { variant: 'loss', label: 'FAILED' };
+    default:         return { variant: 'warning', label: 'PENDING' };
+  }
 }
 
 const POLL_MS = 45_000;
@@ -61,61 +74,71 @@ const ChevronRight: React.FC = () => (
   </svg>
 );
 
-// ─── Decision row ─────────────────────────────────────────────────────────────
+// ─── Trade row ────────────────────────────────────────────────────────────────
 
-const DecisionRow: React.FC<{ d: QuantDecision }> = ({ d }) => {
-  const side = (d.side ?? 'BUY').toUpperCase();
-  const price = typeof d.entryPrice === 'number' ? `${d.entryPrice.toFixed(0)}¢` : '—';
+const TradeRow: React.FC<{ t: AutobotTrade }> = ({ t }) => {
+  const side = (t.side ?? 'BUY').toUpperCase();
+  const sideColor = side === 'SELL' ? '#ff5b52' : '#3ddc84';
+  const price = fmtPrice(t.price);
+  const { variant: badgeVariant, label: badgeLabel } = statusBadge(t.status);
 
-  // Result badge
-  let badgeVariant: 'profit' | 'loss' | 'neutral' = 'neutral';
-  let badgeLabel = 'PENDING';
-  if (d.status === 'win') {
-    badgeVariant = 'profit';
-    badgeLabel = d.roiPct !== null ? `WON +${d.roiPct.toFixed(1)}%` : 'WON';
-  } else if (d.status === 'loss') {
-    badgeVariant = 'loss';
-    badgeLabel = d.roiPct !== null ? `LOST ${Math.abs(d.roiPct).toFixed(1)}%` : 'LOST';
-  }
+  // P&L display
+  const hasPnl = typeof t.pnlUsd === 'number';
+  const pnlPositive = hasPnl && (t.pnlUsd as number) >= 0;
+  const pnlColor = pnlPositive ? '#3ddc84' : '#ff5b52';
+  const pnlStr = hasPnl
+    ? `${pnlPositive ? '+' : ''}$${Math.abs(t.pnlUsd as number).toFixed(2)}`
+    : typeof t.roiPct === 'number'
+      ? `${t.roiPct >= 0 ? '+' : ''}${t.roiPct.toFixed(1)}%`
+      : null;
 
   return (
     <div className="flex items-center gap-2 sm:gap-3 py-[7px] border-b border-jtp-borderSubtle last:border-0 min-w-0">
       {/* Relative time */}
       <span className="font-mono text-[10px] text-jtp-textFaint flex-shrink-0 w-14 sm:w-16 tabular-nums">
-        {relTime(d.createdAt)}
+        {relTime(t.createdAt)}
       </span>
 
-      {/* Wallet label */}
-      <span
-        className="font-mono text-jtp-xs text-jtp-textMuted flex-shrink-0 w-16 sm:w-20 truncate"
-        title={d.wallet}
-      >
-        {walletLabel(d)}
-      </span>
+      {/* Signal type badge */}
+      <Badge variant="neutral" size="xs" className="flex-shrink-0 hidden sm:inline-flex">
+        {(t.signalType ?? 'SIGNAL').toUpperCase()}
+      </Badge>
 
       {/* Direction + outcome + price */}
-      <span className="font-mono text-jtp-xs flex-shrink-0 text-jtp-textDim hidden xs:inline sm:inline">
-        <span
-          style={{ color: side === 'SELL' ? '#ff5b52' : '#3ddc84' }}
-        >
-          {side}
-        </span>{' '}
-        <span className="text-jtp-text">{d.outcomeLabel}</span>
+      <span className="font-mono text-jtp-xs flex-shrink-0 min-w-0">
+        <span style={{ color: sideColor }}>{side}</span>
+        {' '}
+        <span className="text-jtp-text truncate">{t.outcome}</span>
         {' '}
         <span className="text-jtp-textFaint">@</span>
         {' '}
         <span className="text-jtp-textMuted">{price}</span>
       </span>
 
-      {/* Market title — grows and truncates */}
-      <span
-        className="flex-1 min-w-0 truncate text-jtp-xs text-jtp-textDim"
-        title={d.title}
-      >
-        {d.title}
+      {/* Size */}
+      <span className="font-mono text-[10px] text-jtp-textFaint flex-shrink-0 hidden lg:inline">
+        ${t.sizeUsd.toFixed(0)}
       </span>
 
-      {/* Result badge */}
+      {/* Market title — grows, truncates */}
+      <span
+        className="flex-1 min-w-0 truncate text-jtp-xs text-jtp-textDim"
+        title={t.title}
+      >
+        {t.title}
+      </span>
+
+      {/* P&L */}
+      {pnlStr && (
+        <span
+          className="font-mono text-jtp-xs flex-shrink-0 tabular-nums"
+          style={{ color: pnlColor }}
+        >
+          {pnlStr}
+        </span>
+      )}
+
+      {/* Status badge */}
       <Badge
         variant={badgeVariant}
         size="xs"
@@ -133,44 +156,46 @@ const QuantLivePredictions: React.FC = () => {
   const { getToken } = useAuth();
   const { navigateTo } = useView();
 
-  const [decisions, setDecisions] = useState<QuantDecision[]>([]);
+  const [trades, setTrades] = useState<AutobotTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchDecisions = useCallback(async () => {
+  const fetchTrades = useCallback(async () => {
     try {
       const token = await getToken();
-      const data = await api.quantLearningDecisions(8, 'live', token);
-      setDecisions(data);
+      // Auth fix: token passed as 2nd arg (not 3rd like the old quant call).
+      const data = await api.autobotTrades(8, token);
+      setTrades(data);
       setError(null);
-    } catch (e: any) {
-      setError(e?.message ?? 'Could not load predictions.');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not load bot trades.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }, [getToken]);
 
   useEffect(() => {
-    fetchDecisions();
-    timerRef.current = setInterval(fetchDecisions, POLL_MS);
+    fetchTrades();
+    timerRef.current = setInterval(fetchTrades, POLL_MS);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [fetchDecisions]);
+  }, [fetchTrades]);
 
   const openFullQuant = () => navigateTo('quant');
 
   return (
     <Panel
-      label="LIVE PREDICTIONS"
+      label="BOT TRADES (live)"
       actions={
         <button
           onClick={openFullQuant}
           className="flex items-center gap-1 font-mono text-jtp-xs text-jtp-textMuted hover:text-jtp-text transition-colors"
-          aria-label="Open full Quant page"
+          aria-label="Open full Auto Bot page"
         >
-          Open full Quant
+          Open Auto Bot
           <ChevronRight />
         </button>
       }
@@ -185,10 +210,10 @@ const QuantLivePredictions: React.FC = () => {
         <p role="alert" className="text-jtp-xs text-jtp-loss py-3">
           {error}
         </p>
-      ) : decisions.length === 0 ? (
+      ) : trades.length === 0 ? (
         <EmptyState
-          title="No live predictions yet"
-          description="The engine emits signals as qualified wallets take positions. Check back soon."
+          title="No bot trades yet"
+          description="The Auto Bot will appear here once it places its first real trade."
           className="py-6"
         />
       ) : (
@@ -198,35 +223,38 @@ const QuantLivePredictions: React.FC = () => {
             <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase w-14 sm:w-16 flex-shrink-0">
               TIME
             </span>
-            <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase w-16 sm:w-20 flex-shrink-0">
-              WALLET
+            <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase flex-shrink-0 hidden sm:inline w-16">
+              TYPE
             </span>
-            <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase flex-shrink-0 hidden xs:inline sm:inline w-[8rem]">
+            <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase flex-shrink-0">
               SIGNAL
             </span>
             <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase flex-1 min-w-0">
               MARKET
             </span>
             <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase flex-shrink-0">
-              RESULT
+              P&amp;L
+            </span>
+            <span className="font-mono text-[9px] text-jtp-textFaint tracking-[0.12em] uppercase flex-shrink-0">
+              STATUS
             </span>
           </div>
 
-          {decisions.map((d) => (
-            <DecisionRow key={d.id} d={d} />
+          {trades.map((t) => (
+            <TradeRow key={t.id} t={t} />
           ))}
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 mt-1 border-t border-jtp-borderSubtle">
             <p className="text-[10px] text-jtp-textFaint">
-              Out-of-sample · polls every 45 s · not financial advice
+              Real money · polls every 45 s · not financial advice
             </p>
             <button
               onClick={openFullQuant}
               className="font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-text transition-colors flex items-center gap-1"
-              aria-label="Open full Quant page"
+              aria-label="Open full Auto Bot page"
             >
-              Open full Quant
+              Open Auto Bot
               <ChevronRight />
             </button>
           </div>

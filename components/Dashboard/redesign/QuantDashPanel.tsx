@@ -1,25 +1,34 @@
 /**
- * QuantDashPanel — At-a-glance Quant summary for the main Dashboard.
+ * QuantDashPanel — Real Auto Bot summary for the main Dashboard.
  *
- * Shown only when the user has quantEnabled === true.
+ * Shows REAL Polymarket bot analytics (not paper simulation).
  * Data sources:
- *   GET /api/quant/learning   → overall stats + wallet list
- *   GET /api/quant/simulation?bankroll=50&risk=0.05  → paper equity growth
+ *   GET /api/autobot/status      → address, mode, killSwitch, balance, exposureUsd, stats
+ *   GET /api/autobot/performance → detailed stats + equity curve [{t, pnl}]
  *
  * Contents:
- *   - Stat tiles: out-of-sample win rate, avg ROI, $50→$X paper balance,
- *     max drawdown, resolved / pending counts
- *   - Top 5 wallets by avgRoi (compact list)
- *   - Honest disclaimer caption
- *   - "View full analysis →" deep link to Quant tab
+ *   - Mode badge (AUTO / Manual)
+ *   - Headline: wallet USDC.e balance + realized P&L
+ *   - Stat tiles: P&L · RIGHT · WRONG · WIN RATE · EXPOSURE · OPEN/RESOLVED
+ *   - Equity curve (Recharts area, cumulative real P&L)
+ *   - Honest caption + "Open Auto Bot →" CTA
  *
  * REAL DATA ONLY — sparse/empty is shown honestly, never padded with fakes.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts';
 import { useAuth } from '../../../context/AuthContext';
 import { useView } from '../../../context/ViewContext';
 import api from '../../../services/api';
-import type { QuantLearning, QuantLearningWallet, QuantSimulation } from '../../../types';
+import type { AutobotStatus, AutobotPerformance } from '../../../types';
 import Panel from '../../ui/Panel';
 import StatTile from '../../ui/StatTile';
 import Badge from '../../ui/Badge';
@@ -28,75 +37,22 @@ import EmptyState from '../../ui/EmptyState';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmtWinRate = (n: number) => `${(n * 100).toFixed(1)}%`;
+const fmtUsd = (n: number) =>
+  '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const fmtRoi = (n: number | null | undefined): string => {
-  if (n === null || n === undefined) return '—';
-  if (n === 0) return '0.0%';
-  const g = n > 0 ? '▲' : '▼';
-  return `${g} ${Math.abs(n).toFixed(1)}%`;
+const fmtPnl = (n: number): string => {
+  const sign = n >= 0 ? '+' : '-';
+  return `${sign}${fmtUsd(n)}`;
 };
 
-const roiColor = (n: number | null | undefined): string => {
-  if (n === null || n === undefined || n === 0) return 'text-jtp-textDim';
-  return n > 0 ? 'text-jtp-profit' : 'text-jtp-loss';
-};
+const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-const truncateAddr = (addr: string) =>
-  addr && addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
+const pnlColor = (n: number) =>
+  n > 0 ? 'text-jtp-profit' : n < 0 ? 'text-jtp-loss' : 'text-jtp-textMuted';
 
-const fmtBalance = (n: number) =>
-  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const VERDICT_VARIANT: Record<string, 'profit' | 'loss' | 'warning' | 'neutral'> = {
-  validated: 'profit',
-  disabled: 'loss',
-  watch: 'warning',
-  learning: 'neutral',
-};
-
-// ─── Top wallet row ───────────────────────────────────────────────────────────
-
-const WalletRow: React.FC<{ w: QuantLearningWallet; rank: number }> = ({ w, rank }) => {
-  const isPositive = w.avgRoi > 0;
-  const isNegative = w.avgRoi < 0;
-
-  return (
-    <div className="flex items-center gap-3 py-[7px] border-b border-jtp-borderSubtle last:border-0">
-      {/* Rank */}
-      <span className="font-mono text-jtp-2xs text-jtp-textFaint w-4 text-right flex-shrink-0">
-        {rank}
-      </span>
-
-      {/* Address */}
-      <span className="font-mono text-jtp-xs text-jtp-textMuted flex-1 min-w-0 truncate">
-        {truncateAddr(w.address)}
-      </span>
-
-      {/* Win% */}
-      <span
-        className="font-mono text-jtp-xs flex-shrink-0"
-        style={{ color: '#3ddc84' }}
-        title="Win rate"
-      >
-        {fmtWinRate(w.winRate)}
-      </span>
-
-      {/* Avg ROI */}
-      <span
-        className={`font-mono text-jtp-xs flex-shrink-0 ${roiColor(w.avgRoi)}`}
-        title="Average ROI per resolved decision"
-      >
-        {isPositive ? '▲' : isNegative ? '▼' : ''}{' '}
-        {Math.abs(w.avgRoi).toFixed(1)}%
-      </span>
-
-      {/* Verdict */}
-      <Badge variant={VERDICT_VARIANT[w.verdict] ?? 'neutral'} size="xs">
-        {w.verdict}
-      </Badge>
-    </div>
-  );
+const formatCurveDate = (t: number) => {
+  const d = new Date(t);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 // ─── ChevronRight icon ────────────────────────────────────────────────────────
@@ -116,14 +72,36 @@ const ChevronRight: React.FC = () => (
   </svg>
 );
 
+// ─── Custom tooltip for equity curve ─────────────────────────────────────────
+
+const CurveTooltip: React.FC<{
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string | number;
+}> = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  const pnl = payload[0].value;
+  const color = pnl >= 0 ? '#3ddc84' : '#ff5b52';
+  return (
+    <div className="bg-jtp-panel border border-jtp-border rounded-sm px-3 py-2 shadow-md">
+      <p className="font-mono text-[10px] text-jtp-textFaint mb-[3px]">
+        {typeof label === 'number' ? formatCurveDate(label) : label}
+      </p>
+      <p className="font-mono text-jtp-xs font-semibold" style={{ color }}>
+        {fmtPnl(pnl)}
+      </p>
+    </div>
+  );
+};
+
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 const QuantDashPanel: React.FC = () => {
   const { getToken } = useAuth();
   const { navigateTo } = useView();
 
-  const [learning, setLearning] = useState<QuantLearning | null>(null);
-  const [sim, setSim] = useState<QuantSimulation | null>(null);
+  const [status, setStatus] = useState<AutobotStatus | null>(null);
+  const [perf, setPerf] = useState<AutobotPerformance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,20 +110,20 @@ const QuantDashPanel: React.FC = () => {
     setError(null);
     try {
       const token = await getToken();
-      const [learningData, simData] = await Promise.allSettled([
-        api.quantLearning(token),
-        api.quantSimulation(50, 0.05, 'live', token),
+      const [statusRes, perfRes] = await Promise.allSettled([
+        api.autobotStatus(token),
+        api.autobotPerformance(token),
       ]);
 
-      if (learningData.status === 'fulfilled') setLearning(learningData.value);
-      if (simData.status === 'fulfilled') setSim(simData.value);
+      if (statusRes.status === 'fulfilled') setStatus(statusRes.value);
+      if (perfRes.status === 'fulfilled') setPerf(perfRes.value);
 
-      // If both failed that's an error
-      if (learningData.status === 'rejected' && simData.status === 'rejected') {
-        setError('Could not load Quant data.');
+      if (statusRes.status === 'rejected' && perfRes.status === 'rejected') {
+        setError('Could not load Auto Bot data.');
       }
-    } catch (e: any) {
-      setError(e?.message || 'Could not load Quant data.');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not load Auto Bot data.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -155,132 +133,239 @@ const QuantDashPanel: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const overall = learning?.overall;
-  const topWallets: QuantLearningWallet[] = [...(learning?.wallets ?? [])]
-    .sort((a, b) => b.avgRoi - a.avgRoi)
-    .slice(0, 5);
+  const stats = perf?.stats ?? status?.stats ?? null;
+  const curve = perf?.curve ?? [];
+  const hasCurve = curve.length > 0;
 
-  // Paper equity display
-  const simStart = sim?.startBalance ?? 50;
-  const simFinal = sim?.finalBalance;
-  const simIsUp = simFinal !== undefined ? simFinal >= simStart : true;
-  const simColor = simIsUp ? 'text-jtp-profit' : 'text-jtp-loss';
+  // Derive losses — performance stats has it, status.stats can be inferred
+  const losses =
+    perf?.stats.losses !== undefined
+      ? perf.stats.losses
+      : stats
+        ? (stats as AutobotStatus['stats']).resolved - (stats as AutobotStatus['stats']).wins
+        : 0;
 
-  const balanceValue = simFinal !== undefined
-    ? fmtBalance(simFinal)
-    : '—';
+  const realizedPnl = stats?.realizedPnlUsd ?? 0;
+  const walletBalance = status?.balance.usdce ?? perf?.stats.walletUsdce ?? null;
+  const exposure = status?.exposureUsd ?? perf?.stats.openExposureUsd ?? 0;
+  const isAuto = status?.mode === 'auto';
 
-  const hasResolved = overall && overall.resolved > 0;
-  const hasData = hasResolved || (sim && sim.nTrades > 0);
+  // Resolved count: prefer perf.stats (has open too)
+  const resolved = perf?.stats.resolved ?? (stats as AutobotStatus['stats'] | null)?.resolved ?? 0;
+  const open = perf?.stats.open ?? 0;
+
+  const hasAnyData = stats !== null || walletBalance !== null;
+
+  // Curve color — green if net positive, red otherwise
+  const curveColor = realizedPnl >= 0 ? '#3ddc84' : '#ff5b52';
+  const curveFill = realizedPnl >= 0 ? 'rgba(61,220,132,0.12)' : 'rgba(255,91,82,0.10)';
 
   return (
     <Panel
-      label="QUANT — PAPER ENGINE"
+      label="QUANT — AUTO BOT (real)"
       actions={
-        <button
-          onClick={() => navigateTo('quant')}
-          className="flex items-center gap-1 font-mono text-jtp-xs text-jtp-textMuted hover:text-jtp-text transition-colors"
-          aria-label="View full Quant analysis"
-        >
-          View full analysis
-          <ChevronRight />
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Mode badge */}
+          {status && (
+            <span
+              className="font-mono text-jtp-2xs flex items-center gap-[5px]"
+              aria-label={`Bot mode: ${isAuto ? 'automatic' : 'manual'}`}
+            >
+              <span
+                className="inline-block w-[6px] h-[6px] rounded-full"
+                style={{ backgroundColor: isAuto ? '#3ddc84' : '#e8a23d' }}
+                aria-hidden="true"
+              />
+              <span style={{ color: isAuto ? '#3ddc84' : '#e8a23d' }}>
+                {isAuto ? 'AUTO' : 'MANUAL'}
+              </span>
+            </span>
+          )}
+          <button
+            onClick={() => navigateTo('quant')}
+            className="flex items-center gap-1 font-mono text-jtp-xs text-jtp-textMuted hover:text-jtp-text transition-colors"
+            aria-label="Open Auto Bot page"
+          >
+            Open Auto Bot
+            <ChevronRight />
+          </button>
+        </div>
       }
     >
       {loading ? (
         <div className="flex flex-col gap-4" aria-busy="true">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => (
+          {/* Headline skeleton */}
+          <Skeleton className="h-10 w-48" />
+          {/* Stat tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} variant="stat" />
             ))}
           </div>
-          <div className="flex flex-col gap-2 mt-1">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-8 w-full" />
-            ))}
-          </div>
+          {/* Curve skeleton */}
+          <Skeleton className="h-32 w-full" />
         </div>
       ) : error ? (
         <p role="alert" className="text-jtp-md text-jtp-loss py-4">
           {error}
         </p>
-      ) : !hasData ? (
+      ) : !hasAnyData ? (
         <EmptyState
-          title="Building forward data"
-          description="The engine is tracking wallets out-of-sample. Stats appear as predictions resolve."
+          title="Auto Bot not yet initialised"
+          description="Deploy a bot wallet first — stats will appear here once it is live."
           className="py-8"
         />
       ) : (
         <div className="flex flex-col gap-4">
 
-          {/* ── Stat tiles ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <StatTile
-              label="OS WIN RATE"
-              value={hasResolved ? fmtWinRate(overall!.winRate) : '—'}
-              valueColor={
-                hasResolved
-                  ? overall!.winRate >= 0.5
-                    ? 'text-jtp-profit'
-                    : 'text-jtp-loss'
-                  : undefined
-              }
-              positive={hasResolved ? overall!.winRate >= 0.5 : undefined}
-              subValue="out-of-sample"
-            />
-            <StatTile
-              label="AVG ROI"
-              value={hasResolved ? fmtRoi(overall!.avgRoi) : '—'}
-              valueColor={hasResolved ? roiColor(overall!.avgRoi) : undefined}
-              positive={hasResolved && overall!.avgRoi !== 0 ? overall!.avgRoi > 0 : undefined}
-              subValue="per decision"
-            />
-            <StatTile
-              label="PAPER $50 →"
-              value={balanceValue}
-              valueColor={simFinal !== undefined ? simColor : undefined}
-              positive={simFinal !== undefined ? simIsUp : undefined}
-              subValue={sim && sim.nTrades > 0 ? `${sim.nTrades} trades` : 'no trades yet'}
-            />
-            <StatTile
-              label="MAX DRAWDOWN"
-              value={sim && sim.nTrades > 0 ? `${sim.maxDrawdownPct.toFixed(1)}%` : '—'}
-              valueColor="text-jtp-loss"
-              subValue="paper simulation"
-            />
-            <StatTile
-              label="RESOLVED / PENDING"
-              value={overall ? `${overall.resolved} / ${overall.pending}` : '— / —'}
-              valueColor="text-jtp-textMuted"
-              subValue="decisions"
-            />
+          {/* ── Headline: wallet balance + P&L ── */}
+          <div className="flex items-baseline gap-4 flex-wrap">
+            {walletBalance !== null && (
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="font-mono font-bold text-jtp-text"
+                  style={{ fontSize: '1.75rem', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {fmtUsd(walletBalance)}
+                </span>
+                <span className="font-mono text-jtp-xs text-jtp-textFaint">USDC.e</span>
+              </div>
+            )}
+            {stats !== null && (
+              <span
+                className={`font-mono font-semibold text-jtp-lg ${pnlColor(realizedPnl)}`}
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+                aria-label={`Realized P&L: ${fmtPnl(realizedPnl)}`}
+              >
+                {fmtPnl(realizedPnl)} realized
+              </span>
+            )}
           </div>
 
-          {/* ── Top wallets ── */}
-          {topWallets.length > 0 && (
-            <div>
-              <div className="font-mono text-jtp-2xs text-jtp-textFaint tracking-[0.12em] uppercase mb-2">
-                Top working wallets
-              </div>
-              <div className="divide-y divide-jtp-borderSubtle">
-                {topWallets.map((w, i) => (
-                  <WalletRow key={w.address} w={w} rank={i + 1} />
-                ))}
-              </div>
+          {/* ── Stat tiles ── */}
+          {stats !== null && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <StatTile
+                label="REALIZED P&L"
+                value={fmtPnl(realizedPnl)}
+                valueColor={pnlColor(realizedPnl)}
+                positive={realizedPnl !== 0 ? realizedPnl > 0 : undefined}
+                subValue="all time"
+              />
+              <StatTile
+                label="RIGHT"
+                value={String(stats.wins)}
+                valueColor="text-jtp-profit"
+                subValue="winning trades"
+              />
+              <StatTile
+                label="WRONG"
+                value={String(losses)}
+                valueColor={losses > 0 ? 'text-jtp-loss' : 'text-jtp-textMuted'}
+                subValue="losing trades"
+              />
+              <StatTile
+                label="WIN RATE"
+                value={stats.winRate > 0 || resolved > 0 ? fmtPct(stats.winRate) : '—'}
+                valueColor={
+                  stats.winRate >= 0.5 && resolved > 0
+                    ? 'text-jtp-profit'
+                    : resolved > 0
+                      ? 'text-jtp-loss'
+                      : 'text-jtp-textMuted'
+                }
+                positive={resolved > 0 ? stats.winRate >= 0.5 : undefined}
+                subValue={resolved > 0 ? `${resolved} resolved` : 'no resolved yet'}
+              />
+              <StatTile
+                label="EXPOSURE"
+                value={exposure > 0 ? fmtUsd(exposure) : '$0.00'}
+                valueColor={exposure > 0 ? 'text-jtp-warning' : 'text-jtp-textMuted'}
+                subValue="open positions"
+              />
+              <StatTile
+                label="OPEN / RESOLVED"
+                value={`${open} / ${resolved}`}
+                valueColor="text-jtp-textMuted"
+                subValue="positions"
+              />
             </div>
           )}
 
-          {/* ── Disclaimer + link ── */}
+          {/* ── Equity curve ── */}
+          <div>
+            <div className="font-mono text-jtp-2xs text-jtp-textFaint tracking-[0.12em] uppercase mb-2">
+              Realized P&L curve
+            </div>
+            {hasCurve ? (
+              <div className="h-32" aria-label="Equity curve chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={curve}
+                    margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="botCurveGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={curveColor} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={curveColor} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="2 4"
+                      stroke="rgba(255,255,255,0.04)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="t"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={formatCurveDate}
+                      tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(255,255,255,0.3)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={40}
+                    />
+                    <YAxis
+                      tickFormatter={(v: number) => `$${v >= 0 ? '' : '-'}${Math.abs(v).toFixed(0)}`}
+                      tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(255,255,255,0.3)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={44}
+                    />
+                    <Tooltip content={<CurveTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="pnl"
+                      stroke={curveColor}
+                      strokeWidth={1.5}
+                      fill="url(#botCurveGradient)"
+                      dot={false}
+                      activeDot={{ r: 3, fill: curveColor, strokeWidth: 0 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-24 flex items-center justify-center rounded-sm border border-jtp-borderSubtle">
+                <p className="font-mono text-jtp-xs text-jtp-textFaint text-center px-4">
+                  No resolved trades yet — markets settle over hours/days
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Footer ── */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-jtp-borderSubtle">
             <p className="text-jtp-xs text-jtp-textFaint">
-              Paper, out-of-sample — not financial advice.
+              Real money — your Polymarket bot.{' '}
+              Paper-proven first; this is the live result.
             </p>
             <button
               onClick={() => navigateTo('quant')}
               className="font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-text transition-colors flex items-center gap-1"
-              aria-label="Open Quant full analysis page"
+              aria-label="Open Auto Bot page"
             >
-              View full analysis
+              Open Auto Bot
               <ChevronRight />
             </button>
           </div>
