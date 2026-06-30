@@ -568,7 +568,7 @@ const ThoughtFeed = memo(function ThoughtFeed({
 }) {
   return (
     <div
-      className="flex flex-col gap-2 overflow-y-auto h-full"
+      className="flex flex-col gap-2 lg:overflow-y-auto lg:h-full"
       style={{ scrollbarWidth: 'thin', scrollbarColor: '#1b2026 transparent' }}
       role="log"
       aria-live="polite"
@@ -733,6 +733,7 @@ export default function BrainDashboard() {
   const reconnTimerRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const mountedRef    = useRef(true);
+  const replayDoneRef  = useRef(false);
 
   // ── Scoreboard fetch ──
   const fetchScoreboard = useCallback(async () => {
@@ -825,6 +826,7 @@ export default function BrainDashboard() {
 
     let reconnTimer: number | null = null;
     let es: EventSource | null = null;
+    const replayTimers: number[] = [];
 
     const closeEs = () => {
       if (es) {
@@ -851,7 +853,29 @@ export default function BrainDashboard() {
         if (res.ok) {
           const json = await res.json();
           if (json?.success && Array.isArray(json.data) && mountedRef.current) {
-            setEvents((json.data as BrainEvent[]).filter((e) => e && e.kind && e.title && (e as any).kind !== 'ping').slice(0, MAX_FEED_EVENTS));
+            const backfill = (json.data as BrainEvent[])
+              .filter((e) => e && e.kind && e.title && (e as any).kind !== 'ping')
+              .slice(0, MAX_FEED_EVENTS);
+            setEvents(backfill);
+
+            // Replay the most recent ~10 neuron bursts in chronological order on
+            // first load so the user sees the catch-up animation when they open Brain.
+            if (!replayDoneRef.current) {
+              replayDoneRef.current = true;
+              const REPLAY_KINDS = new Set([
+                'tick', 'research', 'recall', 'decide', 'skip', 'execute', 'learn', 'error',
+              ]);
+              const replayable = backfill
+                .filter(e => REPLAY_KINDS.has(e.kind))
+                .slice(0, 10)   // most recent 10 (backfill is newest-first)
+                .reverse();     // fire oldest → newest (chronological)
+              replayable.forEach((ev, i) => {
+                const t = window.setTimeout(() => {
+                  if (mountedRef.current) fireNode(ev.kind);
+                }, i * 200);
+                replayTimers.push(t);
+              });
+            }
           }
         }
       } catch {
@@ -904,6 +928,7 @@ export default function BrainDashboard() {
       closeEs();
       if (reconnTimer) clearTimeout(reconnTimer);
       if (reconnTimerRef.current) clearTimeout(reconnTimerRef.current);
+      replayTimers.forEach(t => clearTimeout(t));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeModule]); // getToken / fetchScoreboard / fireNode are stable
@@ -925,7 +950,7 @@ export default function BrainDashboard() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col gap-3 overflow-hidden">
+    <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
       {/* ── Header bar ── */}
       <div className="flex items-start justify-between flex-wrap gap-3 flex-shrink-0">
         {/* Title + live indicator */}
@@ -1051,12 +1076,12 @@ export default function BrainDashboard() {
       </div>
 
       {/* ── Main content: brain + feed ── */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(280px,420px)_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:flex-1 lg:min-h-0 lg:grid-cols-[minmax(280px,420px)_1fr] gap-4">
 
         {/* Left panel: neural network visualization */}
-        <div className="flex flex-col gap-4 min-h-0">
+        <div className="flex flex-col gap-4 lg:min-h-0">
           <div
-            className="relative flex-1 min-h-[280px] bg-jtp-panel border border-jtp-border rounded-[3px] flex items-center justify-center overflow-hidden"
+            className="relative h-[300px] lg:h-auto lg:flex-1 bg-jtp-panel border border-jtp-border rounded-[3px] flex items-center justify-center overflow-hidden"
           >
             {/* Ambient purple radial glow behind the SVG */}
             <div
@@ -1135,7 +1160,7 @@ export default function BrainDashboard() {
         </div>
 
         {/* Right panel: live thought feed */}
-        <div className="flex flex-col min-h-0 bg-jtp-panel border border-jtp-border rounded-[3px] overflow-hidden">
+        <div className="flex flex-col lg:min-h-0 bg-jtp-panel border border-jtp-border rounded-[3px] lg:overflow-hidden">
           {/* Feed header */}
           <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-jtp-border bg-jtp-raised">
             <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-jtp-textDim">
@@ -1158,7 +1183,7 @@ export default function BrainDashboard() {
           </div>
 
           {/* Scrollable events */}
-          <div className="flex-1 min-h-0 p-3">
+          <div className="p-3 lg:flex-1 lg:min-h-0">
             <ThoughtFeed events={feedEvents} newestId={newestId} />
           </div>
         </div>

@@ -813,6 +813,14 @@ const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-jtp-2xs pl-[calc(theme(spacing.2)+2.5rem)]">
         <span className="text-jtp-textMuted">@ {priceCents}¢</span>
         <span className="text-jtp-textMuted">{fmtUsd(trade.sizeUsd)}</span>
+        {trade.status === 'resolved' && trade.pnlUsd != null && (
+          <span
+            className={`font-semibold ${pnlColor(trade.pnlUsd)}`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {trade.pnlUsd >= 0 ? '+' : ''}{fmtUsd(trade.pnlUsd)}
+          </span>
+        )}
         {trade.edgePct != null && (
           <span className="text-[#3ddc84] font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
             +{trade.edgePct.toFixed(1)}%
@@ -841,6 +849,25 @@ const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
   );
 };
 
+// ─── Filter types & helpers ────────────────────────────────────────────────────
+
+type StatusFilter = 'all' | 'open' | 'won' | 'lost' | 'unfilled';
+type StrategyFilter = 'all' | 'copy' | 'ai' | 'arb';
+
+const matchesStatusFilter = (trade: AutobotTrade, f: StatusFilter): boolean => {
+  if (f === 'all') return true;
+  if (f === 'open') return trade.status === 'filled';
+  if (f === 'won') return trade.status === 'resolved' && (trade.pnlUsd ?? 0) > 0;
+  if (f === 'lost') return trade.status === 'resolved' && (trade.pnlUsd ?? 0) <= 0;
+  if (f === 'unfilled') return trade.status === 'unfilled' || trade.status === 'failed';
+  return true;
+};
+
+const matchesStrategyFilter = (trade: AutobotTrade, f: StrategyFilter): boolean => {
+  if (f === 'all') return true;
+  return (trade.signalType ?? '') === f;
+};
+
 // ─── Equity curve chart tooltip ────────────────────────────────────────────────
 
 // Mirrors the SimTooltip in WhatWorksPanel; renders cumulative $ P&L (can be negative).
@@ -857,6 +884,104 @@ const PerfTooltip: React.FC<any> = ({ active, payload }) => {
       <span className="font-mono text-jtp-xs" style={{ color }}>
         {sign}${Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
+    </div>
+  );
+};
+
+// ─── TradeFilterBar ────────────────────────────────────────────────────────────
+
+const STATUS_CHIPS: { value: StatusFilter; label: string }[] = [
+  { value: 'all',      label: 'All' },
+  { value: 'open',     label: 'Open' },
+  { value: 'won',      label: 'Won' },
+  { value: 'lost',     label: 'Lost' },
+  { value: 'unfilled', label: 'Unfilled' },
+];
+
+const STRATEGY_CHIPS: { value: StrategyFilter; label: string }[] = [
+  { value: 'all',  label: 'All' },
+  { value: 'copy', label: 'Copy' },
+  { value: 'ai',   label: 'AI' },
+  { value: 'arb',  label: 'Arb' },
+];
+
+interface TradeFilterBarProps {
+  trades: AutobotTrade[];
+  statusFilter: StatusFilter;
+  strategyFilter: StrategyFilter;
+  onStatusChange: (f: StatusFilter) => void;
+  onStrategyChange: (f: StrategyFilter) => void;
+}
+
+const TradeFilterBar: React.FC<TradeFilterBarProps> = ({
+  trades, statusFilter, strategyFilter, onStatusChange, onStrategyChange,
+}) => {
+  const statusCounts: Record<StatusFilter, number> = {
+    all:      trades.length,
+    open:     trades.filter((t) => t.status === 'filled').length,
+    won:      trades.filter((t) => t.status === 'resolved' && (t.pnlUsd ?? 0) > 0).length,
+    lost:     trades.filter((t) => t.status === 'resolved' && (t.pnlUsd ?? 0) <= 0).length,
+    unfilled: trades.filter((t) => t.status === 'unfilled' || t.status === 'failed').length,
+  };
+
+  const strategyCounts: Record<StrategyFilter, number> = {
+    all:  trades.length,
+    copy: trades.filter((t) => t.signalType === 'copy').length,
+    ai:   trades.filter((t) => t.signalType === 'ai').length,
+    arb:  trades.filter((t) => t.signalType === 'arb').length,
+  };
+
+  const chipBase =
+    'font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border transition-colors whitespace-nowrap select-none';
+  const chipInactive =
+    'bg-jtp-bg text-jtp-textMuted border-jtp-borderStrong hover:text-jtp-text hover:border-jtp-borderFocus';
+
+  const statusChipClass = (v: StatusFilter): string => {
+    if (v !== statusFilter) return `${chipBase} ${chipInactive}`;
+    if (v === 'won')  return `${chipBase} bg-[rgba(61,220,132,0.10)] text-[#3ddc84] border-[rgba(61,220,132,0.40)]`;
+    if (v === 'lost') return `${chipBase} bg-[rgba(255,91,82,0.10)] text-[#ff5b52] border-[rgba(255,91,82,0.40)]`;
+    return `${chipBase} bg-[rgba(232,162,61,0.14)] text-[#e8a23d] border-[rgba(232,162,61,0.45)]`;
+  };
+
+  const strategyChipClass = (v: StrategyFilter): string =>
+    v === strategyFilter
+      ? `${chipBase} bg-[rgba(232,162,61,0.14)] text-[#e8a23d] border-[rgba(232,162,61,0.45)]`
+      : `${chipBase} ${chipInactive}`;
+
+  return (
+    <div className="px-4 pt-3 pb-2 border-b border-jtp-borderSubtle space-y-2">
+      <div className="flex flex-wrap gap-1.5 items-center" role="group" aria-label="Filter by status">
+        <span className="font-mono text-jtp-2xs text-jtp-textFaint uppercase tracking-wider mr-1 flex-shrink-0">
+          Status
+        </span>
+        {STATUS_CHIPS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={statusFilter === value}
+            onClick={() => onStatusChange(value)}
+            className={statusChipClass(value)}
+          >
+            {label} ({statusCounts[value]})
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5 items-center" role="group" aria-label="Filter by strategy">
+        <span className="font-mono text-jtp-2xs text-jtp-textFaint uppercase tracking-wider mr-1 flex-shrink-0">
+          Strategy
+        </span>
+        {STRATEGY_CHIPS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={strategyFilter === value}
+            onClick={() => onStrategyChange(value)}
+            className={strategyChipClass(value)}
+          >
+            {label} ({strategyCounts[value]})
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
@@ -879,6 +1004,9 @@ interface PerformanceTabProps {
 const PerformanceTab: React.FC<PerformanceTabProps> = ({
   perf, perfLoading, trades, tradesLoading, lastUpdated, onClearTrades, clearBusy,
 }) => {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [strategyFilter, setStrategyFilter] = useState<StrategyFilter>('all');
+
   if (perfLoading && !perf) {
     return (
       <div className="space-y-3">
@@ -1018,9 +1146,29 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       {/* ── Live trades feed ── */}
       {(() => {
         const hasClearable = trades.some((t) => isClearable(t.status));
+        const filteredTrades = trades.filter(
+          (t) => matchesStatusFilter(t, statusFilter) && matchesStrategyFilter(t, strategyFilter),
+        );
+        const isFiltered = statusFilter !== 'all' || strategyFilter !== 'all';
+        const panelLabel = trades.length > 0
+          ? isFiltered
+            ? `LIVE TRADES — ${filteredTrades.length} of ${trades.length}`
+            : `LIVE TRADES — ${trades.length}`
+          : 'LIVE TRADES';
+        const emptyFilterMsg = (() => {
+          const parts: string[] = [];
+          if (strategyFilter !== 'all') {
+            parts.push(STRATEGY_CHIPS.find((c) => c.value === strategyFilter)?.label ?? strategyFilter);
+          }
+          if (statusFilter !== 'all') {
+            parts.push(STATUS_CHIPS.find((c) => c.value === statusFilter)?.label ?? statusFilter);
+          }
+          return parts.length ? `No ${parts.join(' ')} trades yet.` : 'No trades yet.';
+        })();
+
         return (
           <Panel
-            label="LIVE TRADES"
+            label={panelLabel}
             noPadding
             actions={
               <div className="flex items-center gap-3 flex-wrap">
@@ -1057,16 +1205,31 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                 description="Fund the wallet and switch to AUTO to start trading."
               />
             ) : (
-              <div className="divide-y-0">
-                {trades.map((trade) => (
-                  <TradeCard
-                    key={trade.id}
-                    trade={trade}
-                    onClear={isClearable(trade.status) ? () => onClearTrades(trade.id) : undefined}
-                    clearBusy={clearBusy}
-                  />
-                ))}
-              </div>
+              <>
+                <TradeFilterBar
+                  trades={trades}
+                  statusFilter={statusFilter}
+                  strategyFilter={strategyFilter}
+                  onStatusChange={setStatusFilter}
+                  onStrategyChange={setStrategyFilter}
+                />
+                {filteredTrades.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <p className="font-mono text-jtp-xs text-jtp-textFaint">{emptyFilterMsg}</p>
+                  </div>
+                ) : (
+                  <div className="divide-y-0">
+                    {filteredTrades.map((trade) => (
+                      <TradeCard
+                        key={trade.id}
+                        trade={trade}
+                        onClear={isClearable(trade.status) ? () => onClearTrades(trade.id) : undefined}
+                        clearBusy={clearBusy}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </Panel>
         );
