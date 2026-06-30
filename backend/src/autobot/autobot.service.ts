@@ -394,7 +394,7 @@ export class AutobotService {
       balance: bal,                                    // EOA (gas) wallet
       tradeableUsdce: trade.usdce,                      // real trading cash (deposit wallet if linked)
       availableUsd: Math.max(0, trade.usdce),           // cash free to deploy now
-      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, orderType: w.orderType || 'limit' },
+      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, maxSettlementDays: w.maxSettlementDays ?? 7, orderType: w.orderType || 'limit' },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
       positionsValue: mtm.value,                         // live mark-to-market value of open positions
@@ -477,13 +477,14 @@ export class AutobotService {
     return this.status(userId);
   }
 
-  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: string }) {
+  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; orderType?: string }) {
     await this.getOrCreate(userId);
     const data: any = {};
     if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(1, Math.min(10000, l.maxTotalUsd));
     if (l.maxPerTradeUsd != null) data.maxPerTradeUsd = Math.max(0.5, Math.min(1000, l.maxPerTradeUsd));
     if (l.dailyLossLimitUsd != null) data.dailyLossLimitUsd = Math.max(0.5, Math.min(10000, l.dailyLossLimitUsd));
     if (l.minEdgePct != null) data.minEdgePct = Math.max(0, Math.min(100, l.minEdgePct));
+    if (l.maxSettlementDays != null) data.maxSettlementDays = Math.max(0, Math.min(365, l.maxSettlementDays));
     if (l.orderType === 'limit' || l.orderType === 'market') data.orderType = l.orderType;
     await this.prisma.pmAgentWallet.update({ where: { userId }, data });
     return this.status(userId);
@@ -564,7 +565,10 @@ export class AutobotService {
     // Only take signals whose edge clears the user's minimum — fewer, stronger trades.
     const minEdge = w.minEdgePct ?? 5;
     const strat = this.strategiesOf(w); // only act on strategies the user enabled
-    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge && strat[s.type as 'copy' | 'ai' | 'arb'] !== false);
+    // Don't trade far-out markets (the "waiting weeks" problem). 0 = allow any horizon.
+    const maxDays = w.maxSettlementDays ?? 7;
+    const cutoff = maxDays > 0 ? Date.now() + maxDays * 864e5 : Infinity;
+    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge && strat[s.type as 'copy' | 'ai' | 'arb'] !== false && (!s.endDate || s.endDate <= cutoff));
     const arbN = (signals || []).filter((s: any) => s.type === 'arb').length;
 
     // 🧠 thinking pulse — what the brain is watching this cycle (free, no LLM)
