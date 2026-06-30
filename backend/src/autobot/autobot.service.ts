@@ -588,8 +588,9 @@ export class AutobotService {
           });
           exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
         } else {
-          // order did NOT fill — record honestly, take NO position, count NO P&L
-          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `status=${res.status}: ${JSON.stringify(res.raw || {}).slice(0, 240)}` } });
+          // order did NOT fill — $0 spent, NO position. DELETE the row so unfilled attempts don't
+          // pile up and look like committed money; the brain trace keeps it for debugging.
+          await this.prisma.agentTrade.delete({ where: { id: trade.id } }).catch(() => {});
           this.logger.warn(`autobot ${w.address}: order not filled — status=${res.status} ${JSON.stringify(res.raw || {}).slice(0, 240)}`);
           this.brain.trace({ userId: w.userId, module: 'polymarket', title: `Unfilled · ${pick.outcome} (status ${res.status})`, detail: JSON.stringify(res.raw || {}).slice(0, 200), data: { status: res.status, raw: res.raw } });
         }
@@ -688,7 +689,7 @@ export class AutobotService {
     //  • market — take liquidity now, allow up to +3¢ over entry (FOK) → fills more, costs spread.
     const isLimit = (w.orderType || 'limit') !== 'market';
     const cap = price > 0
-      ? (isLimit ? +price.toFixed(2) : Math.min(0.99, +(price + 0.03).toFixed(2)))
+      ? (isLimit ? Math.min(0.99, +(price + 0.02).toFixed(2)) : Math.min(0.99, +(price + 0.03).toFixed(2)))
       : undefined;
     const ot = isLimit ? (OrderType.FAK || OrderType.FOK) : OrderType.FOK;
     const resp = await client.createAndPostMarketOrder(
