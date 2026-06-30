@@ -266,8 +266,8 @@ export class AutobotService {
           exposure += sizeUsd; usdceLeft -= sizeUsd; placed++;
         } else {
           // order did NOT fill — record honestly, take NO position, count NO P&L
-          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `not filled (status=${res.status})` } });
-          this.logger.warn(`autobot ${w.address}: order not filled — status=${res.status}`);
+          await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `status=${res.status}: ${JSON.stringify(res.raw || {}).slice(0, 240)}` } });
+          this.logger.warn(`autobot ${w.address}: order not filled — status=${res.status} ${JSON.stringify(res.raw || {}).slice(0, 240)}`);
         }
       } catch (e: any) {
         await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
