@@ -11,6 +11,11 @@ import { PmPosition, PolymarketMarket, PolymarketOutcome } from '../../types';
 import api from '../../services/api';
 import { Panel, Badge, Button, EmptyState } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
+import {
+  connectWalletConnect as wcConnect,
+  disconnectWalletConnect as wcDisconnect,
+  isWalletConnectConfigured as wcConfigured,
+} from '../../services/walletConnect';
 
 // ─── Polygon mainnet constants (chainId 137) ─────────────────────────────────
 const CHAIN_ID = 137;
@@ -125,6 +130,8 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
   const signerRef = useRef<JsonRpcSigner | null>(null);
   const clobRef = useRef<ClobClient | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wcProviderRef = useRef<any | null>(null); // WC EIP-1193 provider — kept for event cleanup
 
   // ── Wallet state ──
   const [address, setAddress] = useState<string | null>(null);
@@ -275,6 +282,73 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
       await refreshBalances(addr, provider);
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setWalletError(e?.shortMessage || e?.message || 'Failed to connect wallet.');
+    } finally {
+      setConnecting(false);
+    }
+  }, [refreshBalances]);
+
+  // ── Connect via WalletConnect (QR on desktop, deep-link on mobile) ──
+  const connectViaWalletConnect = useCallback(async () => {
+    setWalletError(null);
+    setConnecting(true);
+    try {
+      const { eip1193 } = await wcConnect();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const provider = new BrowserProvider(eip1193 as any);
+
+      // Ensure the wallet is on Polygon; request chain switch if not.
+      let net = await provider.getNetwork();
+      if (Number(net.chainId) !== CHAIN_ID) {
+        try {
+          await eip1193.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: CHAIN_ID_HEX }],
+          });
+        } catch (switchErr: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (switchErr?.code === 4902) {
+            await eip1193.request({
+              method: 'wallet_addEthereumChain',
+              params: [POLYGON_NETWORK],
+            });
+          } else {
+            throw switchErr;
+          }
+        }
+        net = await provider.getNetwork();
+      }
+
+      const signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+
+      wcProviderRef.current = eip1193;
+      providerRef.current = provider;
+      signerRef.current = signer;
+      setAddress(addr);
+      setChainId(Number(net.chainId));
+      await refreshBalances(addr, provider);
+
+      // Listen for WC session lifecycle events — reset everything on disconnect.
+      const handleWcDisconnect = () => {
+        wcProviderRef.current = null;
+        providerRef.current = null;
+        signerRef.current = null;
+        clobRef.current = null;
+        setAddress(null);
+        setChainId(null);
+        setUsdcBalance(null);
+        setAllowanceRaw(null);
+        setCreds(null);
+        wcDisconnect().catch(() => { /* ignore */ });
+      };
+      eip1193.on('disconnect', handleWcDisconnect);
+      eip1193.on('accountsChanged', (accs: string[]) => {
+        // Reset on any account change — user must reconnect to pick the new account.
+        if (!accs || accs.length === 0) handleWcDisconnect();
+        else handleWcDisconnect();
+      });
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setWalletError(e?.shortMessage || e?.message || 'WalletConnect: could not connect.');
+      wcDisconnect().catch(() => { /* ignore */ });
     } finally {
       setConnecting(false);
     }
@@ -1007,57 +1081,93 @@ const PolymarketTradePanel: React.FC<Props> = ({ prefill }) => {
         <aside className="w-full lg:w-[280px] lg:flex-shrink-0 flex flex-col gap-3">
           <Panel label="WALLET">
             <div className="space-y-4">
-              {!hasWallet ? (
-                isMobileBrowser ? (
-                  /* Mobile + no injected wallet: offer wallet in-app browser deep links */
-                  <div className="space-y-3">
-                    <p className="text-jtp-md text-jtp-textMuted leading-relaxed">
-                      Open JTradePilot inside your wallet's browser so it can inject the wallet.
-                    </p>
-                    <a
-                      href="https://metamask.app.link/dapp/jtradepilot.com"
-                      className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-[#f6851b] text-white hover:opacity-90 transition-opacity"
-                    >
-                      Open in MetaMask
-                    </a>
-                    <a
-                      href="https://phantom.app/ul/browse/https%3A%2F%2Fjtradepilot.com?ref=jtradepilot.com"
-                      className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-[#ab9ff2] text-[#08090b] hover:opacity-90 transition-opacity"
-                    >
-                      Open in Phantom
-                    </a>
-                    <p className="text-jtp-xs text-jtp-textDim font-mono leading-relaxed">
-                      On mobile, connect from inside your wallet's browser (tap a button above), or use the desktop site.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-jtp-md text-jtp-textMuted">
-                    No injected wallet detected.{' '}
-                    <a
-                      href="https://metamask.io/download/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-jtp-blue hover:underline font-medium"
-                    >
-                      Install MetaMask
-                    </a>{' '}
-                    or another Polygon wallet.
-                  </p>
-                )
-              ) : !address ? (
+              {!address ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-jtp-md text-jtp-textSoft">
                     Connect your Polygon wallet to browse markets and trade.
                   </p>
-                  <button
-                    type="button"
-                    onClick={connect}
-                    disabled={connecting}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-jtp-blue text-[#08090b] hover:bg-jtp-blueHover transition-colors disabled:opacity-50"
-                  >
-                    {connecting ? <Spinner className="w-3.5 h-3.5 text-[#08090b]" /> : null}
-                    {connecting ? 'Connecting…' : 'Connect wallet'}
-                  </button>
+
+                  {/* Injected wallet button — only when window.ethereum is present */}
+                  {hasWallet && (
+                    <button
+                      type="button"
+                      onClick={connect}
+                      disabled={connecting}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-jtp-blue text-[#08090b] hover:bg-jtp-blueHover transition-colors disabled:opacity-50"
+                    >
+                      {connecting ? <Spinner className="w-3.5 h-3.5 text-[#08090b]" /> : null}
+                      {connecting ? 'Connecting…' : 'Connect wallet'}
+                    </button>
+                  )}
+
+                  {/* WalletConnect — works on any browser, any device */}
+                  {wcConfigured() ? (
+                    <button
+                      type="button"
+                      onClick={connectViaWalletConnect}
+                      disabled={connecting}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-jtp-active border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50"
+                    >
+                      {connecting ? (
+                        <Spinner className="w-3.5 h-3.5 text-jtp-textDim" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 015.656 0l4-4a4 4 0 01-5.656-5.656l-1.102 1.101" />
+                        </svg>
+                      )}
+                      {connecting ? 'Connecting…' : 'WalletConnect'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      title="WalletConnect needs a project ID (admin)"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-jtp-active border border-jtp-border text-jtp-textDim opacity-50 cursor-not-allowed"
+                    >
+                      WalletConnect
+                      <span className="text-jtp-2xs font-normal normal-case tracking-normal">
+                        (not configured)
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Mobile deep-links when no injected wallet */}
+                  {!hasWallet && isMobileBrowser && (
+                    <div className="space-y-2 pt-1 border-t border-jtp-borderSubtle">
+                      <p className="text-jtp-xs text-jtp-textDim font-mono">
+                        Or open inside your wallet's browser:
+                      </p>
+                      <a
+                        href="https://metamask.app.link/dapp/jtradepilot.com"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-[#f6851b] text-white hover:opacity-90 transition-opacity"
+                      >
+                        Open in MetaMask
+                      </a>
+                      <a
+                        href="https://phantom.app/ul/browse/https%3A%2F%2Fjtradepilot.com?ref=jtradepilot.com"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[2px] text-jtp-md font-bold font-mono uppercase tracking-wider bg-[#ab9ff2] text-[#08090b] hover:opacity-90 transition-opacity"
+                      >
+                        Open in Phantom
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Desktop "no injected wallet" hint */}
+                  {!hasWallet && !isMobileBrowser && (
+                    <p className="text-jtp-xs text-jtp-textMuted">
+                      No injected wallet detected. Use WalletConnect above, or{' '}
+                      <a
+                        href="https://metamask.io/download/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-jtp-blue hover:underline font-medium"
+                      >
+                        install MetaMask
+                      </a>
+                      .
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">

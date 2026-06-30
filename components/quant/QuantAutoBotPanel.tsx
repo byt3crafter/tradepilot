@@ -21,6 +21,11 @@ import {
 import { BrowserProvider, Contract, formatUnits, parseUnits, parseEther } from 'ethers';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import {
+  connectWalletConnect as wcConnect,
+  disconnectWalletConnect as wcDisconnect,
+  isWalletConnectConfigured as wcConfigured,
+} from '../../services/walletConnect';
 import { AutobotStatus, AutobotTrade, AutobotPerformance } from '../../types';
 import {
   Panel,
@@ -502,6 +507,8 @@ type TxStatus = 'idle' | 'pending' | 'success' | 'error';
 
 const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) => {
   const providerRef = useRef<BrowserProvider | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wcProviderRef = useRef<any | null>(null); // WC EIP-1193 provider — kept for event cleanup
 
   const [walletAddr, setWalletAddr] = useState<string | null>(null);
   const [walletChain, setWalletChain] = useState<number | null>(null);
@@ -633,6 +640,68 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     }
   }, [refreshBalances]);
 
+  // ── Connect via WalletConnect (QR on desktop, deep-link on mobile) ──
+  const connectViaWalletConnect = useCallback(async () => {
+    setConnecting(true);
+    setWalletErr(null);
+    try {
+      const { eip1193 } = await wcConnect();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const provider = new BrowserProvider(eip1193 as any);
+
+      let net = await provider.getNetwork();
+      if (Number(net.chainId) !== BOT_CHAIN_ID) {
+        try {
+          await eip1193.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: BOT_CHAIN_ID_HEX }],
+          });
+        } catch (switchErr: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (switchErr?.code === 4902) {
+            await eip1193.request({
+              method: 'wallet_addEthereumChain',
+              params: [POLYGON_NET_PARAMS],
+            });
+          } else {
+            throw switchErr;
+          }
+        }
+        net = await provider.getNetwork();
+      }
+
+      const signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+
+      wcProviderRef.current = eip1193;
+      providerRef.current = provider;
+      setWalletAddr(addr);
+      setWalletChain(Number(net.chainId));
+      const usdce = await refreshBalances(addr, provider);
+      if (usdce > 0) setAmount((Math.min(18, Math.floor(usdce * 100) / 100)).toFixed(2));
+
+      // Listen for WC session lifecycle events — reset on disconnect.
+      const handleWcDisconnect = () => {
+        wcProviderRef.current = null;
+        providerRef.current = null;
+        setWalletAddr(null);
+        setWalletChain(null);
+        setUsdceBal(0);
+        setPolBal(0);
+        wcDisconnect().catch(() => { /* ignore */ });
+      };
+      eip1193.on('disconnect', handleWcDisconnect);
+      eip1193.on('accountsChanged', (accs: string[]) => {
+        if (!accs || accs.length === 0) handleWcDisconnect();
+        else handleWcDisconnect(); // Reset on any account change; user reconnects to pick the new account.
+      });
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setWalletErr(e?.shortMessage || e?.message || 'WalletConnect: could not connect.');
+      wcDisconnect().catch(() => { /* ignore */ });
+    } finally {
+      setConnecting(false);
+    }
+  }, [refreshBalances]);
+
   const fundBot = async () => {
     if (!providerRef.current || !walletAddr) return;
     const amtNum = parseFloat(amount);
@@ -675,48 +744,70 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
     }
   };
 
-  if (!hasWallet) {
-    if (isMobileBrowser) {
-      return (
-        <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-3">
-          <p className="jtp-label">FUND BOT FROM MY WALLET</p>
-          <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
-            Open JTradePilot inside your wallet's browser so it can inject the wallet.
-          </p>
-          <a
-            href="https://metamask.app.link/dapp/jtradepilot.com"
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-[#f6851b] text-white hover:opacity-90 transition-opacity"
-          >
-            Open in MetaMask
-          </a>
-          <a
-            href="https://phantom.app/ul/browse/https%3A%2F%2Fjtradepilot.com?ref=jtradepilot.com"
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-[#ab9ff2] text-[#08090b] hover:opacity-90 transition-opacity"
-          >
-            Open in Phantom
-          </a>
-          <p className="font-mono text-jtp-2xs text-jtp-textDim leading-relaxed">
-            On mobile, connect from inside your wallet's browser (tap a button above), or use the desktop site.
-          </p>
-        </div>
-      );
-    }
-    return (
-      <div className="rounded-[2px] border border-jtp-border bg-jtp-bg px-3 py-3">
-        <p className="font-mono text-jtp-xs text-jtp-textMuted">
-          Install MetaMask or a Polygon wallet to fund the bot in one click.
-        </p>
-      </div>
-    );
-  }
-
   if (!walletAddr) {
     return (
       <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-2">
         <p className="jtp-label">FUND BOT FROM MY WALLET</p>
-        <Button variant="secondary" onClick={connect} isLoading={connecting} className="w-full">
-          {connecting ? 'Connecting…' : 'Connect wallet'}
-        </Button>
+
+        {/* Injected wallet button — only when window.ethereum is present */}
+        {hasWallet && (
+          <Button variant="secondary" onClick={connect} isLoading={connecting} className="w-full">
+            {connecting ? 'Connecting…' : 'Connect wallet'}
+          </Button>
+        )}
+
+        {/* WalletConnect — works on any browser, any device */}
+        {wcConfigured() ? (
+          <button
+            type="button"
+            onClick={connectViaWalletConnect}
+            disabled={connecting}
+            className="inline-flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-jtp-active border border-jtp-borderStrong text-jtp-text hover:bg-jtp-hover transition-colors disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 015.656 0l4-4a4 4 0 01-5.656-5.656l-1.102 1.101" />
+            </svg>
+            {connecting ? 'Connecting…' : 'WalletConnect'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="WalletConnect needs a project ID (admin)"
+            className="inline-flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-jtp-active border border-jtp-border text-jtp-textDim opacity-50 cursor-not-allowed"
+          >
+            WalletConnect
+            <span className="font-normal normal-case tracking-normal">(not configured)</span>
+          </button>
+        )}
+
+        {/* Mobile deep-links when no injected wallet */}
+        {!hasWallet && isMobileBrowser && (
+          <div className="space-y-1.5 pt-1 border-t border-jtp-borderSubtle">
+            <p className="font-mono text-jtp-2xs text-jtp-textDim">Or open in your wallet's browser:</p>
+            <a
+              href="https://metamask.app.link/dapp/jtradepilot.com"
+              className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-[#f6851b] text-white hover:opacity-90 transition-opacity"
+            >
+              Open in MetaMask
+            </a>
+            <a
+              href="https://phantom.app/ul/browse/https%3A%2F%2Fjtradepilot.com?ref=jtradepilot.com"
+              className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-[#ab9ff2] text-[#08090b] hover:opacity-90 transition-opacity"
+            >
+              Open in Phantom
+            </a>
+          </div>
+        )}
+
+        {/* Desktop no-wallet hint */}
+        {!hasWallet && !isMobileBrowser && (
+          <p className="font-mono text-jtp-2xs text-jtp-textMuted">
+            Use WalletConnect above, or install MetaMask to fund the bot in one click.
+          </p>
+        )}
+
         {walletErr && <p role="alert" className="font-mono text-jtp-xs text-[#ff5b52]">{walletErr}</p>}
       </div>
     );
