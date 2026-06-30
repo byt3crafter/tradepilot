@@ -886,6 +886,34 @@ export interface AutobotStatus {
     ai:   { trades: number; resolved: number; wins: number; winRate: number; pnlUsd: number };
     arb:  { trades: number; resolved: number; wins: number; winRate: number; pnlUsd: number };
   };
+  /** Arb desk thresholds (from GET /api/autobot/status → arbConfig). */
+  arbConfig?: {
+    safeMinPrice: number;
+    safeMaxHrs: number;
+    immMinPrice: number;
+    immMaxHrs: number;
+    minEdgePct: number;
+  };
+}
+
+// --- Manual Arb Desk opportunity (from GET /api/autobot/opportunities) ---
+
+export interface ArbOpportunity {
+  title: string;
+  outcome: string;
+  /** Probability as 0..1 (e.g. 0.72 = 72¢). */
+  price: number;
+  /** Price in cents (optional — derive from price if absent). */
+  priceCents?: number;
+  edgePct: number;
+  tier: 'safe' | 'imminent';
+  /** Hours until market ends. */
+  endsInH: number;
+  endsAt: string;
+  tokenId: string;
+  conditionId: string;
+  outcomeIndex: number;
+  smartMoney: boolean;
 }
 
 export type AutobotTradeStatus = 'pending' | 'placed' | 'filled' | 'failed' | 'resolved' | 'unfilled';
