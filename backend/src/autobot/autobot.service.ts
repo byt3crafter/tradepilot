@@ -401,6 +401,9 @@ export class AutobotService {
       unrealizedPnlUsd: mtm.unrealizedPnl,               // total open P&L vs entry (the honest -$ number)
       todayPnlUsd,                                        // change since start of today (matches Polymarket 1D)
       portfolioValue,                                    // cash + positions = total portfolio
+      netDepositsUsd: w.netDepositsUsd || 0,
+      // GROUND TRUTH — portfolio minus what you put in. Can't be fooled by missed per-trade bookings.
+      totalPnlUsd: w.netDepositsUsd > 0 ? +(portfolioValue - w.netDepositsUsd).toFixed(2) : null,
       openPositions: mtm.count,
       strategies: this.strategiesOf(w),                  // {copy,ai,arb} enable flags
       arbConfig: this.arbConfigOf(w),                    // user-set arb thresholds
@@ -477,7 +480,7 @@ export class AutobotService {
     return this.status(userId);
   }
 
-  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; orderType?: string }) {
+  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; netDepositsUsd?: number; orderType?: string }) {
     await this.getOrCreate(userId);
     const data: any = {};
     if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(1, Math.min(10000, l.maxTotalUsd));
@@ -485,6 +488,7 @@ export class AutobotService {
     if (l.dailyLossLimitUsd != null) data.dailyLossLimitUsd = Math.max(0.5, Math.min(10000, l.dailyLossLimitUsd));
     if (l.minEdgePct != null) data.minEdgePct = Math.max(0, Math.min(100, l.minEdgePct));
     if (l.maxSettlementDays != null) data.maxSettlementDays = Math.max(0, Math.min(365, l.maxSettlementDays));
+    if (l.netDepositsUsd != null) data.netDepositsUsd = Math.max(0, Math.min(1_000_000, l.netDepositsUsd));
     if (l.orderType === 'limit' || l.orderType === 'market') data.orderType = l.orderType;
     await this.prisma.pmAgentWallet.update({ where: { userId }, data });
     return this.status(userId);
