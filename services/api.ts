@@ -159,7 +159,7 @@ export interface ApiService {
   autobotTrades(limit?: number, token?: string | null): Promise<AutobotTrade[]>;
   autobotSetMode(mode: 'auto' | 'off', token?: string | null): Promise<AutobotStatus>;
   autobotKill(token?: string | null): Promise<AutobotStatus>;
-  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }, token?: string | null): Promise<AutobotStatus>;
+  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }, token?: string | null): Promise<AutobotStatus>;
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }>;
   autobotPerformance(token?: string | null): Promise<AutobotPerformance>;
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }>;
@@ -483,7 +483,7 @@ const api: ApiService = {
   },
   autobotSetMode(mode: 'auto' | 'off', token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/mode', { mode }, token); },
   autobotKill(token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/kill', {}, token); },
-  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
+  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }> { return this.post('/api/autobot/withdraw', { to }, token); },
   autobotPerformance(token?: string | null): Promise<AutobotPerformance> { return this.get('/api/autobot/performance', token); },
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }> { return this.post('/api/autobot/export-key', {}, token); },
