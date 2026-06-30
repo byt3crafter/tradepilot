@@ -393,7 +393,7 @@ export class AutobotService {
     try {
       const active = await this.prisma.pmAgentWallet.findMany({ where: { mode: 'auto', killSwitch: false } });
       for (const w of active) {
-        try { await this.runWallet(w); } catch (e: any) { this.logger.warn(`autobot ${w.address}: ${e?.message}`); }
+        try { await this.runWallet(w); } catch (e: any) { this.logger.warn(`autobot ${w.address}: ${e?.message}`); this.brain.error({ userId: w.userId, module: 'polymarket', title: 'Tick error', detail: String(e?.message || e).slice(0, 200), data: {} }); }
       }
     } finally {
       this.executing = false;
@@ -507,10 +507,12 @@ export class AutobotService {
           // order did NOT fill — record honestly, take NO position, count NO P&L
           await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'unfilled', orderId: res.orderId, error: `status=${res.status}: ${JSON.stringify(res.raw || {}).slice(0, 240)}` } });
           this.logger.warn(`autobot ${w.address}: order not filled — status=${res.status} ${JSON.stringify(res.raw || {}).slice(0, 240)}`);
+          this.brain.trace({ userId: w.userId, module: 'polymarket', title: `Unfilled · ${pick.outcome} (status ${res.status})`, detail: JSON.stringify(res.raw || {}).slice(0, 200), data: { status: res.status, raw: res.raw } });
         }
       } catch (e: any) {
         await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'failed', error: String(e?.message || e).slice(0, 300) } });
         this.logger.warn(`autobot ${w.address}: order failed — ${e?.message}`);
+        this.brain.error({ userId: w.userId, module: 'polymarket', title: `Order FAILED · ${pick.outcome}`, detail: String(e?.message || e).slice(0, 200), data: { title: pick.title } });
         break; // stop on first hard failure this tick
       }
     }
