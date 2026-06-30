@@ -212,11 +212,33 @@ export class AutobotService {
     }
   }
 
+  private posCache = new Map<string, { v: any; t: number }>();
+  /** Live mark-to-market of open positions held in the deposit wallet (Polymarket data-api),
+   * so the app shows the SAME portfolio value + unrealized P&L Polymarket shows — not just
+   * resolved P&L. Cached 30s. */
+  private async positionsMtm(funder: string): Promise<{ value: number; unrealizedPnl: number; count: number }> {
+    if (!funder) return { value: 0, unrealizedPnl: 0, count: 0 };
+    const c = this.posCache.get(funder);
+    if (c && Date.now() - c.t < 30000) return c.v;
+    try {
+      const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
+      const d: any = await r.json();
+      const arr = Array.isArray(d) ? d : [];
+      const value = arr.reduce((s: number, p: any) => s + (Number(p.currentValue) || 0), 0);
+      const unreal = arr.reduce((s: number, p: any) => s + (Number(p.cashPnl) || 0), 0);
+      const v = { value: +value.toFixed(2), unrealizedPnl: +unreal.toFixed(2), count: arr.length };
+      this.posCache.set(funder, { v, t: Date.now() });
+      return v;
+    } catch { return c?.v ?? { value: 0, unrealizedPnl: 0, count: 0 }; }
+  }
+
   // ── public API ────────────────────────────────────────────────────────────
   async status(userId: string) {
     const w = await this.getOrCreate(userId);
     const bal = await this.balances(w.address);       // EOA: the gas/signer wallet
     const trade = await this.tradeable(w);            // deposit wallet: the real trading funds
+    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+    const mtm = await this.positionsMtm(funder);      // live value + unrealized P&L of open positions
     const openTrades = await this.prisma.agentTrade.findMany({
       where: { userId, status: 'filled' },
       orderBy: { createdAt: 'desc' }, take: 50,
@@ -238,6 +260,10 @@ export class AutobotService {
       limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5 },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
+      positionsValue: mtm.value,                         // live mark-to-market value of open positions
+      unrealizedPnlUsd: mtm.unrealizedPnl,               // live P&L on open positions (matches Polymarket)
+      portfolioValue: +(trade.usdce + mtm.value).toFixed(2), // cash + positions = total portfolio
+      openPositions: mtm.count,
       strategies: this.strategiesOf(w),                  // {copy,ai,arb} enable flags
       strategyStats: this.rateStrategies(allTrades),     // per-strategy scorecard (rate what works)
       stats: { trades: allTrades.length, resolved: resolved.length, wins, winRate: resolved.length ? wins / resolved.length : 0, realizedPnlUsd: realizedPnl },
