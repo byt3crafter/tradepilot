@@ -141,7 +141,7 @@ export class AutobotService {
       balance: bal,                                    // EOA (gas) wallet
       tradeableUsdce: trade.usdce,                      // real trading cash (deposit wallet if linked)
       availableUsd: Math.max(0, trade.usdce),           // cash free to deploy now
-      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd },
+      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5 },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
       stats: { trades: allTrades.length, resolved: resolved.length, wins, winRate: resolved.length ? wins / resolved.length : 0, realizedPnlUsd: realizedPnl },
@@ -216,12 +216,13 @@ export class AutobotService {
     return this.status(userId);
   }
 
-  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }) {
+  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number }) {
     await this.getOrCreate(userId);
     const data: any = {};
     if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(1, Math.min(10000, l.maxTotalUsd));
     if (l.maxPerTradeUsd != null) data.maxPerTradeUsd = Math.max(0.5, Math.min(1000, l.maxPerTradeUsd));
     if (l.dailyLossLimitUsd != null) data.dailyLossLimitUsd = Math.max(0.5, Math.min(10000, l.dailyLossLimitUsd));
+    if (l.minEdgePct != null) data.minEdgePct = Math.max(0, Math.min(100, l.minEdgePct));
     await this.prisma.pmAgentWallet.update({ where: { userId }, data });
     return this.status(userId);
   }
@@ -298,7 +299,9 @@ export class AutobotService {
 
     const { signals } = await this.quant.signals();
     const held = new Set(open.map((t) => t.tokenId));
-    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) > 0);
+    // Only take signals whose edge clears the user's minimum — fewer, stronger trades.
+    const minEdge = w.minEdgePct ?? 5;
+    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge);
 
     // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").
     let placed = 0;

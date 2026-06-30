@@ -650,6 +650,7 @@ model PmAgentWallet {
   maxTotalUsd       Float    @default(20)      // never hold more exposure than this
   maxPerTradeUsd    Float    @default(2)       // per-order cap
   dailyLossLimitUsd Float    @default(5)       // halt for the day if exceeded
+  minEdgePct        Float    @default(5)       // only take signals with edge ≥ this %
   dailySpentUsd     Float    @default(0)
   dailyPnlUsd       Float    @default(0)
   dayStamp          String   @default("")      // YYYY-MM-DD daily reset key
