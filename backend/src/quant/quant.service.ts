@@ -496,6 +496,11 @@ export class QuantService implements OnApplicationBootstrap {
         // HARD price floor 0.25 — bands <0.20 lose -100%/-33% across every pass; the learned
         // gate could otherwise override the 0.30 prior on a falsely-positive bucket. Guard it.
         if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.25 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
+        // Skip the 0.40–0.50 "coin-flip dead zone": max-uncertainty markets where the crowd has
+        // no consensus → no copyable edge, only fee drag. Forward: band 0.40-0.50 = −17.3% over
+        // n=31 while both neighbours (0.30-0.40 +12%, 0.50-0.60 +27%) are strongly positive.
+        // Hard-skip (before the learned gate) lifts the sim +226%→+249%.
+        if (price >= 0.40 && price < 0.50) return false;
         const focus = focusMap.get(addr);
         const b = ev.get(this.bucketKey(focus, price));
         // Structurally -EV focuses are HARD-blocked — never copy, even when a (focus×band)
@@ -671,7 +676,7 @@ export class QuantService implements OnApplicationBootstrap {
         const focus = o.decision?.subjectAddr ? focusMap.get(o.decision.subjectAddr) || 'Mixed' : 'Mixed';
         return { ts, roi: (o.roiPct || 0) / 100, win: !!o.success, price, focus, mode: o.decision?.mode || 'auto' };
       })
-      .filter((it) => !applyFilter || it.mode !== 'auto' || (!COPY_BLOCK.has(it.focus) && it.price >= 0.25))
+      .filter((it) => !applyFilter || it.mode !== 'auto' || (!COPY_BLOCK.has(it.focus) && it.price >= 0.25 && !(it.price >= 0.40 && it.price < 0.50)))
       .sort((a, b) => a.ts - b.ts);
     let bal = start, peak = start, maxDD = 0, wins = 0;
     const curve: { t: number; balance: number }[] = [];
