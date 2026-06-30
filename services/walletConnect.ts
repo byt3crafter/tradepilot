@@ -16,8 +16,12 @@
 
 import { EthereumProvider } from '@walletconnect/ethereum-provider';
 
+// The init() static returns a fully-initialised provider instance; derive the
+// instance type from it so we can type the singleton without a value-as-type error.
+type WalletConnectProvider = Awaited<ReturnType<typeof EthereumProvider.init>>;
+
 // Module-level singleton — one session at a time across all panels.
-let _wcProvider: EthereumProvider | null = null;
+let _wcProvider: WalletConnectProvider | null = null;
 
 /** Returns true when a WalletConnect project ID is configured. */
 export function isWalletConnectConfigured(): boolean {
@@ -28,7 +32,7 @@ export function isWalletConnectConfigured(): boolean {
  * Lazily initialises the WalletConnect EthereumProvider.
  * Reuses the existing instance if one already exists.
  */
-export async function getWalletConnectProvider(): Promise<EthereumProvider> {
+export async function getWalletConnectProvider(): Promise<WalletConnectProvider> {
   const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined;
   if (!projectId) {
     throw new Error(
@@ -65,7 +69,7 @@ export async function getWalletConnectProvider(): Promise<EthereumProvider> {
  *          the first connected address (lowercased, checksummed by ethers later).
  */
 export async function connectWalletConnect(): Promise<{
-  eip1193: EthereumProvider;
+  eip1193: WalletConnectProvider;
   address: string;
 }> {
   // Already connected? reuse the live session.

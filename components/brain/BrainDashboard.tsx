@@ -592,13 +592,10 @@ const ThoughtFeed = memo(function ThoughtFeed({
 
 // ─── Scoreboard Tile ───────────────────────────────────────────────────────────
 
-function ScoreTile({
-  moduleData,
-  learnEvents,
-}: {
+const ScoreTile: React.FC<{
   moduleData: BrainScoreboardModule;
   learnEvents: BrainEvent[];
-}) {
+}> = ({ moduleData, learnEvents }) => {
   const wins = learnEvents.filter(e => (e.data as any)?.won === true).length;
   const total = learnEvents.length;
   const winRate = total > 0 ? Math.round((wins / total) * 100) : null;
@@ -681,7 +678,7 @@ function ScoreTile({
       )}
     </div>
   );
-}
+};
 
 // ─── Main BrainDashboard ───────────────────────────────────────────────────────
 

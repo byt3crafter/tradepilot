@@ -108,7 +108,8 @@ const NumberInput: React.FC<{
   onChange: (v: string) => void;
   step?: number;
   min?: number;
-}> = ({ label, value, onChange, step = 1, min = 0 }) => (
+  max?: number;
+}> = ({ label, value, onChange, step = 1, min = 0, max }) => (
   <div className="flex flex-col gap-1">
     <label className="font-mono text-jtp-2xs text-jtp-textMuted tracking-[0.1em] uppercase">
       {label}
@@ -118,6 +119,7 @@ const NumberInput: React.FC<{
       value={value}
       step={step}
       min={min}
+      max={max}
       onChange={(e) => onChange(e.target.value)}
       className="w-full bg-jtp-bg border border-jtp-borderSubtle rounded-[2px] px-2.5 py-1.5 font-mono text-jtp-sm text-jtp-text placeholder-jtp-textMuted focus:outline-none focus:border-jtp-amber transition-colors"
     />
@@ -282,14 +284,18 @@ const ArbSettingsCard: React.FC<{ initialConfig?: AutobotStatus['arbConfig'] }> 
 }) => {
   const { getToken } = useAuth();
 
+  // Backend stores safe/imm min price as fractions 0..1 (clamped 0.5..0.999).
+  // This UI works in CENTS (50..99.9¢) — convert on read (×100) and on write (÷100).
+  const fracToCents = (frac: number) => String(Math.round(frac * 1000) / 10);
+
   const [safeMinPrice, setSafeMinPrice] = useState(
-    String(initialConfig?.safeMinPrice ?? 70),
+    fracToCents(initialConfig?.safeMinPrice ?? 0.95),
   );
   const [safeMaxHrs, setSafeMaxHrs] = useState(
     String(initialConfig?.safeMaxHrs ?? 24),
   );
   const [immMinPrice, setImmMinPrice] = useState(
-    String(initialConfig?.immMinPrice ?? 85),
+    fracToCents(initialConfig?.immMinPrice ?? 0.9),
   );
   const [immMaxHrs, setImmMaxHrs] = useState(
     String(initialConfig?.immMaxHrs ?? 6),
@@ -304,23 +310,32 @@ const ArbSettingsCard: React.FC<{ initialConfig?: AutobotStatus['arbConfig'] }> 
   // Sync when parent provides config for the first time
   useEffect(() => {
     if (!initialConfig) return;
-    setSafeMinPrice(String(initialConfig.safeMinPrice));
+    setSafeMinPrice(fracToCents(initialConfig.safeMinPrice));
     setSafeMaxHrs(String(initialConfig.safeMaxHrs));
-    setImmMinPrice(String(initialConfig.immMinPrice));
+    setImmMinPrice(fracToCents(initialConfig.immMinPrice));
     setImmMaxHrs(String(initialConfig.immMaxHrs));
     setMinEdgePct(String(initialConfig.minEdgePct));
   }, [initialConfig]);
 
   const handleSave = async () => {
+    // Validate the cents inputs before converting back to fractions for the API.
+    const safeCents = Number(safeMinPrice);
+    const immCents = Number(immMinPrice);
+    const inRange = (c: number) => Number.isFinite(c) && c >= 50 && c <= 99.9;
+    if (!inRange(safeCents) || !inRange(immCents)) {
+      setSaveMsg({ ok: false, text: 'Min prices must be 50–99.9¢.' });
+      setTimeout(() => setSaveMsg(null), 3000);
+      return;
+    }
     setSaving(true);
     setSaveMsg(null);
     try {
       const token = await getToken();
       await api.autobotSetArbConfig(
         {
-          safeMinPrice: Number(safeMinPrice),
+          safeMinPrice: safeCents / 100,
           safeMaxHrs: Number(safeMaxHrs),
-          immMinPrice: Number(immMinPrice),
+          immMinPrice: immCents / 100,
           immMaxHrs: Number(immMaxHrs),
           minEdgePct: Number(minEdgePct),
         },
@@ -349,8 +364,9 @@ const ArbSettingsCard: React.FC<{ initialConfig?: AutobotStatus['arbConfig'] }> 
           label="Safe min price (¢)"
           value={safeMinPrice}
           onChange={setSafeMinPrice}
-          min={0}
-          step={1}
+          min={50}
+          max={99.9}
+          step={0.1}
         />
         <NumberInput
           label="Safe max hours"
@@ -363,8 +379,9 @@ const ArbSettingsCard: React.FC<{ initialConfig?: AutobotStatus['arbConfig'] }> 
           label="Imminent min price (¢)"
           value={immMinPrice}
           onChange={setImmMinPrice}
-          min={0}
-          step={1}
+          min={50}
+          max={99.9}
+          step={0.1}
         />
         <NumberInput
           label="Imminent max hours"
@@ -444,8 +461,11 @@ const QuantManualArbDesk: React.FC = () => {
     try {
       const token = await getToken();
       const res = await api.autobotOpportunities(token);
-      // Merge settlementLag and crossMarket, sort by endsInH ascending (soonest first)
-      const combined = [...(res.settlementLag ?? []), ...(res.crossMarket ?? [])].sort(
+      // Only settlementLag items match the ArbOpportunity shape OppRow renders (single
+      // buyable token w/ price/tier/endsInH). crossMarket items carry a different,
+      // multi-leg shape and would render as NaN rows with a dead Buy button, so they
+      // are excluded until the desk has a dedicated cross-market renderer.
+      const combined = [...(res.settlementLag ?? [])].sort(
         (a, b) => a.endsInH - b.endsInH,
       );
       setOpps(combined);
