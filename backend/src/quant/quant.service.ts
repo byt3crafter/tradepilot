@@ -110,10 +110,12 @@ export class QuantService implements OnApplicationBootstrap {
       }
     }
 
-    const markets = await this.pm.activeMarkets(250);
+    const markets = await this.pm.activeMarkets(400); // wider scan → more last-window opportunities
+    const NOVELTY = QuantService.NOVELTY;
     const lag: any[] = [];
     for (const m of markets) {
       if (m.enableOrderBook === false || m.closed) continue;
+      if (NOVELTY.test(m.question || '')) continue; // skip joke/novelty markets
       let pr: number[] = [], tk: string[] = [], oc: string[] = [];
       try { pr = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { continue; }
       try { tk = JSON.parse(m.clobTokenIds || '[]'); } catch { /* */ }
@@ -122,20 +124,28 @@ export class QuantService implements OnApplicationBootstrap {
       const idx = pr.indexOf(Math.max(...pr));
       const fav = pr[idx];
       const end = m.endDate ? Date.parse(m.endDate) : NaN;
-      const endingSoon = !isNaN(end) && end <= now + 24 * 3600 * 1000;
-      if (fav >= 0.95 && fav < 0.999 && endingSoon) {
-        const edge = (1 - fav) / fav;
-        if (edge > FEE) lag.push({
-          type: 'lag', title: m.question, slug: m.slug, outcome: oc[idx] || `#${idx}`,
-          price: +fav.toFixed(3), tokenId: tk[idx], conditionId: m.conditionId, outcomeIndex: idx,
-          edgePct: +((edge - FEE) * 100).toFixed(2), endsAt: isNaN(end) ? null : end,
-        });
-      }
+      if (isNaN(end)) continue;
+      const hrs = (end - now) / 3_600_000;
+      if (hrs <= 0) continue;
+      // TWO tiers — the lower price is ONLY allowed when resolution is imminent (little time to flip):
+      //   • safe     — near-certain favorite (≥95¢) resolving within 24h (classic riskless-ish lag)
+      //   • imminent — strong favorite (90–95¢) resolving within 6h ("last opportunity", your idea)
+      let tier: string | null = null;
+      if (fav >= 0.95 && fav < 0.999 && hrs <= 24) tier = 'safe';
+      else if (fav >= 0.90 && fav < 0.95 && hrs <= 6) tier = 'imminent';
+      if (!tier) continue;
+      const edge = (1 - fav) / fav;
+      if (edge > FEE) lag.push({
+        type: 'lag', tier, title: m.question, slug: m.slug, outcome: oc[idx] || `#${idx}`,
+        price: +fav.toFixed(3), tokenId: tk[idx], conditionId: m.conditionId, outcomeIndex: idx,
+        edgePct: +((edge - FEE) * 100).toFixed(2), endsAt: end, endsInH: +hrs.toFixed(1),
+      });
     }
 
     return {
       crossMarket: cross.sort((a, b) => b.edgePct - a.edgePct).slice(0, 30),
-      settlementLag: lag.sort((a, b) => b.edgePct - a.edgePct).slice(0, 30),
+      // LAST-OPPORTUNITY first: soonest-resolving floats up, then biggest edge.
+      settlementLag: lag.sort((a, b) => (a.endsInH - b.endsInH) || (b.edgePct - a.edgePct)).slice(0, 40),
       scannedAt: now,
     };
   }
@@ -822,9 +832,9 @@ export class QuantService implements OnApplicationBootstrap {
       const scan = await this.scanArbs();
       arbs = (scan.settlementLag || []).map((a: any) => ({
         type: 'arb' as const, title: a.title, action: 'BUY', outcome: a.outcome,
-        priceCents: Math.round(a.price * 100), edgePct: a.edgePct,
-        detail: 'settlement-lag · ends soon', confidence: null,
-        reason: `Near-certain favourite at ${Math.round(a.price * 100)}¢ — collect the gap to $1.00 (after fees +${a.edgePct}%). High-probability, not guaranteed.`,
+        priceCents: Math.round(a.price * 100), edgePct: a.edgePct, endDate: a.endsAt || null,
+        detail: a.endsInH != null ? `settlement-lag · ${a.tier} · ends in ${a.endsInH}h` : 'settlement-lag · ends soon', confidence: null,
+        reason: `Favourite at ${Math.round(a.price * 100)}¢ resolving ${a.endsInH != null ? `in ~${a.endsInH}h` : 'soon'} — collect the gap to $1.00 (after fees +${a.edgePct}%). ${a.tier === 'imminent' ? 'Imminent resolution → little time to flip.' : 'High-probability, not guaranteed.'}`,
         tokenId: a.tokenId || null, price: a.price, conditionId: a.conditionId, outcomeIndex: a.outcomeIndex ?? null,
       }));
     } catch { /* arbs optional */ }
