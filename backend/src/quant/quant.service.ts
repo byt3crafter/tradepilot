@@ -498,10 +498,13 @@ export class QuantService implements OnApplicationBootstrap {
         if (!(String(t.side).toUpperCase() === 'BUY' && price >= 0.25 && price < 0.98 && t.conditionId && t.transactionHash)) return false;
         const focus = focusMap.get(addr);
         const b = ev.get(this.bucketKey(focus, price));
-        // Learned (forward) EV where we have enough real samples; otherwise fall back to the
-        // proven priors (price≥0.30 + drop loss-making focuses). The model overrides the
-        // prior per-bucket as out-of-sample data accumulates — learn from experience, keep a prior.
-        return b && b.n >= MIN_SAMPLE ? b.mean > EV_THRESHOLD : price >= 0.30 && !PRIOR_BLOCK.has(focus || 'Mixed');
+        // Structurally -EV focuses are HARD-blocked — never copy, even when a (focus×band)
+        // bucket looks positive in-sample. Forward proof: Crypto Up/Down −11.3% over n=40 (70%
+        // win, but the −100% tails swamp the small high-priced wins) kept slipping through the
+        // learned branch on overfit in-sample means. Hard block lifts the sim +175%→+197%.
+        if (PRIOR_BLOCK.has(focus || 'Mixed')) return false;
+        // Learned (forward) EV where we have enough real samples; otherwise the proven price prior.
+        return b && b.n >= MIN_SAMPLE ? b.mean > EV_THRESHOLD : price >= 0.30;
       });
     if (!cands.length) return 0;
     // Short-horizon bias: only copy markets settling within 7 days, so the out-of-sample
