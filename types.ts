@@ -869,6 +869,14 @@ export interface AutobotStatus {
   tradeableUsdce?: number;
   /** Cash free to deploy right now (tradeableUsdce − exposureUsd). */
   availableUsd?: number;
+  /** Per-strategy enable flags (from GET /api/autobot/status). */
+  strategies?: { copy: boolean; ai: boolean; arb: boolean };
+  /** Per-strategy scorecard (from GET /api/autobot/status). */
+  strategyStats?: {
+    copy: { trades: number; resolved: number; wins: number; winRate: number; pnlUsd: number };
+    ai:   { trades: number; resolved: number; wins: number; winRate: number; pnlUsd: number };
+    arb:  { trades: number; resolved: number; wins: number; winRate: number; pnlUsd: number };
+  };
 }
 
 export type AutobotTradeStatus = 'pending' | 'placed' | 'filled' | 'failed' | 'resolved' | 'unfilled';

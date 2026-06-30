@@ -1045,6 +1045,108 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   );
 };
 
+// ─── Strategies card ───────────────────────────────────────────────────────────
+
+type StrategyKey = 'copy' | 'ai' | 'arb';
+
+const STRATEGY_META: { key: StrategyKey; label: string; desc: string }[] = [
+  { key: 'copy', label: 'Copy top wallets',  desc: 'Mirror qualified top wallets (Sports-led, fast-settling)' },
+  { key: 'ai',   label: 'AI judgment',        desc: 'AI bets contrarian on mispriced narrative markets' },
+  { key: 'arb',  label: 'Arbitrage',          desc: 'Near-certain favorites about to settle' },
+];
+
+interface StrategiesCardProps {
+  strategies: NonNullable<AutobotStatus['strategies']>;
+  strategyStats: NonNullable<AutobotStatus['strategyStats']>;
+  strategyBusy: Record<StrategyKey, boolean>;
+  onToggle: (key: StrategyKey, next: boolean) => void;
+}
+
+const StrategiesCard: React.FC<StrategiesCardProps> = ({ strategies, strategyStats, strategyBusy, onToggle }) => (
+  <Panel label="STRATEGIES">
+    <p className="font-mono text-jtp-xs text-jtp-textMuted mb-3">
+      Turn strategies on/off and watch which one actually makes money — then keep the winners.
+    </p>
+    <div className="space-y-0 divide-y divide-jtp-borderSubtle">
+      {STRATEGY_META.map(({ key, label, desc }) => {
+        const enabled = strategies[key];
+        const stats   = strategyStats[key];
+        const busy    = strategyBusy[key];
+
+        const scoreline = (() => {
+          if (stats.resolved === 0) return 'no results yet';
+          const pnlSign  = stats.pnlUsd >= 0 ? '+' : '';
+          const pnlColor = stats.pnlUsd > 0
+            ? 'text-[#3ddc84]'
+            : stats.pnlUsd < 0
+              ? 'text-[#ff5b52]'
+              : 'text-jtp-textMuted';
+          return (
+            <span className="flex items-center gap-2 flex-wrap">
+              <span>{stats.trades} trades</span>
+              <span className="text-jtp-textFaint">&middot;</span>
+              <span>{stats.resolved} resolved</span>
+              <span className="text-jtp-textFaint">&middot;</span>
+              <span>{(stats.winRate * 100).toFixed(0)}% win</span>
+              <span className="text-jtp-textFaint">&middot;</span>
+              <span className={pnlColor} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {pnlSign}${Math.abs(stats.pnlUsd).toFixed(2)} P&amp;L
+              </span>
+            </span>
+          );
+        })();
+
+        return (
+          <div key={key} className="py-3 flex items-start gap-4">
+            {/* Left: name + desc + scorecard */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`font-mono text-jtp-xs font-semibold ${enabled ? 'text-jtp-text' : 'text-jtp-textDim'}`}>
+                  {label}
+                </span>
+                {busy && <Spin />}
+              </div>
+              <p className="font-mono text-jtp-2xs text-jtp-textFaint mt-0.5 leading-snug">
+                {desc}
+              </p>
+              <div className="font-mono text-jtp-2xs text-jtp-textMuted mt-1.5">
+                {scoreline}
+              </div>
+            </div>
+
+            {/* Right: toggle */}
+            <div className="flex-shrink-0 pt-0.5">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                aria-label={`${enabled ? 'Disable' : 'Enable'} ${label} strategy`}
+                disabled={busy}
+                onClick={() => onToggle(key, !enabled)}
+                className={[
+                  'relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-jtp-panel focus-visible:ring-[#3ddc84]',
+                  'disabled:opacity-40 disabled:cursor-not-allowed',
+                  enabled
+                    ? 'bg-[#3ddc84]'
+                    : 'bg-jtp-control border border-jtp-borderStrong',
+                ].join(' ')}
+              >
+                <span className="sr-only">{enabled ? 'On' : 'Off'}</span>
+                <span
+                  className={`inline-block w-3.5 h-3.5 transform rounded-full shadow-sm transition-transform ${
+                    enabled ? 'bg-[#0d1510] translate-x-4' : 'bg-white translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </Panel>
+);
+
 // ─── Controls tab ──────────────────────────────────────────────────────────────
 
 interface ControlsTabProps {
@@ -1060,12 +1162,14 @@ interface ControlsTabProps {
   onExportKeyOpen: () => void;
   onLink: (address: string) => Promise<void>;
   onUnlink: () => Promise<void>;
+  onSetStrategies: (s: { copy?: boolean; ai?: boolean; arb?: boolean }) => Promise<void>;
+  strategyBusy: Record<StrategyKey, boolean>;
 }
 
 const ControlsTab: React.FC<ControlsTabProps> = ({
   status, modeBusy, modeError, killBusy, killErr,
   onModeChange, onKill, onSetLimits, onWithdrawOpen, onExportKeyOpen,
-  onLink, onUnlink,
+  onLink, onUnlink, onSetStrategies, strategyBusy,
 }) => {
   const isAuto = status.mode === 'auto';
 
@@ -1110,6 +1214,16 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
         <Panel label="MONEY MANAGEMENT">
           <MoneyManagementSection status={status} />
         </Panel>
+      )}
+
+      {/* ── Strategies ── */}
+      {status.strategies && status.strategyStats && (
+        <StrategiesCard
+          strategies={status.strategies}
+          strategyStats={status.strategyStats}
+          strategyBusy={strategyBusy}
+          onToggle={(key, next) => onSetStrategies({ [key]: next })}
+        />
       )}
 
       {/* ── Two-column: wallet + limits ── */}
@@ -1348,6 +1462,7 @@ const QuantAutoBotPanel: React.FC = () => {
   const [killBusy, setKillBusy] = useState(false);
   const [killErr, setKillErr] = useState<string | null>(null);
   const [clearBusy, setClearBusy] = useState(false);
+  const [strategyBusy, setStrategyBusy] = useState<Record<StrategyKey, boolean>>({ copy: false, ai: false, arb: false });
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [exportKeyOpen, setExportKeyOpen] = useState(false);
 
@@ -1465,6 +1580,22 @@ const QuantAutoBotPanel: React.FC = () => {
     }
   };
 
+  // ── Set strategies ────────────────────────────────────────────────────────
+
+  const handleSetStrategies = async (s: { copy?: boolean; ai?: boolean; arb?: boolean }) => {
+    const key = Object.keys(s)[0] as StrategyKey;
+    setStrategyBusy((prev) => ({ ...prev, [key]: true }));
+    try {
+      const token = await getToken();
+      const updated = await api.autobotSetStrategies(s, token);
+      setStatus(updated);
+    } catch {
+      // silent — status will refresh on next poll
+    } finally {
+      setStrategyBusy((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
   // ── Set funder (link / unlink Polymarket account) ──────────────────────────
 
   const handleSetFunder = async (address: string) => {
@@ -1556,6 +1687,8 @@ const QuantAutoBotPanel: React.FC = () => {
           onExportKeyOpen={() => setExportKeyOpen(true)}
           onLink={handleLink}
           onUnlink={handleUnlink}
+          onSetStrategies={handleSetStrategies}
+          strategyBusy={strategyBusy}
         />
       )}
 
