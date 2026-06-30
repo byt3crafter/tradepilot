@@ -558,17 +558,19 @@ interface LimitsState {
   maxPerTradeUsd: string;
   dailyLossLimitUsd: string;
   minEdgePct: string;
+  maxSettlementDays: string;
 }
 
 const LimitsEditor: React.FC<{
   limits: AutobotStatus['limits'];
-  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }) => Promise<void>;
+  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }) => Promise<void>;
 }> = ({ limits, onSave }) => {
   const [vals, setVals] = useState<LimitsState>({
     maxTotalUsd: String(limits.maxTotalUsd),
     maxPerTradeUsd: String(limits.maxPerTradeUsd),
     dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
     minEdgePct: String(limits.minEdgePct ?? 5),
+    maxSettlementDays: String(limits.maxSettlementDays ?? 7),
   });
   const [orderType, setOrderType] = useState<'limit' | 'market'>(limits.orderType ?? 'limit');
   const [saving, setSaving] = useState(false);
@@ -582,7 +584,8 @@ const LimitsEditor: React.FC<{
       prevLimits.current.maxPerTradeUsd !== limits.maxPerTradeUsd ||
       prevLimits.current.dailyLossLimitUsd !== limits.dailyLossLimitUsd ||
       prevLimits.current.minEdgePct !== limits.minEdgePct ||
-      prevLimits.current.orderType !== limits.orderType
+      prevLimits.current.orderType !== limits.orderType ||
+      prevLimits.current.maxSettlementDays !== limits.maxSettlementDays
     ) {
       prevLimits.current = limits;
       setVals({
@@ -590,6 +593,7 @@ const LimitsEditor: React.FC<{
         maxPerTradeUsd: String(limits.maxPerTradeUsd),
         dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
         minEdgePct: String(limits.minEdgePct ?? 5),
+        maxSettlementDays: String(limits.maxSettlementDays ?? 7),
       });
       setOrderType(limits.orderType ?? 'limit');
     }
@@ -600,6 +604,7 @@ const LimitsEditor: React.FC<{
     const maxPerTradeUsd = parseFloat(vals.maxPerTradeUsd);
     const dailyLossLimitUsd = parseFloat(vals.dailyLossLimitUsd);
     const minEdgePct = parseFloat(vals.minEdgePct);
+    const maxSettlementDays = parseInt(vals.maxSettlementDays, 10);
     if ([maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd].some(isNaN)) {
       setErr('All limits must be valid numbers.');
       return;
@@ -608,10 +613,14 @@ const LimitsEditor: React.FC<{
       setErr('Min edge % must be between 0 and 100.');
       return;
     }
+    if (isNaN(maxSettlementDays) || maxSettlementDays < 0) {
+      setErr('Max days to settle must be 0 or greater.');
+      return;
+    }
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct, orderType });
+      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct, orderType, maxSettlementDays });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (ex: any) {
@@ -696,6 +705,27 @@ const LimitsEditor: React.FC<{
         </span>
       </div>
 
+      {/* Max settlement days */}
+      <div className="flex flex-col gap-1">
+        <label className="jtp-label" htmlFor="limit-maxSettlementDays">MAX DAYS TO SETTLE (0 = ANY)</label>
+        <div className="flex items-center gap-1">
+          <input
+            id="limit-maxSettlementDays"
+            type="number"
+            min="0"
+            step="1"
+            value={vals.maxSettlementDays}
+            onChange={(e) => setVals((v) => ({ ...v, maxSettlementDays: e.target.value }))}
+            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-2.5 py-1.5 text-jtp-xs font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            aria-describedby="limit-maxSettlementDays-help"
+          />
+          <span className="font-mono text-jtp-textDim text-jtp-xs flex-shrink-0">days</span>
+        </div>
+        <span id="limit-maxSettlementDays-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
+          Bot only trades markets resolving within this many days — keeps it out of weeks-out bets. 0 = allow any.
+        </span>
+      </div>
+
       {err && <p role="alert" className="text-jtp-xs text-[#ff5b52]">{err}</p>}
       <Button
         variant="secondary"
@@ -766,14 +796,40 @@ interface TradeCardProps {
   trade: AutobotTrade;
   onClear?: () => void;
   clearBusy?: boolean;
+  onClose?: () => Promise<void>;
+  closeBusy?: boolean;
 }
 
-const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
+const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy, onClose, closeBusy }) => {
   const { label: statusLabel, variant: statusVariant } = resolvedStatusLabel(trade);
   const sigVariant = SIGNAL_BADGE_VARIANT[trade.signalType] ?? 'neutral';
   const sigLabel   = SIGNAL_LABELS[trade.signalType] ?? trade.signalType.toUpperCase();
   const priceCents = (trade.price * 100).toFixed(0);
   const dim = isClearable(trade.status);
+
+  // Inline confirm state for Close button — auto-reverts to idle after 5 s
+  const [closePhase, setClosePhase] = useState<'idle' | 'confirm'>('idle');
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startConfirm = () => {
+    setClosePhase('confirm');
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    confirmTimerRef.current = setTimeout(() => setClosePhase('idle'), 5000);
+  };
+
+  const cancelConfirm = () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setClosePhase('idle');
+  };
+
+  const doClose = async () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setClosePhase('idle');
+    if (onClose) await onClose();
+  };
+
+  // isOpen = a filled/open position that can be manually closed
+  const isOpen = trade.status === 'filled' && !!trade.tokenId && !!onClose;
 
   return (
     <div
@@ -782,7 +838,7 @@ const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
         dim ? 'opacity-55' : '',
       ].join(' ')}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <span className="flex-shrink-0 mt-[1px]">
             <Badge variant={sigVariant} size="xs">{sigLabel}</Badge>
@@ -793,8 +849,50 @@ const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
             <span className="text-jtp-text font-normal">{trade.title}</span>
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 mt-[1px]">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap mt-[1px]">
           <Badge variant={statusVariant} size="xs">{statusLabel}</Badge>
+
+          {/* Close (sell-now) button — only for open/filled positions */}
+          {isOpen && (
+            closeBusy ? (
+              <span className="flex items-center gap-1 font-mono text-jtp-2xs text-jtp-textDim" aria-label="Closing position">
+                <Spin /> closing…
+              </span>
+            ) : closePhase === 'confirm' ? (
+              <span className="flex items-center gap-1" role="group" aria-label="Confirm close position">
+                <span className="font-mono text-jtp-2xs text-[#ff5b52] font-semibold">Sell?</span>
+                <button
+                  type="button"
+                  onClick={doClose}
+                  title="Confirm — sell this position now"
+                  aria-label="Confirm sell position"
+                  className="flex items-center justify-center w-5 h-5 rounded-[2px] border border-[rgba(61,220,132,0.5)] text-[#3ddc84] hover:bg-[rgba(61,220,132,0.12)] transition-colors font-mono text-jtp-xs leading-none font-bold"
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelConfirm}
+                  title="Cancel"
+                  aria-label="Cancel sell"
+                  className="flex items-center justify-center w-5 h-5 rounded-[2px] border border-jtp-borderStrong text-jtp-textDim hover:text-jtp-text transition-colors font-mono text-jtp-xs leading-none"
+                >
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={startConfirm}
+                title="Close position — sell at current market price"
+                aria-label="Close position"
+                className="flex-shrink-0 font-mono text-jtp-2xs font-semibold px-2 py-0.5 rounded-[2px] border border-[rgba(255,91,82,0.4)] text-[#ff5b52] bg-[rgba(255,91,82,0.07)] hover:bg-[rgba(255,91,82,0.15)] transition-colors"
+              >
+                Close
+              </button>
+            )
+          )}
+
           {isClearable(trade.status) && onClear && (
             <button
               type="button"
@@ -833,6 +931,13 @@ const TradeCard: React.FC<TradeCardProps> = ({ trade, onClear, clearBusy }) => {
         )}
         <span className="text-jtp-textFaint">{fmtRelTime(trade.createdAt)}</span>
       </div>
+
+      {/* Close disclaimer — shown under open positions */}
+      {isOpen && (
+        <p className="mt-1 font-mono text-jtp-2xs text-jtp-textFaint italic pl-[calc(theme(spacing.2)+2.5rem)]">
+          Closing sells at the current market (mark −5¢ floor) — you may get a little less than holding to settlement.
+        </p>
+      )}
 
       {trade.reason && (
         <p className="mt-1 font-mono text-jtp-2xs text-jtp-textFaint italic leading-relaxed line-clamp-2 pl-[calc(theme(spacing.2)+2.5rem)]">
@@ -996,6 +1101,10 @@ interface PerformanceTabProps {
   lastUpdated: string | null;
   onClearTrades: (id?: string) => Promise<void>;
   clearBusy: boolean;
+  onClose: (tokenId: string) => Promise<void>;
+  closingId: string | null;
+  onCloseAll: () => Promise<void>;
+  closeAllBusy: boolean;
 }
 
 // Recharts AreaChart mirroring WhatWorksPanel's PaperWalletSimCard chart:
@@ -1003,6 +1112,7 @@ interface PerformanceTabProps {
 // dataKey is "pnl" (cumulative realized $, can go negative) instead of "balance".
 const PerformanceTab: React.FC<PerformanceTabProps> = ({
   perf, perfLoading, trades, tradesLoading, lastUpdated, onClearTrades, clearBusy,
+  onClose, closingId, onCloseAll, closeAllBusy,
 }) => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [strategyFilter, setStrategyFilter] = useState<StrategyFilter>('all');
@@ -1146,6 +1256,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       {/* ── Live trades feed ── */}
       {(() => {
         const hasClearable = trades.some((t) => isClearable(t.status));
+        const openCount = trades.filter((t) => t.status === 'filled').length;
         const filteredTrades = trades.filter(
           (t) => matchesStatusFilter(t, statusFilter) && matchesStrategyFilter(t, strategyFilter),
         );
@@ -1172,6 +1283,19 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
             noPadding
             actions={
               <div className="flex items-center gap-3 flex-wrap">
+                {/* Close all open positions */}
+                {openCount >= 1 && (
+                  <button
+                    type="button"
+                    onClick={onCloseAll}
+                    disabled={closeAllBusy || closingId !== null}
+                    className="font-mono text-jtp-2xs font-semibold px-2.5 py-1 rounded-[2px] border border-[rgba(255,91,82,0.45)] text-[#ff5b52] bg-[rgba(255,91,82,0.09)] hover:bg-[rgba(255,91,82,0.18)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    aria-label={`Close all ${openCount} open position${openCount === 1 ? '' : 's'}`}
+                  >
+                    {closeAllBusy ? <Spin /> : null}
+                    Close all open ({openCount})
+                  </button>
+                )}
                 {hasClearable && (
                   <button
                     type="button"
@@ -1225,6 +1349,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                         trade={trade}
                         onClear={isClearable(trade.status) ? () => onClearTrades(trade.id) : undefined}
                         clearBusy={clearBusy}
+                        onClose={trade.status === 'filled' && trade.tokenId ? () => onClose(trade.tokenId) : undefined}
+                        closeBusy={closingId === trade.id}
                       />
                     ))}
                   </div>
@@ -1350,7 +1476,7 @@ interface ControlsTabProps {
   killErr: string | null;
   onModeChange: (mode: 'off' | 'auto') => void;
   onKill: () => void;
-  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }) => Promise<void>;
+  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }) => Promise<void>;
   onWithdrawOpen: () => void;
   onExportKeyOpen: () => void;
   onLink: (address: string) => Promise<void>;
@@ -1709,6 +1835,20 @@ const QuantAutoBotPanel: React.FC = () => {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [exportKeyOpen, setExportKeyOpen] = useState(false);
 
+  // Close position state
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const [closeAllBusy, setCloseAllBusy] = useState(false);
+
+  // Inline toast (matches QuantManualArbDesk style)
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((t: { msg: string; type: 'success' | 'error' }) => {
+    setToast(t);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+  }, []);
+
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -1748,6 +1888,7 @@ const QuantAutoBotPanel: React.FC = () => {
     intervalRef.current = setInterval(() => fetchAll({ silent: true }), 8_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [fetchAll]);
 
@@ -1786,7 +1927,7 @@ const QuantAutoBotPanel: React.FC = () => {
 
   // ── Limits ─────────────────────────────────────────────────────────────────
 
-  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }) => {
+  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }) => {
     const token = await getToken();
     const updated = await api.autobotSetLimits(limits, token);
     setStatus(updated);
@@ -1838,6 +1979,40 @@ const QuantAutoBotPanel: React.FC = () => {
       setStrategyBusy((prev) => ({ ...prev, [key]: false }));
     }
   };
+
+  // ── Close single position ─────────────────────────────────────────────────
+
+  const handleClose = useCallback(async (tokenId: string) => {
+    setClosingId(tokenId);
+    try {
+      const token = await getToken();
+      const result = await api.autobotClose(tokenId, token);
+      showToast({ msg: `Closed — got ${fmtUsd(result.proceeds)}`, type: 'success' });
+      await fetchAll({ silent: true });
+    } catch (ex: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      showToast({ msg: ex?.message || 'Close failed.', type: 'error' });
+    } finally {
+      setClosingId(null);
+    }
+  }, [getToken, fetchAll, showToast]);
+
+  // ── Close all open positions ───────────────────────────────────────────────
+
+  const handleCloseAll = useCallback(async () => {
+    const openCount = trades.filter((t) => t.status === 'filled').length;
+    if (!window.confirm(`Sell all ${openCount} open position${openCount === 1 ? '' : 's'} now?`)) return;
+    setCloseAllBusy(true);
+    try {
+      const token = await getToken();
+      const result = await api.autobotCloseAll(token);
+      showToast({ msg: `Closed ${result.closed} of ${result.total}`, type: 'success' });
+      await fetchAll({ silent: true });
+    } catch (ex: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      showToast({ msg: ex?.message || 'Close all failed.', type: 'error' });
+    } finally {
+      setCloseAllBusy(false);
+    }
+  }, [getToken, trades, fetchAll, showToast]);
 
   // ── Set funder (link / unlink Polymarket account) ──────────────────────────
 
@@ -1905,6 +2080,21 @@ const QuantAutoBotPanel: React.FC = () => {
         />
       </div>
 
+      {/* ── Inline toast (success / error from close operations) ── */}
+      {toast && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className={`px-3 py-2 rounded-[2px] font-mono text-jtp-xs flex items-center gap-2 ${
+            toast.type === 'success'
+              ? 'bg-[rgba(61,220,132,.12)] text-[#3ddc84] border border-[rgba(61,220,132,.35)]'
+              : 'bg-[rgba(255,91,82,.12)] text-[#ff5b52] border border-[rgba(255,91,82,.35)]'
+          }`}
+        >
+          {toast.type === 'success' ? '✓' : '✕'} {toast.msg}
+        </div>
+      )}
+
       {/* ── Tab content ── */}
       {tab === 'performance' ? (
         <PerformanceTab
@@ -1915,6 +2105,10 @@ const QuantAutoBotPanel: React.FC = () => {
           lastUpdated={lastUpdated}
           onClearTrades={handleClearTrades}
           clearBusy={clearBusy}
+          onClose={handleClose}
+          closingId={closingId}
+          onCloseAll={handleCloseAll}
+          closeAllBusy={closeAllBusy}
         />
       ) : (
         <ControlsTab

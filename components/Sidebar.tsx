@@ -145,11 +145,15 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
   const { isSubscribed } = useAuth();
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleOutside as EventListener);
+    document.addEventListener('touchstart', handleOutside as EventListener, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside as EventListener);
+      document.removeEventListener('touchstart', handleOutside as EventListener);
+    };
   }, []);
 
   const tag = activeAccount
@@ -182,6 +186,7 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center gap-[10px] px-[10px] py-[9px] bg-jtp-active border border-jtp-borderStrong rounded-jtp-2xl cursor-pointer text-left hover:bg-[#191d23] transition-colors"
       >
@@ -210,8 +215,8 @@ const AccountSwitcher: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) =>
 
       {isOpen && (
         <div
-          className={`absolute z-50 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-2xl shadow-jtp-drawer p-1 w-56 ${
-            isCollapsed ? 'left-full ml-2 top-0' : 'top-full mt-1 left-0'
+          className={`absolute z-50 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-2xl shadow-jtp-drawer p-1 w-56 top-full mt-1 left-0 ${
+            isCollapsed ? 'md:left-full md:ml-2 md:top-0' : ''
           }`}
         >
           <div className="max-h-60 overflow-y-auto">
@@ -531,8 +536,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             {/* Profile popup */}
             {isProfileOpen && (
               <div
-                className={`absolute z-50 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-2xl shadow-jtp-drawer p-1 w-48 ${
-                  isSidebarCollapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-2 left-0 w-full'
+                className={`absolute z-50 bg-jtp-panel border border-jtp-borderStrong rounded-jtp-2xl shadow-jtp-drawer p-1 w-48 bottom-full mb-2 left-0 w-full ${
+                  isSidebarCollapsed ? 'md:left-full md:ml-2 md:bottom-0' : ''
                 }`}
               >
                 <button

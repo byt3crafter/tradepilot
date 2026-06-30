@@ -848,7 +848,7 @@ export interface AutobotStatus {
   mode: 'off' | 'auto';
   killSwitch: boolean;
   balance: { usdce: number; pol: number };
-  limits: { maxTotalUsd: number; maxPerTradeUsd: number; dailyLossLimitUsd: number; minEdgePct?: number; orderType?: 'limit' | 'market' };
+  limits: { maxTotalUsd: number; maxPerTradeUsd: number; dailyLossLimitUsd: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number };
   todayPnlUsd?: number;
   daily: { spentUsd: number; pnlUsd: number };
   exposureUsd: number;

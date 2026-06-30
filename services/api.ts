@@ -159,13 +159,15 @@ export interface ApiService {
   autobotTrades(limit?: number, token?: string | null): Promise<AutobotTrade[]>;
   autobotSetMode(mode: 'auto' | 'off', token?: string | null): Promise<AutobotStatus>;
   autobotKill(token?: string | null): Promise<AutobotStatus>;
-  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }, token?: string | null): Promise<AutobotStatus>;
+  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }, token?: string | null): Promise<AutobotStatus>;
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }>;
   autobotPerformance(token?: string | null): Promise<AutobotPerformance>;
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }>;
   autobotSetFunder(address: string, token?: string | null): Promise<AutobotStatus>;
   autobotClearTrades(id: string | undefined, token?: string | null): Promise<AutobotStatus>;
   autobotSetStrategies(s: { copy?: boolean; ai?: boolean; arb?: boolean }, token?: string | null): Promise<AutobotStatus>;
+  autobotClose(tokenId: string, token?: string | null): Promise<{ ok: boolean; filled: boolean; proceeds: number }>;
+  autobotCloseAll(token?: string | null): Promise<{ closed: number; total: number; results: Array<{ tokenId: string; ok: boolean; proceeds?: number; error?: string }> }>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -481,13 +483,15 @@ const api: ApiService = {
   },
   autobotSetMode(mode: 'auto' | 'off', token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/mode', { mode }, token); },
   autobotKill(token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/kill', {}, token); },
-  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market' }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
+  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }> { return this.post('/api/autobot/withdraw', { to }, token); },
   autobotPerformance(token?: string | null): Promise<AutobotPerformance> { return this.get('/api/autobot/performance', token); },
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }> { return this.post('/api/autobot/export-key', {}, token); },
   autobotSetFunder(address: string, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/funder', { address }, token); },
   autobotClearTrades(id: string | undefined, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/clear-trades', id !== undefined ? { id } : {}, token); },
   autobotSetStrategies(s: { copy?: boolean; ai?: boolean; arb?: boolean }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/strategies', s, token); },
+  autobotClose(tokenId: string, token?: string | null): Promise<{ ok: boolean; filled: boolean; proceeds: number }> { return this.post('/api/autobot/close', { tokenId }, token); },
+  autobotCloseAll(token?: string | null): Promise<{ closed: number; total: number; results: Array<{ tokenId: string; ok: boolean; proceeds?: number; error?: string }> }> { return this.post('/api/autobot/close-all', {}, token); },
 
   // Manual Arb Desk
   autobotOpportunities(token?: string | null): Promise<{ settlementLag: ArbOpportunity[]; crossMarket: ArbOpportunity[]; scannedAt: string }> { return this.get('/api/autobot/opportunities', token); },
