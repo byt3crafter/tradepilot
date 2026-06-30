@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Req, Sse, UseGuards, MessageEvent } from '@nestjs/common';
-import { Observable, map } from 'rxjs';
+import { Observable, map, merge, interval } from 'rxjs';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { SseJwtGuard } from './sse-jwt.guard';
 import { BrainService } from './brain.service';
@@ -12,7 +12,11 @@ export class BrainController {
   @UseGuards(SseJwtGuard)
   @Sse('stream')
   stream(@Req() req: any, @Query('module') module?: string): Observable<MessageEvent> {
-    return this.brain.stream(req.user.sub, module).pipe(map((e) => ({ data: e } as MessageEvent)));
+    const events = this.brain.stream(req.user.sub, module).pipe(map((e) => ({ data: e } as MessageEvent)));
+    // Heartbeat every 15s so idle connections (the bot ticks only every few min) aren't dropped
+    // by the browser / proxy. The client ignores kind:'ping'.
+    const heartbeat = interval(15000).pipe(map(() => ({ data: { kind: 'ping', ts: Date.now() } } as MessageEvent)));
+    return merge(events, heartbeat);
   }
 
   @UseGuards(JwtAccessGuard)
