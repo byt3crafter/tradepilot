@@ -321,34 +321,36 @@ export class AutobotService {
   private async placeOrder(w: any, tokenId: string, price: number, sizeUsd: number): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any }> {
     const wallet = this.signer(w.encPrivKey);
     await this.ensureAllowances(wallet); // first BUY sets approvals (one-time)
-    const clobMod: any = await import('@polymarket/clob-client');
-    const { ClobClient, Side, OrderType } = clobMod;
+    // CLOB **V2** (Polymarket upgraded the exchange 2026-04-28: order struct + EIP-712 domain
+    // version bumped 1→2; the old @polymarket/clob-client produces V1 orders the V2 exchange
+    // rejects with "invalid order version"). clob-client-v2 builds the correct V2 order.
+    const clobMod: any = await import('@polymarket/clob-client-v2');
+    const { ClobClient, Side, OrderType, SignatureTypeV2, Chain } = clobMod;
     const host = 'https://clob.polymarket.com';
-    // clob-client v5.8.1 mis-detects ethers v6 (has signTypedData) as a viem wallet → fails.
-    // Wrap as a v5-style signer (_signTypedData + getAddress) so it uses the ethers path.
+    const address = await wallet.getAddress();
+    // ClobSigner accepts an ethers-style signer (needs _signTypedData + getAddress).
     const clobSigner: any = {
       getAddress: () => wallet.getAddress(),
       _signTypedData: (d: any, t: any, v: any) => wallet.signTypedData(d, t, v),
       signMessage: (m: any) => wallet.signMessage(m),
       provider: wallet.provider,
     };
+    const baseOpts: any = { host, chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.EOA, funderAddress: address };
     let creds = w.apiCreds;
-    const base = new ClobClient(host, 137, clobSigner);
     if (!creds) {
-      creds = await base.createOrDeriveApiKey();
+      creds = await new ClobClient(baseOpts).createOrDeriveApiKey();
       await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { apiCreds: creds } });
     }
-    const client = new ClobClient(host, 137, clobSigner, creds);
-    // MARKETABLE: cross the spread (+3% slippage cap) and FAK so it fills NOW or is killed —
-    // never rests as a phantom order. Previously GTC at the signal price rested unfilled,
-    // and the resolver counted those as fake wins. Now we only treat real fills as positions.
-    const limitPrice = Math.min(0.99, +(price * 1.03).toFixed(2));
-    const size = Math.max(5, Math.round(sizeUsd / Math.max(limitPrice, 0.01)));
-    const orderType = OrderType.FAK || OrderType.FOK || OrderType.GTC;
-    const order = await client.createOrder({ tokenID: tokenId, price: limitPrice, side: Side.BUY, size });
-    const resp = await client.postOrder(order, orderType);
+    const client = new ClobClient({ ...baseOpts, creds });
+    // MARKET order (take liquidity now): amount = $ to spend on a BUY; FOK so it fills fully or
+    // is killed — never rests as a phantom. Auto-resolves tickSize + negRisk exchange per market.
+    const resp = await client.createAndPostMarketOrder(
+      { tokenID: tokenId, amount: sizeUsd, side: Side.BUY },
+      undefined,
+      OrderType.FOK,
+    );
     const status = String(resp?.status || (resp?.success ? 'submitted' : 'failed'));
-    const filled = !!resp?.success && (status === 'matched' || Number(resp?.makingAmount) > 0 || Number(resp?.takingAmount) > 0);
+    const filled = !!resp?.success && (status === 'matched' || status === 'live' || Number(resp?.makingAmount) > 0 || Number(resp?.takingAmount) > 0);
     return { orderId: resp?.orderID || resp?.orderId || null, filled, status, raw: resp };
   }
 }
