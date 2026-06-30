@@ -81,11 +81,41 @@ export class AutobotService {
     }
   }
 
-  /** The wallet the bot actually TRADES from: the linked Polymarket deposit/proxy wallet if set
-   * (that's where deposited USDC.e lives), else the EOA. This is the real bankroll. */
+  private collCache = new Map<string, { v: number; t: number }>();
+  /** Real tradeable USDC bankroll. When linked, the deposit wallet's funds live INSIDE Polymarket's
+   * CLOB (not as an on-chain token — the proxy shows 0 on-chain), so read the internal COLLATERAL
+   * balance via getBalanceAllowance. Else the EOA's on-chain balance. Cached 30s (status polls). */
   private async tradeable(w: any): Promise<{ usdce: number; pol: number }> {
-    const addr = (w.funderAddress || '').trim() || w.address;
-    return this.balances(addr);
+    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+    if (!funder) return this.balances(w.address);
+    const c = this.collCache.get(w.userId);
+    if (c && Date.now() - c.t < 30000) return { usdce: c.v, pol: 999 };
+    try {
+      const wallet = this.signer(w.encPrivKey);
+      const clobMod: any = await import('@polymarket/clob-client-v2');
+      const { ClobClient, SignatureTypeV2, Chain, AssetType } = clobMod;
+      const clobSigner: any = {
+        getAddress: () => wallet.getAddress(),
+        _signTypedData: (d: any, t: any, v: any) => wallet.signTypedData(d, t, v),
+        signMessage: (m: any) => wallet.signMessage(m),
+        provider: wallet.provider,
+      };
+      const baseOpts: any = { host: 'https://clob.polymarket.com', chain: Chain.POLYGON, signer: clobSigner, signatureType: SignatureTypeV2.POLY_1271, funderAddress: funder };
+      let creds = w.apiCreds;
+      if (!creds) {
+        creds = await new ClobClient(baseOpts).createOrDeriveApiKey();
+        await this.prisma.pmAgentWallet.update({ where: { id: w.id }, data: { apiCreds: creds } });
+        w.apiCreds = creds;
+      }
+      const client = new ClobClient({ ...baseOpts, creds });
+      const r = await client.getBalanceAllowance({ asset_type: AssetType.COLLATERAL });
+      const v = Number(r?.balance || 0) / 1e6;
+      this.collCache.set(w.userId, { v, t: Date.now() });
+      return { usdce: v, pol: 999 };
+    } catch (e: any) {
+      this.logger.warn(`autobot collateral read failed: ${e?.message}`);
+      return { usdce: c?.v ?? 0, pol: 999 };
+    }
   }
 
   // ── public API ────────────────────────────────────────────────────────────
