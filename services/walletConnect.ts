@@ -68,14 +68,28 @@ export async function connectWalletConnect(): Promise<{
   eip1193: EthereumProvider;
   address: string;
 }> {
-  const provider = await getWalletConnectProvider();
-  await provider.enable();
-
-  const address = provider.accounts[0];
-  if (!address) {
-    throw new Error('WalletConnect: no account returned after connection.');
+  // Already connected? reuse the live session.
+  if (_wcProvider && _wcProvider.accounts && _wcProvider.accounts.length > 0) {
+    return { eip1193: _wcProvider, address: _wcProvider.accounts[0] };
   }
-
+  // Otherwise tear down any stale/half-open instance and init a FRESH one. Reusing a provider
+  // whose pairing was reset (common on mobile — the tab is suspended when it deep-links to the
+  // wallet, dropping the WC socket) is exactly what causes "connection request reset".
+  await disconnectWalletConnect();
+  const provider = await getWalletConnectProvider();
+  try {
+    await provider.enable();
+  } catch (e: any) {
+    await disconnectWalletConnect(); // clear so the NEXT tap starts clean
+    throw new Error(
+      'Connection was reset. Tap WalletConnect again — or on mobile use "Open in Phantom / MetaMask" (most reliable).',
+    );
+  }
+  const address = provider.accounts && provider.accounts[0];
+  if (!address) {
+    await disconnectWalletConnect();
+    throw new Error('No account returned — try again.');
+  }
   return { eip1193: provider, address };
 }
 
