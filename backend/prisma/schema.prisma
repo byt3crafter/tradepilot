@@ -652,6 +652,7 @@ model PmAgentWallet {
   dailyLossLimitUsd Float    @default(5)       // halt for the day if exceeded
   minEdgePct        Float    @default(5)       // only take signals with edge ≥ this %
   maxSettlementDays Float    @default(7)       // only trade markets resolving within N days (0 = any)
+  maxDrawdownUsd    Float    @default(0)       // HALT the bot if total P&L drops below -this (0 = off)
   netDepositsUsd    Float    @default(0)       // total deposited (ground truth for Total P&L)
   dailySpentUsd     Float    @default(0)
   dailyPnlUsd       Float    @default(0)
