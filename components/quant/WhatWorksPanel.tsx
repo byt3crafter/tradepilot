@@ -24,7 +24,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import type { QuantLearning, QuantLearningWallet, QuantDecision, QuantSimulation } from '../../types';
+import type { QuantLearning, QuantLearningWallet, QuantDecision, QuantSimulation, QuantPolicyBucket } from '../../types';
 import Panel from '../ui/Panel';
 import StatTile from '../ui/StatTile';
 import Badge from '../ui/Badge';
@@ -96,6 +96,138 @@ const FILTER_SEGMENTS: Segment<DecisionFilter>[] = [
   { value: 'loss',    label: 'Losses' },
   { value: 'pending', label: 'Pending' },
 ];
+
+// ─── Learned Policy (What Works) ─────────────────────────────────────────────
+
+const POLICY_POLL_MS = 60_000;
+
+const DECISION_BADGE_VARIANT: Record<string, 'profit' | 'loss' | 'warning' | 'neutral'> = {
+  take: 'profit',
+  skip: 'loss',
+  explore: 'warning',
+};
+
+const LearnedEdgeTable: React.FC = () => {
+  const { getToken } = useAuth();
+  const [policy, setPolicy] = useState<QuantPolicyBucket[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPolicy = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    try {
+      const token = await getToken();
+      const data = await api.quantLearnedPolicy(token);
+      setPolicy(Array.isArray(data) ? data : []);
+    } catch {
+      // leave prior state; empty is fine
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchPolicy(false);
+  }, [fetchPolicy]);
+
+  useEffect(() => {
+    const id = setInterval(() => fetchPolicy(true), POLICY_POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchPolicy]);
+
+  return (
+    <Panel label="WHAT WORKS — LEARNED EDGE" noPadding>
+      {/* One-line caption */}
+      <div className="px-4 pt-3 pb-2 border-b border-jtp-borderSubtle">
+        <p className="text-jtp-xs text-jtp-textFaint">
+          Learned from resolved paper trades — which market types + price bands actually make money.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex flex-col gap-3 p-4" aria-busy="true">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
+      ) : policy.length === 0 ? (
+        <EmptyState
+          title="Still learning — needs more resolved trades"
+          description="The engine will populate this table once enough paper-trade markets have settled."
+          className="py-10"
+        />
+      ) : (
+        <>
+          {/* Desktop table — hidden on mobile */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-jtp-borderSubtle">
+                  {(['Focus', 'Price band', 'Avg ROI', 'Samples', 'Decision'] as const).map((h, hi) => (
+                    <th
+                      key={h}
+                      className={[
+                        'px-4 py-2 font-mono text-jtp-2xs text-jtp-textFaint tracking-wider uppercase',
+                        hi >= 2 && hi <= 3 ? 'text-right' : '',
+                      ].join(' ')}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-jtp-borderSubtle">
+                {policy.map((b, i) => (
+                  <tr key={i} className="transition-colors hover:bg-jtp-hover">
+                    <td className="px-4 py-2.5 text-jtp-xs text-jtp-text font-medium">
+                      {b.focus}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-jtp-xs text-jtp-textMuted">
+                      {b.priceBand}
+                    </td>
+                    <td className={`px-4 py-2.5 font-mono text-jtp-xs text-right font-semibold ${roiColor(b.avgRoi)}`}>
+                      {b.avgRoi >= 0 ? '+' : ''}{b.avgRoi.toFixed(1)}%
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-jtp-xs text-jtp-textMuted text-right">
+                      {b.n.toLocaleString('en-US')}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Badge variant={DECISION_BADGE_VARIANT[b.decision] ?? 'neutral'} size="xs">
+                        {b.decision}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card list — replaces the table below sm */}
+          <div className="sm:hidden divide-y divide-jtp-borderSubtle">
+            {policy.map((b, i) => (
+              <div key={i} className="px-4 py-3 flex flex-col gap-[6px]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-jtp-xs text-jtp-text font-medium">{b.focus}</span>
+                  <Badge variant={DECISION_BADGE_VARIANT[b.decision] ?? 'neutral'} size="xs">
+                    {b.decision}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-mono text-jtp-xs text-jtp-textMuted">{b.priceBand}</span>
+                  <span className={`font-mono text-jtp-xs font-semibold ${roiColor(b.avgRoi)}`}>
+                    {b.avgRoi >= 0 ? '+' : ''}{b.avgRoi.toFixed(1)}%
+                  </span>
+                  <span className="font-mono text-jtp-xs text-jtp-textFaint">
+                    n={b.n.toLocaleString('en-US')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Panel>
+  );
+};
 
 // ─── AI Judgment helpers ──────────────────────────────────────────────────────
 
@@ -171,7 +303,7 @@ const AiJudgmentPanel: React.FC = () => {
 
   return (
     <Panel
-      label="🧠 AI JUDGMENT (vs the crowd)"
+      label="AI JUDGMENT (live — pending until they settle)"
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           {scanNote && !scanning && (
@@ -954,6 +1086,9 @@ const WhatWorksPanel: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 animate-jtp-fade-in">
+
+      {/* ── Learned edge — what the engine has actually figured out ── */}
+      <LearnedEdgeTable />
 
       {/* ── Paper Wallet Simulation ── */}
       <PaperWalletSimCard />
