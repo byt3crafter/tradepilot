@@ -34,7 +34,7 @@ import PricingPage from './pages/PricingPage';
 import InviteLandingPage from './pages/InviteLandingPage';
 import FeaturesPage from './pages/FeaturesPage';
 import { DEV_AUTH_BYPASS } from './utils/devAuth';
-import { getSurface, redirectToApp, type Surface } from './utils/subdomain';
+import { getSurface, redirectToApp, redirectToMarketing, type Surface } from './utils/subdomain';
 
 // Computed once when the module first loads — hostname is stable for the page lifetime.
 const SURFACE: Surface = getSurface();
@@ -236,6 +236,20 @@ const OpsContent: React.FC = () => {
   );
 };
 
+// On the real app subdomain (app.jtradepilot.com), signed-out visitors must NOT see marketing —
+// bounce them to jtradepilot.com. The only signed-out pages allowed here are the auth pages
+// (users arrive at app./login from the landing's Sign-in CTA). On dev (localhost) keep the full
+// UnauthenticatedApp (landing included) for local testing.
+const AUTH_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'];
+const AppSignedOut: React.FC = () => {
+  const { currentPath } = usePublicRouter();
+  if (SURFACE === 'app' && !AUTH_PATHS.includes(currentPath)) {
+    redirectToMarketing('/');
+    return null;
+  }
+  return <UnauthenticatedApp />;
+};
+
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { currentPath } = usePublicRouter();
@@ -297,7 +311,7 @@ const AppContent: React.FC = () => {
           <AuthenticatedApp />
         </SignedIn>
         <SignedOut>
-          <UnauthenticatedApp />
+          <AppSignedOut />
         </SignedOut>
       </>
     );
