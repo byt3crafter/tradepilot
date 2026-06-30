@@ -854,7 +854,7 @@ const QuantPage: React.FC = () => {
         /* ── Leaderboard — three-column canvas ── */
         <>
           {/* Header KPI StatTiles */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {loading && !stats ? (
               <>
                 <Skeleton variant="stat" />

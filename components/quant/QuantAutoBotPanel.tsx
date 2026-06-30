@@ -487,6 +487,10 @@ const FUND_ERC20_ABI = [
 const getEth = (): any => typeof window !== 'undefined' ? (window as any).ethereum : undefined;
 const truncAddr = (a: string) => a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 
+// Detect mobile browser once (doesn't change during a session)
+const isMobileBrowser =
+  typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
 // ─── BotFundPanel ─────────────────────────────────────────────────────────────
 
 interface BotFundPanelProps {
@@ -672,6 +676,31 @@ const BotFundPanel: React.FC<BotFundPanelProps> = ({ botAddress, onSuccess }) =>
   };
 
   if (!hasWallet) {
+    if (isMobileBrowser) {
+      return (
+        <div className="rounded-[2px] border border-jtp-borderStrong bg-jtp-bg px-3 py-3 space-y-3">
+          <p className="jtp-label">FUND BOT FROM MY WALLET</p>
+          <p className="font-mono text-jtp-xs text-jtp-textMuted leading-relaxed">
+            Open JTradePilot inside your wallet's browser so it can inject the wallet.
+          </p>
+          <a
+            href="https://metamask.app.link/dapp/jtradepilot.com"
+            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-[#f6851b] text-white hover:opacity-90 transition-opacity"
+          >
+            Open in MetaMask
+          </a>
+          <a
+            href="https://phantom.app/ul/browse/https%3A%2F%2Fjtradepilot.com?ref=jtradepilot.com"
+            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-[2px] font-mono text-jtp-xs font-bold uppercase tracking-wider bg-[#ab9ff2] text-[#08090b] hover:opacity-90 transition-opacity"
+          >
+            Open in Phantom
+          </a>
+          <p className="font-mono text-jtp-2xs text-jtp-textDim leading-relaxed">
+            On mobile, connect from inside your wallet's browser (tap a button above), or use the desktop site.
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-[2px] border border-jtp-border bg-jtp-bg px-3 py-3">
         <p className="font-mono text-jtp-xs text-jtp-textMuted">
