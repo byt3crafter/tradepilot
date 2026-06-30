@@ -58,4 +58,10 @@ export class AutobotController {
   funder(@Req() req: any, @Body('address') address: string) {
     return this.bot.setFunder(req.user.sub, address);
   }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('clear-trades')
+  clearTrades(@Req() req: any, @Body('id') id?: string) {
+    return this.bot.clearTrades(req.user.sub, id);
+  }
 }

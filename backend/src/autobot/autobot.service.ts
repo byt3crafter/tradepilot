@@ -189,6 +189,17 @@ export class AutobotService {
     return this.status(userId);
   }
 
+  /** Clear failed/unfilled attempts so the trades list stays clean. With an id, deletes just that
+   * one (any non-active status); without, clears all failed+unfilled. Never touches filled/resolved/pending. */
+  async clearTrades(userId: string, id?: string) {
+    if (id) {
+      await this.prisma.agentTrade.deleteMany({ where: { id, userId, status: { in: ['unfilled', 'failed'] } } });
+    } else {
+      await this.prisma.agentTrade.deleteMany({ where: { userId, status: { in: ['unfilled', 'failed'] } } });
+    }
+    return this.status(userId);
+  }
+
   async setMode(userId: string, mode: 'off' | 'auto') {
     const w = await this.getOrCreate(userId);
     if (mode === 'auto') {
@@ -289,11 +300,11 @@ export class AutobotService {
     const held = new Set(open.map((t) => t.tokenId));
     const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) > 0);
 
-    // place up to 3 fresh signals per tick so the book deploys (and the user sees activity) fast
+    // place ONE fresh signal per tick — deliberate pacing (was 3, felt like "a lot of trades").
     let placed = 0;
     let usdceLeft = bal.usdce;
     for (const pick of fresh) {
-      if (placed >= 3 || exposure >= w.maxTotalUsd) break;
+      if (placed >= 1 || exposure >= w.maxTotalUsd) break;
       // DYNAMIC money management: half-Kelly fraction of the live bankroll, scaled by the
       // signal's edge — bigger edge / bigger bankroll ⇒ bigger bet; weak edge ⇒ ~$1 minimum.
       // Capped by per-trade limit, remaining total exposure, and available USDC.e.
