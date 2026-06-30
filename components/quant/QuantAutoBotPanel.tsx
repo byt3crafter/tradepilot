@@ -564,6 +564,7 @@ interface LimitsState {
   maxTotalUsd: string;
   maxPerTradeUsd: string;
   dailyLossLimitUsd: string;
+  maxDrawdownUsd: string;
   minEdgePct: string;
   maxSettlementDays: string;
   netDepositsUsd: string;
@@ -572,12 +573,13 @@ interface LimitsState {
 const LimitsEditor: React.FC<{
   limits: AutobotStatus['limits'];
   netDepositsUsd?: number;
-  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => Promise<void>;
+  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; maxDrawdownUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => Promise<void>;
 }> = ({ limits, netDepositsUsd: netDepositsUsdProp, onSave }) => {
   const [vals, setVals] = useState<LimitsState>({
     maxTotalUsd: String(limits.maxTotalUsd),
     maxPerTradeUsd: String(limits.maxPerTradeUsd),
     dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
+    maxDrawdownUsd: String(limits.maxDrawdownUsd ?? 0),
     minEdgePct: String(limits.minEdgePct ?? 5),
     maxSettlementDays: String(limits.maxSettlementDays ?? 7),
     netDepositsUsd: netDepositsUsdProp != null ? String(netDepositsUsdProp) : '',
@@ -593,6 +595,7 @@ const LimitsEditor: React.FC<{
       prevLimits.current.maxTotalUsd !== limits.maxTotalUsd ||
       prevLimits.current.maxPerTradeUsd !== limits.maxPerTradeUsd ||
       prevLimits.current.dailyLossLimitUsd !== limits.dailyLossLimitUsd ||
+      prevLimits.current.maxDrawdownUsd !== limits.maxDrawdownUsd ||
       prevLimits.current.minEdgePct !== limits.minEdgePct ||
       prevLimits.current.orderType !== limits.orderType ||
       prevLimits.current.maxSettlementDays !== limits.maxSettlementDays
@@ -603,6 +606,7 @@ const LimitsEditor: React.FC<{
         maxTotalUsd: String(limits.maxTotalUsd),
         maxPerTradeUsd: String(limits.maxPerTradeUsd),
         dailyLossLimitUsd: String(limits.dailyLossLimitUsd),
+        maxDrawdownUsd: String(limits.maxDrawdownUsd ?? 0),
         minEdgePct: String(limits.minEdgePct ?? 5),
         maxSettlementDays: String(limits.maxSettlementDays ?? 7),
       }));
@@ -622,6 +626,8 @@ const LimitsEditor: React.FC<{
     const maxTotalUsd = parseFloat(vals.maxTotalUsd);
     const maxPerTradeUsd = parseFloat(vals.maxPerTradeUsd);
     const dailyLossLimitUsd = parseFloat(vals.dailyLossLimitUsd);
+    const maxDrawdownUsdRaw = parseFloat(vals.maxDrawdownUsd);
+    const maxDrawdownUsd = !isNaN(maxDrawdownUsdRaw) ? Math.max(0, maxDrawdownUsdRaw) : 0;
     const minEdgePct = parseFloat(vals.minEdgePct);
     const maxSettlementDays = parseInt(vals.maxSettlementDays, 10);
     const netDepositsUsdRaw = parseFloat(vals.netDepositsUsd);
@@ -641,7 +647,7 @@ const LimitsEditor: React.FC<{
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, minEdgePct, orderType, maxSettlementDays, ...(netDepositsUsd !== undefined ? { netDepositsUsd } : {}) });
+      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, maxDrawdownUsd, minEdgePct, orderType, maxSettlementDays, ...(netDepositsUsd !== undefined ? { netDepositsUsd } : {}) });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (ex: any) {
@@ -676,6 +682,7 @@ const LimitsEditor: React.FC<{
       {field('maxPerTradeUsd', 'MAX PER TRADE', 'Maximum USDC.e per single trade')}
       {field('maxTotalUsd', 'MAX TOTAL EXPOSURE', 'Total open exposure cap')}
       {field('dailyLossLimitUsd', 'DAILY LOSS LIMIT', 'Bot pauses if daily loss hits this')}
+      {field('maxDrawdownUsd', 'MAX DRAWDOWN ($, 0 = off)', 'Bot stops automatically if total P&L falls this far below your deposits — your loss floor.')}
       {field('netDepositsUsd', 'TOTAL DEPOSITED', 'What you\'ve put in — used for true P&L.')}
 
       {/* Min Edge % — separate field since it uses % not $ */}
