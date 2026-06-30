@@ -54,6 +54,8 @@ export interface TradePrefill {
   side?: SideValue;
   title?: string;
   outcome?: string;
+  /** Polymarket event/market slug — used to build polymarket.com deep-link URLs */
+  slug?: string;
 }
 
 // ethers v6 exposes `signTypedData`, but @polymarket/clob-client detects an
