@@ -216,6 +216,36 @@ export class AutobotService {
     return { ai: ai || { take: null, conviction: null, rationale: 'AI not connected or not allowed for the bot.' } };
   }
 
+  /** AI Copilot — answers questions about the bot, GROUNDED in the user's real data (trades, brain,
+   * positions, P&L, what-works). Read-only; one AI call per question (user-initiated). */
+  async copilot(userId: string, question: string): Promise<{ answer: string }> {
+    const q = String(question || '').trim();
+    if (q.length < 2) throw new BadRequestException('Ask a question.');
+    if (!(await this.chatgpt.isAllowed(userId, 'bot'))) return { answer: 'Connect your ChatGPT/AI in Settings to use the copilot.' };
+    const [status, perf, brain, policy] = await Promise.all([
+      this.status(userId),
+      this.performance(userId),
+      this.prisma.brainEvent.findMany({ where: { userId, module: 'polymarket' }, orderBy: { createdAt: 'desc' }, take: 30, select: { kind: true, title: true, detail: true } }),
+      this.quant.learnedPolicy().catch(() => [] as any[]),
+    ]);
+    const ctx = {
+      money: { totalPnl: status.totalPnlUsd, portfolio: status.portfolioValue, cash: status.tradeableUsdce, unrealizedPnl: status.unrealizedPnlUsd, realizedPnl: status.stats.realizedPnlUsd, deposits: status.netDepositsUsd },
+      limits: status.limits, strategies: status.strategies, strategyStats: status.strategyStats,
+      whatWorks: (policy as any[]).slice(0, 12),
+      openPositions: (perf.open || []).map((o: any) => ({ title: o.title, outcome: o.outcome, priceCents: Math.round((o.price || 0) * 100), pnlUsd: o.pnlUsd, valueUsd: o.value, resolvesMs: o.endDate })),
+      recentActivity: (perf.history || []).slice(0, 25).map((t: any) => ({ type: t.type, side: t.side, title: t.title, outcome: t.outcome, priceCents: Math.round((t.price || 0) * 100), usd: t.usdcSize, tsMs: t.ts })),
+      brainEvents: brain.map((b) => ({ kind: b.kind, title: b.title, detail: b.detail })),
+    };
+    const instr = 'You are the trading bot\'s Copilot. The bot trades Polymarket prediction markets (sports/politics/etc.) by copying top wallets + AI judgment + arbitrage. Answer the user\'s question ONLY from the JSON data about THEIR bot below. Be specific: cite prices in ¢, outcomes (Yes/No/Over/Under/team), reasons, and $ P&L. If the answer is not in the data, say so plainly. Honest, concise, no hype. End nothing with financial advice — this is informational.';
+    const input = `QUESTION: ${q}\n\nBOT DATA (JSON):\n${JSON.stringify(ctx)}`;
+    try {
+      const answer = await this.chatgpt.complete(userId, instr, input);
+      return { answer: answer || 'No answer.' };
+    } catch (e: any) {
+      return { answer: `Couldn't reach the AI right now (${String(e?.message || e).slice(0, 80)}).` };
+    }
+  }
+
   /** Sell a single open position NOW (exit on your terms). Market sell, floored at mark −5¢ so it
    * fills without dumping. Books the realized P&L on the matching trade + a learn neuron. */
   async closePosition(userId: string, tokenId: string) {
