@@ -216,6 +216,52 @@ export class AutobotService {
     return { ai: ai || { take: null, conviction: null, rationale: 'AI not connected or not allowed for the bot.' } };
   }
 
+  /** Sell a single open position NOW (exit on your terms). Market sell, floored at mark −5¢ so it
+   * fills without dumping. Books the realized P&L on the matching trade + a learn neuron. */
+  async closePosition(userId: string, tokenId: string) {
+    const w = await this.getOrCreate(userId);
+    if (!tokenId) throw new BadRequestException('Missing position.');
+    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+    let pos: any = null;
+    try {
+      const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
+      const arr: any = await r.json();
+      pos = (Array.isArray(arr) ? arr : []).find((p: any) => String(p.asset) === String(tokenId));
+    } catch { /* */ }
+    const shares = Number(pos?.size) || 0;
+    if (!pos || shares <= 0) throw new BadRequestException('No open shares for this position (maybe already settled).');
+    const mark = Number(pos.curPrice) || Number(pos.avgPrice) || 0.5;
+    const res = await this.placeOrder(w, tokenId, mark, shares, 'SELL');
+    if (!res.filled) throw new BadRequestException(`Sell not filled (status ${res.status}) — book may be thin, try again or wait for settlement.`);
+    const proceeds = +(shares * mark).toFixed(2);
+    const trade = await this.prisma.agentTrade.findFirst({ where: { userId, tokenId, status: 'filled' }, orderBy: { createdAt: 'desc' } });
+    if (trade) {
+      const pnl = +(proceeds - (trade.sizeUsd || 0)).toFixed(2);
+      await this.prisma.agentTrade.update({ where: { id: trade.id }, data: { status: 'resolved', pnlUsd: pnl, roiPct: trade.sizeUsd ? +((pnl / trade.sizeUsd) * 100).toFixed(1) : null, resolvedAt: new Date(), detail: 'closed manually' } });
+      this.brain.publish({ userId, module: 'polymarket', kind: 'learn', title: `Closed ${trade.outcome} ${pnl >= 0 ? '+' : ''}$${pnl}`, detail: `Manual exit @ ~${Math.round(mark * 100)}¢ — booked $${pnl}`, data: { pnl, proceeds, manual: true } });
+    }
+    this.collCache.delete(w.userId); this.posCache.delete(funder); // force fresh balances next read
+    return { ok: true, filled: true, proceeds };
+  }
+
+  /** Sell EVERY open position now. Returns per-position results (some may fail on thin books). */
+  async closeAll(userId: string) {
+    const w = await this.getOrCreate(userId);
+    const funder = (w.funderAddress || process.env.PM_BOT_FUNDER || '').trim();
+    let arr: any[] = [];
+    try {
+      const r = await fetch(`https://data-api.polymarket.com/positions?user=${funder}`, { headers: { 'User-Agent': 'JTradePilot/1.0' } } as any);
+      const d: any = await r.json(); arr = Array.isArray(d) ? d : [];
+    } catch { /* */ }
+    const results: any[] = [];
+    for (const p of arr) {
+      if (!(Number(p.size) > 0)) continue;
+      try { const r = await this.closePosition(userId, String(p.asset)); results.push({ tokenId: p.asset, ...r }); }
+      catch (e: any) { results.push({ tokenId: p.asset, ok: false, error: String(e?.message || e).slice(0, 120) }); }
+    }
+    return { closed: results.filter((r) => r.ok).length, total: results.length, results };
+  }
+
   /** Manually place ONE trade from the quick list. Enforces every limit — refuses if cap/cash reached. */
   async manualTrade(userId: string, body: { tokenId: string; conditionId?: string; price: number; outcome?: string; outcomeIndex?: number; sizeUsd?: number; title?: string; type?: string }) {
     const w = await this.getOrCreate(userId);
@@ -650,7 +696,7 @@ export class AutobotService {
     }
   }
 
-  private async placeOrder(w: any, tokenId: string, price: number, sizeUsd: number): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any }> {
+  private async placeOrder(w: any, tokenId: string, price: number, amount: number, side: 'BUY' | 'SELL' = 'BUY'): Promise<{ orderId: string | null; filled: boolean; status: string; raw: any }> {
     const wallet = this.signer(w.encPrivKey);
     // CLOB **V2** (Polymarket upgraded the exchange 2026-04-28: order struct + EIP-712 domain
     // bumped 1→2; old @polymarket/clob-client → "invalid order version"). clob-client-v2 builds V2.
@@ -683,17 +729,19 @@ export class AutobotService {
       w.apiCreds = creds; // reuse within this tick — re-deriving per order raced + failed some
     }
     const client = new ClobClient({ ...baseOpts, creds });
-    // ORDER TYPE (per the user's setting; default 'limit'):
-    //  • limit  — fill ONLY at the wallet's entry price (FAK; partial OK) → no spread bleed; may
-    //             not fill if the book moved away (that's fine — we don't overpay).
-    //  • market — take liquidity now, allow up to +3¢ over entry (FOK) → fills more, costs spread.
+    const isBuy = side !== 'SELL';
+    // BUY ORDER TYPE (per the user's setting; default 'limit'):
+    //  • limit  — fill at entry +2¢ (FAK) → minimal spread bleed; may not fill if book moved away.
+    //  • market — take liquidity now, up to +3¢ over entry (FOK) → fills more, costs spread.
+    // SELL (closing): floor at mark −5¢ (FAK) so it exits without dumping at a terrible price.
+    //   For SELL `amount` is SHARES; for BUY `amount` is USDC.
     const isLimit = (w.orderType || 'limit') !== 'market';
-    const cap = price > 0
-      ? (isLimit ? Math.min(0.99, +(price + 0.02).toFixed(2)) : Math.min(0.99, +(price + 0.03).toFixed(2)))
-      : undefined;
-    const ot = isLimit ? (OrderType.FAK || OrderType.FOK) : OrderType.FOK;
+    let cap: number | undefined;
+    if (isBuy) cap = price > 0 ? (isLimit ? Math.min(0.99, +(price + 0.02).toFixed(2)) : Math.min(0.99, +(price + 0.03).toFixed(2))) : undefined;
+    else cap = price > 0 ? Math.max(0.01, +(price - 0.05).toFixed(2)) : undefined;
+    const ot = isBuy ? (isLimit ? (OrderType.FAK || OrderType.FOK) : OrderType.FOK) : (OrderType.FAK || OrderType.FOK);
     const resp = await client.createAndPostMarketOrder(
-      { tokenID: tokenId, amount: sizeUsd, side: Side.BUY, ...(cap ? { price: cap } : {}) },
+      { tokenID: tokenId, amount, side: isBuy ? Side.BUY : Side.SELL, ...(cap ? { price: cap } : {}) },
       undefined,
       ot,
     );
