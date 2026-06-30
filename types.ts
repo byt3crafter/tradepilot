@@ -960,6 +960,7 @@ export interface AutobotPerformanceHistoryItem {
   usdcSize: number;
   price?: number;
   ts: number;            // ms epoch
+  endDate?: number | null; // ms epoch when the market resolves, or null
   slug?: string;
   icon?: string;
   conditionId?: string;
@@ -978,6 +979,7 @@ export interface AutobotPerformanceOpenPosition {
   pnlUsd: number;
   price: number;
   size: number;
+  endDate?: number | null; // ms epoch when the market resolves, or null
 }
 
 export interface AutobotPerformanceSettled {

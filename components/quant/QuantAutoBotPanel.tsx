@@ -830,6 +830,17 @@ const fmtRelTimeMs = (ms: number) => {
   return `${Math.floor(h / 24)}d ago`;
 };
 
+/** Returns "resolves in Xh" / "resolves in Xd" / "resolved" / null */
+const fmtResolve = (endDate: number | null | undefined): string | null => {
+  if (endDate == null) return null;
+  const diff = endDate - Date.now();
+  if (diff <= 0) return 'resolved';
+  const totalMins = Math.floor(diff / 60_000);
+  const hours = Math.floor(totalMins / 60);
+  if (hours < 24) return `resolves in ${hours < 1 ? '<1' : hours}h`;
+  return `resolves in ${Math.floor(hours / 24)}d`;
+};
+
 // ─── TradeCard ─────────────────────────────────────────────────────────────────
 
 interface TradeCardProps {
@@ -1203,12 +1214,19 @@ const MarketIcon: React.FC<{ icon?: string; title?: string }> = ({ icon, title }
 
 // History row — mirrors Polymarket History tab
 const HistoryRow: React.FC<{ item: AutobotPerformanceHistoryItem }> = ({ item }) => {
-  const isTrade = item.type === 'TRADE';
-  const isBuy   = item.side === 'BUY';
+  const isTrade  = item.type === 'TRADE';
+  const isRedeem = item.type === 'REDEEM';
+  const isBuy    = item.side === 'BUY';
 
   const badgeLabel = isTrade ? (isBuy ? 'BUY' : 'SELL') : item.type;
   const badgeVariant: 'neutral' | 'info' | 'profit' | 'loss' | 'warning' =
     isTrade ? (isBuy ? 'info' : 'warning') : 'profit';
+
+  // "@ 52¢" — only for TRADE rows with a meaningful fill price
+  const showPrice = isTrade && typeof item.price === 'number' && item.price > 0;
+  const priceCents = showPrice ? Math.round((item.price as number) * 100) : 0;
+
+  const resolveLabel = fmtResolve(item.endDate);
 
   return (
     <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors flex items-center gap-3 min-w-0">
@@ -1218,11 +1236,21 @@ const HistoryRow: React.FC<{ item: AutobotPerformanceHistoryItem }> = ({ item })
       </span>
       <div className="flex-1 min-w-0">
         <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{item.title}</p>
-        {item.outcome && (
-          <p className={`font-mono text-jtp-2xs font-semibold ${outcomeColor(item.outcome)}`}>
-            {item.outcome}
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+          {item.outcome && (
+            <span className={`font-mono text-jtp-2xs font-semibold ${outcomeColor(item.outcome)}`}>
+              {item.outcome}{showPrice ? ` @ ${priceCents}¢` : ''}
+            </span>
+          )}
+          {isRedeem && (
+            <span className="font-mono text-jtp-2xs text-jtp-textDim">won · cashed out</span>
+          )}
+          {resolveLabel && (
+            <span className={`font-mono text-jtp-2xs ${resolveLabel === 'resolved' ? 'text-jtp-textFaint' : 'text-[#e8a23d]'}`}>
+              {resolveLabel}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
         <span
@@ -1263,17 +1291,27 @@ const OpenRow: React.FC<OpenRowProps> = ({ pos, onClose, closeBusy }) => {
     if (onClose) await onClose();
   };
 
+  const openPriceCents = Math.round(pos.price * 100);
+  const resolveLabel = fmtResolve(pos.endDate);
+
   return (
     <div className="px-4 py-3 border-b border-jtp-borderSubtle last:border-b-0 hover:bg-jtp-hover transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-wrap">
         <MarketIcon icon={pos.icon} />
         <div className="flex-1 min-w-0">
           <p className="font-mono text-jtp-xs text-jtp-text leading-snug truncate">{pos.title}</p>
-          {pos.outcome && (
-            <p className={`font-mono text-jtp-2xs font-semibold ${outcomeColor(pos.outcome)}`}>
-              {pos.outcome}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+            {pos.outcome && (
+              <span className={`font-mono text-jtp-2xs font-semibold ${outcomeColor(pos.outcome)}`}>
+                {pos.outcome} @ {openPriceCents}¢
+              </span>
+            )}
+            {resolveLabel && (
+              <span className={`font-mono text-jtp-2xs ${resolveLabel === 'resolved' ? 'text-jtp-textFaint' : 'text-[#e8a23d]'}`}>
+                {resolveLabel}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
           {/* Cost → Value */}
