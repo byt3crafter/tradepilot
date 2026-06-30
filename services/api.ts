@@ -162,6 +162,7 @@ export interface ApiService {
   autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }, token?: string | null): Promise<AutobotStatus>;
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }>;
   autobotPerformance(token?: string | null): Promise<AutobotPerformance>;
+  autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -468,6 +469,7 @@ const api: ApiService = {
   autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }> { return this.post('/api/autobot/withdraw', { to }, token); },
   autobotPerformance(token?: string | null): Promise<AutobotPerformance> { return this.get('/api/autobot/performance', token); },
+  autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }> { return this.post('/api/autobot/export-key', {}, token); },
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }> { return this.post('/api/ai/opportunities', {}, token); },
