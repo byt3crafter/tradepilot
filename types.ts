@@ -1059,3 +1059,39 @@ export interface CryptoBotPerformance {
   exchange: string;
   curve: { t: number; pnl: number }[];
 }
+
+// ─── Brain (Live AI Pipeline) ─────────────────────────────────────────────────
+
+export type BrainKind =
+  | 'tick'
+  | 'research'
+  | 'recall'
+  | 'decide'
+  | 'skip'
+  | 'execute'
+  | 'learn'
+  | 'note';
+
+export interface BrainEvent {
+  id: string;
+  userId?: string;
+  module: string;
+  kind: BrainKind;
+  title: string;
+  detail?: string;
+  data?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface BrainScoreboardModule {
+  module: string;
+  decided: number;
+  executed: number;
+  learned: number;
+  skipped: number;
+}
+
+export interface BrainScoreboard {
+  modules: BrainScoreboardModule[];
+  total: number;
+}
