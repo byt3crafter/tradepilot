@@ -96,37 +96,52 @@ export class ExchangesService {
    * positive, long spot + short perp earns the funding; negative → the reverse. We rank
    * LIQUID perps by annualized funding after a fee/slippage haircut.
    */
-  async fundingScan(exchange = 'binance', minVolUsd = 10_000_000) {
+  async fundingScan(exchange = 'binance', opts?: { minVolUsd?: number; maxAbsAnnualPct?: number; minNetAnnualPct?: number }) {
+    // Thresholds are CONFIGURABLE (no hard-coding) — defaults tuned to REAL, tradeable funding-arb:
+    const cfg = {
+      minVolUsd: opts?.minVolUsd ?? 50_000_000,        // deep liquidity — both legs must fill cheaply
+      maxAbsAnnualPct: opts?.maxAbsAnnualPct ?? 100,    // exclude manipulated extremes (e.g. −953% = a broken/delisting market, not an edge)
+      minNetAnnualPct: opts?.minNetAnnualPct ?? 5,      // must clear fees meaningfully
+    };
     const FEE_DRAG = 6; // ~%/yr round-trip cost estimate (open+close both legs, periodically)
     let rates: any[] = [];
     try { rates = await this.adapter(exchange).getFundingRates(); } catch (e: any) {
       this.logger.warn(`fundingScan ${exchange}: ${e?.message}`);
-      return { exchange, opportunities: [], scannedAt: Date.now(), error: 'feed unavailable' };
+      return { exchange, opportunities: [], config: cfg, scannedAt: Date.now(), error: 'feed unavailable' };
     }
-    const liquid = rates.filter((r) => r.volume24hUsd >= minVolUsd);
-    const opps = liquid
+    // Funding-arb needs a SPOT leg to hedge the perp — drop perp-only coins we can't actually hedge.
+    const spotBases = new Set<string>();
+    try {
+      const tks: any[] = (await (this.adapter(exchange) as any).get24hrTickers?.()) || [];
+      for (const t of tks) { const sym = String(t.symbol || ''); if (sym.endsWith('USDT')) spotBases.add(sym.replace(/USDT$/, '')); }
+    } catch { /* spot check optional — falls back to volume+funding filters */ }
+    const opps = rates
+      .filter((r) => r.volume24hUsd >= cfg.minVolUsd)                    // liquid enough to execute both legs
+      .filter((r) => Math.abs(r.annualizedPct) <= cfg.maxAbsAnnualPct)   // exclude broken/manipulated extremes
+      .filter((r) => spotBases.size === 0 || spotBases.has(r.base))      // hedge-able (a spot market exists)
       .map((r) => {
         const positive = r.fundingRate >= 0;
         const netAnnualPct = +(Math.abs(r.annualizedPct) - FEE_DRAG).toFixed(1);
         return {
           symbol: r.symbol,
           base: r.base,
+          logoUrl: `https://assets.coincap.io/assets/icons/${r.base.toLowerCase()}@2x.png`,
           fundingPct8h: +(r.fundingRate * 100).toFixed(4),
           annualizedPct: r.annualizedPct,
           netAnnualPct,
           markPrice: r.markPrice,
           volume24hUsd: Math.round(r.volume24hUsd),
-          // the delta-neutral play:
+          // the delta-neutral play (positive funding = the clean, easy one):
           action: positive
             ? `LONG ${r.base} spot + SHORT ${r.symbol} perp → collect funding`
-            : `SHORT ${r.base} + LONG ${r.symbol} perp → collect funding`,
+            : `SHORT ${r.symbol} perp + hedge → collect funding (needs margin)`,
           side: positive ? 'cash-and-carry' : 'reverse-carry',
         };
       })
-      .filter((o) => o.netAnnualPct > 5) // only meaningfully profitable after fees
+      .filter((o) => o.netAnnualPct > cfg.minNetAnnualPct)
       .sort((a, b) => b.netAnnualPct - a.netAnnualPct)
       .slice(0, 30);
-    return { exchange, opportunities: opps, count: opps.length, scannedAt: Date.now() };
+    return { exchange, opportunities: opps, count: opps.length, config: cfg, scannedAt: Date.now() };
   }
 
   // ── PAPER LEARNING LOOP (funding strategy) — public data, no key ──────────────
