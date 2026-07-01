@@ -569,12 +569,13 @@ interface LimitsState {
   minEdgePct: string;
   maxSettlementDays: string;
   netDepositsUsd: string;
+  maxEntryPrice: string;
 }
 
 const LimitsEditor: React.FC<{
   limits: AutobotStatus['limits'];
   netDepositsUsd?: number;
-  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; maxDrawdownUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => Promise<void>;
+  onSave: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; maxDrawdownUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxEntryPrice?: number }) => Promise<void>;
 }> = ({ limits, netDepositsUsd: netDepositsUsdProp, onSave }) => {
   const [vals, setVals] = useState<LimitsState>({
     maxTotalUsd: String(limits.maxTotalUsd),
@@ -584,6 +585,7 @@ const LimitsEditor: React.FC<{
     minEdgePct: String(limits.minEdgePct ?? 5),
     maxSettlementDays: String(limits.maxSettlementDays ?? 7),
     netDepositsUsd: netDepositsUsdProp != null ? String(netDepositsUsdProp) : '',
+    maxEntryPrice: String(Math.round((limits.maxEntryPrice ?? 0.70) * 100)),
   });
   const [orderType, setOrderType] = useState<'limit' | 'market'>(limits.orderType ?? 'limit');
   const [saving, setSaving] = useState(false);
@@ -599,7 +601,8 @@ const LimitsEditor: React.FC<{
       prevLimits.current.maxDrawdownUsd !== limits.maxDrawdownUsd ||
       prevLimits.current.minEdgePct !== limits.minEdgePct ||
       prevLimits.current.orderType !== limits.orderType ||
-      prevLimits.current.maxSettlementDays !== limits.maxSettlementDays
+      prevLimits.current.maxSettlementDays !== limits.maxSettlementDays ||
+      prevLimits.current.maxEntryPrice !== limits.maxEntryPrice
     ) {
       prevLimits.current = limits;
       setVals((v) => ({
@@ -610,6 +613,7 @@ const LimitsEditor: React.FC<{
         maxDrawdownUsd: String(limits.maxDrawdownUsd ?? 0),
         minEdgePct: String(limits.minEdgePct ?? 5),
         maxSettlementDays: String(limits.maxSettlementDays ?? 7),
+        maxEntryPrice: String(Math.round((limits.maxEntryPrice ?? 0.70) * 100)),
       }));
       setOrderType(limits.orderType ?? 'limit');
     }
@@ -633,6 +637,8 @@ const LimitsEditor: React.FC<{
     const maxSettlementDays = parseInt(vals.maxSettlementDays, 10);
     const netDepositsUsdRaw = parseFloat(vals.netDepositsUsd);
     const netDepositsUsd = !isNaN(netDepositsUsdRaw) && netDepositsUsdRaw >= 0 ? netDepositsUsdRaw : undefined;
+    const maxEntryPriceCents = Number(vals.maxEntryPrice);
+    const maxEntryPrice = !isNaN(maxEntryPriceCents) ? Math.min(100, Math.max(0, maxEntryPriceCents)) / 100 : 0.70;
     if ([maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd].some(isNaN)) {
       setErr('All limits must be valid numbers.');
       return;
@@ -648,7 +654,7 @@ const LimitsEditor: React.FC<{
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, maxDrawdownUsd, minEdgePct, orderType, maxSettlementDays, ...(netDepositsUsd !== undefined ? { netDepositsUsd } : {}) });
+      await onSave({ maxTotalUsd, maxPerTradeUsd, dailyLossLimitUsd, maxDrawdownUsd, minEdgePct, orderType, maxSettlementDays, maxEntryPrice, ...(netDepositsUsd !== undefined ? { netDepositsUsd } : {}) });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (ex: any) {
@@ -753,6 +759,28 @@ const LimitsEditor: React.FC<{
         </div>
         <span id="limit-maxSettlementDays-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
           Bot only trades markets resolving within this many days — keeps it out of weeks-out bets. 0 = allow any.
+        </span>
+      </div>
+
+      {/* Max entry price */}
+      <div className="flex flex-col gap-1">
+        <label className="jtp-label" htmlFor="limit-maxEntryPrice">MAX ENTRY PRICE (¢, 0 = ANY)</label>
+        <div className="flex items-center gap-1">
+          <input
+            id="limit-maxEntryPrice"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={vals.maxEntryPrice}
+            onChange={(e) => setVals((v) => ({ ...v, maxEntryPrice: e.target.value }))}
+            className="w-full bg-jtp-bg border border-jtp-borderStrong rounded-[2px] px-2.5 py-1.5 text-jtp-xs font-mono text-jtp-text focus:outline-none focus:border-jtp-borderFocus transition-colors"
+            aria-describedby="limit-maxEntryPrice-help"
+          />
+          <span className="font-mono text-jtp-textDim text-jtp-xs flex-shrink-0">¢</span>
+        </div>
+        <span id="limit-maxEntryPrice-help" className="text-jtp-2xs text-jtp-textFaint font-mono">
+          Copy/AI won&apos;t buy above this price — avoids high-price favorites that win small but lose big. Arb ignores this.
         </span>
       </div>
 
@@ -1822,7 +1850,7 @@ interface ControlsTabProps {
   killErr: string | null;
   onModeChange: (mode: 'off' | 'auto') => void;
   onKill: () => void;
-  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => Promise<void>;
+  onSetLimits: (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxEntryPrice?: number }) => Promise<void>;
   onWithdrawOpen: () => void;
   onExportKeyOpen: () => void;
   onLink: (address: string) => Promise<void>;
@@ -2321,7 +2349,7 @@ const QuantAutoBotPanel: React.FC = () => {
 
   // ── Limits ─────────────────────────────────────────────────────────────────
 
-  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number }) => {
+  const handleSetLimits = async (limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxEntryPrice?: number }) => {
     const token = await getToken();
     const updated = await api.autobotSetLimits(limits, token);
     setStatus(updated);
