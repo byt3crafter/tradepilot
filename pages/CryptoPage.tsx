@@ -55,59 +55,112 @@ const TickerSvg: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// ─── Funding Arb Row ─────────────────────────────────────────────────────────
+// ─── CoinLogo ─────────────────────────────────────────────────────────────────
 
-const FundingRow: React.FC<{ opp: CryptoFundingOpp }> = ({ opp }) => {
-  const isCarry = opp.side === 'cash-and-carry';
-  const sideVariant = isCarry ? 'profit' : 'info' as const;
-  const sideLabel = isCarry ? 'CASH-AND-CARRY' : 'REV-CARRY';
+const CoinLogo: React.FC<{ base: string; url?: string }> = ({ base, url }) => {
+  const [errored, setErrored] = useState(false);
+  const initials = base.slice(0, 2).toUpperCase();
+
+  if (!url || errored) {
+    return (
+      <div
+        aria-hidden="true"
+        className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center font-mono font-bold text-[9px] text-jtp-textMuted select-none"
+        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}
+      >
+        {initials}
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-3 py-4 border-b border-jtp-border last:border-0">
-      {/* Yield + symbol */}
-      <div className="flex items-baseline gap-3 min-w-0 flex-1">
-        <span
-          className="font-mono font-bold tabular-nums flex-shrink-0"
-          style={{ fontSize: '22px', color: '#3ddc84', lineHeight: 1 }}
-        >
-          +{opp.netAnnualPct.toFixed(1)}%/yr
-        </span>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono font-semibold text-jtp-text text-jtp-lg">
+    <img
+      src={url}
+      alt={base}
+      width={28}
+      height={28}
+      onError={() => setErrored(true)}
+      className="w-7 h-7 rounded-full flex-shrink-0 object-contain"
+      style={{ background: 'rgba(255,255,255,0.04)' }}
+    />
+  );
+};
+
+// ─── FundingCard ──────────────────────────────────────────────────────────────
+
+const FundingCard: React.FC<{ opp: CryptoFundingOpp }> = ({ opp }) => {
+  const isCarry = opp.side === 'cash-and-carry';
+
+  return (
+    <article
+      className="bg-jtp-raised border border-jtp-border rounded-[2px] p-4 flex flex-col gap-3 hover:border-jtp-borderHover transition-colors duration-150"
+      style={{ borderLeft: '2px solid rgba(61,220,132,0.22)' }}
+    >
+      {/* Header: logo + names + side badge */}
+      <div className="flex items-center gap-2">
+        <CoinLogo base={opp.base} url={opp.logoUrl} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="font-mono font-bold text-jtp-text text-jtp-md leading-none">
+              {opp.base}
+            </span>
+            <span className="font-mono text-jtp-xs text-jtp-textDim">·</span>
+            <span className="font-mono text-jtp-xs text-jtp-textDim truncate">
               {opp.symbol}
             </span>
-            <Badge variant="neutral" size="xs">
-              {opp.fundingPct8h.toFixed(4)}%/8h
-            </Badge>
-            <Badge variant={sideVariant} size="xs">
-              {sideLabel}
-            </Badge>
           </div>
-          <div className="mt-[3px] flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
-              mark&nbsp;
-              <span className="text-jtp-textMuted">
-                ${opp.markPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-              </span>
-            </span>
-            <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
-              vol&nbsp;
-              <span className="text-jtp-textMuted">
-                ${(opp.volume24hUsd / 1_000_000).toFixed(0)}M
-              </span>
-            </span>
+        </div>
+        <Badge variant={isCarry ? 'profit' : 'warning'} size="xs">
+          {isCarry ? 'EASY HEDGE' : 'NEEDS MARGIN'}
+        </Badge>
+      </div>
+
+      {/* Big net annual yield */}
+      <div>
+        <span
+          className="font-mono font-bold tabular-nums"
+          style={{ fontSize: '26px', color: '#3ddc84', lineHeight: 1.1, letterSpacing: '-0.01em' }}
+        >
+          ▲ +{opp.netAnnualPct.toFixed(1)}%/yr net
+        </span>
+      </div>
+
+      {/* Sub-stats row */}
+      <div className="flex items-start gap-4 flex-wrap">
+        <div>
+          <div className="font-mono text-jtp-xs text-jtp-textDim tracking-[0.08em] mb-0.5">
+            FUNDING 8H
+          </div>
+          <div className="font-mono text-jtp-sm text-jtp-textSoft tabular-nums">
+            {opp.fundingPct8h >= 0 ? '+' : ''}{opp.fundingPct8h.toFixed(4)}%
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-jtp-xs text-jtp-textDim tracking-[0.08em] mb-0.5">
+            24H VOLUME
+          </div>
+          <div className="font-mono text-jtp-sm text-jtp-textSoft tabular-nums">
+            ${(opp.volume24hUsd / 1_000_000).toFixed(0)}M
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-jtp-xs text-jtp-textDim tracking-[0.08em] mb-0.5">
+            MARK PRICE
+          </div>
+          <div className="font-mono text-jtp-sm text-jtp-textSoft tabular-nums">
+            ${opp.markPrice.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 4,
+            })}
           </div>
         </div>
       </div>
 
-      {/* Action */}
-      <div className="flex-shrink-0 max-w-xs">
-        <p className="text-jtp-xs text-jtp-textDim leading-snug font-mono">
-          {opp.action}
-        </p>
-      </div>
-    </div>
+      {/* Action line */}
+      <p className="font-mono text-jtp-xs text-jtp-textDim leading-snug border-t border-jtp-borderSubtle pt-2">
+        {opp.action}
+      </p>
+    </article>
   );
 };
 
@@ -121,105 +174,239 @@ const FundingArbTab: React.FC<{ exchange: string; token: string | null }> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
-    if (!token) return;
+  // Config filter state (strings for inputs; parsed on fetch)
+  const [minVolUsdM, setMinVolUsdM] = useState('');
+  const [maxAbsAnnual, setMaxAbsAnnual] = useState('');
+  const [minNetAnnual, setMinNetAnnual] = useState('');
+
+  const seededRef = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Refs so the stable doFetch closure always reads the latest values
+  const exchangeRef = useRef(exchange);
+  const tokenRef = useRef(token);
+  const minVolRef = useRef(minVolUsdM);
+  const maxAbsRef = useRef(maxAbsAnnual);
+  const minNetRef = useRef(minNetAnnual);
+  exchangeRef.current = exchange;
+  tokenRef.current = token;
+  minVolRef.current = minVolUsdM;
+  maxAbsRef.current = maxAbsAnnual;
+  minNetRef.current = minNetAnnual;
+
+  const doFetch = useCallback(async () => {
+    const tok = tokenRef.current;
+    if (!tok) return;
     setLoading(true);
     setError('');
     try {
-      const data = await api.exchangesFunding(exchange, token);
+      const volM = minVolRef.current;
+      const maxA = maxAbsRef.current;
+      const minN = minNetRef.current;
+      const minVolUsd     = volM !== '' ? parseFloat(volM) * 1e6 : undefined;
+      const maxAbsAnnualN = maxA !== '' ? parseFloat(maxA)       : undefined;
+      const minNetAnnualN = minN !== '' ? parseFloat(minN)       : undefined;
+      const data = await api.exchangesFunding(
+        exchangeRef.current,
+        minVolUsd,
+        maxAbsAnnualN,
+        minNetAnnualN,
+        tok,
+      );
       setScan(data);
       setLastUpdated(new Date());
-    } catch (e: any) {
-      setError(e.message || 'Failed to load funding data');
+      // Seed filter inputs from first server response
+      if (!seededRef.current && data.config) {
+        seededRef.current = true;
+        setMinVolUsdM((data.config.minVolUsd / 1e6).toString());
+        setMaxAbsAnnual(data.config.maxAbsAnnualPct.toString());
+        setMinNetAnnual(data.config.minNetAnnualPct.toString());
+      }
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Failed to load funding data');
     } finally {
       setLoading(false);
     }
+  }, []); // stable — all dynamic values read via refs
+
+  // Initial load + 60s auto-rescan
+  useEffect(() => {
+    doFetch();
+    pollRef.current = setInterval(doFetch, 60_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  // exchange/token are read via refs; include them so a change restarts the scan
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exchange, token]);
 
+  // Debounced re-fetch when config filters change (only after initial seed)
   useEffect(() => {
-    load();
-    pollRef.current = setInterval(load, 30_000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [load]);
+    if (!seededRef.current) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(doFetch, 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [minVolUsdM, maxAbsAnnual, minNetAnnual, doFetch]);
 
   const updatedStr = lastUpdated
-    ? lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    ? lastUpdated.toLocaleTimeString('en-US', {
+        hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
+      })
     : null;
 
+  const opps = scan?.opportunities ?? [];
+
   const headerActions = (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       {updatedStr && (
-        <span className="font-mono text-jtp-xs text-jtp-textDim">
-          <RefreshIcon className="inline w-3 h-3 mr-1 align-middle" />
+        <span className="font-mono text-jtp-xs text-jtp-textDim tabular-nums">
           updated {updatedStr}
         </span>
       )}
       <button
-        onClick={load}
+        onClick={doFetch}
         disabled={loading}
-        className="font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted transition-colors disabled:opacity-40"
+        className="inline-flex items-center gap-1 font-mono text-jtp-xs text-jtp-amber hover:text-jtp-amberBright transition-colors disabled:opacity-40"
         aria-label="Refresh funding data"
       >
-        {loading ? 'loading...' : 'refresh'}
+        <RefreshIcon className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+        {loading ? 'scanning…' : 'refresh'}
       </button>
     </div>
   );
 
-  if (error) {
-    return (
-      <Panel label="FUNDING OPPORTUNITIES" actions={headerActions}>
-        <div className="py-6 text-center">
-          <p className="text-jtp-loss text-jtp-md font-mono">{error}</p>
-          <button
-            onClick={load}
-            className="mt-3 text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted font-mono"
-          >
-            retry
-          </button>
-        </div>
-      </Panel>
-    );
-  }
-
-  if (loading && !scan) {
-    return (
-      <Panel label="FUNDING OPPORTUNITIES" actions={headerActions}>
-        <div className="space-y-3 py-2">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} variant="panel" className="h-16" />
-          ))}
-        </div>
-      </Panel>
-    );
-  }
-
-  const opps = scan?.opportunities ?? [];
-
   return (
     <div className="space-y-4">
-      <Panel
-        label="FUNDING OPPORTUNITIES"
-        actions={headerActions}
-      >
-        {opps.length === 0 ? (
-          <EmptyState
-            title="No opportunities found"
-            description="No funding rate opportunities detected for this exchange right now."
-          />
-        ) : (
-          <div>
-            {opps.map((opp, i) => (
-              <FundingRow key={`${opp.symbol}-${i}`} opp={opp} />
+      <Panel label="FUNDING ARBITRAGE" actions={headerActions}>
+        {/* Tagline */}
+        <div className="mb-4 pb-3 border-b border-jtp-borderSubtle">
+          <p className="text-jtp-textMuted text-jtp-sm leading-relaxed">
+            <span className="text-jtp-amber font-mono font-semibold">Market-neutral:</span>{' '}
+            earn the funding rate, hedged against price. Real edge — not a direction bet.
+          </p>
+        </div>
+
+        {/* Config row */}
+        <div className="mb-4 p-3 bg-jtp-control border border-jtp-border rounded-[2px]">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-wrap">
+            <div>
+              <div className="font-mono text-jtp-xs text-jtp-textDim tracking-[0.1em] mb-1.5 uppercase">
+                Min Volume
+              </div>
+              <div className="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="10"
+                  value={minVolUsdM}
+                  onChange={e => setMinVolUsdM(e.target.value)}
+                  placeholder="e.g. 50"
+                  className="w-24 bg-jtp-active border border-jtp-borderStrong rounded-[2px] px-2 py-1.5 font-mono text-jtp-sm text-jtp-text tabular-nums placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+                  aria-label="Minimum 24h volume in millions USD"
+                />
+                <span className="font-mono text-jtp-xs text-jtp-textDim">$M</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="font-mono text-jtp-xs text-jtp-textDim tracking-[0.1em] mb-1.5 uppercase">
+                Max Funding
+              </div>
+              <div className="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={maxAbsAnnual}
+                  onChange={e => setMaxAbsAnnual(e.target.value)}
+                  placeholder="e.g. 500"
+                  className="w-24 bg-jtp-active border border-jtp-borderStrong rounded-[2px] px-2 py-1.5 font-mono text-jtp-sm text-jtp-text tabular-nums placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+                  aria-label="Maximum absolute annualized funding rate"
+                />
+                <span className="font-mono text-jtp-xs text-jtp-textDim">%/yr</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="font-mono text-jtp-xs text-jtp-textDim tracking-[0.1em] mb-1.5 uppercase">
+                Min Net Yield
+              </div>
+              <div className="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={minNetAnnual}
+                  onChange={e => setMinNetAnnual(e.target.value)}
+                  placeholder="e.g. 8"
+                  className="w-24 bg-jtp-active border border-jtp-borderStrong rounded-[2px] px-2 py-1.5 font-mono text-jtp-sm text-jtp-text tabular-nums placeholder-jtp-textDisabled focus:outline-none focus:ring-1 focus:ring-jtp-blue focus:border-jtp-blue transition-colors"
+                  aria-label="Minimum net annualized yield"
+                />
+                <span className="font-mono text-jtp-xs text-jtp-textDim">%/yr</span>
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0 self-end pb-0.5">
+              <p className="font-mono text-jtp-xs text-jtp-textDim">
+                Tune what counts as a real opportunity.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="py-8 text-center">
+            <p className="font-mono text-jtp-loss text-jtp-md">{error}</p>
+            <button
+              onClick={doFetch}
+              className="mt-3 font-mono text-jtp-xs text-jtp-textDim hover:text-jtp-textMuted"
+            >
+              retry
+            </button>
+          </div>
+        )}
+
+        {/* Skeleton — first load, no data yet */}
+        {!error && loading && !scan && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 py-2">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} variant="panel" className="h-36" />
             ))}
           </div>
         )}
+
+        {/* Opportunity cards */}
+        {!error && opps.length > 0 && (
+          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 transition-opacity duration-200 ${loading ? 'opacity-60' : 'opacity-100'}`}>
+            {opps.map((opp, i) => (
+              <FundingCard key={`${opp.symbol}-${i}`} opp={opp} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty state — scarcity is normal */}
+        {!error && !loading && opps.length === 0 && scan && (
+          <div className="py-10 text-center">
+            <div className="font-mono text-jtp-textDim text-[22px] mb-3 select-none">◈</div>
+            <p className="font-mono font-semibold text-jtp-text text-jtp-md mb-2">
+              No funding opportunities clearing your thresholds right now
+            </p>
+            <p className="text-jtp-textMuted text-jtp-sm max-w-sm mx-auto leading-relaxed">
+              Real funding-arb is scarce. Loosen the filters or check back soon.
+            </p>
+          </div>
+        )}
+
+        {/* Paper-only footnote */}
+        <div className="mt-4 pt-3 border-t border-jtp-borderSubtle">
+          <p className="font-mono text-jtp-xs text-jtp-textDim">
+            Paper only for now — live execution coming.
+          </p>
+        </div>
       </Panel>
 
-      {/* Disclaimer */}
+      {/* How it works */}
       <Panel label="HOW THIS WORKS">
         <div className="space-y-2 text-jtp-sm text-jtp-textMuted leading-relaxed max-w-2xl">
           <p>

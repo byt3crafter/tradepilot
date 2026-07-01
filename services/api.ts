@@ -212,7 +212,7 @@ export interface ApiService {
 
   // Exchanges / Crypto
   exchangesList(token?: string | null): Promise<{ exchanges: string[] }>;
-  exchangesFunding(exchange?: string, token?: string | null): Promise<CryptoFundingScan>;
+  exchangesFunding(exchange?: string, minVolUsd?: number, maxAbsAnnualPct?: number, minNetAnnualPct?: number, token?: string | null): Promise<CryptoFundingScan>;
   exchangesStatus(token?: string | null): Promise<ExchangeStatusMap>;
   exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap>;
   exchangesPerformance(strategy?: string, token?: string | null): Promise<CryptoPerformance>;
@@ -549,9 +549,14 @@ const api: ApiService = {
 
   // Exchange / Crypto Methods
   exchangesList(token?: string | null): Promise<{ exchanges: string[] }> { return this.get('/api/exchanges/list', token); },
-  exchangesFunding(exchange?: string, token?: string | null): Promise<CryptoFundingScan> {
-    const q = exchange ? `?exchange=${encodeURIComponent(exchange)}` : '';
-    return this.get(`/api/exchanges/funding${q}`, token);
+  exchangesFunding(exchange?: string, minVolUsd?: number, maxAbsAnnualPct?: number, minNetAnnualPct?: number, token?: string | null): Promise<CryptoFundingScan> {
+    const params = new URLSearchParams();
+    if (exchange) params.set('exchange', encodeURIComponent(exchange));
+    if (minVolUsd !== undefined) params.set('minVolUsd', String(minVolUsd));
+    if (maxAbsAnnualPct !== undefined) params.set('maxAbsAnnualPct', String(maxAbsAnnualPct));
+    if (minNetAnnualPct !== undefined) params.set('minNetAnnualPct', String(minNetAnnualPct));
+    const qs = params.toString();
+    return this.get(`/api/exchanges/funding${qs ? `?${qs}` : ''}`, token);
   },
   exchangesStatus(token?: string | null): Promise<ExchangeStatusMap> { return this.get('/api/exchanges/status', token); },
   exchangesSetKeys(body: { exchange: string; apiKey: string; apiSecret: string; testnet: boolean }, token?: string | null): Promise<ExchangeStatusMap> { return this.post('/api/exchanges/keys', body, token); },
