@@ -789,7 +789,7 @@ export class AutobotService {
     let placed = 0;
     let researched = 0;
     for (const pick of fresh) {
-      if (placed >= 1 || exposure >= w.maxTotalUsd) break;
+      if (placed >= 3 || exposure >= w.maxTotalUsd) break;
       // 🧠 Phase-2 reasoning: recall lessons + a Codex verdict on this candidate (best-effort,
       // capped per tick). If the brain vetoes, skip it and try the next; conviction scales size.
       let conviction = 1;
