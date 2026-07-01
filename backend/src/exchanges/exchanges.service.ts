@@ -147,7 +147,7 @@ export class ExchangesService {
   // ── PAPER LEARNING LOOP (funding strategy) — public data, no key ──────────────
   private readonly PAPER_SIZE = 100;     // $ per paper position
   private readonly FEE_RATE = 0.001;     // ~0.1% per side (entry/exit)
-  private readonly HOLD_HOURS = 72;      // close after 3 days
+  private readonly HOLD_HOURS = 24;      // close after 1 day (3 funding cycles) — faster forward proof
   private readonly MAX_OPEN = 12;
 
   /** Open paper funding positions for the top opportunities we don't already hold. */
@@ -171,6 +171,17 @@ export class ExchangesService {
       created++;
     }
     return created;
+  }
+
+  // DRIVER: the funding paper loop was never scheduled — this runs it so we get closed cycles +
+  // real forward P&L (opens top opportunities, accrues funding each tick, closes after HOLD_HOURS).
+  @Interval('cex-funding-paper', 30 * 60 * 1000)
+  async fundingPaperLoop() {
+    try {
+      const opened = await this.fundingPaperOpen('binance');
+      const { accrued, closed } = await this.fundingAccrue('binance');
+      if (opened || closed) this.logger.log(`funding paper: +${opened} opened · ${accrued} accruing · ${closed} closed`);
+    } catch (e: any) { this.logger.warn(`funding paper loop: ${e?.message}`); }
   }
 
   /** Accrue funding on open positions (real current rate) + close after the hold window. */
