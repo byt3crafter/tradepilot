@@ -838,9 +838,10 @@ export class AutobotService {
         const room = Math.min(fw.maxPerTradeUsd, fw.maxTotalUsd - freshExposure, freshBal.usdce);
         if (room < 1) return 'stop';
         const kellyUsd = freshBal.usdce * edgeFrac * 0.5 * conviction; // half-Kelly × conviction on FRESH cash
-        // Clamp to room. NO Math.max(1,…) floor — that floor used to push a size past the caps.
-        const sizeUsd = Math.floor(Math.min(kellyUsd, room) * 100) / 100;
-        if (sizeUsd < 1) return 'skip';
+        // Size = half-Kelly but at least ~$2 so a small bankroll doesn't produce sub-$1 sizes that get
+        // skipped (why the bot sat idle). ALWAYS clamped to `room` → never exceeds the caps (the M8 fix).
+        const sizeUsd = Math.floor(Math.min(room, Math.max(kellyUsd, 2)) * 100) / 100;
+        if (sizeUsd < 1) return 'skip'; // only when room itself < $1 (already guarded above)
         // 🧠 the brain decides — stream it live
         this.brain.publish({
           userId: fw.userId, module: 'polymarket', kind: 'decide',
