@@ -100,6 +100,17 @@ export class AutobotController {
     return this.bot.copilot(req.user.sub, question);
   }
 
+  @Get('analytics')
+  analytics(@Req() req: any) {
+    return this.bot.analytics(req.user.sub);
+  }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Get('tune-advice')
+  tuneAdvice(@Req() req: any) {
+    return this.bot.tuneAdvice(req.user.sub);
+  }
+
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Post('close')
   close(@Req() req: any, @Body('tokenId') tokenId: string) {
