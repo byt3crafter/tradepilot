@@ -506,7 +506,7 @@ export class AutobotService {
       balance: bal,                                    // EOA (gas) wallet
       tradeableUsdce: trade.usdce,                      // real trading cash (deposit wallet if linked)
       availableUsd: Math.max(0, trade.usdce),           // cash free to deploy now
-      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, maxSettlementDays: w.maxSettlementDays ?? 7, maxDrawdownUsd: w.maxDrawdownUsd ?? 0, orderType: w.orderType || 'limit' },
+      limits: { maxTotalUsd: w.maxTotalUsd, maxPerTradeUsd: w.maxPerTradeUsd, dailyLossLimitUsd: w.dailyLossLimitUsd, minEdgePct: w.minEdgePct ?? 5, maxSettlementDays: w.maxSettlementDays ?? 7, maxDrawdownUsd: w.maxDrawdownUsd ?? 0, maxEntryPrice: w.maxEntryPrice ?? 0.70, orderType: w.orderType || 'limit' },
       daily: { spentUsd: w.dailySpentUsd, pnlUsd: w.dailyPnlUsd },
       exposureUsd: exposure,
       positionsValue: mtm.value,                         // live mark-to-market value of open positions
@@ -664,7 +664,7 @@ export class AutobotService {
     return this.status(userId);
   }
 
-  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; maxDrawdownUsd?: number; netDepositsUsd?: number; orderType?: string }) {
+  async setLimits(userId: string, l: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; maxSettlementDays?: number; maxDrawdownUsd?: number; maxEntryPrice?: number; netDepositsUsd?: number; orderType?: string }) {
     await this.getOrCreate(userId);
     const data: any = {};
     if (l.maxTotalUsd != null) data.maxTotalUsd = Math.max(1, Math.min(10000, l.maxTotalUsd));
@@ -672,6 +672,7 @@ export class AutobotService {
     if (l.dailyLossLimitUsd != null) data.dailyLossLimitUsd = Math.max(0.5, Math.min(10000, l.dailyLossLimitUsd));
     if (l.minEdgePct != null) data.minEdgePct = Math.max(0, Math.min(100, l.minEdgePct));
     if (l.maxSettlementDays != null) data.maxSettlementDays = Math.max(0, Math.min(365, l.maxSettlementDays));
+    if (l.maxEntryPrice != null) data.maxEntryPrice = Math.max(0, Math.min(1, l.maxEntryPrice));
     if (l.maxDrawdownUsd != null) data.maxDrawdownUsd = Math.max(0, Math.min(1_000_000, l.maxDrawdownUsd));
     if (l.netDepositsUsd != null) data.netDepositsUsd = Math.max(0, Math.min(1_000_000, l.netDepositsUsd));
     if (l.orderType === 'limit' || l.orderType === 'market') data.orderType = l.orderType;
@@ -768,7 +769,10 @@ export class AutobotService {
     // Don't trade far-out markets (the "waiting weeks" problem). 0 = allow any horizon.
     const maxDays = w.maxSettlementDays ?? 7;
     const cutoff = maxDays > 0 ? Date.now() + maxDays * 864e5 : Infinity;
-    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge && strat[s.type as 'copy' | 'ai' | 'arb'] !== false && (!s.endDate || s.endDate <= cutoff));
+    // Entry-price cap: skip copy/ai buys above maxEntryPrice (high-price favorites pay tiny but
+    // lose big — the win-small/lose-big trap). Arb is exempt (its edge IS the near-certain favorite).
+    const maxEntry = w.maxEntryPrice ?? 0.70;
+    const fresh = (signals || []).filter((s: any) => s.tokenId && !held.has(s.tokenId) && (s.edgePct || 0) >= minEdge && strat[s.type as 'copy' | 'ai' | 'arb'] !== false && (!s.endDate || s.endDate <= cutoff) && (s.type === 'arb' || maxEntry <= 0 || !((s.price || 0) > maxEntry)));
     const arbN = (signals || []).filter((s: any) => s.type === 'arb').length;
 
     // 🧠 thinking pulse — what the brain is watching this cycle (free, no LLM)
