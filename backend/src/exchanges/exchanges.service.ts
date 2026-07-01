@@ -152,8 +152,10 @@ export class ExchangesService {
 
   /** Open paper funding positions for the top opportunities we don't already hold. */
   async fundingPaperOpen(exchange = 'binance'): Promise<number> {
-    const scan = await this.fundingScan(exchange);
-    const opps = (scan.opportunities || []).filter((o: any) => o.netAnnualPct > 15); // only juicy
+    // PAPER data-gathering: looser than live (more coins, still no manipulated extremes) so we build
+    // a statistically-meaningful forward sample fast. The LIVE bot will use the strict filter.
+    const scan = await this.fundingScan(exchange, { minVolUsd: 20_000_000, maxAbsAnnualPct: 100, minNetAnnualPct: 2 });
+    const opps = (scan.opportunities || []).filter((o: any) => o.netAnnualPct > 2);
     const openTrades = await this.prisma.cexPaperTrade.findMany({ where: { strategy: 'funding', status: 'open' } });
     const held = new Set(openTrades.map((t) => t.symbol));
     let created = 0;
