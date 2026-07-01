@@ -1036,6 +1036,7 @@ export interface NotebookEntry {
 export interface CryptoFundingOpp {
   symbol: string;
   base: string;
+  logoUrl?: string;
   fundingPct8h: number;
   annualizedPct: number;
   netAnnualPct: number;
@@ -1049,6 +1050,11 @@ export interface CryptoFundingScan {
   exchange: string;
   count: number;
   scannedAt: string;
+  config: {
+    minVolUsd: number;
+    maxAbsAnnualPct: number;
+    minNetAnnualPct: number;
+  };
   opportunities: CryptoFundingOpp[];
 }
 
