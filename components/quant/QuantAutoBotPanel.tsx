@@ -39,6 +39,7 @@ import {
 } from '../ui';
 import type { Segment } from '../ui';
 import QuantCopilot from './QuantCopilot';
+import QuantAnalytics from './QuantAnalytics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,10 +68,11 @@ const pnlColor = (v: number | null | undefined) => {
 
 // ─── Tab segments ──────────────────────────────────────────────────────────────
 
-type BotTab = 'performance' | 'controls';
+type BotTab = 'performance' | 'analytics' | 'controls';
 
 const BOT_TAB_SEGS: Segment<BotTab>[] = [
   { value: 'performance', label: 'Performance' },
+  { value: 'analytics',   label: 'Analytics' },
   { value: 'controls',    label: 'Controls' },
 ];
 
@@ -2521,7 +2523,7 @@ const QuantAutoBotPanel: React.FC = () => {
       )}
 
       {/* ── Tab content ── */}
-      {tab === 'performance' ? (
+      {tab === 'performance' && (
         <PerformanceTab
           perf={perf}
           perfLoading={perfLoading}
@@ -2535,7 +2537,11 @@ const QuantAutoBotPanel: React.FC = () => {
           onCloseAll={handleCloseAll}
           closeAllBusy={closeAllBusy}
         />
-      ) : (
+      )}
+
+      {tab === 'analytics' && <QuantAnalytics />}
+
+      {tab === 'controls' && (
         <ControlsTab
           status={st}
           modeBusy={modeBusy}

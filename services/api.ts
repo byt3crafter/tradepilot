@@ -166,7 +166,7 @@ export interface ApiService {
   autobotTrades(limit?: number, token?: string | null): Promise<AutobotTrade[]>;
   autobotSetMode(mode: 'auto' | 'off', token?: string | null): Promise<AutobotStatus>;
   autobotKill(token?: string | null): Promise<AutobotStatus>;
-  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxDrawdownUsd?: number; maxEntryPrice?: number }, token?: string | null): Promise<AutobotStatus>;
+  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxDrawdownUsd?: number; maxEntryPrice?: number; minEntryPrice?: number }, token?: string | null): Promise<AutobotStatus>;
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }>;
   autobotPerformance(token?: string | null): Promise<AutobotPerformance>;
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }>;
@@ -176,6 +176,8 @@ export interface ApiService {
   autobotClose(tokenId: string, token?: string | null): Promise<{ ok: boolean; filled: boolean; proceeds: number }>;
   autobotCloseAll(token?: string | null): Promise<{ closed: number; total: number; results: Array<{ tokenId: string; ok: boolean; proceeds?: number; error?: string }> }>;
   autobotCopilot(question: string, token?: string | null): Promise<{ answer: string }>;
+  autobotAnalytics(token?: string | null): Promise<AutobotAnalytics>;
+  autobotTuneAdvice(token?: string | null): Promise<{ advice: string; analytics: AutobotAnalytics }>;
 
   // Quant AI features (ChatGPT-powered)
   aiOpportunities(token?: string | null): Promise<{ opportunities: AiOpportunity[]; note?: string }>;
@@ -239,6 +241,33 @@ export interface ApiService {
   autobotManualTrade(body: { tokenId: string; conditionId: string; price: number; outcome: string; outcomeIndex: number; sizeUsd?: number; title: string; type: 'arb' }, token?: string | null): Promise<{ ok: boolean; filled: boolean; status: string }>;
   autobotAssess(body: { tokenId: string; conditionId: string; title: string; outcome: string; price: number; edgePct: number; detail?: string; type: 'arb' }, token?: string | null): Promise<{ ai: { take: boolean | null; conviction: number | null; rationale: string } }>;
   autobotSetArbConfig(cfg: { safeMinPrice?: number; safeMaxHrs?: number; immMinPrice?: number; immMaxHrs?: number; minEdgePct?: number }, token?: string | null): Promise<AutobotStatus>;
+}
+
+export interface AutobotAnalyticsBucket {
+  key: string;
+  n: number;
+  winRate: number; // 0..1
+  pnlUsd: number;
+  avgPnl: number; // per-trade $
+}
+
+export interface AutobotAnalyticsRecommendations {
+  entryWindow: { minEntryPrice: number; maxEntryPrice: number; reason: string } | null;
+  keepMarketTypes: string[];
+  cutMarketTypes: string[];
+  keepFocus: string[];
+  cutFocus: string[];
+  confidence: 'very-low' | 'low' | 'medium';
+}
+
+export interface AutobotAnalytics {
+  resolved: number;
+  totalPnl: number;
+  byBand: AutobotAnalyticsBucket[];
+  byType: AutobotAnalyticsBucket[];
+  byFocus: AutobotAnalyticsBucket[];
+  byStrat: AutobotAnalyticsBucket[];
+  recommendations: AutobotAnalyticsRecommendations;
 }
 
 export interface ChatGptPermissions {
@@ -498,7 +527,7 @@ const api: ApiService = {
   },
   autobotSetMode(mode: 'auto' | 'off', token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/mode', { mode }, token); },
   autobotKill(token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/kill', {}, token); },
-  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxDrawdownUsd?: number; maxEntryPrice?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
+  autobotSetLimits(limits: { maxTotalUsd?: number; maxPerTradeUsd?: number; dailyLossLimitUsd?: number; minEdgePct?: number; orderType?: 'limit' | 'market'; maxSettlementDays?: number; netDepositsUsd?: number; maxDrawdownUsd?: number; maxEntryPrice?: number; minEntryPrice?: number }, token?: string | null): Promise<AutobotStatus> { return this.post('/api/autobot/limits', limits, token); },
   autobotWithdraw(to: string, token?: string | null): Promise<{ txHash: string; amount: number }> { return this.post('/api/autobot/withdraw', { to }, token); },
   autobotPerformance(token?: string | null): Promise<AutobotPerformance> { return this.get('/api/autobot/performance', token); },
   autobotExportKey(token?: string | null): Promise<{ address: string; privateKey: string }> { return this.post('/api/autobot/export-key', {}, token); },
@@ -508,6 +537,8 @@ const api: ApiService = {
   autobotClose(tokenId: string, token?: string | null): Promise<{ ok: boolean; filled: boolean; proceeds: number }> { return this.post('/api/autobot/close', { tokenId }, token); },
   autobotCloseAll(token?: string | null): Promise<{ closed: number; total: number; results: Array<{ tokenId: string; ok: boolean; proceeds?: number; error?: string }> }> { return this.post('/api/autobot/close-all', {}, token); },
   autobotCopilot(question: string, token?: string | null): Promise<{ answer: string }> { return this.post('/api/autobot/copilot', { question }, token); },
+  autobotAnalytics(token?: string | null): Promise<AutobotAnalytics> { return this.get('/api/autobot/analytics', token); },
+  autobotTuneAdvice(token?: string | null): Promise<{ advice: string; analytics: AutobotAnalytics }> { return this.get('/api/autobot/tune-advice', token); },
 
   // Manual Arb Desk
   autobotOpportunities(token?: string | null): Promise<{ settlementLag: ArbOpportunity[]; crossMarket: ArbOpportunity[]; scannedAt: string }> { return this.get('/api/autobot/opportunities', token); },
