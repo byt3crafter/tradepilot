@@ -514,8 +514,9 @@ export class QuantService implements OnApplicationBootstrap {
     if (!trades.length) return 0;
     const addrs = [...new Set(trades.map((t) => String(t.proxyWallet || '').toLowerCase()))];
     // Measured (forward): wallets with edgeLcb ≥ 0.10 LOSE (-9 to -34%) — extreme historical
-    // edge is overfit/survivorship that reverts; edgeLcb < 0.10 wins (+8 to +95%). Cap the edge.
-    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true, edgeLcb: { lte: 0.10 } }, select: { address: true, marketFocus: true } });
+    // EDGE FIX: edgeLcb was uncorrelated with profit (high-win-rate favorite-bettors → ~0% ROI).
+    // Copy only genuinely-profitable wallets: realized ROI ≥15% + ≥50 closed + winRate ≥55%.
+    const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true, roiPct: { gte: 15 }, nClosed: { gte: 50 }, winRate: { gte: 0.55 } }, select: { address: true, marketFocus: true } });
     const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
     const ev = await this.getEvTable();
     const MIN_SAMPLE = 12, EV_THRESHOLD = 2; // roiPct units (≈ fee buffer)
@@ -832,7 +833,9 @@ export class QuantService implements OnApplicationBootstrap {
     try {
       const trades = await this.pm.recentTrades(1000);
       const addrs = [...new Set(trades.map((t: any) => String(t.proxyWallet || '').toLowerCase()))];
-      const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true, edgeLcb: { lte: 0.10 } }, select: { address: true, marketFocus: true } });
+      // EDGE FIX: copy only genuinely-profitable wallets (realized ROI ≥15% + ≥50 closed + winRate
+      // ≥55%) — edgeLcb was uncorrelated with profit (high-win-rate favorite-bettors lose money).
+      const wallets = await this.prisma.pmWallet.findMany({ where: { address: { in: addrs }, qualified: true, roiPct: { gte: 15 }, nClosed: { gte: 50 }, winRate: { gte: 0.55 } }, select: { address: true, marketFocus: true } });
       const focusMap = new Map(wallets.map((w) => [w.address, w.marketFocus]));
       const ev = await this.getEvTable();
       const PRIOR_BLOCK = new Set(['Mixed', 'Politics', 'Weather', 'Crypto Price', 'Crypto Up/Down']);
