@@ -16,8 +16,16 @@ export class ExchangesController {
   }
 
   @Get('funding')
-  funding(@Query('exchange') exchange?: string) {
-    return this.exchanges.fundingScan(exchange || 'binance');
+  funding(
+    @Query('exchange') exchange?: string,
+    @Query('minVolUsd') minVolUsd?: string,
+    @Query('maxAbsAnnualPct') maxAbsAnnualPct?: string,
+    @Query('minNetAnnualPct') minNetAnnualPct?: string,
+  ) {
+    const num = (v?: string) => (v != null && v !== '' && !isNaN(Number(v)) ? Number(v) : undefined);
+    return this.exchanges.fundingScan(exchange || 'binance', {
+      minVolUsd: num(minVolUsd), maxAbsAnnualPct: num(maxAbsAnnualPct), minNetAnnualPct: num(minNetAnnualPct),
+    });
   }
 
   @Get('volatility')
