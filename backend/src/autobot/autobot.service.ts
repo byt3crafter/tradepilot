@@ -271,6 +271,56 @@ export class AutobotService {
     }
   }
 
+  /** SELF-LEARNING ANALYTICS — segments the real resolved trades across every dimension (price
+   * band, market type, strategy, focus, weekday) to find WHAT ACTUALLY MAKES MONEY vs bleeds, and
+   * derives tuning recommendations (the profitable entry window + which market types to keep).
+   * This is the automated version of the manual dig that found the 70-90¢ favorite edge. */
+  async analytics(userId: string) {
+    const trades = await this.prisma.agentTrade.findMany({
+      where: { userId, status: 'resolved', pnlUsd: { not: null } },
+      select: { price: true, pnlUsd: true, title: true, signalType: true, createdAt: true },
+    });
+    const n = trades.length;
+    const seg = (keyFn: (t: any) => string | null) => {
+      const m: Record<string, { n: number; won: number; pnl: number }> = {};
+      for (const t of trades) { const k = keyFn(t); if (k == null) continue; const s = (m[k] ||= { n: 0, won: 0, pnl: 0 }); s.n++; if ((t.pnlUsd || 0) > 0) s.won++; s.pnl += t.pnlUsd || 0; }
+      return Object.entries(m).map(([key, v]) => ({ key, n: v.n, winRate: +(v.n ? v.won / v.n : 0).toFixed(2), pnlUsd: +v.pnl.toFixed(2), avgPnl: +(v.pnl / v.n).toFixed(3) }));
+    };
+    const marketType = (t: any) => /\bover\b|\bunder\b|o\/u/i.test(t.title) ? 'over-under' : /spread|handicap|[-+]\d\.\d/i.test(t.title) ? 'spread' : /1st half|halftime|corner|booking|\bcard\b|to score|exact score/i.test(t.title) ? 'prop' : 'moneyline';
+    const focus = (t: any) => /\b(bitcoin|ethereum|solana|btc|eth|sol|crypto|up or down)\b/i.test(t.title) ? 'crypto' : /\b(win|vs\.?|match|goal|score|corner|nba|nfl|wimbledon|atp|wta|counter-strike|esports|spread)\b/i.test(t.title) ? 'sports' : /\b(election|president|parliament|senate|congress|primary|vote|dissolved)\b/i.test(t.title) ? 'politics' : 'other';
+    const byBand = seg((t) => { const b = Math.floor((t.price || 0) * 10) * 10; return `${b}-${b + 10}`; }).sort((a, b) => parseInt(a.key) - parseInt(b.key));
+    const byType = seg(marketType).sort((a, b) => b.pnlUsd - a.pnlUsd);
+    const byFocus = seg(focus).sort((a, b) => b.pnlUsd - a.pnlUsd);
+    const byStrat = seg((t) => t.signalType || 'unknown');
+    const totalPnl = +trades.reduce((s, t) => s + (t.pnlUsd || 0), 0).toFixed(2);
+    // RECOMMENDATIONS — the profitable entry window + winning market types/focus (only with a real sample).
+    const profBands = byBand.filter((b) => b.avgPnl > 0 && b.n >= 3);
+    const lo = profBands.length ? Math.min(...profBands.map((b) => parseInt(b.key))) / 100 : null;
+    const hi = profBands.length ? (Math.max(...profBands.map((b) => parseInt(b.key))) + 10) / 100 : null;
+    const recommendations = {
+      entryWindow: lo != null ? { minEntryPrice: lo, maxEntryPrice: hi, reason: `entry bands ${lo * 100}-${hi! * 100}¢ are net-positive over ${profBands.reduce((s, b) => s + b.n, 0)} trades` } : null,
+      keepMarketTypes: byType.filter((t) => t.pnlUsd > 0 && t.n >= 3).map((t) => t.key),
+      cutMarketTypes: byType.filter((t) => t.pnlUsd <= 0 && t.n >= 3).map((t) => t.key),
+      keepFocus: byFocus.filter((f) => f.pnlUsd > 0 && f.n >= 3).map((f) => f.key),
+      cutFocus: byFocus.filter((f) => f.pnlUsd <= 0 && f.n >= 3).map((f) => f.key),
+      confidence: n >= 100 ? 'medium' : n >= 40 ? 'low' : 'very-low',
+    };
+    return { resolved: n, totalPnl, byBand, byType, byFocus, byStrat, recommendations };
+  }
+
+  /** Let the LLM read the analytics + propose config tuning, grounded in what actually made money. */
+  async tuneAdvice(userId: string): Promise<{ advice: string; analytics: any }> {
+    const analytics = await this.analytics(userId);
+    if (!(await this.chatgpt.isAllowed(userId, 'bot'))) return { advice: 'Connect AI in Settings for tuning advice.', analytics };
+    const instr = 'You are the bot\'s quant tuner. From the JSON analytics of its REAL resolved trades (P&L by price band, market type, focus, strategy) + the auto-derived recommendations, tell the operator in 3-5 plain sentences: what is actually making money, what is bleeding, and the specific config changes to make (entry price window, market types/focus to keep or cut). Be concrete and honest; note if the sample is too small to trust. Not financial advice.';
+    try {
+      const advice = await this.chatgpt.complete(userId, instr, JSON.stringify(analytics));
+      return { advice: advice || 'No advice.', analytics };
+    } catch (e: any) {
+      return { advice: `AI unavailable (${String(e?.message || e).slice(0, 60)}).`, analytics };
+    }
+  }
+
   /** Sell a single open position NOW (exit on your terms). Market sell, floored at mark −5¢ so it
    * fills without dumping. Books the realized P&L on the matching trade + a learn neuron. */
   async closePosition(userId: string, tokenId: string) {
