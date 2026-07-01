@@ -653,7 +653,8 @@ model PmAgentWallet {
   dailyLossLimitUsd Float    @default(5)       // halt for the day if exceeded
   minEdgePct        Float    @default(5)       // only take signals with edge ≥ this %
   maxSettlementDays Float    @default(7)       // only trade markets resolving within N days (0 = any)
-  maxEntryPrice     Float    @default(0.70)    // copy/ai: skip buys above this price (avoid small-win/big-loss favorites); arb exempt
+  minEntryPrice     Float    @default(0.68)    // copy/ai: only buy FAVORITES ≥ this (edge is in 70-90¢, longshots bleed); arb exempt
+  maxEntryPrice     Float    @default(0.92)    // copy/ai: skip near-certain (tiny gap) above this; arb exempt
   maxDrawdownUsd    Float    @default(0)       // HALT the bot if total P&L drops below -this (0 = off)
   netDepositsUsd    Float    @default(0)       // total deposited (ground truth for Total P&L)
   dailySpentUsd     Float    @default(0)
